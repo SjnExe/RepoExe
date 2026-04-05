@@ -30,7 +30,7 @@ runs:
 
     - name: Restore cached zram kernel module
       id: cache-zram
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: scripts/zram.ko.zst
         key: ${{ steps.kernel-info.outputs.kernel_version }}-${{ hashFiles('.github/actions/zram/action.yml') }}
@@ -76,7 +76,7 @@ runs:
 
     - name: Save built zram kernel module
       if: steps.cache-zram.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         path: scripts/zram.ko.zst
         key: ${{ steps.cache-zram.outputs.cache-primary-key }}
