@@ -14,6 +14,14 @@ A highly scalable, custom Termux APT repository with a split hosting strategy ut
 - **Termux Hardware Optimizations**: Incorporates Termux's ZRAM GitHub Action configuration.
 - **Modular Build System**: DRY package scripts powered by `mixins`.
 
+## Quick Install
+
+To automatically install this custom repository in Termux, run:
+
+```bash
+curl -sL https://SjnExe.github.io/RepoExe/install | bash
+```
+
 ## Contributing
 
 See `.github/renovate.json` for dependency management.

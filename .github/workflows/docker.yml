@@ -42,7 +42,6 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ steps.string.outputs.owner }}/repoexe-builder
           tags: |
             type=raw,value=latest
-            type=sha
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -55,3 +54,25 @@ jobs:
           # Changed cache-to mode from 'max' to 'inline' or 'min' for leaner, more efficient cache utilization
           # given this is a very simple derivative image, we don't need intermediate layers bloated in cache
           cache-to: type=gha,mode=min
+
+  clean-ghcr:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - name: Set lower case owner name
+        id: string
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner=${OWNER}" >> $GITHUB_OUTPUT
+
+      - uses: actions/delete-package-versions@v5
+        with:
+          owner: ${{ steps.string.outputs.owner }}
+          package-name: 'repoexe-builder'
+          package-type: 'container'
+          min-versions-to-keep: 1
+          delete-only-untagged-versions: 'true'
+          token: ${{ secrets.GITHUB_TOKEN }}

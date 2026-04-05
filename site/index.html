@@ -12,7 +12,7 @@
         <h1>RepoExe</h1>
         <p>Advanced Termux APT Repository</p>
         <div class="repo-install">
-            <code>pkg update && pkg install apt-transport-https && echo "deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main" > $PREFIX/etc/apt/sources.list.d/repoexe.list && pkg update</code>
+            <code>curl -sL https://SjnExe.github.io/RepoExe/install | bash</code>
             <button onclick="copyRepoInstall()" title="Copy to clipboard">
                 <span class="material-symbols-outlined">content_copy</span>
             </button>

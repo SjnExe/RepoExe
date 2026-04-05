@@ -2,7 +2,11 @@
 
 repoexe_setup_python_env() {
     echo "Setting up Python environment..."
-    TERMUX_PKG_DEPENDS+="python, "
+    if [ -z "$TERMUX_PKG_DEPENDS" ]; then
+        TERMUX_PKG_DEPENDS="python"
+    else
+        TERMUX_PKG_DEPENDS+=", python"
+    fi
 }
 
 repoexe_python_build() {
