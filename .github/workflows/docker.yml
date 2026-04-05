@@ -45,11 +45,13 @@ jobs:
             type=sha
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Changed cache-to mode from 'max' to 'inline' or 'min' for leaner, more efficient cache utilization
+          # given this is a very simple derivative image, we don't need intermediate layers bloated in cache
+          cache-to: type=gha,mode=min

@@ -69,14 +69,16 @@ jobs:
             exit 0
           fi
 
-          # We execute the build inside the official Termux container via docker run
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+
+          # We execute the build inside the custom container via docker run
           docker run --rm \
             -u builder \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
             -v ~/.ccache:/home/builder/.ccache \
             -w /home/builder/RepoExe \
             -e REPO_ROOT=/home/builder/RepoExe \
-            ghcr.io/termux/package-builder:latest \
+            ghcr.io/$OWNER/repoexe-builder:latest \
             bash -c "
               # Inject live RepoExe URL for concurrent dependency resolution
               sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/
@@ -112,7 +114,7 @@ jobs:
                 cd /home/builder/termux-packages
                 ./build-package.sh -a ${{ matrix.arch }} -I \$pkg
 
-                mv debs/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
+                mv output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
                 cd /home/builder/RepoExe
               done
             "
