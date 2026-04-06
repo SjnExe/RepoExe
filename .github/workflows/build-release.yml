@@ -129,6 +129,7 @@ jobs:
                   fi
                 fi
 
+      rm -rf /home/builder/termux-packages/packages/\$pkg
                 cp -r packages/\$pkg /home/builder/termux-packages/packages/
                 cd /home/builder/termux-packages
                 ./build-package.sh -a ${{ matrix.arch }} -I \$pkg
