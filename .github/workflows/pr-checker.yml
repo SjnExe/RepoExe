@@ -60,6 +60,9 @@ jobs:
           # We execute the build inside the custom container via docker run
           docker run --rm \
             -u builder \
+            --device /dev/fuse \
+            --cap-add SYS_ADMIN \
+            --security-opt apparmor:unconfined \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
             -v ~/.ccache:/home/builder/.ccache \
             -w /home/builder/RepoExe \
