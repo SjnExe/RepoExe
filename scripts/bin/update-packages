@@ -2,5 +2,130 @@
 
 import os
 import sys
+import re
+import urllib.request
+import json
+import hashlib
+import subprocess
 
-print("Update packages placeholder script. In a full termux repository environment, this executes python/bash checks against repology or github APIs to bump TERMUX_PKG_VERSION, recalculate TERMUX_PKG_SHA256, and commit the changes to a new branch for PR creation. For RepoExe, this script acts as the structural hook for automation logic.")
+def get_latest_github_release(repo):
+    url = f"https://api.github.com/repos/{repo}/releases/latest"
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'RepoExe-Updater'})
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            return data.get('tag_name', '').lstrip('v')
+    except Exception as e:
+        print(f"Error fetching latest release for {repo}: {e}")
+        return None
+
+def calculate_sha256(url):
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'RepoExe-Updater'})
+        with urllib.request.urlopen(req) as response:
+            sha256 = hashlib.sha256()
+            while True:
+                chunk = response.read(8192)
+                if not chunk:
+                    break
+                sha256.update(chunk)
+            return sha256.hexdigest()
+    except Exception as e:
+        print(f"Error downloading {url} for hash: {e}")
+        return None
+
+def update_package(pkg_dir):
+    build_sh_path = os.path.join(pkg_dir, "build.sh")
+    if not os.path.exists(build_sh_path):
+        return False
+
+    with open(build_sh_path, "r") as f:
+        content = f.read()
+
+    # Parse current version and srcurl
+    version_match = re.search(r'TERMUX_PKG_VERSION=([^\n]+)', content)
+    srcurl_match = re.search(r'TERMUX_PKG_SRCURL=([^\n]+)', content)
+
+    if not version_match or not srcurl_match:
+        return False
+
+    current_version = version_match.group(1).strip("'\"")
+    srcurl = srcurl_match.group(1).strip("'\"")
+
+    # We only auto-update if it's a standard GitHub release source url
+    github_repo_match = re.search(r'github\.com/([^/]+/[^/]+)/', srcurl)
+    if not github_repo_match:
+        print(f"[{os.path.basename(pkg_dir)}] Skipping: Unsupported source URL for auto-update.")
+        return False
+
+    repo = github_repo_match.group(1)
+
+    print(f"[{os.path.basename(pkg_dir)}] Checking {repo}...")
+    latest_version = get_latest_github_release(repo)
+
+    if not latest_version:
+        return False
+
+    if latest_version == current_version:
+        print(f"[{os.path.basename(pkg_dir)}] Already up-to-date ({current_version})")
+        return False
+
+    print(f"[{os.path.basename(pkg_dir)}] New version found: {current_version} -> {latest_version}")
+
+    # Construct new source URL by substituting the version
+    # This is a naive replacement but works for most standard release URLs
+    new_srcurl = srcurl.replace(current_version, latest_version)
+
+    # Calculate new hash
+    print(f"[{os.path.basename(pkg_dir)}] Calculating SHA256 for {new_srcurl}...")
+    new_hash = calculate_sha256(new_srcurl)
+
+    if not new_hash:
+        return False
+
+    # Apply updates to build.sh
+    content = re.sub(r'TERMUX_PKG_VERSION=[^\n]+', f'TERMUX_PKG_VERSION={latest_version}', content)
+    content = re.sub(r'TERMUX_PKG_SHA256=[^\n]+', f'TERMUX_PKG_SHA256={new_hash}', content)
+    content = re.sub(r'TERMUX_PKG_REVISION=[^\n]+\n', '', content) # Reset revision on version bump
+
+    with open(build_sh_path, "w") as f:
+        f.write(content)
+
+    print(f"[{os.path.basename(pkg_dir)}] Successfully updated to {latest_version}")
+    return True
+
+def main():
+    repo_root = os.environ.get("REPO_ROOT", os.getcwd())
+    packages_dir = os.path.join(repo_root, "packages")
+
+    if not os.path.exists(packages_dir):
+        print(f"Error: {packages_dir} does not exist.")
+        sys.exit(1)
+
+    updated_packages = []
+
+    for pkg in os.listdir(packages_dir):
+        pkg_dir = os.path.join(packages_dir, pkg)
+        if os.path.isdir(pkg_dir):
+            if update_package(pkg_dir):
+                updated_packages.append(pkg)
+
+    if updated_packages:
+        print(f"\nUpdated {len(updated_packages)} packages: {', '.join(updated_packages)}")
+
+        # In a CI environment, we output the updated packages
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a') as f:
+                f.write(f"updated=true\n")
+                f.write(f"packages={' '.join(updated_packages)}\n")
+    else:
+        print("\nNo packages were updated.")
+
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a') as f:
+                f.write(f"updated=false\n")
+
+if __name__ == "__main__":
+    main()

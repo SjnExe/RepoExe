@@ -45,6 +45,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-${{ matrix.arch }}-
 
+      - name: Log in to registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build changed packages
         run: |
           echo "Building packages for ${{ matrix.arch }}: ${{ steps.changes.outputs.packages }}"
