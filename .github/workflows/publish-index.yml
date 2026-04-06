@@ -1,0 +1,70 @@
+name: Index & UI Publisher
+
+on:
+  workflow_run:
+    workflows: ["Build & Release"]
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Download all assets from GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p debs
+          cd debs
+          echo "Fetching all tags matching pkg-*"
+          TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' | grep '^pkg-' || true)
+          for tag in $TAGS; do
+            echo "Downloading assets for $tag..."
+            gh release download "$tag" --pattern "*.deb" || echo "No .deb found in $tag"
+          done
+          cd ..
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Python Dependencies
+        run: pip install pyyaml requests
+
+      - name: Generate Metadata
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          # Import GPG key
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          fi
+
+          # Run Python indexer
+          ./scripts/repoexe/metadata.py --debs debs --out site/dists/stable
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: 'site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

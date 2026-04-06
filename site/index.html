@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RepoExe</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+</head>
+<body>
+    <header>
+        <h1>RepoExe</h1>
+        <p>Advanced Termux APT Repository</p>
+        <div class="repo-install">
+            <code>curl -sL https://SjnExe.github.io/RepoExe/install | bash</code>
+            <button onclick="copyRepoInstall()" title="Copy to clipboard">
+                <span class="material-symbols-outlined">content_copy</span>
+            </button>
+        </div>
+        <div class="controls">
+            <div class="search-box">
+                <span class="material-symbols-outlined">search</span>
+                <input type="text" id="search" placeholder="Search packages..." onkeyup="filterPackages()">
+            </div>
+            <button onclick="toggleView()" title="Toggle View">
+                <span class="material-symbols-outlined" id="view-icon">grid_view</span>
+            </button>
+        </div>
+    </header>
+
+    <main id="package-container" class="grid-view">
+        <!-- Packages loaded dynamically -->
+    </main>
+
+    <!-- Modal for Dependency Tree Visualizer -->
+    <div id="dep-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Dependency Tree</h2>
+            <div id="dep-tree"></div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

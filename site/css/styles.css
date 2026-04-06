@@ -1,0 +1,173 @@
+:root {
+    --bg-color: #121212;
+    --surface-color: #1e1e1e;
+    --primary-color: #bb86fc;
+    --text-primary: #ffffff;
+    --text-secondary: #aaaaaa;
+    --code-bg: #2d2d2d;
+    --border-color: #333333;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg-color: #f5f5f5;
+        --surface-color: #ffffff;
+        --primary-color: #6200ee;
+        --text-primary: #000000;
+        --text-secondary: #555555;
+        --code-bg: #e0e0e0;
+        --border-color: #cccccc;
+    }
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+}
+
+header {
+    background-color: var(--surface-color);
+    padding: 2rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+header h1 { margin: 0; color: var(--primary-color); }
+header p { color: var(--text-secondary); margin-bottom: 1.5rem; }
+
+.repo-install {
+    background: var(--code-bg);
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 0 auto 1.5rem;
+    max-width: 800px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+    border: 1px solid var(--border-color);
+}
+
+.repo-install code {
+    font-family: monospace;
+    font-size: 0.9rem;
+    word-break: break-all;
+    margin-right: 1rem;
+    color: var(--text-primary);
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.search-box {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.search-box span {
+    position: absolute;
+    left: 10px;
+    color: var(--text-secondary);
+}
+
+input[type="text"] {
+    padding: 0.6rem 1rem 0.6rem 2.5rem;
+    width: 100%;
+    max-width: 300px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    outline: none;
+}
+input[type="text"]:focus { border-color: var(--primary-color); }
+
+button {
+    background: var(--surface-color);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.5rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+button:hover { background: var(--border-color); }
+
+main {
+    padding: 2rem 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.grid-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.list-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.package-card {
+    background: var(--surface-color);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s;
+}
+
+.package-card h2 { margin-top: 0; font-size: 1.25rem; display: flex; justify-content: space-between; align-items: center;}
+.package-card h2 span { font-size: 0.85rem; color: var(--text-secondary); font-weight: normal; }
+.package-card p { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.4; }
+.pkg-meta { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem; }
+
+.pkg-install {
+    background: var(--code-bg);
+    padding: 0.5rem;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.pkg-install code { font-size: 0.9rem; color: var(--primary-color); }
+
+.dep-btn {
+    width: 100%;
+    margin-top: 1rem;
+    background: transparent;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    font-size: 0.9rem;
+}
+.dep-btn:hover { background: var(--primary-color); color: var(--bg-color); }
+
+/* Modal */
+.modal {
+    display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+}
+.modal-content {
+    background-color: var(--surface-color); margin: 10% auto; padding: 20px;
+    border: 1px solid var(--border-color); width: 90%; max-width: 500px; border-radius: 12px;
+}
+.close { color: var(--text-secondary); float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+.close:hover { color: var(--text-primary); }
+
+#dep-tree ul { list-style-type: none; padding-left: 20px; border-left: 1px dashed var(--border-color); }
+#dep-tree li { margin: 10px 0; position: relative; }
+#dep-tree li::before { content: ""; position: absolute; top: 10px; left: -20px; width: 15px; border-top: 1px dashed var(--border-color); }
