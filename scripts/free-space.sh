@@ -3,8 +3,23 @@
 set -euo pipefail
 
 echo "Freeing disk space..."
-sudo apt-get remove -y '^dotnet-.*' '^llvm-.*' 'php.*' '^mongodb-.*' '^mysql-.*' azure-cli google-cloud-cli powershell mono-devel libgl1-mesa-dri google-chrome-stable firefox ant ant-optional || true
-sudo apt-get autoremove -y || true
+
+# Remove large, unused directories directly to save time vs apt-get
+sudo rm -rf /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /opt/hostedtoolcache/CodeQL \
+            /usr/local/share/powershell \
+            /usr/share/swift \
+            /usr/local/.ghcup \
+            /usr/local/lib/node_modules \
+            /usr/local/share/chromium \
+            /usr/local/share/vcpkg
+
+# Removing packages via apt takes ~5 minutes on GitHub runners, doing the rm -rf above is usually enough.
+# However, if we still need to clear apt packages, we can do it faster by avoiding the triggers and autoremove logic where possible,
+# or simply relying entirely on the rm -rf.
+# Given the user wants it optimized, we will skip the slow apt-get remove phase and just rely on cleaning the apt cache.
 sudo apt-get clean || true
-sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup
+
 df -h /
