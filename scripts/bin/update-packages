@@ -104,7 +104,16 @@ def main():
 
     updated_packages = []
 
-    for pkg in os.listdir(packages_dir):
+    target_packages = []
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "@all":
+            target_packages = [d for d in os.listdir(packages_dir) if os.path.isdir(os.path.join(packages_dir, d))]
+        else:
+            target_packages = sys.argv[1:]
+    else:
+        target_packages = [d for d in os.listdir(packages_dir) if os.path.isdir(os.path.join(packages_dir, d))]
+
+    for pkg in target_packages:
         pkg_dir = os.path.join(packages_dir, pkg)
         if os.path.isdir(pkg_dir):
             if update_package(pkg_dir):
@@ -112,6 +121,11 @@ def main():
 
     if updated_packages:
         print(f"\nUpdated {len(updated_packages)} packages: {', '.join(updated_packages)}")
+
+        # Write to file so the bash script can create PRs per package
+        with open("updated_packages.txt", "w") as f:
+            for pkg in updated_packages:
+                f.write(f"{pkg}\n")
 
         # In a CI environment, we output the updated packages
         github_output = os.environ.get('GITHUB_OUTPUT')

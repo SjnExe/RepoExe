@@ -117,3 +117,17 @@ jobs:
           else
             ./scripts/bin/update-packages "@all"
           fi
+
+          # Stage, commit and create PR for changed packages
+          if [ -f "updated_packages.txt" ] && [ -s "updated_packages.txt" ]; then
+             readarray -t UPDATED_PACKAGES < "updated_packages.txt"
+             for pkg in "${UPDATED_PACKAGES[@]}"; do
+                BRANCH_NAME="update-$pkg-$(date +%s)"
+                git checkout -b "$BRANCH_NAME"
+                git add "packages/$pkg/build.sh"
+                git commit -m "update: bump $pkg to latest version"
+                git push -u origin "$BRANCH_NAME"
+                gh pr create --title "update: bump $pkg to latest version" --body "Automated update via update-packages script." --base main --head "$BRANCH_NAME"
+                git checkout main
+             done
+          fi
