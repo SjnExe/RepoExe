@@ -51,9 +51,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          # Changed cache-to mode from 'max' to 'inline' or 'min' for leaner, more efficient cache utilization
-          # given this is a very simple derivative image, we don't need intermediate layers bloated in cache
-          cache-to: type=gha,mode=min
+          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=min' || '' }}
+          provenance: false
 
   clean-ghcr:
     needs: build-and-push

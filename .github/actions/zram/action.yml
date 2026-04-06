@@ -75,7 +75,7 @@ runs:
         sudo swapon --discard --priority ${{ inputs.priority }} ${{ inputs.device_name }}
 
     - name: Save built zram kernel module
-      if: steps.cache-zram.outputs.cache-hit != 'true'
+      if: steps.cache-zram.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
       uses: actions/cache/save@v5
       with:
         path: scripts/zram.ko.zst

@@ -45,7 +45,16 @@ jobs:
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "packages=${{ github.event.inputs.packages }}" >> $GITHUB_OUTPUT
           else
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD^1 HEAD | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
+            BEFORE="${{ github.event.before }}"
+            AFTER="${{ github.event.after }}"
+
+            # If BEFORE is missing or zeroes (e.g., initial push or forced push), just check the last commit
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+               BEFORE="HEAD^1"
+               AFTER="HEAD"
+            fi
+
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r $BEFORE $AFTER | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
             echo "packages=${CHANGED}" >> $GITHUB_OUTPUT
           fi
 
@@ -58,6 +67,13 @@ jobs:
           key: ${{ runner.os }}-build-${{ matrix.arch }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-build-${{ matrix.arch }}-
+
+      - name: Log in to registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Packages
         run: |
@@ -123,6 +139,7 @@ jobs:
             "
 
       - name: Save cache
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache/save@v5
         with:
           path: |
