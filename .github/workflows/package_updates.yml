@@ -1,0 +1,133 @@
+name: Package updates
+
+on:
+  push:
+    branches:
+      - '**'
+      - '!main'
+    paths:
+      - 'packages/**'
+  pull_request:
+    paths:
+      - 'packages/**'
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "A space-separated list of packages to update. Defaults to @all"
+        default: "@all"
+        required: false
+
+permissions: {} # none
+
+jobs:
+  update-packages-dry-run:
+    permissions:
+      contents: read
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - name: Gather build summary
+        run: |
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          git fetch origin "${BASE_REF:-main}" 2>/dev/null
+          BASE_COMMIT="$(git merge-base "origin/${BASE_REF:-main}" "HEAD")"
+          OLD_COMMIT="${{ github.event.before }}"
+          HEAD_COMMIT="${{ github.event.after }}"
+
+          if [ -z "${{ github.event.pull_request.base.sha }}" ]; then
+            if ! git log "$OLD_COMMIT" > /dev/null; then
+              if [ "$(git branch --show-current)" = "main" ]; then
+                echo "Force push detected on main branch. Unable to proceed."
+                exit 1
+              else
+                OLD_COMMIT=$(git fetch origin main >&2; git merge-base origin/main $HEAD_COMMIT)
+              fi
+            fi
+            echo "Processing commit range: ${OLD_COMMIT}..${HEAD_COMMIT}"
+            CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${OLD_COMMIT}" "${HEAD_COMMIT}")
+          else
+            echo "Processing pull request #${{ github.event.pull_request.number }}: ${BASE_COMMIT}..HEAD"
+            CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "${BASE_COMMIT}" "HEAD")
+          fi
+
+          while read -r file; do
+            if [[ "$file" == packages/* && "$file" =~ ^packages/([.a-z0-9+-]*)/.*$ ]] \
+                  && pkg=${BASH_REMATCH[1]} && [[ -d "packages/${pkg}" ]]; then
+                echo "$pkg"
+            fi
+          done <<< "${CHANGED_FILES}" | sort -u > ./built-packages.txt
+
+      - name: Process package updates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_PACKAGES: "false"
+          CREATE_ISSUE: "false"
+          GIT_COMMIT_PACKAGES: "false"
+          GIT_PUSH_PACKAGES: "false"
+        run: |
+          readarray -t packages < ./built-packages.txt
+          if [ -n "${packages[*]}" ]; then
+            ./scripts/bin/update-packages "${packages[@]}"
+          fi
+
+  update-packages:
+    permissions:
+      issues: write
+      contents: write
+      pull-requests: write
+    if: github.event_name != 'pull_request' && github.event_name != 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - name: Install needed dependencies for package updates
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends curl python3 jq
+
+      - name: Process package updates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_PACKAGES: "true"
+          CREATE_ISSUE: "true"
+          GIT_COMMIT_PACKAGES: "true"
+          GIT_PUSH_PACKAGES: "true"
+          MANUAL_INPUT_PACKAGES: ${{ github.event.inputs.packages }}
+        run: |
+          git config --global user.name "RepoExe Auto-Updater"
+          git config --global user.email "contact@example.com"
+
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            read -a PACKAGES <<< "${MANUAL_INPUT_PACKAGES//$'\n'/ }"
+            ./scripts/bin/update-packages "${PACKAGES[@]}"
+          else
+            ./scripts/bin/update-packages "@all"
+          fi
+
+          # Stage, commit and create PR for changed packages
+          if [ -f "updated_packages.txt" ] && [ -s "updated_packages.txt" ]; then
+             readarray -t UPDATED_PACKAGES < "updated_packages.txt"
+             for pkg in "${UPDATED_PACKAGES[@]}"; do
+                BRANCH_NAME="update-$pkg-$(date +%s)"
+                git checkout -b "$BRANCH_NAME"
+                git add "packages/$pkg/build.sh"
+                git commit -m "update: bump $pkg to latest version"
+                git push -u origin "$BRANCH_NAME"
+                gh pr create --title "update: bump $pkg to latest version" --body "Automated update via update-packages script." --base main --head "$BRANCH_NAME"
+                git checkout main
+             done
+          fi

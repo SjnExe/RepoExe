@@ -1,0 +1,116 @@
+name: PR Checker
+
+on:
+  pull_request:
+    paths:
+      - 'packages/**'
+      - 'scripts/mixins/**'
+      - 'ndk-patches/**'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [aarch64, arm, i686, x86_64]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Free disk space
+        run: sudo ./scripts/free-space.sh || true
+
+      - name: Setup ZRAM
+        uses: ./.github/actions/zram
+
+      - name: Determine changed packages
+        id: changes
+        run: |
+          BASE_COMMIT=${{ github.event.pull_request.base.sha }}
+          HEAD_COMMIT=${{ github.event.pull_request.head.sha }}
+          CHANGED_DIRS=$(git diff-tree --no-commit-id --name-only -r $BASE_COMMIT $HEAD_COMMIT | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
+          echo "packages=${CHANGED_DIRS}" >> $GITHUB_OUTPUT
+
+      - name: Restore cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ~/.ccache
+            output
+          key: ${{ runner.os }}-build-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ matrix.arch }}-
+
+      - name: Log in to registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build changed packages
+        run: |
+          echo "Building packages for ${{ matrix.arch }}: ${{ steps.changes.outputs.packages }}"
+          mkdir -p output ~/.ccache
+
+          if [ -z "${{ steps.changes.outputs.packages }}" ]; then
+            echo "No changed packages found. Skipping build loop."
+            exit 0
+          fi
+
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+
+          # We execute the build inside the custom container via docker run
+          docker run --rm \
+            -u builder \
+            --device /dev/fuse \
+            --cap-add SYS_ADMIN \
+            --security-opt apparmor:unconfined \
+            -v ${{ github.workspace }}:/home/builder/RepoExe \
+            -v ~/.ccache:/home/builder/.ccache \
+            -w /home/builder/RepoExe \
+            -e REPO_ROOT=/home/builder/RepoExe \
+            ghcr.io/$OWNER/repoexe-builder:latest \
+            bash -c "set -e
+              # Inject live RepoExe URL for concurrent dependency resolution
+              sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/
+              echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
+
+              # Clone Termux build infrastructure
+              echo 'Cloning termux-packages...'
+              git clone --depth 1 https://github.com/termux/termux-packages.git /home/builder/termux-packages
+
+              # Apply NDK patches
+              if [ -d \"ndk-patches/29\" ]; then
+                echo 'Applying NDK patches...'
+                for patch in ndk-patches/29/*.patch; do
+                  if [ -f \"\$patch\" ]; then
+                    echo \"Applying \$patch\"
+                    sudo patch -p1 -d /home/builder/lib/android-ndk/sysroot < \"\$patch\" || true
+                  fi
+                done
+              fi
+
+              for pkg in ${{ steps.changes.outputs.packages }}; do
+                echo \"Building \$pkg...\"
+
+                # Universal Packages Optimization
+                if grep -q 'TERMUX_PKG_PLATFORM_INDEPENDENT=true' \"packages/\$pkg/build.sh\"; then
+                  if [ \"${{ matrix.arch }}\" != \"aarch64\" ]; then
+                    echo \"Skipping \$pkg on ${{ matrix.arch }} because it is architecture independent.\"
+                    continue
+                  fi
+                fi
+
+                cp -r packages/\$pkg /home/builder/termux-packages/packages/
+                cd /home/builder/termux-packages
+                ./build-package.sh -a ${{ matrix.arch }} -I \$pkg
+
+                mv output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
+                cd /home/builder/RepoExe
+              done
+            "
