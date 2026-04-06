@@ -28,7 +28,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -50,7 +50,7 @@ jobs:
           fi
 
       - name: Restore cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/.ccache
@@ -71,9 +71,12 @@ jobs:
 
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
 
-          # We execute the build inside the container via docker run
+          # We execute the build inside the custom container via docker run
           docker run --rm \
             -u builder \
+            --device /dev/fuse \
+            --cap-add SYS_ADMIN \
+            --security-opt apparmor:unconfined \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
             -v ~/.ccache:/home/builder/.ccache \
             -w /home/builder/RepoExe \
@@ -114,13 +117,13 @@ jobs:
                 cd /home/builder/termux-packages
                 ./build-package.sh -a ${{ matrix.arch }} -I \$pkg
 
-                mv debs/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
+                mv output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
                 cd /home/builder/RepoExe
               done
             "
 
       - name: Save cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             ~/.ccache
@@ -129,7 +132,7 @@ jobs:
 
       # Generate SLSA build provenance
       - name: Generate build provenance
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest@v4
         with:
           subject-path: 'output/*.deb'
 

@@ -112,7 +112,7 @@ function copyToClipboard(text) {
 }
 
 function copyRepoInstall() {
-    copyToClipboard('pkg update && pkg install apt-transport-https && echo "deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main" > $PREFIX/etc/apt/sources.list.d/repoexe.list && pkg update');
+    copyToClipboard('curl -sL https://SjnExe.github.io/RepoExe/install | bash');
 }
 
 // Dependency Visualizer Logic
