@@ -4,21 +4,35 @@ set -euo pipefail
 
 echo "Freeing disk space..."
 
-# Optimize apt operations by running non-interactive and combining purge and auto-remove
-export DEBIAN_FRONTEND=noninteractive
-sudo -E apt-get purge -y --auto-remove '^dotnet-.*' '^llvm-.*' 'php.*' '^mongodb-.*' '^mysql-.*' azure-cli google-cloud-cli powershell mono-devel libgl1-mesa-dri google-chrome-stable firefox ant ant-optional || true
-sudo -E apt-get clean || true
+# Remove large, unused directories directly to save maximum space.
+# We execute this in parallel to dramatically reduce execution time.
+# Bypassing apt-get entirely prevents hanging triggers and saves ~5 minutes.
 
-# Remove large, unused directories directly to save maximum space
-sudo rm -rf /usr/share/dotnet \
-            /usr/local/lib/android \
-            /opt/ghc \
-            /opt/hostedtoolcache/CodeQL \
-            /usr/local/share/powershell \
-            /usr/share/swift \
-            /usr/local/.ghcup \
-            /usr/local/lib/node_modules \
-            /usr/local/share/chromium \
-            /usr/local/share/vcpkg
+DIRS_TO_DELETE=(
+  "/usr/share/dotnet"
+  "/usr/local/lib/android"
+  "/opt/ghc"
+  "/opt/hostedtoolcache/CodeQL"
+  "/usr/local/share/powershell"
+  "/usr/share/swift"
+  "/usr/local/.ghcup"
+  "/usr/local/lib/node_modules"
+  "/usr/local/share/chromium"
+  "/usr/local/share/vcpkg"
+  "/usr/share/rust"
+  "/opt/az"
+  "/opt/pipx"
+  "/var/lib/docker/images"
+)
+
+# Run rm -rf in parallel
+for dir in "${DIRS_TO_DELETE[@]}"; do
+  sudo rm -rf "$dir" &
+done
+
+wait
+
+# Clean apt cache instantly without invoking slow triggers
+sudo rm -rf /var/cache/apt/archives/*
 
 df -h /

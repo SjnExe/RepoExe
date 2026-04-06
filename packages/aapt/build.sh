@@ -6,14 +6,14 @@ _TAG_VERSION=15.0.0
 _TAG_REVISION=36
 TERMUX_PKG_VERSION=${_TAG_VERSION}.${_TAG_REVISION}
 TERMUX_PKG_REVISION=24
-TERMUX_PKG_SRCURL=(https://github.com/aosp-mirror/platform_frameworks_base
-                   https://github.com/aosp-mirror/platform_system_core
-                   https://github.com/aosp-mirror/platform_system_libbase
-                   https://github.com/aosp-mirror/platform_system_libziparchive
-                   https://github.com/aosp-mirror/platform_system_logging
-                   https://github.com/aosp-mirror/platform_system_incremental_delivery
-                   https://github.com/aosp-mirror/platform_build
-                   https://github.com/aosp-mirror/platform_system_tools_aidl)
+TERMUX_PKG_SRCURL=(https://github.com/aosp-mirror/platform_frameworks_base.git
+                   https://github.com/aosp-mirror/platform_system_core.git
+                   https://github.com/aosp-mirror/platform_system_libbase.git
+                   https://github.com/aosp-mirror/platform_system_libziparchive.git
+                   https://github.com/aosp-mirror/platform_system_logging.git
+                   https://github.com/aosp-mirror/platform_system_incremental_delivery.git
+                   https://github.com/aosp-mirror/platform_build.git
+                   https://github.com/aosp-mirror/platform_system_tools_aidl.git)
 TERMUX_PKG_GIT_BRANCH=android-${_TAG_VERSION}_r${_TAG_REVISION}
 TERMUX_PKG_SHA256=(SKIP_CHECKSUM
                    SKIP_CHECKSUM
