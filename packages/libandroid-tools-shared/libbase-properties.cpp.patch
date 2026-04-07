@@ -35,40 +35,39 @@
  }
 
 -#if defined(__BIONIC__)
-+#if defined(__BIONIC__) && !defined(__TERMUX__) && __ANDROID_API__ >= 26
++#if defined(__BIONIC__) && !defined(__TERMUX__)
 
  struct WaitForPropertyData {
    bool done;
-@@ -262,7 +265,9 @@
- bool WaitForPropertyCreation(const std::string& key,
-                              std::chrono::milliseconds relative_timeout) {
-   auto start_time = std::chrono::steady_clock::now();
-+#if defined(__BIONIC__) && !defined(__TERMUX__) && __ANDROID_API__ >= 26
-   return (WaitForPropertyCreation(key, relative_timeout, start_time) != nullptr);
+@@ -232,7 +235,11 @@
+     // Wait for a global change and then look again.
+     timespec ts;
+     UpdateTimeSpec(ts, relative_timeout, start_time);
++#if __ANDROID_API__ >= 26
+     if (!__system_property_wait(nullptr, global_serial, &global_serial, &ts)) return nullptr;
 +#else
-+  return false;
++    return nullptr;
 +#endif
+   }
+   return pi;
+ }
+@@ -255,7 +262,11 @@
+     // It didn't, so wait for the property to change before checking again.
+     UpdateTimeSpec(ts, relative_timeout, start_time);
+     uint32_t unused;
++#if __ANDROID_API__ >= 26
+     if (!__system_property_wait(pi, data.last_read_serial, &unused, &ts)) return false;
++#else
++    return false;
++#endif
+   }
  }
 
- CachedProperty::CachedProperty(std::string property_name)
-@@ -327,7 +332,7 @@
-
- const char* CachedProperty::WaitForChange(std::chrono::milliseconds relative_timeout) {
-   if (!prop_info_) {
-     auto start_time = std::chrono::steady_clock::now();
-+#if defined(__BIONIC__) && !defined(__TERMUX__) && __ANDROID_API__ >= 26
-     prop_info_ = WaitForPropertyCreation(property_name_, relative_timeout, start_time);
-+#endif
-     if (!prop_info_) {
-       return nullptr;
-     }
-   } else {
-+#if defined(__BIONIC__) && !defined(__TERMUX__) && __ANDROID_API__ >= 26
-     timespec ts;
-     DurationToTimeSpec(ts, relative_timeout);
+@@ -337,7 +348,11 @@
 
      uint32_t old_serial = cached_property_serial_.value_or(0);
      uint32_t new_serial;
++#if __ANDROID_API__ >= 26
      if (!__system_property_wait(prop_info_, old_serial, &new_serial, &ts)) return nullptr;
 +#else
 +    return nullptr;
