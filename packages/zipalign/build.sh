@@ -19,8 +19,6 @@ TERMUX_PKG_BUILD_IN_SRC=true
 TERMUX_PKG_DEPENDS="libc++, libzopfli, zlib, libandroid-tools-shared"
 
 termux_step_post_get_source() {
-	rm -rf $TERMUX_PKG_BUILDER_DIR/../aapt
-
 	for i in $(seq 0 $(( ${#TERMUX_PKG_SRCURL[@]}-1 ))); do
 		local REPO_URL=${TERMUX_PKG_SRCURL[$i]}
 		local CLONE_DIR=$(basename "$REPO_URL" .git | sed -e 's/platform_system_tools_//' -e 's/platform_system_//' -e 's/platform_frameworks_//' -e 's/platform_//')
