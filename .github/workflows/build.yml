@@ -131,6 +131,18 @@ jobs:
                 done
               fi
 
+              # Phase 1: Copy all changed packages to the build environment first.
+              # This ensures interdependent packages are all present before buildorder.py
+              # attempts to resolve dependencies.
+              for pkg in ${{ steps.pkgs.outputs.packages }}; do
+                if [ ! -d \"packages/\$pkg\" ]; then
+                  continue
+                fi
+                rm -rf /home/builder/termux-packages/packages/\$pkg
+                cp -r packages/\$pkg /home/builder/termux-packages/packages/
+              done
+
+              # Phase 2: Build the packages.
               for pkg in ${{ steps.pkgs.outputs.packages }}; do
                 if [ ! -d \"packages/\$pkg\" ]; then
                   echo \"Skipping \$pkg because it no longer exists.\"
@@ -147,8 +159,6 @@ jobs:
                   fi
                 fi
 
-                rm -rf /home/builder/termux-packages/packages/\$pkg
-                cp -r packages/\$pkg /home/builder/termux-packages/packages/
                 cd /home/builder/termux-packages
                 ./build-package.sh -a ${{ matrix.arch }} -I \$pkg
 
