@@ -2,14 +2,14 @@
 +++ b/core/libutils/Threads.cpp
 @@ -36,7 +36,7 @@
 
- #include <utils/Log.h>
+ #include <log/log.h>
 
 -#if defined(__ANDROID__)
 +#if defined(__ANDROID__) && !defined(__TERMUX__)
- #include <processgroup/processgroup.h>
- #include <processgroup/sched_policy.h>
- #endif
-@@ -67,7 +67,7 @@
+ # define __android_unused
+ #else
+ # define __android_unused __attribute__((__unused__))
+@@ -62,7 +62,7 @@
 
  typedef void* (*android_pthread_entry)(void*);
 
@@ -18,7 +18,7 @@
  struct thread_data_t {
      thread_func_t   entryFunction;
      void*           userData;
-@@ -133,7 +133,7 @@
+@@ -134,7 +134,7 @@
      pthread_attr_init(&attr);
      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
@@ -27,7 +27,7 @@
      if (threadPriority != PRIORITY_DEFAULT || threadName != NULL) {
          // Now that the pthread_t has a method to find the associated
          // android_thread_id_t (pid) from pthread_t, it would be possible to avoid
-@@ -177,7 +177,7 @@
+@@ -183,7 +183,7 @@
      return 1;
  }
 
@@ -36,7 +36,7 @@
  static pthread_t android_thread_id_t_to_pthread(android_thread_id_t thread)
  {
      return (pthread_t) thread;
-@@ -303,7 +303,7 @@
+@@ -309,7 +309,7 @@
      gCreateThreadFn = func;
  }
 
@@ -45,7 +45,7 @@
  int androidSetThreadPriority(pid_t tid, int pri)
  {
      int rc = 0;
-@@ -845,7 +845,7 @@
+@@ -832,7 +832,7 @@
      return mRunning;
  }
 
