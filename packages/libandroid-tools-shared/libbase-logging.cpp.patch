@@ -1,6 +1,8 @@
+diff --git a/libbase/logging.cpp b/libbase/logging.cpp
+index 07ba382..8a35e3f 100644
 --- a/libbase/logging.cpp
 +++ b/libbase/logging.cpp
-@@ -209,9 +209,9 @@
+@@ -215,9 +215,9 @@ static std::recursive_mutex& TagLock() {
  static std::string* gDefaultTag;
 
  void SetDefaultTag(const std::string& tag) {
@@ -12,7 +14,7 @@
      std::lock_guard<std::recursive_mutex> lock(TagLock());
      if (gDefaultTag != nullptr) {
        delete gDefaultTag;
-@@ -220,7 +220,7 @@
+@@ -226,7 +226,7 @@ void SetDefaultTag(const std::string& tag) {
      if (!tag.empty()) {
        gDefaultTag = new std::string(tag);
      }
@@ -21,7 +23,7 @@
  }
 
  static bool gInitialized = false;
-@@ -314,13 +314,13 @@
+@@ -323,13 +323,13 @@ static void LogdLogChunk(LogId id, LogSeverity severity, const char* tag, const
    int32_t lg_id = LogIdTolog_id_t(id);
    int32_t priority = LogSeverityToPriority(severity);
 
@@ -38,7 +40,7 @@
  }
 
  LogdLogger::LogdLogger(LogId default_log_id) : default_log_id_(default_log_id) {}
-@@ -396,7 +396,7 @@
+@@ -405,7 +405,7 @@ LogFunction SetLogger(LogFunction&& logger) {
    LogFunction old_logger = std::move(Logger());
    Logger() = std::move(logger);
 
@@ -47,7 +49,7 @@
      __android_log_set_logger([](const struct __android_log_message* log_message) {
        auto log_id = log_id_tToLogId(log_message->buffer_id);
        auto severity = PriorityToLogSeverity(log_message->priority);
-@@ -404,7 +404,7 @@
+@@ -413,7 +413,7 @@ LogFunction SetLogger(LogFunction&& logger) {
        Logger()(log_id, severity, log_message->tag, log_message->file, log_message->line,
                 log_message->message);
      });
@@ -56,7 +58,7 @@
    return old_logger;
  }
 
-@@ -412,9 +412,9 @@
+@@ -421,9 +421,9 @@ AbortFunction SetAborter(AbortFunction&& aborter) {
    AbortFunction old_aborter = std::move(Aborter());
    Aborter() = std::move(aborter);
 
@@ -68,7 +70,7 @@
    return old_aborter;
  }
 
-@@ -500,11 +500,11 @@
+@@ -509,11 +509,11 @@ LogMessage::~LogMessage() {
 
    // Abort if necessary.
    if (data_->GetSeverity() == FATAL) {
@@ -83,7 +85,7 @@
    }
  }
 
-@@ -515,11 +515,11 @@
+@@ -524,11 +524,11 @@ std::ostream& LogMessage::stream() {
  void LogMessage::LogLine(const char* file, unsigned int line, LogSeverity severity, const char* tag,
                           const char* message) {
    int32_t priority = LogSeverityToPriority(severity);
@@ -97,7 +99,7 @@
      if (tag == nullptr) {
        std::lock_guard<std::recursive_mutex> lock(TagLock());
        if (gDefaultTag == nullptr) {
-@@ -530,38 +530,38 @@
+@@ -539,38 +539,38 @@ void LogMessage::LogLine(const char* file, unsigned int line, LogSeverity severi
      } else {
        Logger()(DEFAULT, severity, tag, file, line, message);
      }
