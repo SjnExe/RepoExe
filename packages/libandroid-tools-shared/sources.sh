@@ -65,7 +65,6 @@ local libbase_linux_sources="
 "
 local libbase_sources="
 	$libbase_linux_sources
-	abi_compatibility.cpp
 	chrono_utils.cpp
 	cmsg.cpp
 	file.cpp
