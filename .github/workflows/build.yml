@@ -128,18 +128,18 @@ jobs:
                 done
               fi
 
-              # Phase 1: Copy all changed packages to the build environment first.
-              # This ensures interdependent packages are all present before buildorder.py
-              # attempts to resolve dependencies.
-              for pkg in ${{ steps.pkgs.outputs.packages }}; do
-                if [ ! -d \"packages/\$pkg\" ]; then
-                  continue
+              # Phase 1: Mirror all RepoExe packages into the build environment first.
+              # This explicitly deletes and replaces the official Termux package directories
+              # with ours to prevent buildorder.py conflicts (e.g., legacy subpackages).
+              for pkg_dir in packages/*; do
+                if [ -d \"\$pkg_dir\" ]; then
+                  pkg=\$(basename \"\$pkg_dir\")
+                  rm -rf \"/home/builder/termux-packages/packages/\$pkg\"
+                  cp -a \"\$pkg_dir\" \"/home/builder/termux-packages/packages/\"
                 fi
-                rm -rf /home/builder/termux-packages/packages/\$pkg
-                cp -r packages/\$pkg /home/builder/termux-packages/packages/
               done
 
-              # Phase 2: Build the packages.
+              # Phase 2: Build the changed packages.
               for pkg in ${{ steps.pkgs.outputs.packages }}; do
                 if [ ! -d \"packages/\$pkg\" ]; then
                   echo \"Skipping \$pkg because it no longer exists.\"
