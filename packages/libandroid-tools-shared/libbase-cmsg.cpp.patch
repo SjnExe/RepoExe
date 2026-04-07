@@ -1,0 +1,28 @@
+--- a/libbase/cmsg.cpp
++++ b/libbase/cmsg.cpp
+@@ -19,6 +19,7 @@
+ #include <fcntl.h>
+ #include <stdlib.h>
+ #include <sys/socket.h>
++#include <vector>
+
+ #include <android-base/logging.h>
+
+@@ -39,7 +40,7 @@
+     return -1;
+   }
+
+-  alignas(struct cmsghdr) char cmsg_buf[cmsg_space];
++  std::vector<char> cmsg_buf_vec(cmsg_space); char* cmsg_buf = cmsg_buf_vec.data();
+   iovec iov = {.iov_base = const_cast<void*>(data), .iov_len = len};
+   msghdr msg = {
+       .msg_name = nullptr,
+@@ -82,7 +83,7 @@
+     return -1;
+   }
+
+-  alignas(struct cmsghdr) char cmsg_buf[cmsg_space];
++  std::vector<char> cmsg_buf_vec(cmsg_space); char* cmsg_buf = cmsg_buf_vec.data();
+   iovec iov = {.iov_base = data, .iov_len = len};
+   msghdr msg = {
+       .msg_name = nullptr,
