@@ -1,0 +1,20 @@
+--- a/libbase/cmsg.cpp
++++ b/libbase/cmsg.cpp
+@@ -39,7 +39,7 @@
+     return -1;
+   }
+
+-  alignas(struct cmsghdr) char cmsg_buf[cmsg_space];
++  std::vector<char> cmsg_buf_vec(cmsg_space); char* cmsg_buf = cmsg_buf_vec.data();
+   iovec iov = {.iov_base = const_cast<void*>(data), .iov_len = len};
+   msghdr msg = {
+       .msg_name = nullptr,
+@@ -82,7 +82,7 @@
+     return -1;
+   }
+
+-  alignas(struct cmsghdr) char cmsg_buf[cmsg_space];
++  std::vector<char> cmsg_buf_vec(cmsg_space); char* cmsg_buf = cmsg_buf_vec.data();
+   iovec iov = {.iov_base = data, .iov_len = len};
+   msghdr msg = {
+       .msg_name = nullptr,

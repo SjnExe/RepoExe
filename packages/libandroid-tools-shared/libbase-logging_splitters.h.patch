@@ -1,0 +1,12 @@
+--- a/libbase/logging_splitters.h
++++ b/libbase/logging_splitters.h
+@@ -80,7 +80,8 @@
+   }
+   int file_header_size = file_header.size();
+
+-  __attribute__((uninitialized)) char logd_chunk[max_size + 1];
++  std::vector<char> logd_chunk_vec(max_size + 1);
++  char* logd_chunk = logd_chunk_vec.data();
+   size_t chunk_position = 0;
+
+   auto call_log_function = [&]() {
