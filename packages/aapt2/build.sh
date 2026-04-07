@@ -25,6 +25,8 @@ TERMUX_PKG_DEPENDS="fmt, libc++, libexpat, libpng, libzopfli, zlib, libandroid-t
 TERMUX_PKG_BUILD_DEPENDS="googletest"
 
 termux_step_post_get_source() {
+	rm -rf $TERMUX_PKG_BUILDER_DIR/../aapt
+
 	for i in $(seq 0 $(( ${#TERMUX_PKG_SRCURL[@]}-1 ))); do
 		local REPO_URL=${TERMUX_PKG_SRCURL[$i]}
 		local CLONE_DIR=$(basename "$REPO_URL" .git | sed -e 's/platform_system_tools_//' -e 's/platform_system_//' -e 's/platform_frameworks_//' -e 's/platform_//')
