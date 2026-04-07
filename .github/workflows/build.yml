@@ -129,6 +129,11 @@ jobs:
               fi
 
               for pkg in ${{ steps.pkgs.outputs.packages }}; do
+                if [ ! -d \"packages/\$pkg\" ]; then
+                  echo \"Skipping \$pkg because it no longer exists.\"
+                  continue
+                fi
+
                 echo \"Building \$pkg...\"
 
                 # Universal Packages Optimization
@@ -171,6 +176,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for pkg in ${{ steps.pkgs.outputs.packages }}; do
+            if [ ! -d "packages/$pkg" ]; then
+              continue
+            fi
+
             TAG="pkg-$pkg"
             gh release create "$TAG" --title "Rolling Release $pkg" --notes "Automated build" || true
 
