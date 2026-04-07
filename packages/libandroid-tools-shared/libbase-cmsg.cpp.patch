@@ -1,6 +1,14 @@
 --- a/libbase/cmsg.cpp
 +++ b/libbase/cmsg.cpp
-@@ -39,7 +39,7 @@
+@@ -19,6 +19,7 @@
+ #include <fcntl.h>
+ #include <stdlib.h>
+ #include <sys/socket.h>
++#include <vector>
+
+ #include <android-base/logging.h>
+
+@@ -39,7 +40,7 @@
      return -1;
    }
 
@@ -9,7 +17,7 @@
    iovec iov = {.iov_base = const_cast<void*>(data), .iov_len = len};
    msghdr msg = {
        .msg_name = nullptr,
-@@ -82,7 +82,7 @@
+@@ -82,7 +83,7 @@
      return -1;
    }
 

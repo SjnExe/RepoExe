@@ -1,6 +1,14 @@
 --- a/libbase/logging_splitters.h
 +++ b/libbase/logging_splitters.h
-@@ -80,7 +80,8 @@
+@@ -19,6 +19,7 @@
+ #include <inttypes.h>
+ #include <string.h>
+
++#include <vector>
+ #include <android-base/logging.h>
+ #include <android-base/stringprintf.h>
+
+@@ -80,7 +81,8 @@
    }
    int file_header_size = file_header.size();
 
