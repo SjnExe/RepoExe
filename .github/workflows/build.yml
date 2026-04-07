@@ -117,9 +117,6 @@ jobs:
               echo 'Cloning termux-packages...'
               git clone --depth 1 https://github.com/termux/termux-packages.git /home/builder/termux-packages
 
-              # Execute pre-build cleanup script to resolve conflicts
-              ./scripts/pre-build-cleanup.sh /home/builder/termux-packages
-
               # Apply NDK patches
               if [ -d \"ndk-patches/29\" ]; then
                 echo 'Applying NDK patches...'
