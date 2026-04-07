@@ -5,15 +5,14 @@ TERMUX_PKG_MAINTAINER="@termux"
 _TAG_VERSION=15.0.0
 _TAG_REVISION=36
 TERMUX_PKG_VERSION=${_TAG_VERSION}.${_TAG_REVISION}
-TERMUX_PKG_REVISION=24
-TERMUX_PKG_SRCURL=(https://github.com/aosp-mirror/platform_frameworks_base
-                   https://github.com/aosp-mirror/platform_system_core
+TERMUX_PKG_SRCURL=(https://github.com/aosp-mirror/platform_frameworks_base.git
+                   https://github.com/aosp-mirror/platform_system_core.git
                    https://android.googlesource.com/platform/system/libbase
                    https://android.googlesource.com/platform/system/libziparchive
                    https://android.googlesource.com/platform/system/logging
                    https://android.googlesource.com/platform/system/incremental_delivery
-                   https://github.com/aosp-mirror/platform_build
-                   https://github.com/aosp-mirror/platform_system_tools_aidl)
+                   https://github.com/aosp-mirror/platform_build.git
+                   https://android.googlesource.com/platform/system/tools/aidl)
 TERMUX_PKG_GIT_BRANCH=android-${_TAG_VERSION}_r${_TAG_REVISION}
 TERMUX_PKG_SHA256=(SKIP_CHECKSUM
                    SKIP_CHECKSUM
@@ -34,9 +33,15 @@ termux_step_post_get_source() {
 	# differs: https://github.com/google/gitiles/issues/84
 
 	for i in $(seq 0 $(( ${#TERMUX_PKG_SRCURL[@]}-1 ))); do
+		# Extract the repo name (e.g. platform_frameworks_base or base)
+		# and strip 'platform_' or 'platform_system_' or 'platform_system_tools_'
+		# so it matches the expected directories like 'base', 'core', 'libbase', 'aidl', etc.
+		local REPO_URL=${TERMUX_PKG_SRCURL[$i]}
+		local CLONE_DIR=$(basename "$REPO_URL" .git | sed -e 's/platform_system_tools_//' -e 's/platform_system_//' -e 's/platform_frameworks_//' -e 's/platform_//')
+
 		git clone --depth 1 --single-branch \
 			--branch $TERMUX_PKG_GIT_BRANCH \
-			${TERMUX_PKG_SRCURL[$i]}
+			"$REPO_URL" "$CLONE_DIR"
 	done
 
 	for f in base/tools/aapt2/*.proto; do

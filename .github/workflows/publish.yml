@@ -1,8 +1,8 @@
-name: Index & UI Publisher
+name: Publish Repo
 
 on:
   workflow_run:
-    workflows: ["Build & Release"]
+    workflows: ["Build"]
     types:
       - completed
   workflow_dispatch:

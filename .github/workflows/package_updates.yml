@@ -127,7 +127,11 @@ jobs:
                 git add "packages/$pkg/build.sh"
                 git commit -m "update: bump $pkg to latest version"
                 git push -u origin "$BRANCH_NAME"
-                gh pr create --title "update: bump $pkg to latest version" --body "Automated update via update-packages script." --base main --head "$BRANCH_NAME"
+                PR_URL=$(gh pr create --title "update: bump $pkg to latest version" --body "Automated update via update-packages script." --base main --head "$BRANCH_NAME")
+
+                # Automatically enable auto-merge if the repository supports it
+                gh pr merge "$PR_URL" --auto --merge || echo "Auto-merge could not be enabled."
+
                 git checkout main
              done
           fi

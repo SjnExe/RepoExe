@@ -1,9 +1,14 @@
-name: Build & Release
+name: Build
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'packages/**'
+      - 'scripts/mixins/**'
+      - 'ndk-patches/**'
+  pull_request:
     paths:
       - 'packages/**'
       - 'scripts/mixins/**'
@@ -44,6 +49,11 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "packages=${{ github.event.inputs.packages }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            BASE_COMMIT=${{ github.event.pull_request.base.sha }}
+            HEAD_COMMIT=${{ github.event.pull_request.head.sha }}
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r $BASE_COMMIT $HEAD_COMMIT | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
+            echo "packages=${CHANGED}" >> $GITHUB_OUTPUT
           else
             BEFORE="${{ github.event.before }}"
             AFTER="${{ github.event.after }}"
@@ -98,7 +108,7 @@ jobs:
             -w /home/builder/RepoExe \
             -e REPO_ROOT=/home/builder/RepoExe \
             ghcr.io/$OWNER/repoexe-builder:latest \
-            bash -c "
+            bash -c "set -e
               # Inject live RepoExe URL for concurrent dependency resolution
               sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/
               echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
@@ -129,6 +139,7 @@ jobs:
                   fi
                 fi
 
+                rm -rf /home/builder/termux-packages/packages/\$pkg
                 cp -r packages/\$pkg /home/builder/termux-packages/packages/
                 cd /home/builder/termux-packages
                 ./build-package.sh -a ${{ matrix.arch }} -I \$pkg
@@ -139,7 +150,7 @@ jobs:
             "
 
       - name: Save cache
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@v5
         with:
           path: |
@@ -147,13 +158,15 @@ jobs:
             output
           key: ${{ runner.os }}-build-${{ matrix.arch }}-${{ github.sha }}
 
-      # Generate SLSA build provenance
+      # Generate SLSA build provenance (only for non-PR runs)
       - name: Generate build provenance
+        if: github.event_name != 'pull_request' && hashFiles('output/*.deb') != ''
         uses: actions/attest@v4
         with:
           subject-path: 'output/*.deb'
 
       - name: Upload to GitHub Releases
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
