@@ -17,7 +17,7 @@ This file contains instructions for AI agents working on the **RepoExe** reposit
 ## Environment Setup
 
 The build process for these packages requires a specialized Termux build environment. The repository provides a custom Docker image (`ghcr.io/sjnexe/repoexe-builder:latest`) to ensure reproducible builds.
-For the agent environment, the repository is already cloned to `/app`. The following environmental setup script uses `fuse-overlayfs` for optimal performance, starts the builder container in the background, and initializes the build tools.
+For the agent environment, the repository is already cloned to `/app`. The following environmental setup script uses `fuse-overlayfs` for optimal performance, starts the builder container in the background, and initializes the build tools and NDK patches.
 
 ```bash
 sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y fuse-overlayfs
@@ -30,7 +30,7 @@ sudo systemctl restart docker
 sudo docker pull ghcr.io/sjnexe/repoexe-builder:latest
 mkdir -p ~/.ccache /app/output
 sudo docker run -d --name builder -u builder --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor:unconfined -v /app:/home/builder/RepoExe -v ~/.ccache:/home/builder/.ccache -w /home/builder/RepoExe -e REPO_ROOT=/home/builder/RepoExe ghcr.io/sjnexe/repoexe-builder:latest tail -f /dev/null
-sudo docker exec builder bash -c "sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/ && echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null && git clone --depth 1 https://github.com/termux/termux-packages.git /home/builder/termux-packages"
+sudo docker exec builder bash -c "sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/ && echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null && git clone --depth 1 https://github.com/termux/termux-packages.git /home/builder/termux-packages && if [ -d \"ndk-patches/29\" ]; then for patch in ndk-patches/29/*.patch; do if [ -f \"\$patch\" ]; then sudo patch -p1 -d /home/builder/lib/android-ndk/sysroot < \"\$patch\" || true; fi; done; fi"
 ```
 
 ## Useful Commands
