@@ -24,7 +24,7 @@ sudo fallocate -l 16G /swapfile || true
 sudo chmod 600 /swapfile || true
 sudo mkswap /swapfile || true
 sudo swapon /swapfile || true
-dpkg -s fuse-overlayfs >/dev/null 2>&1 || (sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y fuse-overlayfs)
+sudo curl -sSL "https://github.com/containers/fuse-overlayfs/releases/download/v1.16/fuse-overlayfs-$(uname -m)" -o /usr/local/bin/fuse-overlayfs && sudo chmod +x /usr/local/bin/fuse-overlayfs
 sudo bash -c 'echo "{\"storage-driver\": \"fuse-overlayfs\"}" > /etc/docker/daemon.json'
 sudo systemctl restart docker
 sudo docker pull ghcr.io/sjnexe/repoexe-builder:latest
