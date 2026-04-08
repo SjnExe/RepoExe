@@ -5,9 +5,19 @@ TERMUX_PKG_MAINTAINER="@SjnExe"
 _TAG_VERSION=13.0.0
 _TAG_REVISION=6
 TERMUX_PKG_VERSION=1:1.0
-TERMUX_PKG_SRCURL=(https://github.com/aosp-mirror/platform_frameworks_base.git)
+TERMUX_PKG_SRCURL=(https://github.com/aosp-mirror/platform_frameworks_base.git
+                   https://github.com/aosp-mirror/platform_system_core.git
+                   https://android.googlesource.com/platform/system/libbase
+                   https://android.googlesource.com/platform/system/libziparchive
+                   https://android.googlesource.com/platform/system/logging
+                   https://android.googlesource.com/platform/system/incremental_delivery)
 TERMUX_PKG_GIT_BRANCH=android-${_TAG_VERSION}_r${_TAG_REVISION}
-TERMUX_PKG_SHA256=(SKIP_CHECKSUM)
+TERMUX_PKG_SHA256=(SKIP_CHECKSUM
+                   SKIP_CHECKSUM
+                   SKIP_CHECKSUM
+                   SKIP_CHECKSUM
+                   SKIP_CHECKSUM
+                   SKIP_CHECKSUM)
 TERMUX_PKG_SKIP_SRC_EXTRACT=true
 TERMUX_PKG_BUILD_IN_SRC=true
 TERMUX_PKG_DEPENDS="libc++, libexpat, libpng, zlib, libandroid-tools-shared"
@@ -55,9 +65,21 @@ termux_step_pre_configure() {
 }
 
 termux_step_make() {
+	local LIBBASE_SRCDIR=$TERMUX_PKG_SRCDIR/libbase
+	local CORE_INCDIR=$TERMUX_PKG_SRCDIR/core/include
+	local LIBLOG_INCDIR=$TERMUX_PKG_SRCDIR/logging/liblog/include
+	local LIBZIPARCHIVE_SRCDIR=$TERMUX_PKG_SRCDIR/libziparchive
+	local INCFS_UTIL_SRCDIR=$TERMUX_PKG_SRCDIR/incremental_delivery/incfs/util
+	local ANDROIDFW_SRCDIR=$TERMUX_PKG_SRCDIR/base/libs/androidfw
 	local AAPT_SRCDIR=$TERMUX_PKG_SRCDIR/base/tools/aapt
 
-	CPPFLAGS+=" -I. -I./include"
+	CPPFLAGS+=" -I. -I./include
+		-I$LIBBASE_SRCDIR/include
+		-I$LIBLOG_INCDIR
+		-I$CORE_INCDIR
+		-I$LIBZIPARCHIVE_SRCDIR/include
+		-I$INCFS_UTIL_SRCDIR/include
+		-I$ANDROIDFW_SRCDIR/include"
 
 	# Build aapt:
 	cd $AAPT_SRCDIR
