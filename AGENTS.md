@@ -17,12 +17,13 @@ This file contains instructions for AI agents working on the **RepoExe** reposit
 ## Environment Setup
 
 The build process for these packages requires a specialized Termux build environment. The repository provides a custom Docker image (`ghcr.io/sjnexe/repoexe-builder:latest`) to ensure reproducible builds.
-For the agent environment, the repository is already cloned to `/app`. The following environmental setup script starts the builder container in the background and initializes the build tools.
+For the agent environment, the repository is already cloned to `/app`. The following environmental setup script uses `fuse-overlayfs` for optimal performance, starts the builder container in the background, and initializes the build tools.
 
 ```bash
+sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y fuse-overlayfs
 sudo bash -c 'cat << "JSON" > /etc/docker/daemon.json
 {
-  "storage-driver": "vfs"
+  "storage-driver": "fuse-overlayfs"
 }
 JSON'
 sudo systemctl restart docker
