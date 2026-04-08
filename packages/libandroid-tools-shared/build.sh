@@ -54,7 +54,7 @@ termux_step_pre_configure() {
 	export PATH=$TERMUX_PKG_HOSTBUILD_DIR/_prefix/bin:$PATH
 
 	CFLAGS+=" -fPIC"
-	CXXFLAGS+=" -fPIC -std=c++20"
+	CXXFLAGS+=" -Wno-c99-designator  -fPIC -std=c++20"
 	CPPFLAGS+=" -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__"
 
 	_TMP_LIBDIR=$TERMUX_PKG_SRCDIR/_lib
