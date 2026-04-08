@@ -123,6 +123,7 @@ termux_step_make() {
 
 	CPPFLAGS+=" -I$LIBZIPARCHIVE_SRCDIR/include"
 	CPPFLAGS+=" -I$INCFS_UTIL_SRCDIR/include"
+	CPPFLAGS+=" -I$ANDROIDFW_SRCDIR/include_pathutils"
 
 	# Build libandroidfw:
 	cd $ANDROIDFW_SRCDIR
