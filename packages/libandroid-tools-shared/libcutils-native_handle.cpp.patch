@@ -1,5 +1,5 @@
---- a/libcutils/native_handle.cpp
-+++ b/libcutils/native_handle.cpp
+--- a/core/libcutils/native_handle.cpp
++++ b/core/libcutils/native_handle.cpp
 @@ -29,7 +29,7 @@
 
  namespace {
