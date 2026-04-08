@@ -27,12 +27,41 @@ function parsePackages(text) {
 
 // Fetch metadata on load
 async function loadPackages() {
+    const arches = ['aarch64', 'arm', 'i686', 'x86_64'];
+    let packagesMap = new Map();
+
     try {
-        // Attempt to load live metadata, fallback to mock if failed (for local dev)
-        const response = await fetch('dists/stable/main/binary-aarch64/Packages');
-        if (response.ok) {
-            const text = await response.text();
-            allPackages = parsePackages(text);
+        for (const arch of arches) {
+            const response = await fetch(`dists/stable/main/binary-${arch}/Packages`);
+            if (response.ok) {
+                const text = await response.text();
+                const pkgs = parsePackages(text);
+
+                pkgs.forEach(pkg => {
+                    if (!pkg.Package) return;
+                    if (packagesMap.has(pkg.Package)) {
+                        let existing = packagesMap.get(pkg.Package);
+                        if (!existing.architectures.includes(arch)) {
+                            existing.architectures.push(arch);
+                        }
+                    } else {
+                        // Initialize custom architectures array, defaults to the parsed one
+                        pkg.architectures = [arch];
+                        packagesMap.set(pkg.Package, pkg);
+                    }
+                });
+            }
+        }
+
+        if (packagesMap.size > 0) {
+            allPackages = Array.from(packagesMap.values());
+
+            // Post-process to consolidate into "all" if present in all 4 architectures
+            allPackages.forEach(pkg => {
+                if (pkg.architectures.length === 4) {
+                    pkg.architectures = ['all'];
+                }
+            });
         } else {
             loadMockData();
         }
@@ -53,8 +82,8 @@ async function loadPackages() {
 
 function loadMockData() {
     allPackages = [
-        { Package: "example-pkg", Version: "1.0.0", Architecture: "aarch64", Description: "An example package", Size: "10240", Depends: "python" },
-        { Package: "python", Version: "3.11.4", Architecture: "aarch64", Description: "Python programming language", Size: "5000000", Depends: "libffi, openssl" }
+        { Package: "example-pkg", Version: "1.0.0", architectures: ["all"], Description: "An example package", Size: "10240", Depends: "python" },
+        { Package: "python", Version: "3.11.4", architectures: ["aarch64", "arm"], Description: "Python programming language", Size: "5000000", Depends: "libffi, openssl" }
     ];
 }
 
@@ -77,12 +106,23 @@ function renderPackages(packages, append = false) {
     toRender.forEach(pkg => {
         const sizeKB = pkg.Size ? (parseInt(pkg.Size) / 1024).toFixed(1) + ' KB' : 'Unknown size';
 
+        // Generate arch tags HTML
+        let archTagsHTML = '';
+        if (pkg.architectures && pkg.architectures.length > 0) {
+            archTagsHTML = pkg.architectures.map(a => `<span class="arch-tag">${a}</span>`).join('');
+        } else {
+            archTagsHTML = `<span class="arch-tag">${pkg.Architecture || 'all'}</span>`;
+        }
+
         const card = document.createElement('div');
         card.className = 'package-card';
         card.innerHTML = `
             <h2><a href="https://github.com/SjnExe/RepoExe/releases/tag/${pkg.Package}" target="_blank" style="color: inherit; text-decoration: none;">${pkg.Package}</a> <span>v${pkg.Version}</span></h2>
             <p>${pkg.Description}</p>
-            <div class="pkg-meta">Arch: ${pkg.Architecture || 'all'} | Size: ${sizeKB}</div>
+            <div class="pkg-meta">
+                <div class="arch-tags">${archTagsHTML}</div>
+                <div>Size: ${sizeKB}</div>
+            </div>
 
             <div class="pkg-install">
                 <code>pkg i ${pkg.Package}</code>
@@ -131,10 +171,10 @@ function toggleView() {
     const icon = document.getElementById('view-icon');
     if (container.classList.contains('grid-view')) {
         container.classList.replace('grid-view', 'list-view');
-        icon.textContent = 'view_list';
+        icon.textContent = 'grid_view';
     } else {
         container.classList.replace('list-view', 'grid-view');
-        icon.textContent = 'grid_view';
+        icon.textContent = 'view_list';
     }
 }
 

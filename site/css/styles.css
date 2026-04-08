@@ -1,26 +1,13 @@
-/* GitHub-like Theme */
+/* Sleek Dark Theme */
 :root {
-    --bg-color: #0d1117;
-    --surface-color: #161b22;
-    --primary-color: #58a6ff;
-    --text-primary: #c9d1d9;
-    --text-secondary: #8b949e;
-    --code-bg: #0d1117;
-    --border-color: #30363d;
-    --hover-bg: #21262d;
-}
-
-@media (prefers-color-scheme: light) {
-    :root {
-        --bg-color: #f6f8fa;
-        --surface-color: #ffffff;
-        --primary-color: #0969da;
-        --text-primary: #24292f;
-        --text-secondary: #57606a;
-        --code-bg: #f6f8fa;
-        --border-color: #d0d7de;
-        --hover-bg: #f3f4f6;
-    }
+    --bg-color: #000000;
+    --surface-color: #111111;
+    --primary-color: #0070f3;
+    --text-primary: #ededed;
+    --text-secondary: #888888;
+    --code-bg: #1c1c1c;
+    --border-color: #333333;
+    --hover-bg: #222222;
 }
 
 body {
@@ -78,21 +65,63 @@ header p { color: var(--text-secondary); margin-bottom: 1.5rem; }
 
 .repo-install {
     background: var(--code-bg);
-    padding: 1rem;
     border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.terminal-header {
+    background: #2d2d2d;
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.terminal-dots {
+    display: flex;
+    gap: 6px;
+}
+
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.dot.red { background: #ff5f56; }
+.dot.yellow { background: #ffbd2e; }
+.dot.green { background: #27c93f; }
+
+.terminal-title {
+    margin: 0 auto;
+    font-size: 0.8rem;
+    color: #888888;
+    font-family: monospace;
+}
+
+.terminal-body {
+    padding: 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    text-align: left;
-    border: 1px solid var(--border-color);
 }
 
-.repo-install code {
+.terminal-body code {
     font-family: monospace;
     font-size: 0.9rem;
     word-break: break-all;
     margin-right: 1rem;
     color: var(--text-primary);
+}
+
+.terminal-body code::before {
+    content: "$ ";
+    color: var(--primary-color);
+    font-weight: bold;
 }
 
 .controls {
@@ -170,7 +199,29 @@ main {
 .package-card h2 { margin-top: 0; font-size: 1.25rem; display: flex; justify-content: space-between; align-items: center;}
 .package-card h2 span { font-size: 0.85rem; color: var(--text-secondary); font-weight: normal; }
 .package-card p { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.4; }
-.pkg-meta { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem; }
+.pkg-meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.arch-tags {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+}
+
+.arch-tag {
+    background: var(--code-bg);
+    border: 1px solid var(--border-color);
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: var(--primary-color);
+}
 
 .pkg-install {
     background: var(--code-bg);

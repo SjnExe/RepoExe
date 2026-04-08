@@ -16,8 +16,9 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: 'Comma separated list of packages to build'
+        description: 'Space separated list of packages to build (use @all to build everything)'
         required: true
+        default: '@all'
 
 permissions:
   contents: write
@@ -48,7 +49,12 @@ jobs:
         id: pkgs
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "packages=${{ github.event.inputs.packages }}" >> $GITHUB_OUTPUT
+            if [ "${{ github.event.inputs.packages }}" == "@all" ]; then
+              ALL_PKGS=$(ls -d packages/*/ | xargs -n 1 basename | tr '\n' ' ')
+              echo "packages=${ALL_PKGS}" >> $GITHUB_OUTPUT
+            else
+              echo "packages=${{ github.event.inputs.packages }}" >> $GITHUB_OUTPUT
+            fi
           elif [ "${{ github.event_name }}" == "pull_request" ]; then
             BASE_COMMIT=${{ github.event.pull_request.base.sha }}
             HEAD_COMMIT=${{ github.event.pull_request.head.sha }}
@@ -202,10 +208,7 @@ jobs:
               TITLE="$pkg $VERSION"
             fi
 
-            NOTES="Automated build for $pkg
-- **Version:** ${VERSION:-Unknown}
-- **Architecture:** ${{ matrix.arch }}
-- **Commit:** ${{ github.sha }}"
+            NOTES="Automated build for $pkg"$'\n'"- **Version:** ${VERSION:-Unknown}"$'\n'"- **Architecture:** ${{ matrix.arch }}"$'\n'"- **Commit:** ${{ github.sha }}"
 
             gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
 
