@@ -122,6 +122,7 @@ jobs:
               # Inject live RepoExe URL for concurrent dependency resolution
               sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/
               echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
+              sudo chown -R builder:builder /data/data/com.termux/files/usr/etc/apt/sources.list.d/
 
               # Clone Termux build infrastructure
               echo 'Cloning termux-packages...'
