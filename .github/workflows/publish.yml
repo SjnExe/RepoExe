@@ -28,8 +28,8 @@ jobs:
         run: |
           mkdir -p debs
           cd debs
-          echo "Fetching all tags matching pkg-*"
-          TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' | grep '^pkg-' || true)
+          echo "Fetching all release tags"
+          TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
           for tag in $TAGS; do
             echo "Downloading assets for $tag..."
             gh release download "$tag" --pattern "*.deb" || echo "No .deb found in $tag"

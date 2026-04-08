@@ -71,7 +71,7 @@ def generate_packages(deb_dir, base_output_dir, prev_packages_content=None):
         sha256 = hash_file(deb, 'sha256')
 
         # Absolute URL rewrite using GitHub Releases rolling tags
-        filename = f"{REPO_URL}/releases/download/pkg-{pkg_name}/{os.path.basename(deb)}"
+        filename = f"{REPO_URL}/releases/download/{pkg_name}/{os.path.basename(deb)}"
 
         cleaned_control = []
         for line in raw_control.split('\n'):

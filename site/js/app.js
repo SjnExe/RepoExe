@@ -1,4 +1,7 @@
 let allPackages = [];
+let displayedCount = 0;
+const LOAD_CHUNK = 20;
+let currentRenderList = [];
 
 // Parse APT Packages file format into JS objects
 function parsePackages(text) {
@@ -55,24 +58,31 @@ function loadMockData() {
     ];
 }
 
-function renderPackages(packages) {
+function renderPackages(packages, append = false) {
     const container = document.getElementById('package-container');
-    container.innerHTML = '';
 
-    if (packages.length === 0) {
+    if (!append) {
+        container.innerHTML = '';
+        currentRenderList = packages;
+        displayedCount = 0;
+    }
+
+    if (currentRenderList.length === 0) {
         container.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">No packages found.</p>';
         return;
     }
 
-    packages.forEach(pkg => {
+    const toRender = currentRenderList.slice(displayedCount, displayedCount + LOAD_CHUNK);
+
+    toRender.forEach(pkg => {
         const sizeKB = pkg.Size ? (parseInt(pkg.Size) / 1024).toFixed(1) + ' KB' : 'Unknown size';
 
         const card = document.createElement('div');
         card.className = 'package-card';
         card.innerHTML = `
-            <h2>${pkg.Package} <span>v${pkg.Version}</span></h2>
+            <h2><a href="https://github.com/SjnExe/RepoExe/releases/tag/${pkg.Package}" target="_blank" style="color: inherit; text-decoration: none;">${pkg.Package}</a> <span>v${pkg.Version}</span></h2>
             <p>${pkg.Description}</p>
-            <div class="pkg-meta">Arch: ${pkg.Architecture} | Size: ${sizeKB}</div>
+            <div class="pkg-meta">Arch: ${pkg.Architecture || 'all'} | Size: ${sizeKB}</div>
 
             <div class="pkg-install">
                 <code>pkg i ${pkg.Package}</code>
@@ -84,6 +94,27 @@ function renderPackages(packages) {
         `;
         container.appendChild(card);
     });
+
+    displayedCount += toRender.length;
+}
+
+window.onscroll = function() {
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+        if (displayedCount < currentRenderList.length) {
+            renderPackages(currentRenderList, true);
+        }
+    }
+
+    const topBtn = document.getElementById("top-btn");
+    if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+        topBtn.style.display = "block";
+    } else {
+        topBtn.style.display = "none";
+    }
+};
+
+function scrollToTop() {
+    window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
 function filterPackages() {
@@ -111,8 +142,16 @@ function copyToClipboard(text) {
     navigator.clipboard.writeText(text);
 }
 
-function copyRepoInstall() {
-    copyToClipboard('curl -sL https://SjnExe.github.io/RepoExe/install | bash');
+function copyInstallCmd(cmd) {
+    copyToClipboard(cmd);
+}
+
+function switchInstallTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+    document.querySelector(`.tab-btn[onclick="switchInstallTab('${tabId}')"]`).classList.add('active');
+    document.getElementById(`tab-${tabId}`).classList.add('active');
 }
 
 // Dependency Visualizer Logic
@@ -124,13 +163,16 @@ function getDependencies(pkgName) {
 }
 
 function buildDepTreeHTML(pkgName, visited = new Set()) {
-    if (visited.has(pkgName)) return `<li>${pkgName} <i>(circular/repeated)</i></li>`;
+    const isRepoPkg = allPackages.some(p => p.Package === pkgName);
+    const displayName = isRepoPkg ? `<a href="#" onclick="showDependencies('${pkgName}'); return false;" style="color: var(--primary-color);">${pkgName}</a>` : pkgName;
+
+    if (visited.has(pkgName)) return `<li>${displayName} <i>(circular/repeated)</i></li>`;
     visited.add(pkgName);
 
     const deps = getDependencies(pkgName);
-    if (deps.length === 0) return `<li><b>${pkgName}</b></li>`;
+    if (deps.length === 0) return `<li><b>${displayName}</b></li>`;
 
-    let html = `<li><b>${pkgName}</b><ul>`;
+    let html = `<li><b>${displayName}</b><ul>`;
     deps.forEach(d => {
         html += buildDepTreeHTML(d, new Set(visited));
     });

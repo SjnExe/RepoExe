@@ -190,8 +190,24 @@ jobs:
               continue
             fi
 
-            TAG="pkg-$pkg"
-            gh release create "$TAG" --title "Rolling Release $pkg" --notes "Automated build" || true
+            # Extract version from build.sh
+            VERSION=""
+            if grep -q '^TERMUX_PKG_VERSION=' "packages/$pkg/build.sh"; then
+              VERSION=$(grep '^TERMUX_PKG_VERSION=' "packages/$pkg/build.sh" | cut -d= -f2 | tr -d \''"')
+            fi
+
+            TAG="$pkg"
+            TITLE="$pkg"
+            if [ -n "$VERSION" ]; then
+              TITLE="$pkg $VERSION"
+            fi
+
+            NOTES="Automated build for $pkg
+- **Version:** ${VERSION:-Unknown}
+- **Architecture:** ${{ matrix.arch }}
+- **Commit:** ${{ github.sha }}"
+
+            gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
 
             # To prevent race conditions across matrix jobs, ONLY aarch64 is allowed to prune and upload _all.deb files
             # (Because universal packages are only built on the aarch64 runner)
