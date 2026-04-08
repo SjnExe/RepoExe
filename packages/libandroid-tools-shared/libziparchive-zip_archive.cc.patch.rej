@@ -1,0 +1,11 @@
+--- libziparchive-zip_archive.cc.patch
++++ libziparchive-zip_archive.cc.patch
+@@ -43,7 +43,7 @@
+
+ +#ifdef ZLIB_CONST
+ -      zstream.next_in = buf;
+-+      zstream.next_in = buf;
+++      zstream.next_in = reinterpret_cast<const Bytef*>(buf);
+ +#else
+ +      zstream.next_in = reinterpret_cast<Bytef*>(const_cast<uint8_t*>(buf));
+ +#endif
