@@ -37,11 +37,15 @@
  #else
      close(mapped_zip.GetFileDescriptor());
 
-@@ -1477,7 +1477,7 @@
+
+@@ -1477,7 +1477,11 @@
 
        remaining_bytes -= read_size;
 
--      zstream.next_in = buf;
++#ifdef ZLIB_CONST
+       zstream.next_in = buf;
++#else
 +      zstream.next_in = reinterpret_cast<Bytef*>(const_cast<uint8_t*>(buf));
++#endif
        zstream.avail_in = read_size;
      }
