@@ -31,7 +31,7 @@ jobs:
           TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
           for tag in $TAGS; do
             echo "Downloading assets for $tag..."
-            if [[ "$tag" == *"-dev" ]]; then
+            if [[ "$tag" == *"-dev" && "$tag" != "repoexe-dev" ]]; then
               cd debs/dev
             else
               cd debs/main
