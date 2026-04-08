@@ -7,7 +7,12 @@ TERMUX_PKG_SKIP_SRC_EXTRACT=true
 TERMUX_PKG_PLATFORM_INDEPENDENT=true
 
 termux_step_make_install() {
-	mkdir -p $TERMUX_PREFIX/etc/apt/sources.list.d
+	mkdir -p "$TERMUX_PREFIX/etc/apt/sources.list.d"
 	echo "deb [trusted=yes] https://SjnExe.github.io/RepoExe stable dev" > repoexe-dev.list
-	install -Dm600 repoexe-dev.list $TERMUX_PREFIX/etc/apt/sources.list.d/repoexe-dev.list
+	cp repoexe-dev.list "$TERMUX_PREFIX/etc/apt/sources.list.d/repoexe-dev.list"
+}
+
+termux_step_post_massage() {
+	# Ensure proper permissions during packaging massage
+	chmod 600 $TERMUX_PREFIX/etc/apt/sources.list.d/repoexe-dev.list
 }
