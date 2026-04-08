@@ -33,29 +33,29 @@ local libcutils_sources="
 	properties.cpp
 	record_stream.cpp
 	strlcpy.c
-
+	threads.cpp
 "
 
 # libutils
 local libutils_sources="
-	Errors.cpp
+	binder/Errors.cpp
 	FileMap.cpp
 	JenkinsHash.cpp
 	LightRefBase.cpp
 	NativeHandle.cpp
 	Printer.cpp
-	RefBase.cpp
-	SharedBuffer.cpp
+	binder/RefBase.cpp
+	binder/SharedBuffer.cpp
 	StopWatch.cpp
-	String8.cpp
-	String16.cpp
-	StrongPointer.cpp
+	binder/String8.cpp
+	binder/String16.cpp
+	binder/StrongPointer.cpp
 	SystemClock.cpp
 	Threads.cpp
 	Timers.cpp
 	Tokenizer.cpp
-	Unicode.cpp
-	VectorImpl.cpp
+	binder/Unicode.cpp
+	binder/VectorImpl.cpp
 	misc.cpp
 "
 
