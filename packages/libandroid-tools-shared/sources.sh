@@ -33,7 +33,7 @@ local libcutils_sources="
 	properties.cpp
 	record_stream.cpp
 	strlcpy.c
-	threads.cpp
+
 "
 
 # libutils
