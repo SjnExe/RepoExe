@@ -17,20 +17,20 @@ This file contains instructions for AI agents working on the **RepoExe** reposit
 ## Environment Setup
 
 The build process for these packages requires a specialized Termux build environment. The repository provides a custom Docker image (`ghcr.io/sjnexe/repoexe-builder:latest`) to ensure reproducible builds.
-For the agent environment, the repository is already cloned to `/app`. The following environmental setup script uses `fuse-overlayfs` for optimal performance, starts the builder container in the background, and initializes the build tools and NDK patches.
+For the agent environment, the repository is already cloned to `/app`. The following environmental setup script uses `fuse-overlayfs` for optimal performance, allocates swap space to prevent OOM errors, starts the builder container in the background, applies NDK patches, and mirrors the custom packages.
 
 ```bash
-sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y fuse-overlayfs
-sudo bash -c 'cat << "JSON" > /etc/docker/daemon.json
-{
-  "storage-driver": "fuse-overlayfs"
-}
-JSON'
+sudo fallocate -l 16G /swapfile || true
+sudo chmod 600 /swapfile || true
+sudo mkswap /swapfile || true
+sudo swapon /swapfile || true
+dpkg -s fuse-overlayfs >/dev/null 2>&1 || (sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y fuse-overlayfs)
+sudo bash -c 'echo "{\"storage-driver\": \"fuse-overlayfs\"}" > /etc/docker/daemon.json'
 sudo systemctl restart docker
 sudo docker pull ghcr.io/sjnexe/repoexe-builder:latest
 mkdir -p ~/.ccache /app/output
 sudo docker run -d --name builder -u builder --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor:unconfined -v /app:/home/builder/RepoExe -v ~/.ccache:/home/builder/.ccache -w /home/builder/RepoExe -e REPO_ROOT=/home/builder/RepoExe ghcr.io/sjnexe/repoexe-builder:latest tail -f /dev/null
-sudo docker exec builder bash -c "sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/ && echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null && git clone --depth 1 https://github.com/termux/termux-packages.git /home/builder/termux-packages && if [ -d \"ndk-patches/29\" ]; then for patch in ndk-patches/29/*.patch; do if [ -f \"\$patch\" ]; then sudo patch -p1 -d /home/builder/lib/android-ndk/sysroot < \"\$patch\" || true; fi; done; fi"
+sudo docker exec builder bash -c "sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/ && echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null && git clone --depth 1 https://github.com/termux/termux-packages.git /home/builder/termux-packages && if [ -d \"ndk-patches/29\" ]; then for patch in ndk-patches/29/*.patch; do if [ -f \"\$patch\" ]; then sudo patch -p1 -d /home/builder/lib/android-ndk/sysroot < \"\$patch\" || true; fi; done; fi && for pkg_dir in packages/*; do if [ -d \"\$pkg_dir\" ]; then pkg=\$(basename \"\$pkg_dir\"); rm -rf \"/home/builder/termux-packages/packages/\$pkg\"; cp -a \"\$pkg_dir\" \"/home/builder/termux-packages/packages/\"; fi; done"
 ```
 
 ## Useful Commands
@@ -41,9 +41,8 @@ To build a specific package (e.g., `aapt2`) for the `aarch64` architecture using
 ```bash
 sudo docker exec builder bash -c "
 cd /home/builder/termux-packages
-rm -rf /home/builder/termux-packages/packages/aapt2
-cp -a /home/builder/RepoExe/packages/aapt2 /home/builder/termux-packages/packages/
 ./build-package.sh -a aarch64 -I aapt2
+mv output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
 "
 ```
 
