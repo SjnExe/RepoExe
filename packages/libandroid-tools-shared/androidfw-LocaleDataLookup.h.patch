@@ -17,7 +17,7 @@
  }
 
  constexpr inline uint32_t dropRegion(uint32_t packed_locale) {
-@@ -42,12 +40,10 @@
+@@ -42,11 +40,10 @@
  }
 
  constexpr inline uint32_t packScript(const char* script) {
