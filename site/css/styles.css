@@ -136,25 +136,33 @@ header p { color: var(--text-secondary); margin-bottom: 1.5rem; }
     position: relative;
     display: inline-flex;
     align-items: center;
+    width: 100%;
+    max-width: 500px;
 }
 
 .search-box span {
     position: absolute;
-    left: 10px;
+    left: 15px;
     color: var(--text-secondary);
+    font-size: 1.2rem;
 }
 
 input[type="text"] {
-    padding: 0.6rem 1rem 0.6rem 2.5rem;
+    padding: 0.8rem 1rem 0.8rem 2.8rem;
     width: 100%;
-    max-width: 300px;
+    font-size: 1rem;
     border: 1px solid var(--border-color);
-    border-radius: 20px;
-    background-color: var(--bg-color);
+    border-radius: 25px;
+    background-color: var(--surface-color);
     color: var(--text-primary);
     outline: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
-input[type="text"]:focus { border-color: var(--primary-color); }
+input[type="text"]:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0,112,243,0.2);
+}
 
 button {
     background: var(--surface-color);

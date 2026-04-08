@@ -104,8 +104,6 @@ function renderPackages(packages, append = false) {
     const toRender = currentRenderList.slice(displayedCount, displayedCount + LOAD_CHUNK);
 
     toRender.forEach(pkg => {
-        const sizeKB = pkg.Size ? (parseInt(pkg.Size) / 1024).toFixed(1) + ' KB' : 'Unknown size';
-
         // Generate arch tags HTML
         let archTagsHTML = '';
         if (pkg.architectures && pkg.architectures.length > 0) {
@@ -121,7 +119,6 @@ function renderPackages(packages, append = false) {
             <p>${pkg.Description}</p>
             <div class="pkg-meta">
                 <div class="arch-tags">${archTagsHTML}</div>
-                <div>Size: ${sizeKB}</div>
             </div>
 
             <div class="pkg-install">
