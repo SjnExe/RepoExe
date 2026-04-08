@@ -79,6 +79,7 @@ termux_step_make() {
 	local ANDROIDFW_SRCDIR=$TERMUX_PKG_SRCDIR/base/libs/androidfw
 
 	CPPFLAGS+=" -I. -I./include
+		-I$TERMUX_PKG_BUILDER_DIR/include
 		-I$LIBBASE_SRCDIR/include
 		-I$LIBLOG_INCDIR
 		-I$CORE_INCDIR"
