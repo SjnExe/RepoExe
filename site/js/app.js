@@ -1,4 +1,7 @@
 let allPackages = [];
+let displayedCount = 0;
+const LOAD_CHUNK = 20;
+let currentRenderList = [];
 
 // Parse APT Packages file format into JS objects
 function parsePackages(text) {
@@ -24,12 +27,48 @@ function parsePackages(text) {
 
 // Fetch metadata on load
 async function loadPackages() {
+    const components = ['main', 'dev'];
+    const arches = ['aarch64', 'arm', 'i686', 'x86_64'];
+    let packagesMap = new Map();
+
     try {
-        // Attempt to load live metadata, fallback to mock if failed (for local dev)
-        const response = await fetch('dists/stable/main/binary-aarch64/Packages');
-        if (response.ok) {
-            const text = await response.text();
-            allPackages = parsePackages(text);
+        for (const comp of components) {
+            for (const arch of arches) {
+                const response = await fetch(`dists/stable/${comp}/binary-${arch}/Packages`);
+                if (response.ok) {
+                    const text = await response.text();
+                    const pkgs = parsePackages(text);
+
+                    pkgs.forEach(pkg => {
+                        if (!pkg.Package) return;
+
+                        // Treat dev packages as distinct for mapping
+                        const mapKey = `${comp}:${pkg.Package}`;
+
+                        if (packagesMap.has(mapKey)) {
+                            let existing = packagesMap.get(mapKey);
+                            if (!existing.architectures.includes(arch)) {
+                                existing.architectures.push(arch);
+                            }
+                        } else {
+                            pkg.architectures = [arch];
+                            pkg.component = comp;
+                            packagesMap.set(mapKey, pkg);
+                        }
+                    });
+                }
+            }
+        }
+
+        if (packagesMap.size > 0) {
+            allPackages = Array.from(packagesMap.values());
+
+            // Post-process to consolidate into "all" if present in all 4 architectures
+            allPackages.forEach(pkg => {
+                if (pkg.architectures.length === 4) {
+                    pkg.architectures = ['all'];
+                }
+            });
         } else {
             loadMockData();
         }
@@ -50,29 +89,68 @@ async function loadPackages() {
 
 function loadMockData() {
     allPackages = [
-        { Package: "example-pkg", Version: "1.0.0", Architecture: "aarch64", Description: "An example package", Size: "10240", Depends: "python" },
-        { Package: "python", Version: "3.11.4", Architecture: "aarch64", Description: "Python programming language", Size: "5000000", Depends: "libffi, openssl" }
+        { Package: "example-pkg", component: "main", Version: "1.0.0", architectures: ["all"], Description: "An example package", Homepage: "https://github.com/example/pkg", Depends: "python" },
+        { Package: "python", component: "main", Version: "3.11.4", architectures: ["aarch64", "arm"], Description: "Python programming language", Depends: "libffi, openssl" },
+        { Package: "repoexe-dev", component: "dev", Version: "1.0.0", architectures: ["all"], Description: "Opt-in package for the RepoExe dev component", Homepage: "https://github.com/SjnExe/RepoExe" }
     ];
 }
 
-function renderPackages(packages) {
+function renderPackages(packages, append = false) {
     const container = document.getElementById('package-container');
-    container.innerHTML = '';
 
-    if (packages.length === 0) {
+    if (!append) {
+        container.innerHTML = '';
+        currentRenderList = packages;
+        displayedCount = 0;
+    }
+
+    if (currentRenderList.length === 0) {
         container.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">No packages found.</p>';
         return;
     }
 
-    packages.forEach(pkg => {
-        const sizeKB = pkg.Size ? (parseInt(pkg.Size) / 1024).toFixed(1) + ' KB' : 'Unknown size';
+    const toRender = currentRenderList.slice(displayedCount, displayedCount + LOAD_CHUNK);
+
+    toRender.forEach(pkg => {
+        // Generate arch tags HTML
+        let archTagsHTML = '';
+        if (pkg.architectures && pkg.architectures.length > 0) {
+            archTagsHTML = pkg.architectures.map(a => `<span class="arch-tag">${a}</span>`).join('');
+        } else {
+            archTagsHTML = `<span class="arch-tag">${pkg.Architecture || 'all'}</span>`;
+        }
+
+        // Component Tag
+        let compTag = '';
+        if (pkg.component === 'dev') {
+            compTag = `<span class="dev-tag">DEV</span>`;
+        }
+
+        // Generate Homepage link HTML
+        let homepageHTML = '';
+        if (pkg.Homepage) {
+            homepageHTML = `<a href="${pkg.Homepage}" target="_blank" class="upstream-link" title="Visit Upstream">
+                <span class="material-symbols-outlined" style="font-size: 1rem;">open_in_new</span> Upstream
+            </a>`;
+        }
+
+        const tagPackageName = pkg.component === 'dev' ? `${pkg.Package}-dev` : pkg.Package;
 
         const card = document.createElement('div');
         card.className = 'package-card';
         card.innerHTML = `
-            <h2>${pkg.Package} <span>v${pkg.Version}</span></h2>
+            <h2>
+                <div>
+                    <a href="https://github.com/SjnExe/RepoExe/releases/tag/${tagPackageName}" target="_blank" style="color: inherit; text-decoration: none;">${pkg.Package}</a>
+                    ${compTag}
+                </div>
+                <span>v${pkg.Version}</span>
+            </h2>
             <p>${pkg.Description}</p>
-            <div class="pkg-meta">Arch: ${pkg.Architecture} | Size: ${sizeKB}</div>
+            <div class="pkg-meta">
+                <div class="arch-tags">${archTagsHTML}</div>
+                ${homepageHTML}
+            </div>
 
             <div class="pkg-install">
                 <code>pkg i ${pkg.Package}</code>
@@ -84,6 +162,27 @@ function renderPackages(packages) {
         `;
         container.appendChild(card);
     });
+
+    displayedCount += toRender.length;
+}
+
+window.onscroll = function() {
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+        if (displayedCount < currentRenderList.length) {
+            renderPackages(currentRenderList, true);
+        }
+    }
+
+    const topBtn = document.getElementById("top-btn");
+    if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+        topBtn.style.display = "block";
+    } else {
+        topBtn.style.display = "none";
+    }
+};
+
+function scrollToTop() {
+    window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
 function filterPackages() {
@@ -100,10 +199,10 @@ function toggleView() {
     const icon = document.getElementById('view-icon');
     if (container.classList.contains('grid-view')) {
         container.classList.replace('grid-view', 'list-view');
-        icon.textContent = 'view_list';
+        icon.textContent = 'grid_view';
     } else {
         container.classList.replace('list-view', 'grid-view');
-        icon.textContent = 'grid_view';
+        icon.textContent = 'view_list';
     }
 }
 
@@ -111,8 +210,16 @@ function copyToClipboard(text) {
     navigator.clipboard.writeText(text);
 }
 
-function copyRepoInstall() {
-    copyToClipboard('curl -sL https://SjnExe.github.io/RepoExe/install | bash');
+function copyInstallCmd(cmd) {
+    copyToClipboard(cmd);
+}
+
+function switchInstallTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+    document.querySelector(`.tab-btn[onclick="switchInstallTab('${tabId}')"]`).classList.add('active');
+    document.getElementById(`tab-${tabId}`).classList.add('active');
 }
 
 // Dependency Visualizer Logic
@@ -124,13 +231,16 @@ function getDependencies(pkgName) {
 }
 
 function buildDepTreeHTML(pkgName, visited = new Set()) {
-    if (visited.has(pkgName)) return `<li>${pkgName} <i>(circular/repeated)</i></li>`;
+    const isRepoPkg = allPackages.some(p => p.Package === pkgName);
+    const displayName = isRepoPkg ? `<a href="#" onclick="showDependencies('${pkgName}'); return false;" style="color: var(--primary-color);">${pkgName}</a>` : pkgName;
+
+    if (visited.has(pkgName)) return `<li>${displayName} <i>(circular/repeated)</i></li>`;
     visited.add(pkgName);
 
     const deps = getDependencies(pkgName);
-    if (deps.length === 0) return `<li><b>${pkgName}</b></li>`;
+    if (deps.length === 0) return `<li><b>${displayName}</b></li>`;
 
-    let html = `<li><b>${pkgName}</b><ul>`;
+    let html = `<li><b>${displayName}</b><ul>`;
     deps.forEach(d => {
         html += buildDepTreeHTML(d, new Set(visited));
     });
