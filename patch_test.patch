@@ -1,15 +1,11 @@
 --- packages/libandroid-tools-shared/libziparchive-zip_archive.cc.patch
 +++ packages/libandroid-tools-shared/libziparchive-zip_archive.cc.patch
-@@ -37,12 +37,3 @@
-  #else
-      close(mapped_zip.GetFileDescriptor());
+@@ -43,7 +43,7 @@
 
--@@ -1477,7 +1477,7 @@
--
--       remaining_bytes -= read_size;
--
---      zstream.next_in = buf;
--+      zstream.next_in = reinterpret_cast<Bytef*>(const_cast<uint8_t*>(buf));
--       zstream.avail_in = read_size;
--     }
--
+ +#ifdef ZLIB_CONST
+ -      zstream.next_in = buf;
+-+      zstream.next_in = buf;
+++      zstream.next_in = reinterpret_cast<const Bytef*>(buf);
+ +#else
+ +      zstream.next_in = reinterpret_cast<Bytef*>(const_cast<uint8_t*>(buf));
+ +#endif

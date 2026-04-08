@@ -7,7 +7,7 @@ void test() {
     const uint8_t* buf = 0;
 #define ZLIB_CONST 1
 #ifdef ZLIB_CONST
-    zstream.next_in = buf;
+    zstream.next_in = reinterpret_cast<const uint8_t*>(buf);
 #else
     zstream.next_in = reinterpret_cast<uint8_t*>(const_cast<uint8_t*>(buf));
 #endif

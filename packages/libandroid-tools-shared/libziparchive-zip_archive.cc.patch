@@ -43,7 +43,8 @@
        remaining_bytes -= read_size;
 
 +#ifdef ZLIB_CONST
-       zstream.next_in = buf;
+ -      zstream.next_in = buf;
++      zstream.next_in = reinterpret_cast<const Bytef*>(buf);
 +#else
 +      zstream.next_in = reinterpret_cast<Bytef*>(const_cast<uint8_t*>(buf));
 +#endif
