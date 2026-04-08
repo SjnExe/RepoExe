@@ -27,29 +27,36 @@ function parsePackages(text) {
 
 // Fetch metadata on load
 async function loadPackages() {
+    const components = ['main', 'dev'];
     const arches = ['aarch64', 'arm', 'i686', 'x86_64'];
     let packagesMap = new Map();
 
     try {
-        for (const arch of arches) {
-            const response = await fetch(`dists/stable/main/binary-${arch}/Packages`);
-            if (response.ok) {
-                const text = await response.text();
-                const pkgs = parsePackages(text);
+        for (const comp of components) {
+            for (const arch of arches) {
+                const response = await fetch(`dists/stable/${comp}/binary-${arch}/Packages`);
+                if (response.ok) {
+                    const text = await response.text();
+                    const pkgs = parsePackages(text);
 
-                pkgs.forEach(pkg => {
-                    if (!pkg.Package) return;
-                    if (packagesMap.has(pkg.Package)) {
-                        let existing = packagesMap.get(pkg.Package);
-                        if (!existing.architectures.includes(arch)) {
-                            existing.architectures.push(arch);
+                    pkgs.forEach(pkg => {
+                        if (!pkg.Package) return;
+
+                        // Treat dev packages as distinct for mapping
+                        const mapKey = `${comp}:${pkg.Package}`;
+
+                        if (packagesMap.has(mapKey)) {
+                            let existing = packagesMap.get(mapKey);
+                            if (!existing.architectures.includes(arch)) {
+                                existing.architectures.push(arch);
+                            }
+                        } else {
+                            pkg.architectures = [arch];
+                            pkg.component = comp;
+                            packagesMap.set(mapKey, pkg);
                         }
-                    } else {
-                        // Initialize custom architectures array, defaults to the parsed one
-                        pkg.architectures = [arch];
-                        packagesMap.set(pkg.Package, pkg);
-                    }
-                });
+                    });
+                }
             }
         }
 
@@ -82,8 +89,9 @@ async function loadPackages() {
 
 function loadMockData() {
     allPackages = [
-        { Package: "example-pkg", Version: "1.0.0", architectures: ["all"], Description: "An example package", Size: "10240", Depends: "python" },
-        { Package: "python", Version: "3.11.4", architectures: ["aarch64", "arm"], Description: "Python programming language", Size: "5000000", Depends: "libffi, openssl" }
+        { Package: "example-pkg", component: "main", Version: "1.0.0", architectures: ["all"], Description: "An example package", Homepage: "https://github.com/example/pkg", Depends: "python" },
+        { Package: "python", component: "main", Version: "3.11.4", architectures: ["aarch64", "arm"], Description: "Python programming language", Depends: "libffi, openssl" },
+        { Package: "repoexe-dev", component: "dev", Version: "1.0.0", architectures: ["all"], Description: "Opt-in package for the RepoExe dev component", Homepage: "https://github.com/SjnExe/RepoExe" }
     ];
 }
 
@@ -112,13 +120,36 @@ function renderPackages(packages, append = false) {
             archTagsHTML = `<span class="arch-tag">${pkg.Architecture || 'all'}</span>`;
         }
 
+        // Component Tag
+        let compTag = '';
+        if (pkg.component === 'dev') {
+            compTag = `<span class="dev-tag">DEV</span>`;
+        }
+
+        // Generate Homepage link HTML
+        let homepageHTML = '';
+        if (pkg.Homepage) {
+            homepageHTML = `<a href="${pkg.Homepage}" target="_blank" class="upstream-link" title="Visit Upstream">
+                <span class="material-symbols-outlined" style="font-size: 1rem;">open_in_new</span> Upstream
+            </a>`;
+        }
+
+        const tagPackageName = pkg.component === 'dev' ? `${pkg.Package}-dev` : pkg.Package;
+
         const card = document.createElement('div');
         card.className = 'package-card';
         card.innerHTML = `
-            <h2><a href="https://github.com/SjnExe/RepoExe/releases/tag/${pkg.Package}" target="_blank" style="color: inherit; text-decoration: none;">${pkg.Package}</a> <span>v${pkg.Version}</span></h2>
+            <h2>
+                <div>
+                    <a href="https://github.com/SjnExe/RepoExe/releases/tag/${tagPackageName}" target="_blank" style="color: inherit; text-decoration: none;">${pkg.Package}</a>
+                    ${compTag}
+                </div>
+                <span>v${pkg.Version}</span>
+            </h2>
             <p>${pkg.Description}</p>
             <div class="pkg-meta">
                 <div class="arch-tags">${archTagsHTML}</div>
+                ${homepageHTML}
             </div>
 
             <div class="pkg-install">

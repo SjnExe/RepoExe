@@ -26,15 +26,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p debs
-          cd debs
+          mkdir -p debs/main debs/dev
           echo "Fetching all release tags"
           TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
           for tag in $TAGS; do
             echo "Downloading assets for $tag..."
+            if [[ "$tag" == *"-dev" ]]; then
+              cd debs/dev
+            else
+              cd debs/main
+            fi
             gh release download "$tag" --pattern "*.deb" || echo "No .deb found in $tag"
+            cd ../..
           done
-          cd ..
 
       - name: Setup Python
         uses: actions/setup-python@v6

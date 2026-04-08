@@ -45,7 +45,7 @@ def extract_control_info(deb_path):
             pkg_info[key.strip()] = val.strip()
     return pkg_info, control_content
 
-def generate_packages(deb_dir, base_output_dir, prev_packages_content=None):
+def generate_packages(deb_dir, base_output_dir, component, prev_packages_content=None):
     deb_files = glob.glob(os.path.join(deb_dir, '*.deb'))
 
     # Store packages by architecture: arch -> { packages_content: str, appstream: list }
@@ -71,7 +71,8 @@ def generate_packages(deb_dir, base_output_dir, prev_packages_content=None):
         sha256 = hash_file(deb, 'sha256')
 
         # Absolute URL rewrite using GitHub Releases rolling tags
-        filename = f"{REPO_URL}/releases/download/{pkg_name}/{os.path.basename(deb)}"
+        tag_suffix = "-dev" if component == "dev" else ""
+        filename = f"{REPO_URL}/releases/download/{pkg_name}{tag_suffix}/{os.path.basename(deb)}"
 
         cleaned_control = []
         for line in raw_control.split('\n'):
@@ -208,8 +209,9 @@ def generate_packages(deb_dir, base_output_dir, prev_packages_content=None):
             with gzip.open(appstream_path + '.gz', 'wb') as f_out:
                 f_out.writelines(f_in)
 
-def generate_release(output_dir):
+def generate_release(output_dir, components):
     date_str = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S UTC")
+    comp_str = " ".join(components)
 
     release_content = f"""Origin: RepoExe
 Label: RepoExe
@@ -217,7 +219,7 @@ Suite: stable
 Codename: stable
 Date: {date_str}
 Architectures: aarch64 arm i686 x86_64 all
-Components: main
+Components: {comp_str}
 Description: RepoExe Termux Repository
 Acquire-By-Hash: yes
 """
@@ -262,28 +264,37 @@ def sign_release(release_path):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--debs", required=True, help="Dir containing downloaded .deb files")
+    parser.add_argument("--debs", required=True, help="Root directory containing component deb folders (e.g., debs/main, debs/dev)")
     parser.add_argument("--out", required=True, help="Output directory for dists/stable")
     args = parser.parse_args()
 
-    # Simulate fetching previous Packages for PDiff (graceful fail if missing)
-    prev_packages = None
-    try:
-        resp = requests.get(f"{BASE_URL}/dists/stable/main/binary-aarch64/Packages")
-        if resp.status_code == 200:
-            prev_packages = resp.text
-    except Exception:
-        pass
+    # Discover components based on subdirectories in the debs folder
+    components = [d for d in os.listdir(args.debs) if os.path.isdir(os.path.join(args.debs, d))]
+    if not components:
+        print("No components found in debs directory. Assuming 'main'.")
+        components = ['main']
+        os.makedirs(os.path.join(args.debs, 'main'), exist_ok=True)
 
-    # Output directories are handled dynamically inside generate_packages now
-    # We just pass the base output directory (e.g., site/dists/stable/main)
-    main_dir = os.path.join(args.out, "main")
+    print(f"Discovered components: {components}")
 
-    print("Generating Packages and AppStream...")
-    generate_packages(args.debs, main_dir, prev_packages)
+    for comp in components:
+        comp_deb_dir = os.path.join(args.debs, comp)
+        comp_out_dir = os.path.join(args.out, comp)
 
-    print("Generating Release...")
-    release_path = generate_release(args.out)
+        # Simulate fetching previous Packages for PDiff
+        prev_packages = None
+        try:
+            resp = requests.get(f"{BASE_URL}/dists/stable/{comp}/binary-aarch64/Packages")
+            if resp.status_code == 200:
+                prev_packages = resp.text
+        except Exception:
+            pass
+
+        print(f"Generating Packages and AppStream for {comp}...")
+        generate_packages(comp_deb_dir, comp_out_dir, comp, prev_packages)
+
+    print("Generating Master Release file...")
+    release_path = generate_release(args.out, components)
 
     print("Signing Release...")
     sign_release(release_path)

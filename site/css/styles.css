@@ -231,6 +231,31 @@ main {
     color: var(--primary-color);
 }
 
+.upstream-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.8rem;
+    transition: color 0.2s;
+}
+
+.upstream-link:hover {
+    color: var(--primary-color);
+}
+
+.dev-tag {
+    background: #ff8c00;
+    color: #111;
+    font-size: 0.6rem;
+    font-weight: bold;
+    padding: 0.15rem 0.4rem;
+    border-radius: 6px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
 .pkg-install {
     background: var(--code-bg);
     padding: 0.5rem;

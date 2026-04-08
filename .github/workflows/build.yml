@@ -4,11 +4,15 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - 'packages/**'
       - 'scripts/mixins/**'
       - 'ndk-patches/**'
   pull_request:
+    branches:
+      - main
+      - dev
     paths:
       - 'packages/**'
       - 'scripts/mixins/**'
@@ -204,8 +208,13 @@ jobs:
 
             TAG="$pkg"
             TITLE="$pkg"
+            if [ "${{ github.ref }}" == "refs/heads/dev" ] || [ "${{ github.base_ref }}" == "dev" ]; then
+              TAG="$pkg-dev"
+              TITLE="$pkg (dev)"
+            fi
+
             if [ -n "$VERSION" ]; then
-              TITLE="$pkg $VERSION"
+              TITLE="$TITLE $VERSION"
             fi
 
             NOTES="Automated build for $pkg"$'\n'"- **Version:** ${VERSION:-Unknown}"$'\n'"- **Architecture:** ${{ matrix.arch }}"$'\n'"- **Commit:** ${{ github.sha }}"
