@@ -59,7 +59,7 @@ termux_step_pre_configure() {
 	mkdir -p $_TMP_BINDIR
 
 	# The shared libraries are now in the sysroot via libandroid-tools-shared
-	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive"
+	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils"
 }
 
 termux_step_make() {
@@ -83,7 +83,8 @@ termux_step_make() {
 		-I$CORE_INCDIR
 		-I$LIBZIPARCHIVE_SRCDIR/include
 		-I$INCFS_UTIL_SRCDIR/include
-		-I$ANDROIDFW_SRCDIR/include"
+		-I$ANDROIDFW_SRCDIR/include
+		-I$ANDROIDFW_SRCDIR/include_pathutils"
 
 	# Build aapt2:
 	cd $AAPT2_SRCDIR

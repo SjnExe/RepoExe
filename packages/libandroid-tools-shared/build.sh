@@ -125,9 +125,23 @@ termux_step_make() {
 		-landroid-ziparchive \
 		-lz \
 		-o $_TMP_LIBDIR/libandroid-fw.so
+
+	# Build libandroid-pathutils:
+	cd $ANDROIDFW_SRCDIR
+	for f in PathUtils.cpp; do
+		$CXX $CXXFLAGS $CPPFLAGS $f -c
+	done
+	$CXX $CXXFLAGS PathUtils.o -shared $LDFLAGS \
+		-landroid-base \
+		-landroid-cutils \
+		-landroid-utils \
+		-landroid-ziparchive \
+		-landroid-fw \
+		-lz \
+		-o $_TMP_LIBDIR/libandroid-pathutils.so
 }
 
 termux_step_make_install() {
 	install -Dm600 -t $TERMUX_PREFIX/lib \
-		$_TMP_LIBDIR/libandroid-{cutils,utils,base,ziparchive,fw}.so
+		$_TMP_LIBDIR/libandroid-{cutils,utils,base,ziparchive,fw,pathutils}.so
 }

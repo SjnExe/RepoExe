@@ -49,7 +49,7 @@ termux_step_pre_configure() {
 	rm -rf $_TMP_BINDIR
 	mkdir -p $_TMP_BINDIR
 
-	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive"
+	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils"
 }
 
 termux_step_make() {
