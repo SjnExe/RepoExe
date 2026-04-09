@@ -67,7 +67,8 @@ termux_step_make() {
 		-I$CORE_INCDIR
 		-I$LIBZIPARCHIVE_SRCDIR/include
 		-I$INCFS_UTIL_SRCDIR/include
-		-I$ANDROIDFW_SRCDIR/include"
+		-I$ANDROIDFW_SRCDIR/include
+		-I$ANDROIDFW_SRCDIR/include_pathutils"
 
 	# Build aapt:
 	cd $AAPT_SRCDIR
