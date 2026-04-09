@@ -43,12 +43,13 @@ termux_step_pre_configure() {
 	CFLAGS+=" -fPIC"
 	CXXFLAGS+=" -fPIC -std=c++17 -Wno-nontrivial-memcall -Wno-vla-cxx-extension -Wno-deprecated-anon-enum-enum-conversion -Wno-reorder-init-list"
 	CPPFLAGS+=" -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__"
+	CPPFLAGS+=" -I$TERMUX_PREFIX/include"
 
 	_TMP_BINDIR=$TERMUX_PKG_SRCDIR/_bin
 	rm -rf $_TMP_BINDIR
 	mkdir -p $_TMP_BINDIR
 
-	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive"
+	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils"
 }
 
 termux_step_make() {
@@ -66,7 +67,8 @@ termux_step_make() {
 		-I$CORE_INCDIR
 		-I$LIBZIPARCHIVE_SRCDIR/include
 		-I$INCFS_UTIL_SRCDIR/include
-		-I$ANDROIDFW_SRCDIR/include"
+		-I$ANDROIDFW_SRCDIR/include
+		-I$ANDROIDFW_SRCDIR/include_pathutils"
 
 	# Build aapt:
 	cd $AAPT_SRCDIR

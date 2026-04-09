@@ -21,7 +21,7 @@ TERMUX_PKG_SHA256=(SKIP_CHECKSUM
                    SKIP_CHECKSUM)
 TERMUX_PKG_SKIP_SRC_EXTRACT=true
 TERMUX_PKG_BUILD_IN_SRC=true
-TERMUX_PKG_DEPENDS="fmt, libc++, libexpat, libpng, libzopfli, zlib, libandroid-tools-shared"
+TERMUX_PKG_DEPENDS="fmt, libc++, libexpat, libpng, libprotobuf, libzopfli, zlib, libandroid-tools-shared"
 TERMUX_PKG_BUILD_DEPENDS="googletest"
 
 termux_step_post_get_source() {
@@ -49,16 +49,17 @@ termux_step_pre_configure() {
 	export PATH=$TERMUX_PKG_HOSTBUILD_DIR/_prefix/bin:$PATH
 
 	CFLAGS+=" -fPIC"
-	CXXFLAGS+=" -fPIC -std=c++17"
+	CXXFLAGS+=" -fPIC -std=c++17 -Wno-nontrivial-memcall -Wno-vla-cxx-extension -Wno-deprecated-anon-enum-enum-conversion -Wno-reorder-init-list"
 	CPPFLAGS+=" -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__"
 	CPPFLAGS+=" -DPROTOBUF_USE_DLLS"
+	CPPFLAGS+=" -I$TERMUX_PREFIX/include"
 
 	_TMP_BINDIR=$TERMUX_PKG_SRCDIR/_bin
 	rm -rf $_TMP_BINDIR
 	mkdir -p $_TMP_BINDIR
 
 	# The shared libraries are now in the sysroot via libandroid-tools-shared
-	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive"
+	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils"
 }
 
 termux_step_make() {
@@ -82,7 +83,8 @@ termux_step_make() {
 		-I$CORE_INCDIR
 		-I$LIBZIPARCHIVE_SRCDIR/include
 		-I$INCFS_UTIL_SRCDIR/include
-		-I$ANDROIDFW_SRCDIR/include"
+		-I$ANDROIDFW_SRCDIR/include
+		-I$ANDROIDFW_SRCDIR/include_pathutils"
 
 	# Build aapt2:
 	cd $AAPT2_SRCDIR

@@ -218,7 +218,7 @@ jobs:
               TITLE="$TITLE $VERSION"
             fi
 
-            NOTES="Automated build for $pkg"$'\n'"- **Version:** ${VERSION:-Unknown}"$'\n'"- **Architecture:** ${{ matrix.arch }}"$'\n'"- **Commit:** ${{ github.sha }}"
+            NOTES="Automated build for $pkg"$'\n'"- **Commit:** ${{ github.sha }}"
 
             gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
 
