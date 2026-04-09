@@ -6,7 +6,7 @@ _TAG_VERSION=16.0.0
 _TAG_REVISION=4
 TERMUX_PKG_VERSION=${_TAG_VERSION}.${_TAG_REVISION}
 TERMUX_PKG_SRCURL=(https://android.googlesource.com/platform/system/tools/aidl
-                   https://github.com/aosp-mirror/platform_system_core.git
+                   https://android.googlesource.com/platform/system/core
                    https://android.googlesource.com/platform/system/libbase)
 TERMUX_PKG_GIT_BRANCH=android-${_TAG_VERSION}_r${_TAG_REVISION}
 TERMUX_PKG_SHA256=(SKIP_CHECKSUM
@@ -22,22 +22,9 @@ termux_step_post_get_source() {
 		local REPO_URL=${TERMUX_PKG_SRCURL[$i]}
 		local CLONE_DIR=$(basename "$REPO_URL" .git | sed -e 's/platform_system_tools_//' -e 's/platform_system_//' -e 's/platform_//')
 
-		if ! git clone --depth 1 --single-branch \
+		git clone --depth 1 --single-branch \
 			--branch $TERMUX_PKG_GIT_BRANCH \
-			"$REPO_URL" "$CLONE_DIR"; then
-			echo "Clone failed. Attempting fallback..."
-			if [[ "$REPO_URL" == https://github.com/aosp-mirror/* ]]; then
-				local REPO_NAME=$(basename "$REPO_URL" .git)
-				local AOSP_PATH=$(echo "$REPO_NAME" | sed 's/_/\//g')
-				local FALLBACK_URL="https://android.googlesource.com/$AOSP_PATH"
-				echo "Trying fallback URL: $FALLBACK_URL"
-				git clone --depth 1 --single-branch \
-					--branch "$TERMUX_PKG_GIT_BRANCH" \
-					"$FALLBACK_URL" "$CLONE_DIR"
-			else
-				exit 1
-			fi
-		fi
+			"$REPO_URL" "$CLONE_DIR"
 	done
 }
 
