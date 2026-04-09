@@ -21,7 +21,7 @@ TERMUX_PKG_SHA256=(SKIP_CHECKSUM
                    SKIP_CHECKSUM)
 TERMUX_PKG_SKIP_SRC_EXTRACT=true
 TERMUX_PKG_BUILD_IN_SRC=true
-TERMUX_PKG_DEPENDS="fmt, libc++, libexpat, libpng, libzopfli, zlib, libandroid-tools-shared"
+TERMUX_PKG_DEPENDS="fmt, libc++, libexpat, libpng, libprotobuf, libzopfli, zlib, libandroid-tools-shared"
 TERMUX_PKG_BUILD_DEPENDS="googletest"
 
 termux_step_post_get_source() {
@@ -49,9 +49,10 @@ termux_step_pre_configure() {
 	export PATH=$TERMUX_PKG_HOSTBUILD_DIR/_prefix/bin:$PATH
 
 	CFLAGS+=" -fPIC"
-	CXXFLAGS+=" -fPIC -std=c++17"
+	CXXFLAGS+=" -fPIC -std=c++17 -Wno-nontrivial-memcall -Wno-vla-cxx-extension -Wno-deprecated-anon-enum-enum-conversion -Wno-reorder-init-list"
 	CPPFLAGS+=" -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__"
 	CPPFLAGS+=" -DPROTOBUF_USE_DLLS"
+	CPPFLAGS+=" -I$TERMUX_PREFIX/include"
 
 	_TMP_BINDIR=$TERMUX_PKG_SRCDIR/_bin
 	rm -rf $_TMP_BINDIR
