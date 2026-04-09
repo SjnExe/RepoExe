@@ -2,11 +2,11 @@ TERMUX_PKG_HOMEPAGE=https://elinux.org/Android_aapt
 TERMUX_PKG_DESCRIPTION="Android Asset Packaging Tool"
 TERMUX_PKG_LICENSE="Apache-2.0"
 TERMUX_PKG_MAINTAINER="@SjnExe"
-_TAG_VERSION=13.0.0
-_TAG_REVISION=6
+_TAG_VERSION=16.0.0
+_TAG_REVISION=4
 TERMUX_PKG_VERSION=1:1.0
-TERMUX_PKG_SRCURL=(https://github.com/aosp-mirror/platform_frameworks_base.git
-                   https://github.com/aosp-mirror/platform_system_core.git
+TERMUX_PKG_SRCURL=(https://android.googlesource.com/platform/frameworks/base
+                   https://android.googlesource.com/platform/system/core
                    https://android.googlesource.com/platform/system/libbase
                    https://android.googlesource.com/platform/system/libziparchive
                    https://android.googlesource.com/platform/system/logging
@@ -27,22 +27,9 @@ termux_step_post_get_source() {
 		local REPO_URL=${TERMUX_PKG_SRCURL[$i]}
 		local CLONE_DIR=$(basename "$REPO_URL" .git | sed -e 's/platform_system_tools_//' -e 's/platform_system_//' -e 's/platform_frameworks_//' -e 's/platform_//')
 
-		if ! git clone --depth 1 --single-branch \
+		git clone --depth 1 --single-branch \
 			--branch $TERMUX_PKG_GIT_BRANCH \
-			"$REPO_URL" "$CLONE_DIR"; then
-			echo "Clone failed. Attempting fallback..."
-			if [[ "$REPO_URL" == https://github.com/aosp-mirror/* ]]; then
-				local REPO_NAME=$(basename "$REPO_URL" .git)
-				local AOSP_PATH=$(echo "$REPO_NAME" | sed 's/_/\//g')
-				local FALLBACK_URL="https://android.googlesource.com/$AOSP_PATH"
-				echo "Trying fallback URL: $FALLBACK_URL"
-				git clone --depth 1 --single-branch \
-					--branch "$TERMUX_PKG_GIT_BRANCH" \
-					"$FALLBACK_URL" "$CLONE_DIR"
-			else
-				exit 1
-			fi
-		fi
+			"$REPO_URL" "$CLONE_DIR"
 	done
 }
 
@@ -54,7 +41,7 @@ termux_step_pre_configure() {
 	export PATH=$TERMUX_PKG_HOSTBUILD_DIR/_prefix/bin:$PATH
 
 	CFLAGS+=" -fPIC"
-	CXXFLAGS+=" -fPIC -std=c++17"
+	CXXFLAGS+=" -fPIC -std=c++17 -Wno-nontrivial-memcall -Wno-vla-cxx-extension -Wno-deprecated-anon-enum-enum-conversion -Wno-reorder-init-list"
 	CPPFLAGS+=" -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__"
 
 	_TMP_BINDIR=$TERMUX_PKG_SRCDIR/_bin
