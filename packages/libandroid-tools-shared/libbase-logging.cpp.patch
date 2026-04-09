@@ -2,6 +2,20 @@ diff --git a/libbase/logging.cpp b/libbase/logging.cpp
 index 07ba382..8a35e3f 100644
 --- a/libbase/logging.cpp
 +++ b/libbase/logging.cpp
+@@ -34,6 +34,13 @@
+ #include <android-base/threads.h>
+
+ #include "logging_splitters.h"
++
++#ifdef __ANDROID__
++// Stub for deprecated __android_log_error_write removed in NDK r30+
++extern "C" int __android_log_error_write(int tag, const char* subTag, int32_t uid, const char* data, uint32_t dataLen) {
++    return 0;
++}
++#endif
+
+ namespace android {
+ namespace base {
 @@ -215,9 +215,9 @@ static std::recursive_mutex& TagLock() {
  static std::string* gDefaultTag;
 
