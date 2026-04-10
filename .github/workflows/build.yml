@@ -125,30 +125,19 @@ jobs:
               sudo chown -R builder:builder /data/data/com.termux/files/usr/etc/apt/sources.list.d/
 
               # Clone Termux build infrastructure
-              echo 'Cloning termux-packages...'
-              git clone --depth 1 https://github.com/termux/termux-packages.git /home/builder/termux-packages
+
+
 
               # Apply NDK patches
-              if [ -d \"ndk-patches/29\" ]; then
+              if [ -d \"ndk-patches/29c\" ]; then
                 echo 'Applying NDK patches...'
-                for patch in ndk-patches/29/*.patch; do
+                for patch in ndk-patches/29c/*.patch; do
                   if [ -f \"\$patch\" ]; then
                     echo \"Applying \$patch\"
-                    sudo patch -p1 -d /home/builder/lib/android-ndk/sysroot < \"\$patch\" || true
+                    sudo patch -p1 -d /home/builder/RepoExe/build-tools/android-ndk-r29c/sysroot < \"\$patch\" || true
                   fi
                 done
               fi
-
-              # Phase 1: Mirror all RepoExe packages into the build environment first.
-              # This explicitly deletes and replaces the official Termux package directories
-              # with ours to prevent buildorder.py conflicts (e.g., legacy subpackages).
-              for pkg_dir in packages/*; do
-                if [ -d \"\$pkg_dir\" ]; then
-                  pkg=\$(basename \"\$pkg_dir\")
-                  rm -rf \"/home/builder/termux-packages/packages/\$pkg\"
-                  cp -a \"\$pkg_dir\" \"/home/builder/termux-packages/packages/\"
-                fi
-              done
 
               # Phase 2: Build the changed packages.
               for pkg in ${{ steps.pkgs.outputs.packages }}; do
@@ -167,7 +156,7 @@ jobs:
                   fi
                 fi
 
-                cd /home/builder/termux-packages
+                cd /home/builder/RepoExe
                 ./build-package.sh -a ${{ matrix.arch }} -I \$pkg
 
                 mv output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true

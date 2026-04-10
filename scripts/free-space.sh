@@ -1,38 +1,56 @@
-#!/bin/bash
-# Free up disk space on Ubuntu runner
-set -euo pipefail
+#!/bin/sh
 
-echo "Freeing disk space..."
+# This script clears about ~36G of space.
 
-# Remove large, unused directories directly to save maximum space.
-# We execute this in parallel to dramatically reduce execution time.
-# Bypassing apt-get entirely prevents hanging triggers and saves ~5 minutes.
+# Test:
+# echo "Listing 100 largest packages after"
+# dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n | tail -n 100
+# exit 0
 
-DIRS_TO_DELETE=(
-  "/usr/share/dotnet"
-  "/usr/local/lib/android"
-  "/opt/ghc"
-  "/opt/hostedtoolcache/CodeQL"
-  "/usr/local/share/powershell"
-  "/usr/share/swift"
-  "/usr/local/.ghcup"
-  "/usr/local/lib/node_modules"
-  "/usr/local/share/chromium"
-  "/usr/local/share/vcpkg"
-  "/usr/share/rust"
-  "/opt/az"
-  "/opt/pipx"
-  "/var/lib/docker/images"
-)
+if [ "${CI-false}" != "true" ]; then
+	echo "ERROR: not running on CI, not deleting system files to free space!"
+	exit 1
+else
+	# shellcheck disable=SC2046
+	sudo apt purge -yq --allow-remove-essential $(
+		dpkg -l |
+			grep '^ii' |
+			awk '{ print $2 }' |
+			grep -P '(mecab|linux-azure-tools-|aspnetcore|liblldb-|netstandard-|llvm|clang|gcc-12|gcc-13|cpp-|g\+\+-|temurin-|gfortran-|mysql-|google-cloud-cli|postgresql-|cabal-|dotnet-|ghc-|mongodb-|libmono|mesa-|ant|liblua|python3|grub2-|grub-|shim-signed)'
+	)
 
-# Run rm -rf in parallel
-for dir in "${DIRS_TO_DELETE[@]}"; do
-  sudo rm -rf "$dir" &
-done
+	sudo apt purge -yq \
+		snapd \
+		kubectl \
+		podman \
+		ruby3.2-doc \
+		mercurial-common \
+		git-lfs \
+		skopeo \
+		buildah \
+		vim \
+		python3-botocore \
+		azure-cli \
+		powershell \
+		shellcheck \
+		firefox
+		# google-chrome-stable
+		# microsoft-edge-stable already removed by the deps in the above apt purge
 
-wait
+	# Directories
+	sudo rm -rf /opt/ghc /opt/az /opt/hostedtoolcache /opt/actionarchivecache /opt/runner-cache
+	sudo rm -rf /opt/pipx /usr/share/dotnet /usr/share/swift /usr/share/miniconda /usr/share/az_* /usr/share/gradle-* /usr/share/java /home/runner/.rustup
+	sudo rm -rf /etc/skel /home/packer /home/linuxbrew
+	sudo rm -rf /usr/local /usr/src/
 
-# Clean apt cache instantly without invoking slow triggers
-sudo rm -rf /var/cache/apt/archives/*
+	# https://github.com/actions/runner-images/issues/709#issuecomment-612569242
+	sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-df -h /
+	# Clean compressed docker images
+	# Docker has already deflated them before free-space.sh was called in CI, so
+	# the compressed parts are just collecting junk on the disk
+	sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/
+
+	sudo apt autoremove -yq
+	sudo apt clean
+fi
