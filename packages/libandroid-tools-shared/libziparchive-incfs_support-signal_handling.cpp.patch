@@ -11,6 +11,6 @@
 +  action.sa_flags = SA_SIGINFO;
 +  action.sa_sigaction = &handler;
 +
-   if (sigaction(SIGBUS, &action, &mOldSigaction)) {
-     LOG_ALWAYS_FATAL("sigaction(SIGBUS) failed: %d", errno);
-     // not much can be done now
+    if (sigaction(SIGBUS, &action, &mOldSigaction)) {
+      LOG_ALWAYS_FATAL("sigaction(SIGBUS) failed: %d", errno);
+      // not much can be done now
