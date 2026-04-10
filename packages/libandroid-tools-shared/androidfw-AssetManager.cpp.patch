@@ -1,6 +1,6 @@
 --- a/base/libs/androidfw/AssetManager.cpp
 +++ b/base/libs/androidfw/AssetManager.cpp
-@@ -940,13 +940,9 @@
+@@ -940,13 +940,8 @@
 
      if (method == ZipFileRO::kCompressStored) {
          pAsset = Asset::createFromUncompressedMap(std::move(*dataMap), mode);
@@ -13,4 +13,4 @@
 -                dataMap->file_name(), mode, pAsset.get());
      }
      if (pAsset == NULL) {
-         /* unexpected */
+-        /* unexpected */
