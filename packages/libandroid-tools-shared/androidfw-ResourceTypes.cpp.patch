@@ -9,12 +9,12 @@
  #include <binder/TextOutput.h>
 
  #endif
-@@ -2305,7 +2305,7 @@
-         }
-     }
-
--    if (((inputFlags^o.inputFlags)&(MASK_KEYSHIDDEN|MASK_NAVHIDDEN)) != 0) {
-+    if (((inputFlags^o.inputFlags)&(static_cast<uint8_t>(MASK_KEYSHIDDEN)|static_cast<uint8_t>(MASK_NAVHIDDEN))) != 0) {
-         if (!(inputFlags & MASK_KEYSHIDDEN)) {
-             if (keysHidden == o.keysHidden) {
-                 return false;
+@@ -2305,8 +2305,8 @@
+     if (orientation != o.orientation) diffs |= CONFIG_ORIENTATION;
+     if (density != o.density) diffs |= CONFIG_DENSITY;
+     if (touchscreen != o.touchscreen) diffs |= CONFIG_TOUCHSCREEN;
+-    if (((inputFlags^o.inputFlags)&(MASK_KEYSHIDDEN|MASK_NAVHIDDEN)) != 0)
++    if (((inputFlags^o.inputFlags)&(static_cast<uint8_t>(MASK_KEYSHIDDEN)|static_cast<uint8_t>(MASK_NAVHIDDEN))) != 0)
+             diffs |= CONFIG_KEYBOARD_HIDDEN;
+     if (keyboard != o.keyboard) diffs |= CONFIG_KEYBOARD;
+     if (navigation != o.navigation) diffs |= CONFIG_NAVIGATION;
