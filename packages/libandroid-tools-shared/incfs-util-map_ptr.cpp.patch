@@ -5,7 +5,7 @@
  #include <utils/FileMap.h>
 
 -#ifdef __ANDROID__
-+#if defined __ANDROID__ && !defined __TERMUX__
++#if defined __ANDROID__ && !defined ___
  #include "incfs_inline.h"
  #endif
 
@@ -14,7 +14,7 @@
  }
 
 -#ifdef __ANDROID__
-+#if defined __ANDROID__ && !defined __TERMUX__
++#if defined __ANDROID__ && !defined ___
  static bool IsVerificationEnabled(int fd) {
      return isIncFsFd(fd) && isFullyLoaded(fd) != LoadingState::Full;
  }

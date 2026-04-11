@@ -2,22 +2,22 @@
 
 set -e -u
 
-: "${TERMUX_PKG_TMPDIR:="/tmp"}"
+: "${PKG_TMPDIR:="/tmp"}"
 
 # Install desired parts of the Android SDK:
 . $(cd "$(dirname "$0")"; pwd)/properties.sh
-. $(cd "$(dirname "$0")"; pwd)/build/termux_download.sh
+. $(cd "$(dirname "$0")"; pwd)/build/download.sh
 
-ANDROID_SDK_FILE=commandlinetools-linux-${TERMUX_SDK_REVISION}_latest.zip
+ANDROID_SDK_FILE=commandlinetools-linux-${SDK_REVISION}_latest.zip
 ANDROID_SDK_SHA256=0bebf59339eaa534f4217f8aa0972d14dc49e7207be225511073c661ae01da0a
-if [ "$TERMUX_NDK_VERSION" = "29" ]; then
-	ANDROID_NDK_FILE=android-ndk-r${TERMUX_NDK_VERSION}-linux.zip
+if [ "$NDK_VERSION" = "29" ]; then
+	ANDROID_NDK_FILE=android-ndk-r${NDK_VERSION}-linux.zip
 	ANDROID_NDK_SHA256=4abbbcdc842f3d4879206e9695d52709603e52dd68d3c1fff04b3b5e7a308ecf
-elif [ "$TERMUX_NDK_VERSION" = 23c ]; then
-	ANDROID_NDK_FILE=android-ndk-r${TERMUX_NDK_VERSION}-linux.zip
+elif [ "$NDK_VERSION" = 23c ]; then
+	ANDROID_NDK_FILE=android-ndk-r${NDK_VERSION}-linux.zip
 	ANDROID_NDK_SHA256=6ce94604b77d28113ecd588d425363624a5228d9662450c48d2e4053f8039242
 else
-	echo "ERROR: unknown NDK version $TERMUX_NDK_VERSION" >&2
+	echo "ERROR: unknown NDK version $NDK_VERSION" >&2
 	exit 1
 fi
 
@@ -28,11 +28,11 @@ if [ ! -d "$ANDROID_HOME" ]; then
 
 	# https://developer.android.com/studio/index.html#command-tools
 	echo "Downloading Android SDK..."
-	termux_download https://dl.google.com/android/repository/${ANDROID_SDK_FILE} \
-		tools-$TERMUX_SDK_REVISION.zip \
+	download https://dl.google.com/android/repository/${ANDROID_SDK_FILE} \
+		tools-$SDK_REVISION.zip \
 		$ANDROID_SDK_SHA256
-	rm -Rf android-sdk-$TERMUX_SDK_REVISION
-	unzip -q tools-$TERMUX_SDK_REVISION.zip -d android-sdk-$TERMUX_SDK_REVISION
+	rm -Rf android-sdk-$SDK_REVISION
+	unzip -q tools-$SDK_REVISION.zip -d android-sdk-$SDK_REVISION
 fi
 
 if [ ! -d "$NDK" ]; then
@@ -42,16 +42,16 @@ if [ ! -d "$NDK" ]; then
 
 	# https://developer.android.com/ndk/downloads
 	echo "Downloading Android NDK..."
-	termux_download https://dl.google.com/android/repository/${ANDROID_NDK_FILE} \
-		ndk-r${TERMUX_NDK_VERSION}.zip \
+	download https://dl.google.com/android/repository/${ANDROID_NDK_FILE} \
+		ndk-r${NDK_VERSION}.zip \
 		$ANDROID_NDK_SHA256
-	rm -Rf android-ndk-r$TERMUX_NDK_VERSION
-	unzip -q ndk-r${TERMUX_NDK_VERSION}.zip
+	rm -Rf android-ndk-r$NDK_VERSION
+	unzip -q ndk-r${NDK_VERSION}.zip
 
 	# Remove unused parts
-	rm -Rf android-ndk-r$TERMUX_NDK_VERSION/sources/cxx-stl/system
+	rm -Rf android-ndk-r$NDK_VERSION/sources/cxx-stl/system
 	# Create generic symlink
-	ln -s android-ndk-r${TERMUX_NDK_VERSION} android-ndk
+	ln -s android-ndk-r${NDK_VERSION} android-ndk
 fi
 
 if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
@@ -73,7 +73,7 @@ yes | $SDK_MANAGER --sdk_root="$ANDROID_HOME" --licenses
 # The android platforms are used in the ecj and apksigner packages:
 yes | $SDK_MANAGER --sdk_root="$ANDROID_HOME" \
 		"platform-tools" \
-		"build-tools;${TERMUX_ANDROID_BUILD_TOOLS_VERSION}" \
+		"build-tools;${ANDROID_BUILD_TOOLS_VERSION}" \
 		"platforms;android-35" \
 		"platforms;android-28" \
 		"platforms;android-24"

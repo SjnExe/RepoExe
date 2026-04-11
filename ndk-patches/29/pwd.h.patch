@@ -15,13 +15,13 @@ diff -u -r /home/builder/lib/android-ndk-r28b/toolchains/llvm/prebuilt/linux-x86
 +int access(const char* __path, int __mode);
 +
 +static void android_setup_pwd(struct passwd* pw) {
-+       char const* result = "@TERMUX_PREFIX@/bin/login";
++       char const* result = "@PREFIX@/bin/login";
 +       if (result == NULL || access(result, /*X_OK*/1) == -1) {
-+               pw->pw_shell = "@TERMUX_PREFIX@/bin/bash";
++               pw->pw_shell = "@PREFIX@/bin/bash";
 +       } else {
 +               pw->pw_shell = (char*) result;
 +       }
-+       pw->pw_dir = "@TERMUX_HOME@";
++       pw->pw_dir = "@HOME@";
 +       pw->pw_passwd = "*";
 +#ifdef __LP64__
 +       pw->pw_gecos = ""; /* Avoid NULL field. */

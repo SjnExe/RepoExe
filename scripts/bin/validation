@@ -1,6 +1,6 @@
 #!/bin/bash
 cd "$(realpath "$(dirname "$0")")/../.." || { echo "cd failed"; exit 1; }
-readarray -t TERMUX_PACKAGE_DIRECTORIES < <(jq --raw-output '"packages"' repo.json)
+readarray -t PACKAGE_DIRECTORIES < <(jq --raw-output '"packages"' repo.json)
 
 usage() {
 	echo "USAGE: $0 ARCH PACKAGES [list|batch_number]"
@@ -32,13 +32,13 @@ BIG_PACKAGES_IN_SEPARATE_BATCH=false
 
 case "${2}" in
 	golang)
-		readarray -t PACKAGES < <(grep -rl termux_setup_golang --include=build.sh --exclude-dir=golang "${TERMUX_PACKAGE_DIRECTORIES[@]}" | cut -d/ -f1,2 | sort -u | cut -d/ -f2 || :) || :
+		readarray -t PACKAGES < <(grep -rl setup_golang --include=build.sh --exclude-dir=golang "${PACKAGE_DIRECTORIES[@]}" | cut -d/ -f1,2 | sort -u | cut -d/ -f2 || :) || :
 		STRATEGY=(100)
 		EXCLUDE_BIG_PACKAGES=true
 		BIG_PACKAGES_IN_SEPARATE_BATCH=true
 		;;
 	zig)
-		readarray -t PACKAGES < <(grep -rl termux_setup_zig --include=build.sh --exclude-dir=zig "${TERMUX_PACKAGE_DIRECTORIES[@]}" | cut -d/ -f1,2 | sort -u | cut -d/ -f2 || :) || :
+		readarray -t PACKAGES < <(grep -rl setup_zig --include=build.sh --exclude-dir=zig "${PACKAGE_DIRECTORIES[@]}" | cut -d/ -f1,2 | sort -u | cut -d/ -f2 || :) || :
 		STRATEGY=(100)
 		;;
 	*)

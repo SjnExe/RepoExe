@@ -18,7 +18,7 @@ diff -u -r /home/builder/lib/android-ndk-r28b/toolchains/llvm/prebuilt/linux-x86
  char* _Nullable tmpnam(char* _Nullable __s)
      __warnattr("tmpnam is unsafe, use mkstemp or tmpfile instead");
 -#define P_tmpdir "/tmp/" /* deprecated */
-+#define P_tmpdir "@TERMUX_PREFIX@/tmp/" /* deprecated */
++#define P_tmpdir "@PREFIX@/tmp/" /* deprecated */
  char* _Nullable tempnam(const char* _Nullable __dir, const char* _Nullable __prefix)
      __warnattr("tempnam is unsafe, use mkstemp or tmpfile instead");
 
@@ -67,7 +67,7 @@ diff -u -r /home/builder/lib/android-ndk-r28b/toolchains/llvm/prebuilt/linux-x86
 +	int i;
 +	for (i = 0; i < 100; i++) {
 +		unsigned int r = arc4random();
-+		if (asprintf(&path, "@TERMUX_PREFIX@/tmp/tmpfile.%d-%u", p, r) == -1) return NULL;
++		if (asprintf(&path, "@PREFIX@/tmp/tmpfile.%d-%u", p, r) == -1) return NULL;
 +		int fd = open(path, O_RDWR | O_CREAT | O_EXCL | O_LARGEFILE, 0600);
 +		if (fd >= 0) {
 +			FILE* result = fdopen(fd, "w+");

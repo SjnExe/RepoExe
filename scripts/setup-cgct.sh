@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# setup CGCT - Cross Gnu Compilers for Termux
-# compile glibc-based binaries for Termux
+# setup CGCT - Cross Gnu Compilers for repoexe
+# compile glibc-based binaries for repoexe
 
 . $(dirname "$(realpath "$0")")/properties.sh
-. $(dirname "$(realpath "$0")")/build/termux_download.sh
+. $(dirname "$(realpath "$0")")/build/download.sh
 
 set -e -u
 
 ARCH="x86_64"
-REPO_URL="https://service.termux-pacman.dev/cgct/${ARCH}"
+REPO_URL="https://service.repoexe-pacman.dev/cgct/${ARCH}"
 
 if [ "$ARCH" != "$(uname -m)" ]; then
 	echo "Error: the requested CGCT is not supported on your architecture"
@@ -16,14 +16,14 @@ if [ "$ARCH" != "$(uname -m)" ]; then
 fi
 
 declare -A CGCT=(
-	["cbt"]="2.45.1-0" # Cross Binutils for Termux
-	["cgt"]="15.2.0-0" # Cross GCCs for Termux
+	["cbt"]="2.45.1-0" # Cross Binutils for repoexe
+	["cgt"]="15.2.0-0" # Cross GCCs for repoexe
 	["glibc-cgct"]="2.42-0" # Glibc for CGCT
 	["cgct-headers"]="6.18.6-0" # Headers for CGCT
 )
 
-: "${TERMUX_PKG_TMPDIR:="/tmp"}"
-TMPDIR_CGCT="${TERMUX_PKG_TMPDIR}/cgct"
+: "${PKG_TMPDIR:="/tmp"}"
+TMPDIR_CGCT="${PKG_TMPDIR}/cgct"
 
 # Creating a directory for CGCT in tmp
 if [ ! -d "$TMPDIR_CGCT" ]; then
@@ -53,7 +53,7 @@ for pkgname in ${!CGCT[@]}; do
 	fi
 	filename=$(jq -r '."'$pkgname'"."FILENAME"' "${TMPDIR_CGCT}/cgct.json")
 	if [ ! -f "${TMPDIR_CGCT}/${filename}" ]; then
-		termux_download "${REPO_URL}/${filename}" \
+		download "${REPO_URL}/${filename}" \
 			"${TMPDIR_CGCT}/${filename}" \
 			"${SHA256SUM}"
 	fi
@@ -65,7 +65,7 @@ if [ ! -f "${CGCT_DIR}/lib/libgcc_s.so" ]; then
 	pkgname="gcc-libs"
 	echo "Installing ${pkgname} for CGCT..."
 	#curl -L "https://archlinux.org/packages/core/${ARCH}/${pkgname}/download/" -o "${TMPDIR_CGCT}/${pkgname}.pkg.zstd"
-	termux_download "https://archive.archlinux.org/packages/g/gcc-libs/gcc-libs-15.1.1+r7+gf36ec88aa85a-1-x86_64.pkg.tar.zst" \
+	download "https://archive.archlinux.org/packages/g/gcc-libs/gcc-libs-15.1.1+r7+gf36ec88aa85a-1-x86_64.pkg.tar.zst" \
 		"${TMPDIR_CGCT}/${pkgname}.pkg.zstd" \
 		"6eedd2e4afc53e377b5f1772b5d413de3647197e36ce5dc4a409f993668aa5ed"
 	tar --use-compress-program=unzstd -xf "${TMPDIR_CGCT}/${pkgname}.pkg.zstd" -C "${TMPDIR_CGCT}" usr/lib

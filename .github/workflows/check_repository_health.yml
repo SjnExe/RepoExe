@@ -21,16 +21,16 @@ jobs:
         run: |
           ERROR_COUNT=0
           for build_file in $(find packages -name 'build.sh'); do
-            if ! grep -q "TERMUX_PKG_VERSION" "$build_file"; then
-              echo "Error: $build_file is missing TERMUX_PKG_VERSION"
+            if ! grep -q "PKG_VERSION" "$build_file"; then
+              echo "Error: $build_file is missing PKG_VERSION"
               ERROR_COUNT=$((ERROR_COUNT + 1))
             fi
-            if ! grep -q "TERMUX_PKG_HOMEPAGE" "$build_file"; then
-              echo "Error: $build_file is missing TERMUX_PKG_HOMEPAGE"
+            if ! grep -q "PKG_HOMEPAGE" "$build_file"; then
+              echo "Error: $build_file is missing PKG_HOMEPAGE"
               ERROR_COUNT=$((ERROR_COUNT + 1))
             fi
-            if ! grep -q "TERMUX_PKG_DESCRIPTION" "$build_file"; then
-              echo "Error: $build_file is missing TERMUX_PKG_DESCRIPTION"
+            if ! grep -q "PKG_DESCRIPTION" "$build_file"; then
+              echo "Error: $build_file is missing PKG_DESCRIPTION"
               ERROR_COUNT=$((ERROR_COUNT + 1))
             fi
           done

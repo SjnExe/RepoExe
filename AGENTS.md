@@ -8,15 +8,15 @@ This file contains instructions for AI agents working on the **RepoExe** reposit
 
 ## Project Context
 - **Name:** RepoExe
-- **Purpose:** A package repository for Termux providing custom tools and libraries (e.g., Android build tools like aapt2, zipalign, aidl).
+- **Purpose:** A package repository for repoexe providing custom tools and libraries (e.g., Android build tools like aapt2, zipalign, aidl).
 - **Tech Stack:**
-  - Termux Package Build System (Local standalone scripts)
+  - repoexe Package Build System (Local standalone scripts)
   - Docker (Custom builder image based on Ubuntu, completely independent)
   - GitHub Actions (CI/CD)
 
 ## Environment Setup
 
-The build process for these packages requires a specialized Termux build environment. The repository provides a custom Docker image (`ghcr.io/sjnexe/repoexe-builder:latest`) to ensure reproducible builds.
+The build process for these packages requires a specialized repoexe build environment. The repository provides a custom Docker image (`ghcr.io/sjnexe/repoexe-builder:latest`) to ensure reproducible builds.
 For the agent environment, the repository is already cloned to `/app`. The following environmental setup script uses `fuse-overlayfs` for optimal performance, starts the builder container in the background, applies NDK patches, and mirrors the custom packages.
 
 ```
@@ -40,7 +40,7 @@ mv output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
 To clean up previous build artifacts before starting a fresh build:
 ```
 sudo docker exec builder bash -c "
-rm -rf /home/builder/RepoExe/.termux-build/*
+rm -rf /home/builder/RepoExe/.build/*
 "
 ```
 

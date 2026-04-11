@@ -7,9 +7,9 @@ __pycache__/
 /build/
 dist/
 .DS_Store
-termux-packages/
+packages/
 
-# Termux packages specific ignores
+# repoexe packages specific ignores
 [._]*.s[a-w][a-z]
 [._]s[a-w][a-z]
 *.un~

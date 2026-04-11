@@ -3,24 +3,24 @@
 
 set -e -u -o pipefail
 
-TERMUX_SCRIPTDIR=$(cd "$(realpath "$(dirname "$0")")"; pwd)
+SCRIPTDIR=$(cd "$(realpath "$(dirname "$0")")"; pwd)
 
 # Store pid of current process in a file for docker__run_docker_exec_trap
-source "$TERMUX_SCRIPTDIR/scripts/utils/docker/docker.sh"; docker__create_docker_exec_pid_file
+source "$SCRIPTDIR/scripts/utils/docker/docker.sh"; docker__create_docker_exec_pid_file
 
 if [ "$(uname -o)" = "Android" ] || [ -e "/system/bin/app_process" ]; then
 	echo "On-device execution of this script is not supported."
 	exit 1
 fi
 
-# Read settings from .termuxrc if existing
-test -f "$HOME"/.termuxrc && . "$HOME"/.termuxrc
-: ${TERMUX_TOPDIR:="$HOME/.termux-build"}
-: ${TERMUX_ARCH:="aarch64"}
-: ${TERMUX_FORMAT:="debian"}
-: ${TERMUX_DEBUG_BUILD:=""}
-: ${TERMUX_INSTALL_DEPS:="-s"}
-# Set TERMUX_INSTALL_DEPS to -s unless set to -i
+# Read settings from .repoexerc if existing
+test -f "$HOME"/.repoexerc && . "$HOME"/.repoexerc
+: ${TOPDIR:="$HOME/.repoexe-build"}
+: ${ARCH:="aarch64"}
+: ${FORMAT:="debian"}
+: ${DEBUG_BUILD:=""}
+: ${INSTALL_DEPS:="-s"}
+# Set INSTALL_DEPS to -s unless set to -i
 
 _show_usage() {
 	echo "Usage: ./build-all.sh [-a ARCH] [-d] [-i] [-o DIR] [-f FORMAT]"
@@ -35,11 +35,11 @@ _show_usage() {
 
 while getopts :a:hdio:f: option; do
 case "$option" in
-	a) TERMUX_ARCH="$OPTARG";;
-	d) TERMUX_DEBUG_BUILD='-d';;
-	i) TERMUX_INSTALL_DEPS='-i';;
-	o) TERMUX_OUTPUT_DIR="$(realpath -m "$OPTARG")";;
-	f) TERMUX_FORMAT="$OPTARG";;
+	a) ARCH="$OPTARG";;
+	d) DEBUG_BUILD='-d';;
+	i) INSTALL_DEPS='-i';;
+	o) OUTPUT_DIR="$(realpath -m "$OPTARG")";;
+	f) FORMAT="$OPTARG";;
 	h) _show_usage;;
 	*) _show_usage >&2 ;;
 esac
@@ -47,18 +47,18 @@ done
 shift $((OPTIND-1))
 if [ "$#" -ne 0 ]; then _show_usage; fi
 
-case "$TERMUX_ARCH" in
+case "$ARCH" in
 	all|aarch64|arm|i686|x86_64);;
-	*) echo "ERROR: Invalid arch '$TERMUX_ARCH'" 1>&2; exit 1;;
+	*) echo "ERROR: Invalid arch '$ARCH'" 1>&2; exit 1;;
 esac
 
-case "$TERMUX_FORMAT" in
+case "$FORMAT" in
 	debian|pacman);;
-	*) echo "ERROR: Invalid format '$TERMUX_FORMAT'" 1>&2; exit 1;;
+	*) echo "ERROR: Invalid format '$FORMAT'" 1>&2; exit 1;;
 esac
 
 BUILDSCRIPT=$(dirname "$0")/build-package.sh
-BUILDALL_DIR=$TERMUX_TOPDIR/_buildall-$TERMUX_ARCH
+BUILDALL_DIR=$TOPDIR/_buildall-$ARCH
 BUILDORDER_FILE=$BUILDALL_DIR/buildorder.txt
 BUILDSTATUS_FILE=$BUILDALL_DIR/buildstatus.txt
 
@@ -66,7 +66,7 @@ if [ -e "$BUILDORDER_FILE" ]; then
 	echo "Using existing buildorder file: $BUILDORDER_FILE"
 else
 	mkdir -p "$BUILDALL_DIR"
-	"$TERMUX_SCRIPTDIR/scripts/buildorder.py" > "$BUILDORDER_FILE"
+	"$SCRIPTDIR/scripts/buildorder.py" > "$BUILDORDER_FILE"
 fi
 if [ -e "$BUILDSTATUS_FILE" ]; then
 	echo "Continuing build-all from: $BUILDSTATUS_FILE"
@@ -83,15 +83,15 @@ while read -r PKG PKG_DIR; do
 	fi
 
 	# Start building
-	if [ -n "${TERMUX_DEBUG_BUILD}" ]; then
-		echo "\"$BUILDSCRIPT\" -a \"$TERMUX_ARCH\" $TERMUX_DEBUG_BUILD --format \"$TERMUX_FORMAT\" --library $(test "${PKG_DIR%/*}" = "gpkg" && echo "glibc" || echo "bionic") ${TERMUX_OUTPUT_DIR+-o $TERMUX_OUTPUT_DIR} $TERMUX_INSTALL_DEPS \"$PKG_DIR\""
+	if [ -n "${DEBUG_BUILD}" ]; then
+		echo "\"$BUILDSCRIPT\" -a \"$ARCH\" $DEBUG_BUILD --format \"$FORMAT\" --library $(test "${PKG_DIR%/*}" = "gpkg" && echo "glibc" || echo "bionic") ${OUTPUT_DIR+-o $OUTPUT_DIR} $INSTALL_DEPS \"$PKG_DIR\""
 	fi
 
 	echo -n "Building $PKG... "
 	BUILD_START=$(date "+%s")
-	"$BUILDSCRIPT" -a "$TERMUX_ARCH" $TERMUX_DEBUG_BUILD --format "$TERMUX_FORMAT" \
+	"$BUILDSCRIPT" -a "$ARCH" $DEBUG_BUILD --format "$FORMAT" \
 		--library $(test "${PKG_DIR%/*}" = "gpkg" && echo "glibc" || echo "bionic") \
-		${TERMUX_OUTPUT_DIR+-o $TERMUX_OUTPUT_DIR} $TERMUX_INSTALL_DEPS "$PKG_DIR" \
+		${OUTPUT_DIR+-o $OUTPUT_DIR} $INSTALL_DEPS "$PKG_DIR" \
 		&> "$BUILDALL_DIR"/"${PKG}".out
 	BUILD_END=$(date "+%s")
 	BUILD_SECONDS=$(( BUILD_END - BUILD_START ))

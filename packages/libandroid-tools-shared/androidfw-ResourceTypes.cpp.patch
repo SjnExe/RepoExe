@@ -5,7 +5,7 @@
  #include <utils/String8.h>
  #include <android-base/logging.h>
 -#ifdef __ANDROID__
-+#if defined __ANDROID__ && !defined __TERMUX__
++#if defined __ANDROID__ && !defined ___
  #include <binder/TextOutput.h>
 
  #endif

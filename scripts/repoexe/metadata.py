@@ -16,8 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # Config
-BASE_URL = "https://SjnExe.github.io/RepoExe"
-REPO_URL = "https://github.com/SjnExe/RepoExe"
+BASE_URL = "https://SjnExe.github.io/repoexe"
+REPO_URL = "https://github.com/SjnExe/repoexe"
 
 def run_cmd(cmd):
     result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -60,7 +60,7 @@ def generate_packages(deb_dir, base_output_dir, component, prev_packages_content
         pkg_name = pkg_info['Package']
         arch = pkg_info['Architecture']
 
-        # If architecture is 'all', we inject it into every standard Termux architecture
+        # If architecture is 'all', we inject it into every standard repoexe architecture
         target_arches = ['aarch64', 'arm', 'i686', 'x86_64'] if arch == 'all' else [arch]
 
         for t_arch in target_arches:
@@ -98,7 +98,7 @@ def generate_packages(deb_dir, base_output_dir, component, prev_packages_content
         for t_arch in target_arches:
             arch_data[t_arch]["appstream"].append({
                 "Type": "desktop-application",
-                "ID": f"com.termux.{pkg_name}",
+                "ID": f"__COM_REPOEXE_PLACEHOLDER__.{pkg_name}",
                 "Name": {"C": pkg_info.get("Package", "")},
                 "Summary": {"C": pkg_info.get("Description", "").split('\n')[0]},
                 "Version": pkg_info.get("Version", "")
@@ -213,14 +213,14 @@ def generate_release(output_dir, components):
     date_str = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S UTC")
     comp_str = " ".join(components)
 
-    release_content = f"""Origin: RepoExe
-Label: RepoExe
+    release_content = f"""Origin: repoexe
+Label: repoexe
 Suite: stable
 Codename: stable
 Date: {date_str}
 Architectures: aarch64 arm i686 x86_64 all
 Components: {comp_str}
-Description: RepoExe Termux Repository
+Description: repoexe repoexe Repository
 Acquire-By-Hash: yes
 """
 

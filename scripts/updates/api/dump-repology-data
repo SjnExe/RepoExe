@@ -60,7 +60,7 @@ def get_repology_data(last_project, project):
 
 
 def get_outdated_packages(project):
-    termux_outdated_packages = {}
+    outdated_packages = {}
     last_project = ""
 
     while True:
@@ -85,7 +85,7 @@ def get_outdated_packages(project):
                 if repo_data["repo"] == "termux":
                     package_name = repo_data["visiblename"]
                     break
-            if package_name in termux_outdated_packages:
+            if package_name in outdated_packages:
                 # Skip if package is already in the dict.
                 continue
             newest_stable = None
@@ -100,14 +100,14 @@ def get_outdated_packages(project):
                     newest_devel = repo_data["version"]
 
             if newest_stable:
-                termux_outdated_packages[package_name] = newest_stable
+                outdated_packages[package_name] = newest_stable
             elif newest_devel:
-                termux_outdated_packages[package_name] = newest_devel
+                outdated_packages[package_name] = newest_devel
             else:
                 # If we don't find any version, skip the package.
                 continue
 
-    return termux_outdated_packages
+    return outdated_packages
 
 
 if __name__ == "__main__":

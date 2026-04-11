@@ -167,7 +167,7 @@ jobs:
                 echo \"Building \$pkg...\"
 
                 # Universal Packages Optimization
-                if grep -q 'TERMUX_PKG_PLATFORM_INDEPENDENT=true' \"packages/\$pkg/build.sh\"; then
+                if grep -q 'PKG_PLATFORM_INDEPENDENT=true' \"packages/\$pkg/build.sh\"; then
                   if [ \"${{ matrix.arch }}\" != \"aarch64\" ]; then
                     echo \"Skipping \$pkg on ${{ matrix.arch }} because it is architecture independent.\"
                     continue
@@ -210,8 +210,8 @@ jobs:
 
             # Extract version from build.sh
             VERSION=""
-            if grep -q '^TERMUX_PKG_VERSION=' "packages/$pkg/build.sh"; then
-              VERSION=$(grep '^TERMUX_PKG_VERSION=' "packages/$pkg/build.sh" | cut -d= -f2 | tr -d \''"')
+            if grep -q '^PKG_VERSION=' "packages/$pkg/build.sh"; then
+              VERSION=$(grep '^PKG_VERSION=' "packages/$pkg/build.sh" | cut -d= -f2 | tr -d \''"')
             fi
 
             TAG="$pkg"

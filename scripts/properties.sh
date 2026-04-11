@@ -13,17 +13,17 @@ fi
 
 
 ###
-# Variables for validation of Termux properties variables.
+# Variables for validation of repoexe properties variables.
 # Validation is done to ensure packages are not compiled for invalid
-# values that are not supported, and values are as per Termux file
+# values that are not supported, and values are as per repoexe file
 # path limits.
 #
-# Additionally, the Termux packages build system is an unsafe mess of
+# Additionally, the repoexe packages build system is an unsafe mess of
 # unquoted variables in shell scripts, and so validation is necessary
 # for important variables, especially specific path variables against
-# `TERMUX_REGEX__SAFE_*_PATH` regexes to reduce any potential damage.
+# `REGEX__SAFE_*_PATH` regexes to reduce any potential damage.
 #
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
 ###
 
 ##
@@ -33,60 +33,60 @@ fi
 # Following are the supported validator actions.
 # - `allow_unset_value`: Allow variable to be defined but unset, and
 #    skip other validations.
-# - `app_package_name`: Variable must match `TERMUX_REGEX__APP_PACKAGE_NAME`.
-# - `invalid_termux_rootfs_paths`: Path variable must not match
-#   `TERMUX_REGEX__INVALID_TERMUX_ROOTFS_PATHS`.
-# - `invalid_termux_home_paths`: Path variable must not match
-#   `TERMUX_REGEX__INVALID_TERMUX_HOME_PATHS`.
-# - `invalid_termux_prefix_paths`: Path variable must not match
-#   `TERMUX_REGEX__INVALID_TERMUX_PREFIX_PATHS`.
-# - `path_equal_to_or_under_termux_rootfs`: Path variable must be equal
-#   to or be under `TERMUX__ROOTFS`.
-# - `path_under_termux_rootfs`:Path variable must be under `TERMUX__ROOTFS`.
+# - `app_package_name`: Variable must match `REGEX__APP_PACKAGE_NAME`.
+# - `invalid_rootfs_paths`: Path variable must not match
+#   `REGEX__INVALID_ROOTFS_PATHS`.
+# - `invalid_home_paths`: Path variable must not match
+#   `REGEX__INVALID_HOME_PATHS`.
+# - `invalid_prefix_paths`: Path variable must not match
+#   `REGEX__INVALID_PREFIX_PATHS`.
+# - `path_equal_to_or_under_rootfs`: Path variable must be equal
+#   to or be under `_ROOTFS`.
+# - `path_under_rootfs`:Path variable must be under `_ROOTFS`.
 # - `safe_absolute_path`: Path variable must match
-#   `TERMUX_REGEX__SAFE_ABSOLUTE_PATH` and must not match
-#   `TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
+#   `REGEX__SAFE_ABSOLUTE_PATH` and must not match
+#   `REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
 # - `safe_relative_path`: Path variable must match
-#   `TERMUX_REGEX__SAFE_RELATIVE_PATH` and must not match
-#   `TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
+#   `REGEX__SAFE_RELATIVE_PATH` and must not match
+#   `REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
 # - `safe_rootfs_or_absolute_path`: Path variable must match
-#   `TERMUX_REGEX__SAFE_ROOTFS_OR_ABSOLUTE_PATH` and must not match
-#   `TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
+#   `REGEX__SAFE_ROOTFS_OR_ABSOLUTE_PATH` and must not match
+#   `REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
 # - `apps_api_socket__server_parent_dir`: Path variable must have max
-#    length `<= TERMUX__APPS_API_SOCKET__SERVER_PARENT_DIR___MAX_LEN`
+#    length `<= _APPS_API_SOCKET__SERVER_PARENT_DIR___MAX_LEN`
 #    including the null `\0` terminator.
-# - `unix_path_max`: Path variable must have max length `<= TERMUX__UNIX_PATH_MAX`
+# - `unix_path_max`: Path variable must have max length `<= _UNIX_PATH_MAX`
 #    including the null `\0` terminator.
-# - `unsigned_int`: Variable must match `TERMUX_REGEX__UNSIGNED_INT`.
+# - `unsigned_int`: Variable must match `REGEX__UNSIGNED_INT`.
 ##
-unset __TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP; declare -A __TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP=()
+unset __BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP; declare -A __BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP=()
 
 ##
-# The list of variable names added to `__TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP`
+# The list of variable names added to `__BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP`
 # that maintains insertion order.
 ##
-unset __TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES; declare -a __TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES=()
+unset __BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES; declare -a __BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES=()
 
 ##
-# Whether to validate max lengths of Termux paths. Set to `false` to skip validation.
+# Whether to validate max lengths of repoexe paths. Set to `false` to skip validation.
 ##
-__TERMUX_BUILD_PROPS__VALIDATE_PATHS_MAX_LEN="true"
+__BUILD_PROPS__VALIDATE_PATHS_MAX_LEN="true"
 
 ##
-# Whether to validate `usr` merge format for `TERMUX__PREFIX`. Set to `false` to skip validation.
-# Check `TERMUX__PREFIX` variable docs for more info.
+# Whether to validate `usr` merge format for `_PREFIX`. Set to `false` to skip validation.
+# Check `_PREFIX` variable docs for more info.
 ##
-__TERMUX_BUILD_PROPS__VALIDATE_TERMUX_PREFIX_USR_MERGE_FORMAT="true"
+__BUILD_PROPS__VALIDATE_PREFIX_USR_MERGE_FORMAT="true"
 
 
 
 ##
-# `__termux_build_props__add_variables_validator_actions` `<variable_name>` `<validator_actions>`
+# `__build_props__add_variables_validator_actions` `<variable_name>` `<validator_actions>`
 ##
-__termux_build_props__add_variables_validator_actions() {
+__build_props__add_variables_validator_actions() {
 
     if [ $# -ne 2 ]; then
-        echo "Invalid argument count '$#' to '__termux_build_props__add_variables_validator_actions'." 1>&2
+        echo "Invalid argument count '$#' to '__build_props__add_variables_validator_actions'." 1>&2
         return 1
     fi
 
@@ -94,15 +94,15 @@ __termux_build_props__add_variables_validator_actions() {
     local validator_actions="$2"
 
     if [[ ! "$variable_name" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
-        echo "The variable_name '$variable_name' passed to '__termux_build_props__add_variables_validator_actions' is not a valid shell variable name." 1>&2
+        echo "The variable_name '$variable_name' passed to '__build_props__add_variables_validator_actions' is not a valid shell variable name." 1>&2
         return 1
     fi
 
-    if [[ " ${__TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES[*]} " != *" $variable_name "* ]]; then
-        __TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES+=("$variable_name")
+    if [[ " ${__BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES[*]} " != *" $variable_name "* ]]; then
+        __BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES+=("$variable_name")
     fi
 
-    __TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP["$variable_name"]+="$validator_actions"
+    __BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP["$variable_name"]+="$validator_actions"
 
 }
 
@@ -111,7 +111,7 @@ __termux_build_props__add_variables_validator_actions() {
 
 
 ####
-# Variables for validating Termux variables.
+# Variables for validating repoexe variables.
 ####
 
 ##
@@ -119,20 +119,20 @@ __termux_build_props__add_variables_validator_actions() {
 # least one characters under rootfs `/`. Duplicate or trailing path
 # separators `/` are not allowed.
 ##
-TERMUX_REGEX__ABSOLUTE_PATH='^(/[^/]+)+$'
+REGEX__ABSOLUTE_PATH='^(/[^/]+)+$'
 
 ##
 # Regex that matches a relative path that does not start with a `/`.
 # Duplicate or trailing path separators `/` are not allowed.
 ##
-TERMUX_REGEX__RELATIVE_PATH='^[^/]+(/[^/]+)*$'
+REGEX__RELATIVE_PATH='^[^/]+(/[^/]+)*$'
 
 ##
 # Regex that matches (rootfs `/`) or (an absolute path that starts
 # with a `/`). Duplicate or trailing path separators `/` are not
 # allowed.
 ##
-TERMUX_REGEX__ROOTFS_OR_ABSOLUTE_PATH='^((/)|((/[^/]+)+))$'
+REGEX__ROOTFS_OR_ABSOLUTE_PATH='^((/)|((/[^/]+)+))$'
 
 
 ##
@@ -142,9 +142,9 @@ TERMUX_REGEX__ROOTFS_OR_ABSOLUTE_PATH='^((/)|((/[^/]+)+))$'
 # be in the range `[a-zA-Z0-9+,.=_-]`.
 #
 # The path must also be validated against
-# `TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
+# `REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
 ##
-TERMUX_REGEX__SAFE_ABSOLUTE_PATH='^(/[a-zA-Z0-9+,.=_-]+)+$'
+REGEX__SAFE_ABSOLUTE_PATH='^(/[a-zA-Z0-9+,.=_-]+)+$'
 
 ##
 # Regex that matches a safe relative path that does not start with a
@@ -152,9 +152,9 @@ TERMUX_REGEX__SAFE_ABSOLUTE_PATH='^(/[a-zA-Z0-9+,.=_-]+)+$'
 # path component characters must be in the range `[a-zA-Z0-9+,.=_-]`.
 #
 # The path must also be validated against
-# `TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
+# `REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
 ##
-TERMUX_REGEX__SAFE_RELATIVE_PATH='^[a-zA-Z0-9+,.=_-]+(/[a-zA-Z0-9+,.=_-]+)*$'
+REGEX__SAFE_RELATIVE_PATH='^[a-zA-Z0-9+,.=_-]+(/[a-zA-Z0-9+,.=_-]+)*$'
 
 ##
 # Regex that matches (rootfs `/`) or (a safe absolute path that starts
@@ -163,26 +163,26 @@ TERMUX_REGEX__SAFE_RELATIVE_PATH='^[a-zA-Z0-9+,.=_-]+(/[a-zA-Z0-9+,.=_-]+)*$'
 # `[a-zA-Z0-9+,.=_-]`.
 #
 # The path must also be validated against
-# `TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
+# `REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
 ##
-TERMUX_REGEX__SAFE_ROOTFS_OR_ABSOLUTE_PATH='^((/)|((/[a-zA-Z0-9+,.=_-]+)+))$'
+REGEX__SAFE_ROOTFS_OR_ABSOLUTE_PATH='^((/)|((/[a-zA-Z0-9+,.=_-]+)+))$'
 
 
 ##
 # Regex that matches a path containing single `/./` or double `/../` dot components.
 ##
-TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH='((^\./)|(^\.\./)|(/\.$)|(/\.\.$)|(/\./)|(/\.\./))'
+REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH='((^\./)|(^\.\./)|(/\.$)|(/\.\.$)|(/\./)|(/\.\./))'
 
 
 ##
-# Regex that matches invalid Termux rootfs paths.
+# Regex that matches invalid repoexe rootfs paths.
 #
-# The Termux rootfs or prefix paths must not be equal to or be under
-# specific Filesystem Hierarchy Standard paths or paths used by Termux
-# docker image/host OS for its own files, as Termux packages files
-# must be kept separate from the build host. The Termux app data/prefix
+# The repoexe rootfs or prefix paths must not be equal to or be under
+# specific Filesystem Hierarchy Standard paths or paths used by repoexe
+# docker image/host OS for its own files, as repoexe packages files
+# must be kept separate from the build host. The repoexe app data/prefix
 # directories are also wiped by `clean.sh` when not running on-device,
-# which wouldn't be possible if Termux and host directories are shared.
+# which wouldn't be possible if repoexe and host directories are shared.
 #
 # The invalid paths list does not include the `/data` and `/mnt/expand`
 # paths under which private app data directories are assigned to
@@ -191,35 +191,35 @@ TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH='((^\./)|(^\.\./)|(/\.$)|(/\.
 #
 # - https://refspecs.linuxfoundation.org/FHS_3.0/fhs-3.0.html
 # - https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-private-app-data-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-private-app-data-directory
 ##
-TERMUX_REGEX__INVALID_TERMUX_ROOTFS_PATHS='^((/bin(/.*)?)|(/boot(/.*)?)|(/dev(/.*)?)|(/etc(/.*)?)|(/home)|(/lib(/.*)?)|(/lib[^/]+(/.*)?)|(/media)|(/mnt)|(/opt)|(/proc(/.*)?)|(/root)|(/run(/.*)?)|(/sbin(/.*)?)|(/srv(/.*)?)|(/sys(/.*)?)|(/tmp(/.*)?)|(/usr)|(/usr/local)|(((/usr/)|(/usr/local/))((bin)|(games)|(include)|(lib)|(libexec)|(lib[^/]+)|(sbin)|(share)|(src)|(X11R6))(/.*)?)|(/var(/.*)?)|(/bin.usr-is-merged)|(/lib.usr-is-merged)|(/sbin.usr-is-merged)|(/.dockerinit)|(/.dockerenv))$'
+REGEX__INVALID_ROOTFS_PATHS='^((/bin(/.*)?)|(/boot(/.*)?)|(/dev(/.*)?)|(/etc(/.*)?)|(/home)|(/lib(/.*)?)|(/lib[^/]+(/.*)?)|(/media)|(/mnt)|(/opt)|(/proc(/.*)?)|(/root)|(/run(/.*)?)|(/sbin(/.*)?)|(/srv(/.*)?)|(/sys(/.*)?)|(/tmp(/.*)?)|(/usr)|(/usr/local)|(((/usr/)|(/usr/local/))((bin)|(games)|(include)|(lib)|(libexec)|(lib[^/]+)|(sbin)|(share)|(src)|(X11R6))(/.*)?)|(/var(/.*)?)|(/bin.usr-is-merged)|(/lib.usr-is-merged)|(/sbin.usr-is-merged)|(/.dockerinit)|(/.dockerenv))$'
 
 ##
-# Regex that matches invalid Termux home paths.
+# Regex that matches invalid repoexe home paths.
 #
-# Same reasoning as `TERMUX_REGEX__INVALID_TERMUX_ROOTFS_PATHS`,
+# Same reasoning as `REGEX__INVALID_ROOTFS_PATHS`,
 # and invalid paths are the same as well except that `/home` is
 # allowed, and `/` and all paths under `/usr` are not allowed.
 #
 # `/home` is allowed as package data files are not packaged from there.
 ##
-TERMUX_REGEX__INVALID_TERMUX_HOME_PATHS='^((/)|(/bin(/.*)?)|(/boot(/.*)?)|(/dev(/.*)?)|(/etc(/.*)?)|(/lib(/.*)?)|(/lib[^/]+(/.*)?)|(/media)|(/mnt)|(/opt)|(/proc(/.*)?)|(/root)|(/run(/.*)?)|(/sbin(/.*)?)|(/srv(/.*)?)|(/sys(/.*)?)|(/tmp(/.*)?)|(/usr(/.*)?)|(/var(/.*)?)|(/bin.usr-is-merged)|(/lib.usr-is-merged)|(/sbin.usr-is-merged)|(/.dockerinit)|(/.dockerenv))$'
+REGEX__INVALID_HOME_PATHS='^((/)|(/bin(/.*)?)|(/boot(/.*)?)|(/dev(/.*)?)|(/etc(/.*)?)|(/lib(/.*)?)|(/lib[^/]+(/.*)?)|(/media)|(/mnt)|(/opt)|(/proc(/.*)?)|(/root)|(/run(/.*)?)|(/sbin(/.*)?)|(/srv(/.*)?)|(/sys(/.*)?)|(/tmp(/.*)?)|(/usr(/.*)?)|(/var(/.*)?)|(/bin.usr-is-merged)|(/lib.usr-is-merged)|(/sbin.usr-is-merged)|(/.dockerinit)|(/.dockerenv))$'
 
 ##
-# Regex that matches invalid Termux prefix paths.
+# Regex that matches invalid repoexe prefix paths.
 #
-# Same reasoning as `TERMUX_REGEX__INVALID_TERMUX_ROOTFS_PATHS`,
+# Same reasoning as `REGEX__INVALID_ROOTFS_PATHS`,
 # and invalid paths are the same as well except that `/` is not
 # allowed.
 ##
-TERMUX_REGEX__INVALID_TERMUX_PREFIX_PATHS='^((/)|(/bin(/.*)?)|(/boot(/.*)?)|(/dev(/.*)?)|(/etc(/.*)?)|(/home)|(/lib(/.*)?)|(/lib[^/]+(/.*)?)|(/media)|(/mnt)|(/opt)|(/proc(/.*)?)|(/root)|(/run(/.*)?)|(/sbin(/.*)?)|(/srv(/.*)?)|(/sys(/.*)?)|(/tmp(/.*)?)|(/usr)|(/usr/local)|(((/usr/)|(/usr/local/))((bin)|(games)|(include)|(lib)|(libexec)|(lib[^/]+)|(sbin)|(share)|(src)|(X11R6))(/.*)?)|(/var(/.*)?)|(/bin.usr-is-merged)|(/lib.usr-is-merged)|(/sbin.usr-is-merged)|(/.dockerinit)|(/.dockerenv))$'
+REGEX__INVALID_PREFIX_PATHS='^((/)|(/bin(/.*)?)|(/boot(/.*)?)|(/dev(/.*)?)|(/etc(/.*)?)|(/home)|(/lib(/.*)?)|(/lib[^/]+(/.*)?)|(/media)|(/mnt)|(/opt)|(/proc(/.*)?)|(/root)|(/run(/.*)?)|(/sbin(/.*)?)|(/srv(/.*)?)|(/sys(/.*)?)|(/tmp(/.*)?)|(/usr)|(/usr/local)|(((/usr/)|(/usr/local/))((bin)|(games)|(include)|(lib)|(libexec)|(lib[^/]+)|(sbin)|(share)|(src)|(X11R6))(/.*)?)|(/var(/.*)?)|(/bin.usr-is-merged)|(/lib.usr-is-merged)|(/sbin.usr-is-merged)|(/.dockerinit)|(/.dockerenv))$'
 
 
 ##
 # Regex that matches an unsigned integer `>= 0`.
 ##
-TERMUX_REGEX__UNSIGNED_INT='^[0-9]+$'
+REGEX__UNSIGNED_INT='^[0-9]+$'
 
 
 ##
@@ -230,11 +230,11 @@ TERMUX_REGEX__UNSIGNED_INT='^[0-9]+$'
 # the range `[a-zA-Z]`, followed by zero or more characters in the
 # range `[a-zA-Z0-9_]`. The package name length must also be
 # `<= 255` (`NAME_MAX` for ext4 partitions). The length is not checked
-# by this regex and it must be checked with `TERMUX__NAME_MAX`, as
+# by this regex and it must be checked with `_NAME_MAX`, as
 # `bash` `=~` regex conditional does not support lookaround.
 #
-# Unlike Android, the Termux app package name max length is not `255`
-# as its limited by `TERMUX__APPS_DIR___MAX_LEN` and `TERMUX__ROOTFS_DIR___MAX_LEN`.
+# Unlike Android, the repoexe app package name max length is not `255`
+# as its limited by `_APPS_DIR___MAX_LEN` and `_ROOTFS_DIR___MAX_LEN`.
 #
 # - https://developer.android.com/build/configure-app-module#set-application-id
 # - https://cs.android.com/android/platform/superproject/+/android-14.0.0_r1:frameworks/base/core/java/android/content/pm/parsing/ApkLiteParseUtils.java;l=669-677
@@ -242,7 +242,7 @@ TERMUX_REGEX__UNSIGNED_INT='^[0-9]+$'
 # - https://cs.android.com/android/platform/superproject/+/android-14.0.0_r1:frameworks/base/core/java/android/os/FileUtils.java;l=954-994
 # - https://cs.android.com/android/platform/superproject/+/android-14.0.0_r1:frameworks/base/core/java/android/content/pm/PackageManager.java;l=2147-2155
 ##
-TERMUX_REGEX__APP_PACKAGE_NAME="^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$"
+REGEX__APP_PACKAGE_NAME="^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$"
 
 ##
 # Regex to match an android app data path.
@@ -256,309 +256,309 @@ TERMUX_REGEX__APP_PACKAGE_NAME="^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+
 #  to be installed on a removable/portable volume/sd card being used as
 #  adoptable storage.
 #
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-private-app-data-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-private-app-data-directory
 ##
-TERMUX_REGEX__APP_DATA_DIR_PATH='^(((/data/data)|(/data/user/[0-9]+)|(/mnt/expand/[^/]+/user/[0-9]+))/[^/]+)$'
+REGEX__APP_DATA_DIR_PATH='^(((/data/data)|(/data/user/[0-9]+)|(/mnt/expand/[^/]+/user/[0-9]+))/[^/]+)$'
 
 
 
 
 
 ###
-# Variables for the Termux build tools.
+# Variables for the repoexe build tools.
 ###
 
 ##
-# The path to the `termux-packages` repo root directory.
+# The path to the `repoexe-packages` repo root directory.
 ##
-TERMUX_PKGS__BUILD__REPO_ROOT_DIR="${TERMUX_PKGS__BUILD__REPO_ROOT_DIR:-}"
+PKGS__BUILD__REPO_ROOT_DIR="${PKGS__BUILD__REPO_ROOT_DIR:-}"
 
-__termux_build_props__set_termux_builder__repo_root_dir() {
+__build_props__set_builder__repo_root_dir() {
 
     local relative_path="${1:-}"
     local return_value=0
-    if [[ -z "${TERMUX_PKGS__BUILD__REPO_ROOT_DIR:-}" ]]; then
+    if [[ -z "${PKGS__BUILD__REPO_ROOT_DIR:-}" ]]; then
         if [[ "$(readlink --help 2>&1 || true)" =~ [\ ]-f[,\ ] ]]; then
-            TERMUX_PKGS__BUILD__REPO_ROOT_DIR="$(file="$(readlink -f -- "${BASH_SOURCE[0]}")" && \
+            PKGS__BUILD__REPO_ROOT_DIR="$(file="$(readlink -f -- "${BASH_SOURCE[0]}")" && \
                 parent="$(dirname -- "$file")" && \
                 readlink -f -- "${parent}${relative_path}")" || return_value=$?
         else
-            TERMUX_PKGS__BUILD__REPO_ROOT_DIR="$(pwd)" || return_value=$? # macOS `< 12.3` compatibility.
+            PKGS__BUILD__REPO_ROOT_DIR="$(pwd)" || return_value=$? # macOS `< 12.3` compatibility.
         fi
     fi
-    if [ $return_value -ne 0 ] || [[ ! "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR" =~ ^(/[a-zA-Z0-9+,.=_-]+)+$ ]] || \
-            [[ ! -f "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/scripts/properties.sh" ]]; then
-        echo "The TERMUX_PKGS__BUILD__REPO_ROOT_DIR '$TERMUX_PKGS__BUILD__REPO_ROOT_DIR' not found or is not valid." 1>&2
+    if [ $return_value -ne 0 ] || [[ ! "$PKGS__BUILD__REPO_ROOT_DIR" =~ ^(/[a-zA-Z0-9+,.=_-]+)+$ ]] || \
+            [[ ! -f "$PKGS__BUILD__REPO_ROOT_DIR/scripts/properties.sh" ]]; then
+        echo "The PKGS__BUILD__REPO_ROOT_DIR '$PKGS__BUILD__REPO_ROOT_DIR' not found or is not valid." 1>&2
         return 1;
     fi
 
 }
-__termux_build_props__set_termux_builder__repo_root_dir "/.." || exit $?
-unset __termux_build_props__set_termux_builder__repo_root_dir
-TERMUX_SCRIPTDIR="${TERMUX_SCRIPTDIR:-TERMUX_PKGS__BUILD__REPO_ROOT_DIR}" # Deprecated alternative variable for `TERMUX_PKGS__BUILD__REPO_ROOT_DIR`
+__build_props__set_builder__repo_root_dir "/.." || exit $?
+unset __build_props__set_builder__repo_root_dir
+SCRIPTDIR="${SCRIPTDIR:-PKGS__BUILD__REPO_ROOT_DIR}" # Deprecated alternative variable for `PKGS__BUILD__REPO_ROOT_DIR`
 
 
 
-TERMUX_SDK_REVISION=9123335
-TERMUX_ANDROID_BUILD_TOOLS_VERSION=33.0.1
+SDK_REVISION=9123335
+ANDROID_BUILD_TOOLS_VERSION=33.0.1
 # when changing the above:
-# change TERMUX_PKG_VERSION (and remove TERMUX_PKG_REVISION if necessary) in:
+# change PKG_VERSION (and remove PKG_REVISION if necessary) in:
 #   apksigner, d8
 # and trigger rebuild of them
-: "${TERMUX_NDK_VERSION_NUM:="29"}"
-: "${TERMUX_NDK_REVISION:=""}"
-TERMUX_NDK_VERSION="${TERMUX_NDK_VERSION_NUM}${TERMUX_NDK_REVISION}"
+: "${NDK_VERSION_NUM:="29"}"
+: "${NDK_REVISION:=""}"
+NDK_VERSION="${NDK_VERSION_NUM}${NDK_REVISION}"
 # when changing the above:
 # update version and hashsum in packages
 #   libandroid-stub, libc++, ndk-multilib, ndk-sysroot, vulkan-loader-android
 # and update SHA256 sums in scripts/setup-android-sdk.sh
 # check all packages build and run correctly and bump if needed
 
-: "${TERMUX_HOST_LLVM_MAJOR_VERSION:="20"}"
-: "${TERMUX_HOST_LLVM_BASE_DIR:="/usr/lib/llvm-${TERMUX_HOST_LLVM_MAJOR_VERSION}"}"
+: "${HOST_LLVM_MAJOR_VERSION:="20"}"
+: "${HOST_LLVM_BASE_DIR:="/usr/lib/llvm-${HOST_LLVM_MAJOR_VERSION}"}"
 
-: "${TERMUX_JAVA_HOME:=/usr/lib/jvm/java-17-openjdk-amd64}"
-export JAVA_HOME="${TERMUX_JAVA_HOME}"
+: "${JAVA_HOME:=/usr/lib/jvm/java-17-openjdk-amd64}"
+export JAVA_HOME="${JAVA_HOME}"
 
-if [[ "${TERMUX_PACKAGES_OFFLINE-false}" == "true" ]]; then
-    export ANDROID_HOME="${TERMUX_PKGS__BUILD__REPO_ROOT_DIR}/build-tools/android-sdk-${TERMUX_SDK_REVISION}"
-    export NDK="${TERMUX_PKGS__BUILD__REPO_ROOT_DIR}/build-tools/android-ndk-r${TERMUX_NDK_VERSION}"
+if [[ "${PACKAGES_OFFLINE-false}" == "true" ]]; then
+    export ANDROID_HOME="${PKGS__BUILD__REPO_ROOT_DIR}/build-tools/android-sdk-${SDK_REVISION}"
+    export NDK="${PKGS__BUILD__REPO_ROOT_DIR}/build-tools/android-ndk-r${NDK_VERSION}"
 else
-    : "${ANDROID_HOME:="${HOME}/lib/android-sdk-$TERMUX_SDK_REVISION"}"
-    : "${NDK:="${HOME}/lib/android-ndk-r${TERMUX_NDK_VERSION}"}"
+    : "${ANDROID_HOME:="${HOME}/lib/android-sdk-$SDK_REVISION"}"
+    : "${NDK:="${HOME}/lib/android-ndk-r${NDK_VERSION}"}"
 fi
 
 
 
 ###
-# Variables for the Termux apps and packages for which to compile packages.
+# Variables for the repoexe apps and packages for which to compile packages.
 #
-# Variables defined in this file need to be in sync with `termux-app`
-# (`TermuxConstants` and `TermuxCoreConstants`), termux site and `termux-exec`.
-# - https://github.com/termux/termux-app/blob/master/termux-shared/src/main/java/com/termux/shared/termux/TermuxConstants.java
-# - https://github.com/termux/termux-app/blob/master/termux-shared/src/main/java/com/termux/shared/termux/core/TermuxCoreConstants.java
+# Variables defined in this file need to be in sync with `repoexe-app`
+# (`repoexeConstants` and `repoexeCoreConstants`), repoexe site and `repoexe-exec`.
+# - https://github.com/repoexe/repoexe-app/blob/master/repoexe-shared/src/main/java/com/repoexe/shared/repoexe/repoexeConstants.java
+# - https://github.com/repoexe/repoexe-app/blob/master/repoexe-shared/src/main/java/com/repoexe/shared/repoexe/core/repoexeCoreConstants.java
 #
-# Following is a list of `TERMUX_` variables that are safe to modify when forking.
+# Following is a list of `` variables that are safe to modify when forking.
 # **DO NOT MODIFY ANY OTHER VARIABLE UNLESS YOU KNOW WHAT YOU ARE DOING.**
 #
-# - `TERMUX__NAME`, `TERMUX__LNAME` and `TERMUX__UNAME`.
-# - `TERMUX__REPOS_HOST_ORG_NAME` and `TERMUX__REPOS_HOST_ORG_URL`.
-# - `TERMUX_*__REPO_NAME` and `TERMUX_*__REPO_URL`.
-# - `TERMUX_APP__PACKAGE_NAME`.
-# - `TERMUX_APP__DATA_DIR`.
-# - `TERMUX__PROJECT_SUBDIR`.
-# - `TERMUX__ROOTFS_SUBDIR`.
-# - `TERMUX__ROOTFS` and alternates.
-# - `TERMUX__PREFIX` and alternates.
-# - `TERMUX_ANDROID_HOME` and alternates.
-# - `TERMUX_APP__NAME` and `TERMUX_APP__LNAME`.
-# - `TERMUX_APP__APP_IDENTIFIER`.
-# - `TERMUX_APP__NAMESPACE`.
-# - `TERMUX_APP__SHELL_API__SHELL_API_ACTIVITY__*`.
-# - `TERMUX_APP__SHELL_API__SHELL_API_SERVICE__*`.
-# - `TERMUX_APP__RUN_COMMAND_API__RUN_COMMAND_API_SERVICE__*`.
-# - `TERMUX_APP__DATA_SENDER_API__DATA_SENDER_API_RECEIVER__*`.
-# - `TERMUX_API_APP__PACKAGE_NAME`.
-# - `TERMUX_API_APP__NAME`.
-# - `TERMUX_API_APP__APP_IDENTIFIER`.
-# - `TERMUX_API_APP__NAMESPACE`.
-# - `TERMUX_API_APP__ANDROID_API__ANDROID_API_RECEIVER__*`.
-# - `TERMUX_AM_APP__NAMESPACE`.
+# - `_NAME`, `_LNAME` and `_UNAME`.
+# - `_REPOS_HOST_ORG_NAME` and `_REPOS_HOST_ORG_URL`.
+# - `*__REPO_NAME` and `*__REPO_URL`.
+# - `APP__PACKAGE_NAME`.
+# - `APP__DATA_DIR`.
+# - `_PROJECT_SUBDIR`.
+# - `_ROOTFS_SUBDIR`.
+# - `_ROOTFS` and alternates.
+# - `_PREFIX` and alternates.
+# - `ANDROID_HOME` and alternates.
+# - `APP__NAME` and `APP__LNAME`.
+# - `APP__APP_IDENTIFIER`.
+# - `APP__NAMESPACE`.
+# - `APP__SHELL_API__SHELL_API_ACTIVITY__*`.
+# - `APP__SHELL_API__SHELL_API_SERVICE__*`.
+# - `APP__RUN_COMMAND_API__RUN_COMMAND_API_SERVICE__*`.
+# - `APP__DATA_SENDER_API__DATA_SENDER_API_RECEIVER__*`.
+# - `API_APP__PACKAGE_NAME`.
+# - `API_APP__NAME`.
+# - `API_APP__APP_IDENTIFIER`.
+# - `API_APP__NAMESPACE`.
+# - `API_APP__ANDROID_API__ANDROID_API_RECEIVER__*`.
+# - `AM_APP__NAMESPACE`.
 ###
 
 ##
-# Termux project name.
+# repoexe project name.
 #
-# Default value: `Termux`
+# Default value: `repoexe`
 ##
-TERMUX__NAME="Termux"
+_NAME="repoexe"
 
 ##
-# The lower case value for `TERMUX__NAME`.
+# The lower case value for `_NAME`.
 #
-# Default value: `termux`
+# Default value: `repoexe`
 ##
-TERMUX__LNAME="${TERMUX__NAME,,}"
+_LNAME="${_NAME,,}"
 
 ##
-# The upper case value for `TERMUX__NAME`.
+# The upper case value for `_NAME`.
 #
-# Default value: `TERMUX`
+# Default value: `repoexe`
 ##
-TERMUX__UNAME="${TERMUX__NAME^^}"
+_UNAME="${_NAME^^}"
 
 
 
 ##
-# Termux internal project name.
+# repoexe internal project name.
 #
 # This is used internally for paths, filenames, and other internal use
-# cases and must match the `TERMUX__INTERNAL_NAME_REGEX` regex and
-# have max length `TERMUX__INTERNAL_NAME___MAX_LEN`.
+# cases and must match the `_INTERNAL_NAME_REGEX` regex and
+# have max length `_INTERNAL_NAME___MAX_LEN`.
 #
-# **This must not be changed unless doing a full fork of Termux where
-# all Termux references are changed instead of just changing the
-# `TERMUX__NAME`, `TERMUX_APP__PACKAGE_NAME` and urls.**
+# **This must not be changed unless doing a full fork of repoexe where
+# all repoexe references are changed instead of just changing the
+# `_NAME`, `APP__PACKAGE_NAME` and urls.**
 #
-# Default value: `termux`
+# Default value: `repoexe`
 ##
-TERMUX__INTERNAL_NAME="termux"
+_INTERNAL_NAME="repoexe"
 
 ##
-# The regex to validate `TERMUX__INTERNAL_NAME`.
+# The regex to validate `_INTERNAL_NAME`.
 #
 # The internal name must start with characters in the range
 # `[a-z0-9]`, followed by at least one character in the range
 # `[a-z0-9_-]`, and end with characters in the range `[a-z0-9]`. The
 # min length is `3`. The max length `7` as per
-# `TERMUX__INTERNAL_NAME___MAX_LEN` is not checked by this regex and
+# `_INTERNAL_NAME___MAX_LEN` is not checked by this regex and
 # must be checked separately.
 #
 #
 # Constant value: `^[a-z0-9][a-z0-9_-]+[a-z0-9]$`
 ##
-TERMUX__INTERNAL_NAME_REGEX="^[a-z0-9][a-z0-9_-]+[a-z0-9]$"
+_INTERNAL_NAME_REGEX="^[a-z0-9][a-z0-9_-]+[a-z0-9]$"
 
 ##
-# The max length for the `TERMUX__INTERNAL_NAME`.
+# The max length for the `_INTERNAL_NAME`.
 #
-# Check https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
+# Check https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
 # for why the value `7` is chosen.
 #
 # Constant value: `7`
 ##
-TERMUX__INTERNAL_NAME___MAX_LEN=7
+_INTERNAL_NAME___MAX_LEN=7
 
 
 
 ##
-# Termux repositories host organization name.
+# repoexe repositories host organization name.
 #
-# Default value: `termux`
+# Default value: `repoexe`
 ##
-TERMUX__REPOS_HOST_ORG_NAME="termux"
+_REPOS_HOST_ORG_NAME="repoexe"
 
 ##
-# Termux repositories host organization url.
+# repoexe repositories host organization url.
 #
-# Default value: `https://github.com/termux`
+# Default value: `https://github.com/repoexe`
 ##
-TERMUX__REPOS_HOST_ORG_URL="https://github.com/$TERMUX__REPOS_HOST_ORG_NAME"
+_REPOS_HOST_ORG_URL="https://github.com/$_REPOS_HOST_ORG_NAME"
 
 
 
 ##
-# Termux app package name used for `TERMUX_APP__DATA_DIR` and
-# `TERMUX_APP__*_(ACTIVITY|RECEIVER|SERVICE)__*` variables.
+# repoexe app package name used for `APP__DATA_DIR` and
+# `APP__*_(ACTIVITY|RECEIVER|SERVICE)__*` variables.
 #
 # Ideally package name should be `<= 21` characters and max `33`
 # characters. If package name has not yet been chosen, then it would
 # be best to keep it to `<= 10` characters. Check
-# https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
+# https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
 # for why.
 #
 # **See Also:**
-# - `TERMUX_APP__NAMESPACE`.
+# - `APP__NAMESPACE`.
 # - https://developer.android.com/build/configure-app-module#set-application-id
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-private-app-data-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-private-app-data-directory
 #
-# Default value: `com.termux`
+# Default value: `__COM_REPOEXE_PLACEHOLDER__`
 ##
-TERMUX_APP__PACKAGE_NAME="com.termux"
-TERMUX_APP_PACKAGE="$TERMUX_APP__PACKAGE_NAME" # Deprecated alternative variable for `TERMUX_APP__PACKAGE_NAME`
+APP__PACKAGE_NAME="__COM_REPOEXE_PLACEHOLDER__"
+APP_PACKAGE="$APP__PACKAGE_NAME" # Deprecated alternative variable for `APP__PACKAGE_NAME`
 
-__termux_build_props__add_variables_validator_actions "TERMUX_APP__PACKAGE_NAME" "app_package_name"
+__build_props__add_variables_validator_actions "APP__PACKAGE_NAME" "app_package_name"
 
 ##
-# Termux app data directory path that is expected to be assigned by
-# Android to the Termux app with `TERMUX_APP__PACKAGE_NAME` for all
-# its app data, that will contain the Termux project directory
-# (`TERMUX__PROJECT_DIR`), and optionally the Termux rootfs directory
-# (`TERMUX__ROOTFS`).
+# repoexe app data directory path that is expected to be assigned by
+# Android to the repoexe app with `APP__PACKAGE_NAME` for all
+# its app data, that will contain the repoexe project directory
+# (`_PROJECT_DIR`), and optionally the repoexe rootfs directory
+# (`_ROOTFS`).
 #
-# The path must match `TERMUX_REGEX__APP_DATA_DIR_PATH`.
+# The path must match `REGEX__APP_DATA_DIR_PATH`.
 #
-# The directory set will be deleted by `clean.sh` if `TERMUX__PREFIX`
-# is under `TERMUX_APP__DATA_DIR` and not running on-device, so make
-# sure a safe path is set if running `clean.sh` in Termux docker or
+# The directory set will be deleted by `clean.sh` if `_PREFIX`
+# is under `APP__DATA_DIR` and not running on-device, so make
+# sure a safe path is set if running `clean.sh` in repoexe docker or
 # host OS build environment.
 #
-# Default value: `/data/data/com.termux`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__`
 ##
-TERMUX_APP__DATA_DIR="/data/data/$TERMUX_APP__PACKAGE_NAME"
-__termux_build_props__add_variables_validator_actions "TERMUX_APP__DATA_DIR" "safe_absolute_path"
+APP__DATA_DIR="/data/data/$APP__PACKAGE_NAME"
+__build_props__add_variables_validator_actions "APP__DATA_DIR" "safe_absolute_path"
 
 ##
-# The max length for the `TERMUX_APP__DATA_DIR` including the null '\0'
+# The max length for the `APP__DATA_DIR` including the null '\0'
 # terminator.
 #
-# Check https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
+# Check https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
 # for why the value `69` is chosen.
 #
 # Constant value: `69`
 ##
-TERMUX_APP__DATA_DIR___MAX_LEN=69
+APP__DATA_DIR___MAX_LEN=69
 
 
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__PROJECT_DIR`.
+# repoexe subdirectory path for `_PROJECT_DIR`.
 #
-# Default value: `termux`
+# Default value: `repoexe`
 ##
-TERMUX__PROJECT_SUBDIR="$TERMUX__INTERNAL_NAME"
-__termux_build_props__add_variables_validator_actions "TERMUX__PROJECT_SUBDIR" "safe_relative_path"
+_PROJECT_SUBDIR="$_INTERNAL_NAME"
+__build_props__add_variables_validator_actions "_PROJECT_SUBDIR" "safe_relative_path"
 
 ##
-# Termux project directory path under `TERMUX_APP__DATA_DIR`.
+# repoexe project directory path under `APP__DATA_DIR`.
 #
-# This is an exclusive directory for all Termux files that includes
-# Termux core directory (`TERMUX__CORE_DIR`), Termux apps directory
-# (`TERMUX__APPS_DIR`), and optionally the Termux rootfs directory
-# (`TERMUX__ROOTFS`).
+# This is an exclusive directory for all repoexe files that includes
+# repoexe core directory (`_CORE_DIR`), repoexe apps directory
+# (`_APPS_DIR`), and optionally the repoexe rootfs directory
+# (`_ROOTFS`).
 #
-# Currently, the default Termux rootfs directory is not under it and
+# Currently, the default repoexe rootfs directory is not under it and
 # is at the `/files`  subdirectory but there are plans to move it to
-# `termux/rootfs/II` in future where `II` refers to rootfs id starting
+# `repoexe/rootfs/II` in future where `II` refers to rootfs id starting
 # at `0` for multi-rootfs support.
 #
-# An exclusive directory is required so that all Termux files exist
-# under a single directory, especially for when Termux is provided as
-# a library, so that Termux files do not interfere with other files
-# of Termux app forks or apps that may use the Termux library.
+# An exclusive directory is required so that all repoexe files exist
+# under a single directory, especially for when repoexe is provided as
+# a library, so that repoexe files do not interfere with other files
+# of repoexe app forks or apps that may use the repoexe library.
 #
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-project-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-project-directory
 #
-# Default value: `/data/data/com.termux/termux`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe`
 ##
-TERMUX__PROJECT_DIR="$TERMUX_APP__DATA_DIR/$TERMUX__PROJECT_SUBDIR"
-__termux_build_props__add_variables_validator_actions "TERMUX__PROJECT_DIR" "safe_absolute_path"
+_PROJECT_DIR="$APP__DATA_DIR/$_PROJECT_SUBDIR"
+__build_props__add_variables_validator_actions "_PROJECT_DIR" "safe_absolute_path"
 
 
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__CORE_DIR`.
+# repoexe subdirectory path for `_CORE_DIR`.
 #
 # Constant value: `core`
 ##
-TERMUX__CORE_SUBDIR="core"
+_CORE_SUBDIR="core"
 
 ##
-# Termux core directory path under `TERMUX__PROJECT_DIR`.
+# repoexe core directory path under `_PROJECT_DIR`.
 #
-# This contains Termux core files for the Termux app, like user settings and configs for the app,
+# This contains repoexe core files for the repoexe app, like user settings and configs for the app,
 # which and are independent of any specific rootfs.
 #
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-core-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-core-directory
 #
-# Default value: `/data/data/com.termux/termux/core`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe/core`
 ##
-TERMUX__CORE_DIR="$TERMUX__PROJECT_DIR/$TERMUX__CORE_SUBDIR"
-__termux_build_props__add_variables_validator_actions "TERMUX__CORE_DIR" "safe_absolute_path"
+_CORE_DIR="$_PROJECT_DIR/$_CORE_SUBDIR"
+__build_props__add_variables_validator_actions "_CORE_DIR" "safe_absolute_path"
 
 
 
@@ -566,115 +566,115 @@ __termux_build_props__add_variables_validator_actions "TERMUX__CORE_DIR" "safe_a
 
 
 ##
-# Termux subdirectory path for `TERMUX__APPS_DIR`.
+# repoexe subdirectory path for `_APPS_DIR`.
 #
 # Constant value: `app`
 ##
-TERMUX__APPS_SUBDIR="app"
+_APPS_SUBDIR="app"
 
 ##
-# Termux apps directory path under `TERMUX__PROJECT_DIR`.
+# repoexe apps directory path under `_PROJECT_DIR`.
 #
-# This contains app specific files for the Termux app, its plugin
+# This contains app specific files for the repoexe app, its plugin
 # apps, and third party apps, like used for app APIs and
 # filesystem/pathname socket files of servers created by the apps.
 # - https://man7.org/linux/man-pages/man7/unix.7.html
 #
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-apps-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-apps-directory
 #
-# Default value: `/data/data/com.termux/termux/app`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe/app`
 ##
-TERMUX__APPS_DIR="$TERMUX__PROJECT_DIR/$TERMUX__APPS_SUBDIR"
-__termux_build_props__add_variables_validator_actions "TERMUX__APPS_DIR" "safe_absolute_path"
+_APPS_DIR="$_PROJECT_DIR/$_APPS_SUBDIR"
+__build_props__add_variables_validator_actions "_APPS_DIR" "safe_absolute_path"
 
 ##
-# The max length for the `TERMUX__APPS_DIR` including the null '\0'
+# The max length for the `_APPS_DIR` including the null '\0'
 # terminator.
 #
-# Check https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
+# Check https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
 # for why the value `84` is chosen.
 #
 # Constant value: `84`
 ##
-TERMUX__APPS_DIR___MAX_LEN=84
+_APPS_DIR___MAX_LEN=84
 
 ##
-# The max length for the Termux apps api socket server parent directory
+# The max length for the repoexe apps api socket server parent directory
 # including the null '\0' terminator.
 #
-# Check https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
+# Check https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
 # for why the value `98` is chosen.
 #
 # Constant value: `98`
 ##
-TERMUX__APPS_API_SOCKET__SERVER_PARENT_DIR___MAX_LEN=98
+_APPS_API_SOCKET__SERVER_PARENT_DIR___MAX_LEN=98
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__APPS_DIR_BY_IDENTIFIER`.
+# repoexe subdirectory path for `_APPS_DIR_BY_IDENTIFIER`.
 #
 # Constant value: `i`
 ##
-TERMUX__APPS_DIR_BY_IDENTIFIER_SUBDIR="i"
+_APPS_DIR_BY_IDENTIFIER_SUBDIR="i"
 
 ##
-# Termux apps directory path by app identifier under `TERMUX__APPS_DIR`.
+# repoexe apps directory path by app identifier under `_APPS_DIR`.
 #
-# Default value: `/data/data/com.termux/termux/app/i`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe/app/i`
 ##
-TERMUX__APPS_DIR_BY_IDENTIFIER="$TERMUX__APPS_DIR/$TERMUX__APPS_DIR_BY_IDENTIFIER_SUBDIR"
+_APPS_DIR_BY_IDENTIFIER="$_APPS_DIR/$_APPS_DIR_BY_IDENTIFIER_SUBDIR"
 
 ##
 # The regex to validate a subdirectory name under the
-# `TERMUX__APPS_DIR_BY_IDENTIFIER` excluding the null '\0' terminator
+# `_APPS_DIR_BY_IDENTIFIER` excluding the null '\0' terminator
 # that represents an app identifier.
 #
 # The app identifier must only contain characters in the range
 # `[a-zA-Z0-9]` as segments, with `[._-]` as separators between
 # segments, and with the first segment containing at least `3`
 # characters. The max length `10` as per
-# `TERMUX__APPS_APP_IDENTIFIER___MAX_LEN` is not checked by this regex
+# `_APPS_APP_IDENTIFIER___MAX_LEN` is not checked by this regex
 # and must be checked separately.
 #
 # Constant value: `^[a-zA-Z0-9]{3,}([._-][a-zA-Z0-9]+)*$`
 ##
-TERMUX__APPS_APP_IDENTIFIER_REGEX="^[a-zA-Z0-9]{3,}([._-][a-zA-Z0-9]+)*$"
+_APPS_APP_IDENTIFIER_REGEX="^[a-zA-Z0-9]{3,}([._-][a-zA-Z0-9]+)*$"
 
 ##
 # The max length for a subdirectory name under the
-# `TERMUX__APPS_DIR_BY_IDENTIFIER` excluding the null '\0' terminator
+# `_APPS_DIR_BY_IDENTIFIER` excluding the null '\0' terminator
 # that represents an app identifier.
 #
-# Check https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
+# Check https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
 # for why the value `10` is chosen.
 #
 # Constant value: `10`
 ##
-TERMUX__APPS_APP_IDENTIFIER___MAX_LEN=10
+_APPS_APP_IDENTIFIER___MAX_LEN=10
 
 
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__APPS_DIR_BY_UID`.
+# repoexe subdirectory path for `_APPS_DIR_BY_UID`.
 #
 # Constant value: `u`
 ##
-TERMUX__APPS_DIR_BY_UID_SUBDIR="u"
+_APPS_DIR_BY_UID_SUBDIR="u"
 
 ##
-# Termux apps directory path by app uid (user_id + app_id) under
-# `TERMUX__APPS_DIR`.
+# repoexe apps directory path by app uid (user_id + app_id) under
+# `_APPS_DIR`.
 #
-# Default value: `/data/data/com.termux/termux/app/u`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe/app/u`
 ##
-TERMUX__APPS_DIR_BY_UID="$TERMUX__APPS_DIR/$TERMUX__APPS_DIR_BY_UID_SUBDIR"
+_APPS_DIR_BY_UID="$_APPS_DIR/$_APPS_DIR_BY_UID_SUBDIR"
 
 ##
 # The regex to validate a  subdirectory name under the
-# `TERMUX__APPS_DIR_BY_UID` excluding the null '\0' terminator that
+# `_APPS_DIR_BY_UID` excluding the null '\0' terminator that
 # represents an app uid.
 #
 # The app uid must only contains `5` to `9` characters that are
@@ -682,337 +682,337 @@ TERMUX__APPS_DIR_BY_UID="$TERMUX__APPS_DIR/$TERMUX__APPS_DIR_BY_UID_SUBDIR"
 #
 # Constant value: `^[1-9][0-9]{4,8}$`
 ##
-TERMUX__APPS_APP_UID_REGEX="^[1-9][0-9]{4,8}$"
+_APPS_APP_UID_REGEX="^[1-9][0-9]{4,8}$"
 
 ##
 # The max length for a subdirectory name under the
-# `TERMUX__APPS_DIR_BY_UID` excluding the null '\0' terminator that
+# `_APPS_DIR_BY_UID` excluding the null '\0' terminator that
 # represents an app uid.
 #
-# Check https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
+# Check https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
 # for why the value `9` is chosen.
 #
 # Constant value: `9`
 ##
-TERMUX__APPS_APP_UID___MAX_LEN=9
+_APPS_APP_UID___MAX_LEN=9
 
 
 
 
 
 ##
-# Termux apps info environment subfile path under an app directory of
-# `TERMUX__APPS_DIR_BY_IDENTIFIER`.
+# repoexe apps info environment subfile path under an app directory of
+# `_APPS_DIR_BY_IDENTIFIER`.
 #
-# Default value: `termux-apps-info.env`
+# Default value: `repoexe-apps-info.env`
 ##
-TERMUX_CORE__APPS_INFO_ENV_SUBFILE="$TERMUX__INTERNAL_NAME-apps-info.env"
+CORE__APPS_INFO_ENV_SUBFILE="$_INTERNAL_NAME-apps-info.env"
 
 ##
-# Termux apps info json subfile path under an app directory of
-# `TERMUX__APPS_DIR_BY_IDENTIFIER`.
+# repoexe apps info json subfile path under an app directory of
+# `_APPS_DIR_BY_IDENTIFIER`.
 #
-# Default value: `termux-apps-info.json`
+# Default value: `repoexe-apps-info.json`
 ##
-TERMUX_CORE__APPS_INFO_JSON_SUBFILE="$TERMUX__INTERNAL_NAME-apps-info.json"
+CORE__APPS_INFO_JSON_SUBFILE="$_INTERNAL_NAME-apps-info.json"
 
 
 
 ##
-# `termux-am-socket` server subfile path under an app directory of
-# `TERMUX__APPS_DIR_BY_IDENTIFIER`.
+# `repoexe-am-socket` server subfile path under an app directory of
+# `_APPS_DIR_BY_IDENTIFIER`.
 #
-# Default value: `termux-am`
+# Default value: `repoexe-am`
 ##
-TERMUX_AM_SOCKET__SERVER_SOCKET_SUBFILE="$TERMUX__INTERNAL_NAME-am"
+AM_SOCKET__SERVER_SOCKET_SUBFILE="$_INTERNAL_NAME-am"
 
 
 
 
 
 ##
-# Termux `TERMUX__ROOTFS` id.
+# repoexe `_ROOTFS` id.
 #
 # Default value: `0`
 ##
-TERMUX__ROOTFS_ID="0"
-__termux_build_props__add_variables_validator_actions "TERMUX__ROOTFS_ID" "unsigned_int"
+_ROOTFS_ID="0"
+__build_props__add_variables_validator_actions "_ROOTFS_ID" "unsigned_int"
 
 ##
-# Termux subdirectory path for `TERMUX__ROOTFS`.
+# repoexe subdirectory path for `_ROOTFS`.
 #
 # Default value: `files`
 ##
-TERMUX__ROOTFS_SUBDIR="files"
-__termux_build_props__add_variables_validator_actions "TERMUX__ROOTFS_SUBDIR" "allow_unset_value safe_relative_path"
+_ROOTFS_SUBDIR="files"
+__build_props__add_variables_validator_actions "_ROOTFS_SUBDIR" "allow_unset_value safe_relative_path"
 
 ###########
-# Uncomment if to place `TERMUX__ROOTFS`  under `TERMUX__PROJECT_DIR`
+# Uncomment if to place `_ROOTFS`  under `_PROJECT_DIR`
 # instead of at `files`. This may be used for future multi-rootfs
-# design. Make sure to update `TERMUX__CACHE_SUBDIR` above as well.
+# design. Make sure to update `_CACHE_SUBDIR` above as well.
 
 ##
-# Termux subdirectory path for parent directory of all Termux rootfses
-# including `TERMUX__ROOTFS`.
+# repoexe subdirectory path for parent directory of all repoexe rootfses
+# including `_ROOTFS`.
 #
-# Default value: `termux/rootfs`
+# Default value: `repoexe/rootfs`
 ##
-#TERMUX__ROOTFSES_SUBDIR="$TERMUX__PROJECT_SUBDIR/rootfs"
+#_ROOTFSES_SUBDIR="$_PROJECT_SUBDIR/rootfs"
 ###########
 
 ##
-# Termux subdirectory path for `TERMUX__ROOTFS`.
+# repoexe subdirectory path for `_ROOTFS`.
 #
-# Default value: `termux/rootfs/0`
+# Default value: `repoexe/rootfs/0`
 ##
-#TERMUX__ROOTFS_SUBDIR="$TERMUX__ROOTFSES_SUBDIR/$TERMUX__ROOTFS_ID"
+#_ROOTFS_SUBDIR="$_ROOTFSES_SUBDIR/$_ROOTFS_ID"
 ###########
 
 
 ##
-# Termux rootfs directory path under `TERMUX_APP__DATA_DIR` that
-# contains the Linux environment rootfs provided by Termux.
+# repoexe rootfs directory path under `APP__DATA_DIR` that
+# contains the Linux environment rootfs provided by repoexe.
 #
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-rootfs-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-rootfs-directory
 # - https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03.html
 #
-# The Termux rootfs must not be set to path in
-# `TERMUX_REGEX__INVALID_TERMUX_ROOTFS_PATHS`. It can exist outside
-# the `TERMUX_APP__DATA_DIR` if compiling packages for the Android
+# The repoexe rootfs must not be set to path in
+# `REGEX__INVALID_ROOTFS_PATHS`. It can exist outside
+# the `APP__DATA_DIR` if compiling packages for the Android
 # system or `adb` `shell` user.
 #
-# Default value: `/data/data/com.termux/files`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files`
 ##
-TERMUX__ROOTFS="$TERMUX_APP__DATA_DIR/$TERMUX__ROOTFS_SUBDIR"
-TERMUX_BASE_DIR="$TERMUX__ROOTFS" # Deprecated alternative variable for `TERMUX__ROOTFS`
+_ROOTFS="$APP__DATA_DIR/$_ROOTFS_SUBDIR"
+BASE_DIR="$_ROOTFS" # Deprecated alternative variable for `_ROOTFS`
 
-__termux_build_props__add_variables_validator_actions "TERMUX__ROOTFS" "safe_rootfs_or_absolute_path invalid_termux_rootfs_paths"
+__build_props__add_variables_validator_actions "_ROOTFS" "safe_rootfs_or_absolute_path invalid_rootfs_paths"
 
-# FIXME: Remove after updating Termux app and `termux-am-socket`
-# package sources and use `TERMUX__APPS_DIR`.
-TERMUX_APPS_DIR="$TERMUX__ROOTFS/apps"
+# FIXME: Remove after updating repoexe app and `repoexe-am-socket`
+# package sources and use `_APPS_DIR`.
+APPS_DIR="$_ROOTFS/apps"
 
 ##
-# The max length for the `TERMUX__ROOTFS` including the null '\0'
+# The max length for the `_ROOTFS` including the null '\0'
 # terminator.
 #
-# Check https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
+# Check https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
 # for why the value `86` is chosen.
 #
 # Constant value: `86`
 ##
-TERMUX__ROOTFS_DIR___MAX_LEN=86
+_ROOTFS_DIR___MAX_LEN=86
 
 
 
 
 
 ####
-# Variables for the Termux home.
+# Variables for the repoexe home.
 ####
 
 ##
-# Termux subdirectory path for `TERMUX__HOME`.
+# repoexe subdirectory path for `_HOME`.
 #
 # Default value: `home`
 ##
-TERMUX__HOME_SUBDIR="home"
-__termux_build_props__add_variables_validator_actions "TERMUX__HOME_SUBDIR" "safe_relative_path"
+_HOME_SUBDIR="home"
+__build_props__add_variables_validator_actions "_HOME_SUBDIR" "safe_relative_path"
 
 ##
-# Termux home directory path under `TERMUX__ROOTFS` used for `$HOME`.
+# repoexe home directory path under `_ROOTFS` used for `$HOME`.
 #
 # It serves the same purpose as the `/home` directory on Linux distros.
 #
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-home-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-home-directory
 # - https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s08.html
 #
-# Check `TERMUX__PREFIX` variable docs for rules that apply depending
-# on if `TERMUX__ROOTFS` is equal to Android/Linux rootfs `/` or not.
-# The Termux home must not be set to Android/Linux rootfs `/` or any
-# other path in `TERMUX_REGEX__INVALID_TERMUX_HOME_PATHS`.
+# Check `_PREFIX` variable docs for rules that apply depending
+# on if `_ROOTFS` is equal to Android/Linux rootfs `/` or not.
+# The repoexe home must not be set to Android/Linux rootfs `/` or any
+# other path in `REGEX__INVALID_HOME_PATHS`.
 #
-# Default value: `/data/data/com.termux/files/home`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/home`
 ##
-[[ "$TERMUX__ROOTFS" != "/" ]] && TERMUX__HOME="$TERMUX__ROOTFS/$TERMUX__HOME_SUBDIR" || \
-    TERMUX__HOME="/$TERMUX__HOME_SUBDIR"
-__termux_build_props__add_variables_validator_actions "TERMUX__HOME" "safe_absolute_path invalid_termux_home_paths path_under_termux_rootfs"
+[[ "$_ROOTFS" != "/" ]] && _HOME="$_ROOTFS/$_HOME_SUBDIR" || \
+    _HOME="/$_HOME_SUBDIR"
+__build_props__add_variables_validator_actions "_HOME" "safe_absolute_path invalid_home_paths path_under_rootfs"
 
-TERMUX_ANDROID_HOME="$TERMUX__HOME" # Deprecated alternative variable for `TERMUX__HOME`
+ANDROID_HOME="$_HOME" # Deprecated alternative variable for `_HOME`
 
 ##
-# Termux legacy project user config directory path under `TERMUX__HOME`.
+# repoexe legacy project user config directory path under `_HOME`.
 #
-# Default value: `/data/data/com.termux/files/home/.termux`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/home/.repoexe`
 ##
-TERMUX__LEGACY_PROJECT_USER_CONFIG_DIR="$TERMUX__HOME/.termux"
+_LEGACY_PROJECT_USER_CONFIG_DIR="$_HOME/.repoexe"
 
 
 
 
 
 ####
-# Variables for the Termux prefix.
+# Variables for the repoexe prefix.
 ####
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX`.
+# repoexe subdirectory path for `_PREFIX`.
 #
 # Default value: `usr`
 ##
-TERMUX__PREFIX_SUBDIR="usr"
-__termux_build_props__add_variables_validator_actions "TERMUX__PREFIX_SUBDIR" "allow_unset_value safe_relative_path"
+_PREFIX_SUBDIR="usr"
+__build_props__add_variables_validator_actions "_PREFIX_SUBDIR" "allow_unset_value safe_relative_path"
 
 ##
-# Termux prefix directory path under or equal to `TERMUX__ROOTFS`
-# where all Termux packages data is installed.
+# repoexe prefix directory path under or equal to `_ROOTFS`
+# where all repoexe packages data is installed.
 #
 # It serves the same purpose as the `/usr` directory on Linux distros
 # and contains the `bin`, `etc`, `include`, `lib`, `libexec`, `opt`,
 # `share`, `tmp` and `var` sub directories.
 #
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-prefix-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-prefix-directory
 # - https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch04.html
 #
-# If `TERMUX__ROOTFS` is not equal to `/`, then by default Termux
+# If `_ROOTFS` is not equal to `/`, then by default repoexe
 # uses `usr` merge format, like used by `debian`, as per
-# `__TERMUX_BUILD_PROPS__VALIDATE_TERMUX_PREFIX_USR_MERGE_FORMAT`
+# `__BUILD_PROPS__VALIDATE_PREFIX_USR_MERGE_FORMAT`
 # being enabled by default. In the `usr` merge format, all packages
 # are installed under the `usr` subdirectory under rootfs, like under
-# `$TERMUX__ROOTFS/usr/bin` and `$TERMUX__ROOTFS/usr/lib`,
-# instead of under `$TERMUX__ROOTFS/bin` and `$TERMUX__ROOTFS/lib`.
+# `$_ROOTFS/usr/bin` and `$_ROOTFS/usr/lib`,
+# instead of under `$_ROOTFS/bin` and `$_ROOTFS/lib`.
 # So if `usr` merge format is enabled, then DO NOT change the default
-# value of `TERMUX__PREFIX_SUBDIR` from `usr`.
-# The `$TERMUX__ROOTFS/usr-staging` directory is also used as a
-# temporary directory for extracting bootstrap zip by the Termux app,
-# before its renamed to `$TERMUX__ROOTFS/usr`.
-# Additionally, `TERMUX__PREFIX` must not be equal to `TERMUX__HOME`
-# and they must not be under each other, as Termux app requires that
+# value of `_PREFIX_SUBDIR` from `usr`.
+# The `$_ROOTFS/usr-staging` directory is also used as a
+# temporary directory for extracting bootstrap zip by the repoexe app,
+# before its renamed to `$_ROOTFS/usr`.
+# Additionally, `_PREFIX` must not be equal to `_HOME`
+# and they must not be under each other, as repoexe app requires that
 # prefix and home are separate directories as prefix gets wiped during
-# bootstrap installation or if `termux-reset` is run, and backup
+# bootstrap installation or if `repoexe-reset` is run, and backup
 # scripts require the same. Package data also needs to be kept
 # separate from `home`, so it does not make sense for them to be
 # equal to or be under each other.
-# However, if a Termux app fork is using a modified bootstrap
+# However, if a repoexe app fork is using a modified bootstrap
 # installation that does not use the `usr` merge format, then
-# `__TERMUX_BUILD_PROPS__VALIDATE_TERMUX_PREFIX_USR_MERGE_FORMAT` can
-# be set to `false` and `TERMUX__PREFIX_SUBDIR` could optionally be
-# set to an empty string if `TERMUX__ROOTFS` should be equal to
-# `TERMUX__PREFIX`, or a custom directory other than `usr`. In this
-# case `TERMUX__HOME` can optionally be under `TERMUX__PREFIX`, but
+# `__BUILD_PROPS__VALIDATE_PREFIX_USR_MERGE_FORMAT` can
+# be set to `false` and `_PREFIX_SUBDIR` could optionally be
+# set to an empty string if `_ROOTFS` should be equal to
+# `_PREFIX`, or a custom directory other than `usr`. In this
+# case `_HOME` can optionally be under `_PREFIX`, but
 # not be equal to it.
 #
 # - https://wiki.debian.org/UsrMerge
 # - https://lists.debian.org/debian-devel-announce/2019/03/msg00001.html
 # - https://dep-team.pages.debian.net/deps/dep17/
 #
-# If `TERMUX__ROOTFS` is equal to Android/Linux rootfs `/`, then
-# `TERMUX__PREFIX_SUBDIR` must not be set to an empty string as
-# `TERMUX__PREFIX` must be a subdirectory under rootfs `/`, and must
+# If `_ROOTFS` is equal to Android/Linux rootfs `/`, then
+# `_PREFIX_SUBDIR` must not be set to an empty string as
+# `_PREFIX` must be a subdirectory under rootfs `/`, and must
 # not be set to `usr` either or or any other path in
-# `TERMUX_REGEX__INVALID_TERMUX_PREFIX_PATHS`. Check the
-# `TERMUX_REGEX__INVALID_TERMUX_ROOTFS_PATHS` variable docs for why
+# `REGEX__INVALID_PREFIX_PATHS`. Check the
+# `REGEX__INVALID_ROOTFS_PATHS` variable docs for why
 # some paths like `/usr`, etc are now allowed.
 #
-# Basically, the following rules apply for `TERMUX__PREFIX`.
-# - If `TERMUX__ROOTFS` is not equal to `/`:
+# Basically, the following rules apply for `_PREFIX`.
+# - If `_ROOTFS` is not equal to `/`:
 #     - If `usr` merge format is enabled:
-#         - `TERMUX__PREFIX` must be equal to `$TERMUX__ROOTFS/usr`.
-#         - `TERMUX__PREFIX` must not be equal to `TERMUX__HOME` and
+#         - `_PREFIX` must be equal to `$_ROOTFS/usr`.
+#         - `_PREFIX` must not be equal to `_HOME` and
 #            they must not be under each other.
 #     - If `usr` merge format is disabled:
-#         - `TERMUX__PREFIX` must be equal to or be under `$TERMUX__ROOTFS`.
-#         - `TERMUX__PREFIX` must not be equal to or be under `TERMUX__HOME`.
-# - If `TERMUX__ROOTFS` is equal to `/`:
+#         - `_PREFIX` must be equal to or be under `$_ROOTFS`.
+#         - `_PREFIX` must not be equal to or be under `_HOME`.
+# - If `_ROOTFS` is equal to `/`:
 #     - If `usr` merge format is enabled or disabled:
-#         - `TERMUX__PREFIX` must be under `$TERMUX__ROOTFS` and not
-#           equal to `/usr` or other paths in `TERMUX_REGEX__INVALID_TERMUX_PREFIX_PATHS`.
-#         - `TERMUX__PREFIX` must not be equal to or be under `TERMUX__HOME`.
+#         - `_PREFIX` must be under `$_ROOTFS` and not
+#           equal to `/usr` or other paths in `REGEX__INVALID_PREFIX_PATHS`.
+#         - `_PREFIX` must not be equal to or be under `_HOME`.
 #
 # The directory set will be deleted by `clean.sh` if not running
 # on-device, so make sure a safe path is set if running `clean.sh` in
-# Termux docker or host OS build environment.
+# repoexe docker or host OS build environment.
 #
-# At runtime, `TERMUX__PREFIX` may be overridden and set to
-# `TERMUX__PREFIX_GLIBC` when compiling `glibc` packages by calling
-# `termux_build_props__set_termux_prefix_dir_and_sub_variables` in
-# `termux_step_setup_variables` if `TERMUX_PACKAGE_LIBRARY` equals `glibc`.
-# However, `TERMUX__PREFIX_CLASSICAL` retains the original value
-# set below for `TERMUX__PREFIX`.
-# - https://github.com/termux/termux-packages/pull/16901
-# - https://github.com/termux/termux-packages/pull/20864
+# At runtime, `_PREFIX` may be overridden and set to
+# `_PREFIX_GLIBC` when compiling `glibc` packages by calling
+# `build_props__set_prefix_dir_and_sub_variables` in
+# `step_setup_variables` if `PACKAGE_LIBRARY` equals `glibc`.
+# However, `_PREFIX_CLASSICAL` retains the original value
+# set below for `_PREFIX`.
+# - https://github.com/repoexe/repoexe-packages/pull/16901
+# - https://github.com/repoexe/repoexe-packages/pull/20864
 #
-# Default value: `/data/data/com.termux/files/usr`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr`
 ##
-[[ "$TERMUX__ROOTFS" != "/" ]] && TERMUX__PREFIX="$TERMUX__ROOTFS${TERMUX__PREFIX_SUBDIR:+"/$TERMUX__PREFIX_SUBDIR"}" || \
-    TERMUX__PREFIX="/$TERMUX__PREFIX_SUBDIR"
-__termux_build_props__add_variables_validator_actions "TERMUX__PREFIX" "safe_absolute_path invalid_termux_prefix_paths"
+[[ "$_ROOTFS" != "/" ]] && _PREFIX="$_ROOTFS${_PREFIX_SUBDIR:+"/$_PREFIX_SUBDIR"}" || \
+    _PREFIX="/$_PREFIX_SUBDIR"
+__build_props__add_variables_validator_actions "_PREFIX" "safe_absolute_path invalid_prefix_paths"
 
-if [[ "$TERMUX__ROOTFS" != "/" ]] && [[ "$__TERMUX_BUILD_PROPS__VALIDATE_TERMUX_PREFIX_USR_MERGE_FORMAT" != "true" ]]; then
-    __termux_build_props__add_variables_validator_actions "TERMUX__PREFIX" " path_equal_to_or_under_termux_rootfs"
+if [[ "$_ROOTFS" != "/" ]] && [[ "$__BUILD_PROPS__VALIDATE_PREFIX_USR_MERGE_FORMAT" != "true" ]]; then
+    __build_props__add_variables_validator_actions "_PREFIX" " path_equal_to_or_under_rootfs"
 else
-    __termux_build_props__add_variables_validator_actions "TERMUX__PREFIX" " path_under_termux_rootfs"
+    __build_props__add_variables_validator_actions "_PREFIX" " path_under_rootfs"
 fi
 
-TERMUX_PREFIX="$TERMUX__PREFIX" # Deprecated alternative variable for `TERMUX__PREFIX`
+PREFIX="$_PREFIX" # Deprecated alternative variable for `_PREFIX`
 
 
 
 ##
-# The original value for `TERMUX__PREFIX` set above, as `TERMUX__PREFIX`
+# The original value for `_PREFIX` set above, as `_PREFIX`
 # can be overridden at runtime, like when compiling `glibc` packages.
-# Checks variable docs of `TERMUX__PREFIX` for more info.
+# Checks variable docs of `_PREFIX` for more info.
 #
-# Default value: `/data/data/com.termux/files/usr`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr`
 ##
-TERMUX__PREFIX_CLASSICAL="$TERMUX__PREFIX"
-TERMUX_PREFIX_CLASSICAL="$TERMUX__PREFIX" # Deprecated alternative variable for `TERMUX__PREFIX_CLASSICAL`
+_PREFIX_CLASSICAL="$_PREFIX"
+PREFIX_CLASSICAL="$_PREFIX" # Deprecated alternative variable for `_PREFIX_CLASSICAL`
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX_GLIBC`.
+# repoexe subdirectory path for `_PREFIX_GLIBC`.
 #
 # Default value: `glibc`
 ##
-TERMUX__PREFIX_GLIBC_SUBDIR="glibc"
+_PREFIX_GLIBC_SUBDIR="glibc"
 
 ##
-# Termux `glibc` prefix directory path under `TERMUX__PREFIX`
-# where all Termux `glibc` packages data is installed.
+# repoexe `glibc` prefix directory path under `_PREFIX`
+# where all repoexe `glibc` packages data is installed.
 #
 # **See Also:**
-# - https://github.com/termux-pacman/glibc-packages
-# - https://github.com/termux/glibc-packages (mirror)
+# - https://github.com/repoexe-pacman/glibc-packages
+# - https://github.com/repoexe/glibc-packages (mirror)
 #
-# Default value: `/data/data/com.termux/files/usr/glibc`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/glibc`
 ##
-TERMUX__PREFIX_GLIBC="$TERMUX__PREFIX/$TERMUX__PREFIX_GLIBC_SUBDIR"
-__termux_build_props__add_variables_validator_actions "TERMUX__PREFIX_GLIBC" "safe_absolute_path invalid_termux_prefix_paths path_under_termux_rootfs"
+_PREFIX_GLIBC="$_PREFIX/$_PREFIX_GLIBC_SUBDIR"
+__build_props__add_variables_validator_actions "_PREFIX_GLIBC" "safe_absolute_path invalid_prefix_paths path_under_rootfs"
 
 
 
 ##
-# The max length for the `TERMUX__PREFIX` including the null '\0'
+# The max length for the `_PREFIX` including the null '\0'
 # terminator.
 #
-# Check https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
+# Check https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
 # for why the value `90` is chosen.
 #
 # Constant value: `90`
 ##
-TERMUX__PREFIX_DIR___MAX_LEN="$((TERMUX__ROOTFS_DIR___MAX_LEN + 1 + 3))" # "/usr" (90)
+_PREFIX_DIR___MAX_LEN="$((_ROOTFS_DIR___MAX_LEN + 1 + 3))" # "/usr" (90)
 
 
 ##
-# The max length for the `TERMUX__BIN_DIR` including the null '\0' terminator.
+# The max length for the `_BIN_DIR` including the null '\0' terminator.
 #
 # Constant value: `94`
 ##
-TERMUX__PREFIX__BIN_DIR___MAX_LEN="$((TERMUX__PREFIX_DIR___MAX_LEN + 1 + 3))" # "/bin" (94)
+_PREFIX__BIN_DIR___MAX_LEN="$((_PREFIX_DIR___MAX_LEN + 1 + 3))" # "/bin" (94)
 
 ##
-# The max safe length for a sub file path under the `TERMUX__BIN_DIR`
+# The max safe length for a sub file path under the `_BIN_DIR`
 # including the null '\0' terminator.
 #
 # This allows for a filename with max length `33` so that the path
@@ -1023,343 +1023,343 @@ TERMUX__PREFIX__BIN_DIR___MAX_LEN="$((TERMUX__PREFIX_DIR___MAX_LEN + 1 + 3))" # 
 # `logcat` if linker debugging is enabled.
 #
 # **See Also:**
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
-# - https://github.com/termux/termux-core-package/blob/master/lib/termux-core_nos_c/tre/include/termux/termux_core__nos__c/v1/termux/file/TermuxFile.h
-# - https://github.com/termux/termux-exec-package/blob/master/lib/termux-exec_nos_c/tre/include/termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/direct/exec/ExecIntercept.h
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
+# - https://github.com/repoexe/repoexe-core-package/blob/master/lib/repoexe-core_nos_c/tre/include/repoexe/core__nos__c/v1/repoexe/file/repoexeFile.h
+# - https://github.com/repoexe/repoexe-exec-package/blob/master/lib/repoexe-exec_nos_c/tre/include/repoexe/exec__nos__c/v1/repoexe/api/exec/service/ld_preload/direct/exec/ExecIntercept.h
 #
 # Constant value: `127`
 ##
-TERMUX__PREFIX__BIN_FILE___SAFE_MAX_LEN="$((TERMUX__PREFIX__BIN_DIR___MAX_LEN + 1 + 33))" # "/<filename_with_len_33>" (127)
+_PREFIX__BIN_FILE___SAFE_MAX_LEN="$((_PREFIX__BIN_DIR___MAX_LEN + 1 + 33))" # "/<filename_with_len_33>" (127)
 
 ##
-# The max length for entire shebang line for `termux-exec`.
+# The max length for entire shebang line for `repoexe-exec`.
 #
 # **See Also:**
-# - https://github.com/termux/termux-exec-package/blob/master/lib/termux-exec_nos_c/tre/include/termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/direct/exec/ExecIntercept.h
+# - https://github.com/repoexe/repoexe-exec-package/blob/master/lib/repoexe-exec_nos_c/tre/include/repoexe/exec__nos__c/v1/repoexe/api/exec/service/ld_preload/direct/exec/ExecIntercept.h
 #
 # Default value: `340`
 ##
-TERMUX__FILE_HEADER__BUFFER_SIZE="340"
+_FILE_HEADER__BUFFER_SIZE="340"
 
 
 
 
 ##
-# `termux_build_props__set_termux_prefix_dir_and_sub_variables` `<termux__prefix>` [`<skip_validation>`]
+# `build_props__set_prefix_dir_and_sub_variables` `<_prefix>` [`<skip_validation>`]
 ##
-termux_build_props__set_termux_prefix_dir_and_sub_variables() {
+build_props__set_prefix_dir_and_sub_variables() {
 
-local termux__prefix="${1:-}"
+local _prefix="${1:-}"
 local skip_validation="${2:-}"
 
 if [[ "$skip_validation" != "true" ]]; then
-    if [[ ! "$termux__prefix" =~ ${TERMUX_REGEX__SAFE_ABSOLUTE_PATH:?} ]] || \
-            [[ "$termux__prefix" =~ ${TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH:?} ]]; then
-        echo "The termux__prefix '$termux__prefix' passed to 'termux_build_props__set_termux_prefix_dir_and_sub_variables' with length ${#termux__prefix} is invalid." 1>&2
-        echo "The termux__prefix must match a safe absolute path that starts with a \`/\` with at least one \
+    if [[ ! "$_prefix" =~ ${REGEX__SAFE_ABSOLUTE_PATH:?} ]] || \
+            [[ "$_prefix" =~ ${REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH:?} ]]; then
+        echo "The _prefix '$_prefix' passed to 'build_props__set_prefix_dir_and_sub_variables' with length ${#_prefix} is invalid." 1>&2
+        echo "The _prefix must match a safe absolute path that starts with a \`/\` with at least one \
 characters under rootfs \`/\`. Duplicate or trailing path separators \`/\` are not allowed. \
 The path component characters must be in the range \`[a-zA-Z0-9+,.=_-]\`. The path must not contain single \`/./\` or \
 double \`/../\` dot components." 1>&2
         return 1
     fi
 
-    if [[ "$termux__prefix" =~ ${TERMUX_REGEX__INVALID_TERMUX_PREFIX_PATHS:?} ]]; then
-        echo "The termux__prefix '$termux__prefix' passed to 'termux_build_props__set_termux_prefix_dir_and_sub_variables' with length ${#termux__prefix} is invalid." 1>&2
-        echo "The termux__prefix must not match one of the invalid paths \
-in TERMUX_REGEX__INVALID_TERMUX_PREFIX_PATHS \`$TERMUX_REGEX__INVALID_TERMUX_PREFIX_PATHS\`." 1>&2
+    if [[ "$_prefix" =~ ${REGEX__INVALID_PREFIX_PATHS:?} ]]; then
+        echo "The _prefix '$_prefix' passed to 'build_props__set_prefix_dir_and_sub_variables' with length ${#_prefix} is invalid." 1>&2
+        echo "The _prefix must not match one of the invalid paths \
+in REGEX__INVALID_PREFIX_PATHS \`$REGEX__INVALID_PREFIX_PATHS\`." 1>&2
         return 1
     fi
 fi
 
 
-# Override `TERMUX__PREFIX`, but keep original value in `TERMUX__PREFIX_CLASSICAL`.
-TERMUX__PREFIX="$termux__prefix"
-TERMUX_PREFIX="$termux__prefix"
+# Override `_PREFIX`, but keep original value in `_PREFIX_CLASSICAL`.
+_PREFIX="$_prefix"
+PREFIX="$_prefix"
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX__BIN_DIR`.
+# repoexe subdirectory path for `_PREFIX__BIN_DIR`.
 #
 # Constant value: `bin`
 ##
-TERMUX__PREFIX__BIN_SUBDIR="bin"
+_PREFIX__BIN_SUBDIR="bin"
 
 ##
-# Termux bin directory path under `TERMUX__PREFIX`.
+# repoexe bin directory path under `_PREFIX`.
 #
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-bin-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-bin-directory
 #
-# Default value: `/data/data/com.termux/files/usr/bin`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/bin`
 ##
-TERMUX__PREFIX__BIN_DIR="$TERMUX__PREFIX/$TERMUX__PREFIX__BIN_SUBDIR"
+_PREFIX__BIN_DIR="$_PREFIX/$_PREFIX__BIN_SUBDIR"
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX__ETC_DIR`.
+# repoexe subdirectory path for `_PREFIX__ETC_DIR`.
 #
 # Constant value: `etc`
 ##
-TERMUX__PREFIX__ETC_SUBDIR="etc"
+_PREFIX__ETC_SUBDIR="etc"
 
 ##
-# Termux etc directory path under `TERMUX__PREFIX`.
+# repoexe etc directory path under `_PREFIX`.
 #
-# Default value: `/data/data/com.termux/files/usr/etc`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/etc`
 ##
-TERMUX__PREFIX__ETC_DIR="$TERMUX__PREFIX/$TERMUX__PREFIX__ETC_SUBDIR"
+_PREFIX__ETC_DIR="$_PREFIX/$_PREFIX__ETC_SUBDIR"
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX__BASE_INCLUDE_DIR`.
+# repoexe subdirectory path for `_PREFIX__BASE_INCLUDE_DIR`.
 #
 # Constant value: `include`
 ##
-TERMUX__PREFIX__BASE_INCLUDE_SUBDIR="include"
+_PREFIX__BASE_INCLUDE_SUBDIR="include"
 
 ##
-# Termux base include directory path under `TERMUX__PREFIX`.
+# repoexe base include directory path under `_PREFIX`.
 #
-# Default value: `/data/data/com.termux/files/usr/include`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/include`
 ##
-TERMUX__PREFIX__BASE_INCLUDE_DIR="$TERMUX__PREFIX/$TERMUX__PREFIX__BASE_INCLUDE_SUBDIR"
+_PREFIX__BASE_INCLUDE_DIR="$_PREFIX/$_PREFIX__BASE_INCLUDE_SUBDIR"
 
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX__MULTI_INCLUDE_DIR`.
+# repoexe subdirectory path for `_PREFIX__MULTI_INCLUDE_DIR`.
 #
 # Constant value: `include32`
 ##
-TERMUX__PREFIX__MULTI_INCLUDE_SUBDIR="include32"
+_PREFIX__MULTI_INCLUDE_SUBDIR="include32"
 
 ##
-# Termux multi include directory path under `TERMUX__PREFIX`.
+# repoexe multi include directory path under `_PREFIX`.
 #
-# Default value: `/data/data/com.termux/files/usr/include32`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/include32`
 ##
-TERMUX__PREFIX__MULTI_INCLUDE_DIR="$TERMUX__PREFIX/$TERMUX__PREFIX__MULTI_INCLUDE_SUBDIR"
+_PREFIX__MULTI_INCLUDE_DIR="$_PREFIX/$_PREFIX__MULTI_INCLUDE_SUBDIR"
 
 
 ##
-# Termux include subdirectory path under `TERMUX__PREFIX`.
+# repoexe include subdirectory path under `_PREFIX`.
 #
 # Default value: `include`
 ##
-TERMUX__PREFIX__INCLUDE_SUBDIR="$TERMUX__PREFIX__BASE_INCLUDE_SUBDIR"
+_PREFIX__INCLUDE_SUBDIR="$_PREFIX__BASE_INCLUDE_SUBDIR"
 
 ##
-# Termux include directory path under `TERMUX__PREFIX`.
+# repoexe include directory path under `_PREFIX`.
 #
-# Default value: `/data/data/com.termux/files/usr/include` (`$TERMUX__PREFIX__BASE_INCLUDE_DIR`)
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/include` (`$_PREFIX__BASE_INCLUDE_DIR`)
 ##
-TERMUX__PREFIX__INCLUDE_DIR="$TERMUX__PREFIX__BASE_INCLUDE_DIR"
+_PREFIX__INCLUDE_DIR="$_PREFIX__BASE_INCLUDE_DIR"
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX__BASE_LIB_DIR`.
+# repoexe subdirectory path for `_PREFIX__BASE_LIB_DIR`.
 #
 # Constant value: `lib`
 ##
-TERMUX__PREFIX__BASE_LIB_SUBDIR="lib"
+_PREFIX__BASE_LIB_SUBDIR="lib"
 
 ##
-# Termux base lib directory path under `TERMUX__PREFIX`.
+# repoexe base lib directory path under `_PREFIX`.
 #
-# Default value: `/data/data/com.termux/files/usr/lib`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/lib`
 ##
-TERMUX__PREFIX__BASE_LIB_DIR="$TERMUX__PREFIX/$TERMUX__PREFIX__BASE_LIB_SUBDIR"
+_PREFIX__BASE_LIB_DIR="$_PREFIX/$_PREFIX__BASE_LIB_SUBDIR"
 
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX__MULTI_LIB_DIR`.
+# repoexe subdirectory path for `_PREFIX__MULTI_LIB_DIR`.
 #
 # Constant value: `lib32`
 ##
-TERMUX__PREFIX__MULTI_LIB_SUBDIR="lib32"
+_PREFIX__MULTI_LIB_SUBDIR="lib32"
 
 ##
-# Termux multi lib directory path under `TERMUX__PREFIX`.
+# repoexe multi lib directory path under `_PREFIX`.
 #
-# Default value: `/data/data/com.termux/files/usr/lib32`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/lib32`
 ##
-TERMUX__PREFIX__MULTI_LIB_DIR="$TERMUX__PREFIX/$TERMUX__PREFIX__MULTI_LIB_SUBDIR"
+_PREFIX__MULTI_LIB_DIR="$_PREFIX/$_PREFIX__MULTI_LIB_SUBDIR"
 
 
 ##
-# Termux lib subdirectory path under `TERMUX__PREFIX`.
+# repoexe lib subdirectory path under `_PREFIX`.
 #
 # Default value: `lib`
 ##
-TERMUX__PREFIX__LIB_SUBDIR="$TERMUX__PREFIX__BASE_LIB_SUBDIR"
+_PREFIX__LIB_SUBDIR="$_PREFIX__BASE_LIB_SUBDIR"
 
 ##
-# Termux lib directory path under `TERMUX__PREFIX`.
+# repoexe lib directory path under `_PREFIX`.
 #
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-lib-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-lib-directory
 #
-# Default value: `/data/data/com.termux/files/usr/lib` (`$TERMUX__PREFIX__BASE_LIB_DIR`)
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/lib` (`$_PREFIX__BASE_LIB_DIR`)
 ##
-TERMUX__PREFIX__LIB_DIR="$TERMUX__PREFIX__BASE_LIB_DIR"
+_PREFIX__LIB_DIR="$_PREFIX__BASE_LIB_DIR"
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX__LIBEXEC_DIR`.
+# repoexe subdirectory path for `_PREFIX__LIBEXEC_DIR`.
 #
 # Constant value: `libexec`
 ##
-TERMUX__PREFIX__LIBEXEC_SUBDIR="libexec"
+_PREFIX__LIBEXEC_SUBDIR="libexec"
 
 ##
-# Termux libexec directory path under `TERMUX__PREFIX`.
+# repoexe libexec directory path under `_PREFIX`.
 #
-# Default value: `/data/data/com.termux/files/usr/libexec`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/libexec`
 ##
-TERMUX__PREFIX__LIBEXEC_DIR="$TERMUX__PREFIX/$TERMUX__PREFIX__LIBEXEC_SUBDIR"
+_PREFIX__LIBEXEC_DIR="$_PREFIX/$_PREFIX__LIBEXEC_SUBDIR"
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX__OPT_DIR`.
+# repoexe subdirectory path for `_PREFIX__OPT_DIR`.
 #
 # Constant value: `opt`
 ##
-TERMUX__PREFIX__OPT_SUBDIR="opt"
+_PREFIX__OPT_SUBDIR="opt"
 
 ##
-# Termux opt directory path under `TERMUX__PREFIX`.
+# repoexe opt directory path under `_PREFIX`.
 #
-# Default value: `/data/data/com.termux/files/usr/opt`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/opt`
 ##
-TERMUX__PREFIX__OPT_DIR="$TERMUX__PREFIX/$TERMUX__PREFIX__OPT_SUBDIR"
+_PREFIX__OPT_DIR="$_PREFIX/$_PREFIX__OPT_SUBDIR"
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX__SHARE_DIR`.
+# repoexe subdirectory path for `_PREFIX__SHARE_DIR`.
 #
 # Constant value: `share`
 ##
-TERMUX__PREFIX__SHARE_SUBDIR="share"
+_PREFIX__SHARE_SUBDIR="share"
 
 ##
-# Termux share directory path under `TERMUX__PREFIX`.
+# repoexe share directory path under `_PREFIX`.
 #
-# Default value: `/data/data/com.termux/files/usr/share`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/share`
 ##
-TERMUX__PREFIX__SHARE_DIR="$TERMUX__PREFIX/$TERMUX__PREFIX__SHARE_SUBDIR"
+_PREFIX__SHARE_DIR="$_PREFIX/$_PREFIX__SHARE_SUBDIR"
 
 
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX__VAR_DIR`.
+# repoexe subdirectory path for `_PREFIX__VAR_DIR`.
 #
 # Constant value: `var`
 ##
-TERMUX__PREFIX__VAR_SUBDIR="var"
+_PREFIX__VAR_SUBDIR="var"
 
 ##
-# Termux var directory path under `TERMUX__PREFIX`.
+# repoexe var directory path under `_PREFIX`.
 #
-# Default value: `/data/data/com.termux/files/usr/var`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/var`
 ##
-TERMUX__PREFIX__VAR_DIR="$TERMUX__PREFIX/$TERMUX__PREFIX__VAR_SUBDIR"
+_PREFIX__VAR_DIR="$_PREFIX/$_PREFIX__VAR_SUBDIR"
 
 }
 
-# Set Termux prefix sub variables to be under the original value of
-# `TERMUX__PREFIX` set in `TERMUX__PREFIX_CLASSICAL` by default,
+# Set repoexe prefix sub variables to be under the original value of
+# `_PREFIX` set in `_PREFIX_CLASSICAL` by default,
 # which is set earlier in this file.
-# Skip validation as it will be done below by `__termux_build_props__validate_variables`.
-termux_build_props__set_termux_prefix_dir_and_sub_variables "$TERMUX__PREFIX" "true" || exit $?
+# Skip validation as it will be done below by `__build_props__validate_variables`.
+build_props__set_prefix_dir_and_sub_variables "$_PREFIX" "true" || exit $?
 
 
 
 
 
 # The following variables must always be under the original value of
-# `TERMUX__PREFIX` set in `TERMUX__PREFIX_CLASSICAL` by default.
+# `_PREFIX` set in `_PREFIX_CLASSICAL` by default.
 
 ##
-# Termux subdirectory path for `TERMUX__PREFIX__TMP_DIR`.
+# repoexe subdirectory path for `_PREFIX__TMP_DIR`.
 #
 # Constant value: `tmp`
 ##
-TERMUX__PREFIX__TMP_SUBDIR="tmp"
+_PREFIX__TMP_SUBDIR="tmp"
 
 ##
-# Termux tmp directory path under `TERMUX__PREFIX`.
+# repoexe tmp directory path under `_PREFIX`.
 #
-# Default value: `/data/data/com.termux/files/usr/tmp`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/tmp`
 ##
-TERMUX__PREFIX__TMP_DIR="$TERMUX__PREFIX/$TERMUX__PREFIX__TMP_SUBDIR"
+_PREFIX__TMP_DIR="$_PREFIX/$_PREFIX__TMP_SUBDIR"
 
 ##
-# The max length for the `TERMUX__PREFIX__TMP_DIR` including the null
+# The max length for the `_PREFIX__TMP_DIR` including the null
 # '\0' terminator.
 #
-# Check https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#file-path-limits
+# Check https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#file-path-limits
 # for why the value `94` is chosen.
 #
 # Constant value: `94`
 ##
-TERMUX__PREFIX__TMP_DIR___MAX_LEN=94
+_PREFIX__TMP_DIR___MAX_LEN=94
 
 
 
 ##
-# Termux `profile.d` directory path under `TERMUX__PREFIX__ETC_DIR`.
+# repoexe `profile.d` directory path under `_PREFIX__ETC_DIR`.
 #
-# Default value: `/data/data/com.termux/files/usr/etc/profile.d`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/etc/profile.d`
 ##
-TERMUX__PREFIX__PROFILE_D_DIR="$TERMUX__PREFIX__ETC_DIR/profile.d"
+_PREFIX__PROFILE_D_DIR="$_PREFIX__ETC_DIR/profile.d"
 
 
 ##
-# Termux project system config directory path under `TERMUX__PREFIX__ETC_DIR`.
+# repoexe project system config directory path under `_PREFIX__ETC_DIR`.
 #
-# Default value: `/data/data/com.termux/files/usr/etc/termux`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/etc/repoexe`
 ##
-TERMUX__PROJECT_SYSTEM_CONFIG_DIR="$TERMUX__PREFIX__ETC_DIR/$TERMUX__INTERNAL_NAME"
+_PROJECT_SYSTEM_CONFIG_DIR="$_PREFIX__ETC_DIR/$_INTERNAL_NAME"
 
 
 
 
 
 ####
-# Variables for the Termux cache.
+# Variables for the repoexe cache.
 ####
 
 ##
-# Termux subdirectory path for `TERMUX__CACHE_DIR`.
+# repoexe subdirectory path for `_CACHE_DIR`.
 #
 # Constant value: `cache`
 ##
-TERMUX__CACHE_SUBDIR="cache"
+_CACHE_SUBDIR="cache"
 
 ###########
-# Uncomment if to place `TERMUX__ROOTFS`  under `TERMUX__PROJECT_DIR`
+# Uncomment if to place `_ROOTFS`  under `_PROJECT_DIR`
 # instead of at `files`. This may be used for future multi-rootfs
-# design. This will also ensure `termux` files are not mixed with
-# other cached files of an app, especially if Termux is forked or
+# design. This will also ensure `repoexe` files are not mixed with
+# other cached files of an app, especially if repoexe is forked or
 # used as a library in other apps. Make sure to update
-# `TERMUX__ROOTFS_SUBDIR` above as well.
+# `_ROOTFS_SUBDIR` above as well.
 
 ##
-# Termux subdirectory path for `TERMUX__CACHE_DIR`.
+# repoexe subdirectory path for `_CACHE_DIR`.
 #
-# Default value: `cache/termux/rootfs/0`
+# Default value: `cache/repoexe/rootfs/0`
 ##
-#TERMUX__CACHE_SUBDIR="cache/$TERMUX__INTERNAL_NAME/rootfs/$TERMUX__ROOTFS_ID"
+#_CACHE_SUBDIR="cache/$_INTERNAL_NAME/rootfs/$_ROOTFS_ID"
 ###########
 
 ##
-# Termux app cache directory path under `TERMUX_APP__DATA_DIR`
+# repoexe app cache directory path under `APP__DATA_DIR`
 # contains cache files that are safe to be deleted by Android or
-# Termux if required.
+# repoexe if required.
 #
 # The `cache` subdirectory is hardcoded in Android and must not be
 # changed.
@@ -1367,52 +1367,52 @@ TERMUX__CACHE_SUBDIR="cache"
 # Currently this is primarily used for packages cache files of package
 # managers (`apt`/`pacman`).
 #
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-app-cache-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-app-cache-directory
 #
-# Default value: `/data/data/com.termux/cache`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/cache`
 ##
-TERMUX__CACHE_DIR="$TERMUX_APP__DATA_DIR/$TERMUX__CACHE_SUBDIR"
-__termux_build_props__add_variables_validator_actions "TERMUX__CACHE_DIR" "safe_absolute_path"
+_CACHE_DIR="$APP__DATA_DIR/$_CACHE_SUBDIR"
+__build_props__add_variables_validator_actions "_CACHE_DIR" "safe_absolute_path"
 
-TERMUX_CACHE_DIR="$TERMUX__CACHE_DIR" # Deprecated alternative variable for `TERMUX__CACHE_DIR`
+CACHE_DIR="$_CACHE_DIR" # Deprecated alternative variable for `_CACHE_DIR`
 
 
 
 
 
 ####
-# Variables for the Termux bootstrap.
+# Variables for the repoexe bootstrap.
 ####
 
 ##
-# Termux bootstrap system config directory path under `TERMUX__PROJECT_SYSTEM_CONFIG_DIR`.
+# repoexe bootstrap system config directory path under `_PROJECT_SYSTEM_CONFIG_DIR`.
 #
-# Default value: `/data/data/com.termux/files/usr/etc/termux/termux-bootstrap`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/etc/repoexe/repoexe-bootstrap`
 ##
-TERMUX_BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR="$TERMUX__PROJECT_SYSTEM_CONFIG_DIR/termux-bootstrap"
+BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR="$_PROJECT_SYSTEM_CONFIG_DIR/repoexe-bootstrap"
 
 
 ##
-# Termux subdirectory path for `TERMUX_BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR`.
+# repoexe subdirectory path for `BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR`.
 #
 # Constant value: `second-stage`
 ##
-TERMUX_BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_SUBDIR="second-stage"
+BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_SUBDIR="second-stage"
 
 ##
-# Termux bootstrap second stage directory path under `TERMUX_BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR`.
+# repoexe bootstrap second stage directory path under `BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR`.
 #
-# Default value: `/data/data/com.termux/files/usr/etc/termux/termux-bootstrap/second-stage`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/etc/repoexe/repoexe-bootstrap/second-stage`
 ##
-TERMUX_BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR="$TERMUX_BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR/$TERMUX_BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_SUBDIR"
+BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR="$BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR/$BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_SUBDIR"
 
 
 ##
-# Termux bootstrap second stage entry point subfile path path under `TERMUX_BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR`.
+# repoexe bootstrap second stage entry point subfile path path under `BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR`.
 #
-# Default value: `termux-bootstrap-second-stage.sh`
+# Default value: `repoexe-bootstrap-second-stage.sh`
 ##
-TERMUX_BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_ENTRY_POINT_SUBFILE="termux-bootstrap-second-stage.sh"
+BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_ENTRY_POINT_SUBFILE="repoexe-bootstrap-second-stage.sh"
 
 
 
@@ -1453,769 +1453,769 @@ TERMUX_BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_ENTRY_POINT_SUBFILE="termux-bootstrap-s
 #
 # Constant value: `255`
 ##
-TERMUX__NAME_MAX=255
+_NAME_MAX=255
 
 ##
 # The max length for a filesystem socket file path (pathanme UNIX domain socket)
 # for the `sockaddr_un.sun_path` field including the null `\0`
 # terminator as per `UNIX_PATH_MAX`.
 #
-# All filesystem socket path lengths created by Termux apps and packages must be `< 108`.
+# All filesystem socket path lengths created by repoexe apps and packages must be `< 108`.
 #
 # - https://man7.org/linux/man-pages/man7/unix.7.html
 # - https://cs.android.com/android/platform/superproject/+/android-13.0.0_r18:bionic/libc/kernel/uapi/linux/un.h;l=22
 #
 # Constant value: `108`
 ##
-TERMUX__UNIX_PATH_MAX=108
+_UNIX_PATH_MAX=108
 
 
 
 
 
 ##
-# Termux environment variables root scope.
+# repoexe environment variables root scope.
 #
-# The name of this variable `TERMUX_ENV__S_ROOT` is considered a
-# constant for Termux execution environment that's exported by Termux
+# The name of this variable `ENV__S_ROOT` is considered a
+# constant for repoexe execution environment that's exported by repoexe
 # app containing the root scope and **must not be changed even for
-# forks**. It can be used to check if running under Termux or any of
-# its forks, and should be used to generate all Termux variable names
-# that may need to be read, since Termux app forks may not export
-# variables under the `TERMUX_` root scope and may do it under a
-# different root scope like `FOO_`, so the `TERMUX__PREFIX` variable
+# forks**. It can be used to check if running under repoexe or any of
+# its forks, and should be used to generate all repoexe variable names
+# that may need to be read, since repoexe app forks may not export
+# variables under the `` root scope and may do it under a
+# different root scope like `FOO_`, so the `_PREFIX` variable
 # would be `FOO__PREFIX` instead.
 #
-# The `TERMUX_ENV__S_APP` environment variable will be exported at
-# runtime for the scope of the current Termux app running the shell.
+# The `ENV__S_APP` environment variable will be exported at
+# runtime for the scope of the current repoexe app running the shell.
 #
-# Termux packages and external programs can use the
-# `termux-scoped-env-variable` util from the `termux-core`
-# package to get variable names and values for Termux. It uses the
-# root scope from the `$TERMUX_ENV__S_ROOT` environment variable
-# exported by the Termux app to dynamically generate the Termux
+# repoexe packages and external programs can use the
+# `repoexe-scoped-env-variable` util from the `repoexe-core`
+# package to get variable names and values for repoexe. It uses the
+# root scope from the `$ENV__S_ROOT` environment variable
+# exported by the repoexe app to dynamically generate the repoexe
 # variable names and/or get their values, with support for fallback
-# to the build values defined here if `$TERMUX_ENV__S_ROOT` variable
+# to the build values defined here if `$ENV__S_ROOT` variable
 # is not exported.**
-# - https://github.com/termux/termux-core-package/blob/master/site/pages/en/projects/docs/usage/utils/termux/shell/command/environment/termux-scoped-env-variable.md
+# - https://github.com/repoexe/repoexe-core-package/blob/master/site/pages/en/projects/docs/usage/utils/repoexe/shell/command/environment/repoexe-scoped-env-variable.md
 #
-# The value of this variable `TERMUX_ENV__S_ROOT` may be modified,
+# The value of this variable `ENV__S_ROOT` may be modified,
 # although not advisable since external programs would be using
-# hardcoded `TERMUX_` value for reading Termux environment variables,
+# hardcoded `` value for reading repoexe environment variables,
 # and so changing variable names to say `FOO_*` would result in
-# `TERMUX_*` ones being unset during execution, which would change
+# `*` ones being unset during execution, which would change
 # external programs behaviour and may break them.
 # **If the value is changed here, it must also be set to the same
-# value in Termux app that is exported.**
+# value in repoexe app that is exported.**
 #
-# Moreover, currently, only `termux-exec` supports modifying this, all
-# other termux (internal) packages, like `termux-tools`, etc do not.
-# So forks should not modify it at least until all termux packages
+# Moreover, currently, only `repoexe-exec` supports modifying this, all
+# other repoexe (internal) packages, like `repoexe-tools`, etc do not.
+# So forks should not modify it at least until all repoexe packages
 # support modifying it.
 #
-# Default value: `TERMUX_`
+# Default value: ``
 ##
-TERMUX_ENV__S_ROOT="TERMUX_"
+ENV__S_ROOT=""
 
 
 
 ##
-# Termux environment variables Termux sub scope for primary variables
-# or variables for currently running Termux config.
+# repoexe environment variables repoexe sub scope for primary variables
+# or variables for currently running repoexe config.
 #
-# **Do not modify this!** This is considered a constant Termux sub
-# scope for Termux execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
-# and rely on `$TERMUX_ENV__S_ROOT` environment variable exported by
-# Termux app containing the root scope to generate the value for
-# `$TERMUX_ENV__S_TERMUX` and variable names under it.**
+# **Do not modify this!** This is considered a constant repoexe sub
+# scope for repoexe execution environment that's used by external
+# programs that do not use the repoexe packages building infrastructure
+# and rely on `$ENV__S_ROOT` environment variable exported by
+# repoexe app containing the root scope to generate the value for
+# `$ENV__S_repoexe` and variable names under it.**
 #
 # Default value: `_`
 ##
-TERMUX_ENV__SS_TERMUX="_"
+ENV__SS_repoexe="_"
 
 ##
-# Termux environment variables Termux scope for primary variables or
-# variables for currently running Termux config.
+# repoexe environment variables repoexe scope for primary variables or
+# variables for currently running repoexe config.
 #
 # **Do not modify this!**
 #
-# Default value: `TERMUX__`
+# Default value: `_`
 ##
-TERMUX_ENV__S_TERMUX="${TERMUX_ENV__S_ROOT}${TERMUX_ENV__SS_TERMUX}"
+ENV__S_repoexe="${ENV__S_ROOT}${ENV__SS_repoexe}"
 
 
 
 ##
-# Termux environment variables Termux app sub scope.
+# repoexe environment variables repoexe app sub scope.
 #
-# **Do not modify this!** This is considered a constant Termux app sub
-# scope for Termux execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
-# and rely on `$TERMUX_ENV__S_ROOT` environment variable exported by
-# Termux app containing the root scope to generate the value for
-# `$TERMUX_ENV__S_TERMUX_APP` and variable names under it.**
+# **Do not modify this!** This is considered a constant repoexe app sub
+# scope for repoexe execution environment that's used by external
+# programs that do not use the repoexe packages building infrastructure
+# and rely on `$ENV__S_ROOT` environment variable exported by
+# repoexe app containing the root scope to generate the value for
+# `$ENV__S_APP` and variable names under it.**
 #
 # Default value: `APP__`
 ##
-TERMUX_ENV__SS_TERMUX_APP="APP__"
+ENV__SS_APP="APP__"
 
 ##
-# Termux environment variables Termux app scope.
+# repoexe environment variables repoexe app scope.
 #
 # **Do not modify this!**
 #
-# Default value: `TERMUX_APP__`
+# Default value: `APP__`
 ##
-TERMUX_ENV__S_TERMUX_APP="${TERMUX_ENV__S_ROOT}${TERMUX_ENV__SS_TERMUX_APP}"
+ENV__S_APP="${ENV__S_ROOT}${ENV__SS_APP}"
 
 
 
 ##
-# Termux environment variables Termux:API sub scope.
+# repoexe environment variables repoexe:API sub scope.
 #
-# **Do not modify this!** This is considered a constant Termux:API
-# sub scope for Termux execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
-# and rely on `$TERMUX_ENV__S_ROOT` environment variable exported by
-# Termux app containing the root scope to generate the value for
-# `$TERMUX_ENV__S_TERMUX_API` and variable names under it.**
+# **Do not modify this!** This is considered a constant repoexe:API
+# sub scope for repoexe execution environment that's used by external
+# programs that do not use the repoexe packages building infrastructure
+# and rely on `$ENV__S_ROOT` environment variable exported by
+# repoexe app containing the root scope to generate the value for
+# `$ENV__S_API` and variable names under it.**
 #
 # Default value: `API__`
 ##
-TERMUX_ENV__SS_TERMUX_API="API__"
+ENV__SS_API="API__"
 
 ##
-# Termux environment variables Termux:API scope.
+# repoexe environment variables repoexe:API scope.
 #
 # **Do not modify this!**
 #
-# Default value: `TERMUX_API__`
+# Default value: `API__`
 ##
-TERMUX_ENV__S_TERMUX_API="${TERMUX_ENV__S_ROOT}${TERMUX_ENV__SS_TERMUX_API}"
+ENV__S_API="${ENV__S_ROOT}${ENV__SS_API}"
 
 
 
 ##
-# Termux environment variables Termux:API app sub scope.
+# repoexe environment variables repoexe:API app sub scope.
 #
 # This may be allowed to be modified, in case APIs are provided under
-# a different app name or under the main Termux app itself by a fork.
+# a different app name or under the main repoexe app itself by a fork.
 # Consequences for changing this haven't been fully looked at yet.
 #
 # Default value: `API_APP__`
 ##
-TERMUX_ENV__SS_TERMUX_API_APP="API_APP__"
+ENV__SS_API_APP="API_APP__"
 
 ##
-# Termux environment variables Termux:API app scope.
+# repoexe environment variables repoexe:API app scope.
 #
 # **Do not modify this!**
 #
-# Default value: `TERMUX_API_APP__`
+# Default value: `API_APP__`
 ##
-TERMUX_ENV__S_TERMUX_API_APP="${TERMUX_ENV__S_ROOT}${TERMUX_ENV__SS_TERMUX_API_APP}"
+ENV__S_API_APP="${ENV__S_ROOT}${ENV__SS_API_APP}"
 
 
 
 ##
-# Termux environment variables Termux rootfs sub scope.
+# repoexe environment variables repoexe rootfs sub scope.
 #
-# **Do not modify this!** This is considered a constant Termux rootfs
-# sub scope for Termux execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
-# and rely on `$TERMUX_ENV__S_ROOT` environment variable exported by
-# Termux app containing the root scope to generate the value for
-# `$TERMUX_ENV__S_TERMUX_ROOTFS` and variable names under it.**
+# **Do not modify this!** This is considered a constant repoexe rootfs
+# sub scope for repoexe execution environment that's used by external
+# programs that do not use the repoexe packages building infrastructure
+# and rely on `$ENV__S_ROOT` environment variable exported by
+# repoexe app containing the root scope to generate the value for
+# `$ENV__S_ROOTFS` and variable names under it.**
 #
 # Default value: `ROOTFS__`
 ##
-TERMUX_ENV__SS_TERMUX_ROOTFS="ROOTFS__"
+ENV__SS_ROOTFS="ROOTFS__"
 
 ##
-# Termux environment variables Termux rootfs scope.
+# repoexe environment variables repoexe rootfs scope.
 #
 # **Do not modify this!**
 #
-# Default value: `TERMUX_ROOTFS__`
+# Default value: `ROOTFS__`
 ##
-TERMUX_ENV__S_TERMUX_ROOTFS="${TERMUX_ENV__S_ROOT}${TERMUX_ENV__SS_TERMUX_ROOTFS}"
+ENV__S_ROOTFS="${ENV__S_ROOT}${ENV__SS_ROOTFS}"
 
 
 
 ##
-# Termux environment variables `termux-core` sub scope.
+# repoexe environment variables `repoexe-core` sub scope.
 #
-# **Do not modify this!** This is considered a constant `termux-core`
-# sub scope for Termux execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
-# and rely on `$TERMUX_ENV__S_ROOT` environment variable exported by
-# Termux app containing the root scope to generate the value for
-# `$TERMUX_ENV__S_TERMUX_CORE` and variable names under it.**
+# **Do not modify this!** This is considered a constant `repoexe-core`
+# sub scope for repoexe execution environment that's used by external
+# programs that do not use the repoexe packages building infrastructure
+# and rely on `$ENV__S_ROOT` environment variable exported by
+# repoexe app containing the root scope to generate the value for
+# `$ENV__S_CORE` and variable names under it.**
 #
 # Default value: `CORE__`
 ##
-TERMUX_ENV__SS_TERMUX_CORE="CORE__"
+ENV__SS_CORE="CORE__"
 
 ##
-# Termux environment variables `termux-core` scope.
+# repoexe environment variables `repoexe-core` scope.
 #
 # **Do not modify this!**
 #
-# Default value: `TERMUX_CORE__`
+# Default value: `CORE__`
 ##
-TERMUX_ENV__S_TERMUX_CORE="${TERMUX_ENV__S_ROOT}${TERMUX_ENV__SS_TERMUX_CORE}"
+ENV__S_CORE="${ENV__S_ROOT}${ENV__SS_CORE}"
 
 
 ##
-# Termux environment variables `termux-core-tests` sub scope.
+# repoexe environment variables `repoexe-core-tests` sub scope.
 #
 # **Do not modify this!** This is considered a constant
-# `termux-core-tests` sub scope for Termux execution environment
-#  that's used by `termux-core` package to generate the value for
-# `$TERMUX_ENV__S_TERMUX_CORE__TESTS` and variable names under it.**
+# `repoexe-core-tests` sub scope for repoexe execution environment
+#  that's used by `repoexe-core` package to generate the value for
+# `$ENV__S_CORE__TESTS` and variable names under it.**
 #
-# Default value: `TERMUX_CORE__TESTS__`
+# Default value: `CORE__TESTS__`
 ##
-TERMUX_ENV__SS_TERMUX_CORE__TESTS="CORE__TESTS__"
+ENV__SS_CORE__TESTS="CORE__TESTS__"
 
 ##
-# Termux environment variables `termux-core-tests` scope.
+# repoexe environment variables `repoexe-core-tests` scope.
 #
 # **Do not modify this!**
 #
-# Default value: `TERMUX_CORE__TESTS__`
+# Default value: `CORE__TESTS__`
 ##
-TERMUX_ENV__S_TERMUX_CORE__TESTS="${TERMUX_ENV__S_ROOT}${TERMUX_ENV__SS_TERMUX_CORE__TESTS}"
+ENV__S_CORE__TESTS="${ENV__S_ROOT}${ENV__SS_CORE__TESTS}"
 
 
 
 ##
-# Termux environment variables `termux-exec` sub scope.
+# repoexe environment variables `repoexe-exec` sub scope.
 #
-# **Do not modify this!** This is considered a constant `termux-exec`
-# sub scope for Termux execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
-# and rely on `$TERMUX_ENV__S_ROOT` environment variable exported by
-# Termux app containing the root scope to generate the value for
-# `$TERMUX_ENV__S_TERMUX_EXEC` and variable names under it.**
+# **Do not modify this!** This is considered a constant `repoexe-exec`
+# sub scope for repoexe execution environment that's used by external
+# programs that do not use the repoexe packages building infrastructure
+# and rely on `$ENV__S_ROOT` environment variable exported by
+# repoexe app containing the root scope to generate the value for
+# `$ENV__S_EXEC` and variable names under it.**
 #
 # Default value: `EXEC__`
 ##
-TERMUX_ENV__SS_TERMUX_EXEC="EXEC__"
+ENV__SS_EXEC="EXEC__"
 
 ##
-# Termux environment variables `termux-exec` scope.
+# repoexe environment variables `repoexe-exec` scope.
 #
 # **Do not modify this!**
 #
-# Default value: `TERMUX_EXEC__`
+# Default value: `EXEC__`
 ##
-TERMUX_ENV__S_TERMUX_EXEC="${TERMUX_ENV__S_ROOT}${TERMUX_ENV__SS_TERMUX_EXEC}"
+ENV__S_EXEC="${ENV__S_ROOT}${ENV__SS_EXEC}"
 
 
 ##
-# Termux environment variables `termux-exec-tests` sub scope.
+# repoexe environment variables `repoexe-exec-tests` sub scope.
 #
 # **Do not modify this!** This is considered a constant
-# `termux-exec-tests` sub scope for Termux execution environment
-#  that's used by `termux-exec` package to generate the value for
-# `$TERMUX_ENV__S_TERMUX_EXEC__TESTS` and variable names under it.**
+# `repoexe-exec-tests` sub scope for repoexe execution environment
+#  that's used by `repoexe-exec` package to generate the value for
+# `$ENV__S_EXEC__TESTS` and variable names under it.**
 #
-# Default value: `TERMUX_EXEC__TESTS__`
+# Default value: `EXEC__TESTS__`
 ##
-TERMUX_ENV__SS_TERMUX_EXEC__TESTS="EXEC__TESTS__"
+ENV__SS_EXEC__TESTS="EXEC__TESTS__"
 
 ##
-# Termux environment variables `termux-exec-tests` scope.
+# repoexe environment variables `repoexe-exec-tests` scope.
 #
 # **Do not modify this!**
 #
-# Default value: `TERMUX_EXEC__TESTS__`
+# Default value: `EXEC__TESTS__`
 ##
-TERMUX_ENV__S_TERMUX_EXEC__TESTS="${TERMUX_ENV__S_ROOT}${TERMUX_ENV__SS_TERMUX_EXEC__TESTS}"
+ENV__S_EXEC__TESTS="${ENV__S_ROOT}${ENV__SS_EXEC__TESTS}"
 
 
 
 ##
-# Termux environment variables `termux-am-socket` sub scope.
+# repoexe environment variables `repoexe-am-socket` sub scope.
 #
-# **Do not modify this!** This is considered a constant `termux-am-socket`
-# sub scope for Termux execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
-# and rely on `$TERMUX_ENV__S_ROOT` environment variable exported by
-# Termux app containing the root scope to generate the value for
-# `$TERMUX_ENV__S_TERMUX_AM_SOCKET` and variable names under it.**
+# **Do not modify this!** This is considered a constant `repoexe-am-socket`
+# sub scope for repoexe execution environment that's used by external
+# programs that do not use the repoexe packages building infrastructure
+# and rely on `$ENV__S_ROOT` environment variable exported by
+# repoexe app containing the root scope to generate the value for
+# `$ENV__S_AM_SOCKET` and variable names under it.**
 #
 # Default value: `AM_SOCKET__`
 ##
-TERMUX_ENV__SS_TERMUX_AM_SOCKET="AM_SOCKET__"
+ENV__SS_AM_SOCKET="AM_SOCKET__"
 
 ##
-# Termux environment variables `termux-am-socket` scope.
+# repoexe environment variables `repoexe-am-socket` scope.
 #
 # **Do not modify this!**
 #
-# Default value: `TERMUX_AM_SOCKET__`
+# Default value: `AM_SOCKET__`
 ##
-TERMUX_ENV__S_TERMUX_AM_SOCKET="${TERMUX_ENV__S_ROOT}${TERMUX_ENV__SS_TERMUX_AM_SOCKET}"
+ENV__S_AM_SOCKET="${ENV__S_ROOT}${ENV__SS_AM_SOCKET}"
 
 
 
 
 
 ####
-# Variables for the Termux packages.
+# Variables for the repoexe packages.
 #
-# - https://github.com/termux/termux-packages
+# - https://github.com/repoexe/repoexe-packages
 ####
 
 ##
-# Termux packages repo name.
+# repoexe packages repo name.
 #
-# Default value: `termux-packages`
+# Default value: `repoexe-packages`
 ##
-TERMUX_PKGS__REPO_NAME="termux-packages"
+PKGS__REPO_NAME="repoexe-packages"
 
 ##
-# Termux packages repo url.
+# repoexe packages repo url.
 #
-# Default value: `https://github.com/termux/termux-packages`
+# Default value: `https://github.com/repoexe/repoexe-packages`
 ##
-TERMUX_PKGS__REPO_URL="$TERMUX__REPOS_HOST_ORG_URL/$TERMUX_PKGS__REPO_NAME"
+PKGS__REPO_URL="$_REPOS_HOST_ORG_URL/$PKGS__REPO_NAME"
 
 
 
 
 
 ####
-# Variables for the Termux app that hosts the packages.
+# Variables for the repoexe app that hosts the packages.
 #
-# - https://github.com/termux/termux-app
+# - https://github.com/repoexe/repoexe-app
 ####
 
 ##
-# Termux app name.
+# repoexe app name.
 #
-# Default value: `Termux`
+# Default value: `repoexe`
 ##
-TERMUX_APP__NAME="$TERMUX__NAME"
+APP__NAME="$_NAME"
 
 
 ##
-# The lower case value for `TERMUX_APP__NAME`.
+# The lower case value for `APP__NAME`.
 #
-# Default value: `termux`
+# Default value: `repoexe`
 ##
-TERMUX_APP__LNAME="${TERMUX_APP__NAME,,}"
+APP__LNAME="${APP__NAME,,}"
 
 ##
-# Termux app identifier for `TERMUX__APPS_DIR_BY_IDENTIFIER` subdirectory.
+# repoexe app identifier for `_APPS_DIR_BY_IDENTIFIER` subdirectory.
 #
-# Default value: `termux`
-# Validation regex: `TERMUX__APPS_APP_IDENTIFIER_REGEX`
-# Max length: `TERMUX__APPS_APP_IDENTIFIER___MAX_LEN`
+# Default value: `repoexe`
+# Validation regex: `_APPS_APP_IDENTIFIER_REGEX`
+# Max length: `_APPS_APP_IDENTIFIER___MAX_LEN`
 ##
-TERMUX_APP__APP_IDENTIFIER="termux"
+APP__APP_IDENTIFIER="repoexe"
 
 
 
 ##
-# Termux app repo name.
+# repoexe app repo name.
 #
-# Default value: `termux-app`
+# Default value: `repoexe-app`
 ##
-TERMUX_APP__REPO_NAME="termux-app"
+APP__REPO_NAME="repoexe-app"
 
 ##
-# Termux app repo url.
+# repoexe app repo url.
 #
-# Default value: `https://github.com/termux/termux-app`
+# Default value: `https://github.com/repoexe/repoexe-app`
 ##
-TERMUX_APP__REPO_URL="$TERMUX__REPOS_HOST_ORG_URL/$TERMUX_APP__REPO_NAME"
+APP__REPO_URL="$_REPOS_HOST_ORG_URL/$APP__REPO_NAME"
 
 
 
 ##
-# Termux app namespace, i.e the Java package name under which Termux
-# classes exists used for `TERMUX_APP__*_CLASS__*` and
-# `TERMUX_APP__*_(ACTIVITY|RECEIVER|SERVICE)__*` variables.
+# repoexe app namespace, i.e the Java package name under which repoexe
+# classes exists used for `APP__*_CLASS__*` and
+# `APP__*_(ACTIVITY|RECEIVER|SERVICE)__*` variables.
 #
 # **See Also:**
-# - `TERMUX_APP__PACKAGE_NAME`.
+# - `APP__PACKAGE_NAME`.
 # - https://developer.android.com/build/configure-app-module#set-namespace
-# - https://github.com/termux/termux-app/tree/master/app/src/main/java/com/termux
+# - https://github.com/repoexe/repoexe-app/tree/master/app/src/main/java/com/repoexe
 #
-# Default value: `com.termux`
+# Default value: `__COM_REPOEXE_PLACEHOLDER__`
 ##
-TERMUX_APP__NAMESPACE="com.termux"
+APP__NAMESPACE="__COM_REPOEXE_PLACEHOLDER__"
 
-__termux_build_props__add_variables_validator_actions "TERMUX_APP__NAMESPACE" "app_package_name"
+__build_props__add_variables_validator_actions "APP__NAMESPACE" "app_package_name"
 
 
 
 ##
-# Termux app apps directory path under `TERMUX__APPS_DIR_BY_IDENTIFIER`.
+# repoexe app apps directory path under `_APPS_DIR_BY_IDENTIFIER`.
 #
-# Default value: `/data/data/com.termux/termux/app/i/termux`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe/app/i/repoexe`
 ##
-TERMUX_APP__APP_DIR="$TERMUX__APPS_DIR_BY_IDENTIFIER/$TERMUX_APP__APP_IDENTIFIER"
-__termux_build_props__add_variables_validator_actions "TERMUX_APP__APP_DIR" "safe_absolute_path"
+APP__APP_DIR="$_APPS_DIR_BY_IDENTIFIER/$APP__APP_IDENTIFIER"
+__build_props__add_variables_validator_actions "APP__APP_DIR" "safe_absolute_path"
 
 
 
 ##
-# Termux app shell API `Activity` class name that hosts the
+# repoexe app shell API `Activity` class name that hosts the
 # shell/terminal views.
 #
 # **See Also:**
-# - https://github.com/termux/termux-app/blob/master/app/src/main/java/com/termux/app/TermuxActivity.java
+# - https://github.com/repoexe/repoexe-app/blob/master/app/src/main/java/com/repoexe/app/repoexeActivity.java
 #
-# Default value: `com.termux.app.TermuxActivity`
+# Default value: `__COM_REPOEXE_PLACEHOLDER__.app.repoexeActivity`
 ##
-TERMUX_APP__SHELL_API__SHELL_API_ACTIVITY__CLASS_NAME="$TERMUX_APP__NAMESPACE.app.TermuxActivity"
+APP__SHELL_API__SHELL_API_ACTIVITY__CLASS_NAME="$APP__NAMESPACE.app.repoexeActivity"
 
 
 
 ##
-# Termux app shell API `Service` class name that hosts the
+# repoexe app shell API `Service` class name that hosts the
 # shell/terminal sessions.
 #
 # **See Also:**
-# - https://github.com/termux/termux-app/blob/master/app/src/main/java/com/termux/app/TermuxService.java
+# - https://github.com/repoexe/repoexe-app/blob/master/app/src/main/java/com/repoexe/app/repoexeService.java
 #
-# Default value: `com.termux.app.TermuxService`
+# Default value: `__COM_REPOEXE_PLACEHOLDER__.app.repoexeService`
 ##
-TERMUX_APP__SHELL_API__SHELL_API_SERVICE__CLASS_NAME="$TERMUX_APP__NAMESPACE.app.TermuxService"
+APP__SHELL_API__SHELL_API_SERVICE__CLASS_NAME="$APP__NAMESPACE.app.repoexeService"
 
 
 
 ##
-# Termux app `RUN_COMMAND` API `Service` class name that receives
+# repoexe app `RUN_COMMAND` API `Service` class name that receives
 # commands sent by 3rd party apps via intents.
 #
 # **See Also:**
-# - https://github.com/termux/termux-app/blob/master/app/src/main/java/com/termux/app/RunCommandService.java
-# - https://github.com/termux/termux-app/wiki/RUN_COMMAND-Intent
+# - https://github.com/repoexe/repoexe-app/blob/master/app/src/main/java/com/repoexe/app/RunCommandService.java
+# - https://github.com/repoexe/repoexe-app/wiki/RUN_COMMAND-Intent
 #
-# Default value: `com.termux.app.RunCommandService`
+# Default value: `__COM_REPOEXE_PLACEHOLDER__.app.RunCommandService`
 ##
-TERMUX_APP__RUN_COMMAND_API__RUN_COMMAND_API_SERVICE__CLASS_NAME="$TERMUX_APP__NAMESPACE.app.RunCommandService"
+APP__RUN_COMMAND_API__RUN_COMMAND_API_SERVICE__CLASS_NAME="$APP__NAMESPACE.app.RunCommandService"
 
 
 
 ##
-# Termux app data sender API `BroadcastReceiver` class name that
+# repoexe app data sender API `BroadcastReceiver` class name that
 # receives data view broadcasts and sends the data with `ACTION_SEND`
-# and `ACTION_VIEW` intents to other apps, like by `termux-open`.
+# and `ACTION_VIEW` intents to other apps, like by `repoexe-open`.
 #
 # **See Also:**
-# - https://github.com/termux/termux-app/blob/master/app/src/main/java/com/termux/app/TermuxOpenReceiver.java
-# - https://github.com/termux/termux-tools/blob/master/scripts/termux-open.in
+# - https://github.com/repoexe/repoexe-app/blob/master/app/src/main/java/com/repoexe/app/repoexeOpenReceiver.java
+# - https://github.com/repoexe/repoexe-tools/blob/master/scripts/repoexe-open.in
 #
-# Default value: `com.termux.app.TermuxOpenReceiver`
+# Default value: `__COM_REPOEXE_PLACEHOLDER__.app.repoexeOpenReceiver`
 ##
-TERMUX_APP__DATA_SENDER_API__DATA_SENDER_API_RECEIVER__CLASS_NAME="$TERMUX_APP__NAMESPACE.app.TermuxOpenReceiver"
+APP__DATA_SENDER_API__DATA_SENDER_API_RECEIVER__CLASS_NAME="$APP__NAMESPACE.app.repoexeOpenReceiver"
 
 
 
 
 
 ##
-# Termux apps info environment file path for the Termux app under `TERMUX_APP__APP_DIR`.
+# repoexe apps info environment file path for the repoexe app under `APP__APP_DIR`.
 #
-# Default value: `/data/data/com.termux/termux/app/i/termux/termux-apps-info.env`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe/app/i/repoexe/repoexe-apps-info.env`
 ##
-TERMUX_APP__CORE__APPS_INFO_ENV_FILE="$TERMUX_APP__APP_DIR/$TERMUX_CORE__APPS_INFO_ENV_SUBFILE"
-__termux_build_props__add_variables_validator_actions "TERMUX_APP__CORE__APPS_INFO_ENV_FILE" "safe_absolute_path"
+APP__CORE__APPS_INFO_ENV_FILE="$APP__APP_DIR/$CORE__APPS_INFO_ENV_SUBFILE"
+__build_props__add_variables_validator_actions "APP__CORE__APPS_INFO_ENV_FILE" "safe_absolute_path"
 
 ##
-# Termux apps info json file path for the Termux app under `TERMUX_APP__APP_DIR`.
+# repoexe apps info json file path for the repoexe app under `APP__APP_DIR`.
 #
-# Default value: `/data/data/com.termux/termux/app/i/termux/termux-apps-info.json`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe/app/i/repoexe/repoexe-apps-info.json`
 ##
-TERMUX_APP__CORE__APPS_INFO_JSON_FILE="$TERMUX_APP__APP_DIR/$TERMUX_CORE__APPS_INFO_JSON_SUBFILE"
-__termux_build_props__add_variables_validator_actions "TERMUX_APP__CORE__APPS_INFO_JSON_FILE" "safe_absolute_path"
+APP__CORE__APPS_INFO_JSON_FILE="$APP__APP_DIR/$CORE__APPS_INFO_JSON_SUBFILE"
+__build_props__add_variables_validator_actions "APP__CORE__APPS_INFO_JSON_FILE" "safe_absolute_path"
 
 ##
-# `termux-am-socket` server file path for the Termux app under `TERMUX_APP__APP_DIR`.
+# `repoexe-am-socket` server file path for the repoexe app under `APP__APP_DIR`.
 #
-# Default value: `/data/data/com.termux/termux/app/i/termux/termux-am`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe/app/i/repoexe/repoexe-am`
 ##
-TERMUX_APP__AM_SOCKET__SERVER_SOCKET_FILE="$TERMUX_APP__APP_DIR/$TERMUX_AM_SOCKET__SERVER_SOCKET_SUBFILE"
-__termux_build_props__add_variables_validator_actions "TERMUX_APP__AM_SOCKET__SERVER_SOCKET_FILE" "safe_absolute_path unix_path_max"
+APP__AM_SOCKET__SERVER_SOCKET_FILE="$APP__APP_DIR/$AM_SOCKET__SERVER_SOCKET_SUBFILE"
+__build_props__add_variables_validator_actions "APP__AM_SOCKET__SERVER_SOCKET_FILE" "safe_absolute_path unix_path_max"
 
 
 
 
 
 ####
-# Variables for the Termux:API app that hosts the packages.
+# Variables for the repoexe:API app that hosts the packages.
 #
-# - https://github.com/termux/termux-api
+# - https://github.com/repoexe/repoexe-api
 ####
 
 ##
-# Termux:API app package name used for
-# `TERMUX_API_APP__*_(ACTIVITY|RECEIVER|SERVICE)__*` variables.
+# repoexe:API app package name used for
+# `API_APP__*_(ACTIVITY|RECEIVER|SERVICE)__*` variables.
 #
 # **See Also:**
-# - `TERMUX_API_APP__NAMESPACE`.
+# - `API_APP__NAMESPACE`.
 # - https://developer.android.com/build/configure-app-module#set-application-id
-# - https://github.com/termux/termux-packages/wiki/Termux-file-system-layout#termux-private-app-data-directory
+# - https://github.com/repoexe/repoexe-packages/wiki/repoexe-file-system-layout#repoexe-private-app-data-directory
 #
-# Default value: `com.termux.api`
+# Default value: `__COM_REPOEXE_PLACEHOLDER__.api`
 ##
-TERMUX_API_APP__PACKAGE_NAME="com.termux.api"
+API_APP__PACKAGE_NAME="__COM_REPOEXE_PLACEHOLDER__.api"
 
-__termux_build_props__add_variables_validator_actions "TERMUX_API_APP__PACKAGE_NAME" "app_package_name"
+__build_props__add_variables_validator_actions "API_APP__PACKAGE_NAME" "app_package_name"
 
 
 
 ##
-# Termux:API app name.
+# repoexe:API app name.
 #
-# Default value: `Termux:API`
+# Default value: `repoexe:API`
 ##
-TERMUX_API_APP__NAME="$TERMUX__NAME:API"
+API_APP__NAME="$_NAME:API"
 
 ##
-# Termux:API app identifier for `TERMUX__APPS_DIR_BY_IDENTIFIER` subdirectory.
+# repoexe:API app identifier for `_APPS_DIR_BY_IDENTIFIER` subdirectory.
 #
-# Default value: `termuxapi`
-# Validation regex: `TERMUX__APPS_APP_IDENTIFIER_REGEX`
-# Max length: `TERMUX__APPS_APP_IDENTIFIER___MAX_LEN`
+# Default value: `repoexeapi`
+# Validation regex: `_APPS_APP_IDENTIFIER_REGEX`
+# Max length: `_APPS_APP_IDENTIFIER___MAX_LEN`
 ##
-TERMUX_API_APP__APP_IDENTIFIER="termuxapi"
+API_APP__APP_IDENTIFIER="repoexeapi"
 
 
 
 ##
-# Termux:API app repo name.
+# repoexe:API app repo name.
 #
-# Default value: `termux-api`
+# Default value: `repoexe-api`
 ##
-TERMUX_API_APP__REPO_NAME="termux-api"
+API_APP__REPO_NAME="repoexe-api"
 
 ##
-# Termux:API app repo url.
+# repoexe:API app repo url.
 #
-# Default value: `https://github.com/termux/termux-api`
+# Default value: `https://github.com/repoexe/repoexe-api`
 ##
-TERMUX_API_APP__REPO_URL="$TERMUX__REPOS_HOST_ORG_URL/$TERMUX_API_APP__REPO_NAME"
+API_APP__REPO_URL="$_REPOS_HOST_ORG_URL/$API_APP__REPO_NAME"
 
 
 
 ##
-# Termux:API app namespace, i.e the Java package name under which
-# Termux:API classes exists used for `TERMUX_API_APP__*_CLASS__*` and
-# `TERMUX_API_APP__*_(ACTIVITY|RECEIVER|SERVICE)__*` variables.
+# repoexe:API app namespace, i.e the Java package name under which
+# repoexe:API classes exists used for `API_APP__*_CLASS__*` and
+# `API_APP__*_(ACTIVITY|RECEIVER|SERVICE)__*` variables.
 #
 # **See Also:**
-# - `TERMUX_API_APP__PACKAGE_NAME`.
+# - `API_APP__PACKAGE_NAME`.
 # - https://developer.android.com/build/configure-app-module#set-namespace
-# - https://github.com/termux/termux-api/tree/master/app/src/main/java/com/termux/api
+# - https://github.com/repoexe/repoexe-api/tree/master/app/src/main/java/com/repoexe/api
 #
-# Default value: `com.termux.api`
+# Default value: `__COM_REPOEXE_PLACEHOLDER__.api`
 ##
-TERMUX_API_APP__NAMESPACE="com.termux.api"
+API_APP__NAMESPACE="__COM_REPOEXE_PLACEHOLDER__.api"
 
-__termux_build_props__add_variables_validator_actions "TERMUX_API_APP__NAMESPACE" "app_package_name"
+__build_props__add_variables_validator_actions "API_APP__NAMESPACE" "app_package_name"
 
 
 
 ##
-# Termux:API app apps directory path under `TERMUX__APPS_DIR_BY_IDENTIFIER`.
+# repoexe:API app apps directory path under `_APPS_DIR_BY_IDENTIFIER`.
 #
-# Default value: `/data/data/com.termux/termux/app/i/termuxapi`
+# Default value: `/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe/app/i/repoexeapi`
 ##
-TERMUX_API_APP__APP_DIR="$TERMUX__APPS_DIR_BY_IDENTIFIER/$TERMUX_API_APP__APP_IDENTIFIER"
-__termux_build_props__add_variables_validator_actions "TERMUX_API_APP__APP_DIR" "safe_absolute_path"
+API_APP__APP_DIR="$_APPS_DIR_BY_IDENTIFIER/$API_APP__APP_IDENTIFIER"
+__build_props__add_variables_validator_actions "API_APP__APP_DIR" "safe_absolute_path"
 
 
 
 ##
-# Termux:API app Android API `BroadcastReceiver` class name that
-# receives and processes API requests from command line via `termux-api`
+# repoexe:API app Android API `BroadcastReceiver` class name that
+# receives and processes API requests from command line via `repoexe-api`
 # native exec entry point.
 #
 # **See Also:**
-# - https://github.com/termux/termux-api/blob/master/app/src/main/java/com/termux/api/TermuxApiReceiver.java
-# - https://github.com/termux/termux-api-package/blob/master/termux-api.c
+# - https://github.com/repoexe/repoexe-api/blob/master/app/src/main/java/com/repoexe/api/repoexeApiReceiver.java
+# - https://github.com/repoexe/repoexe-api-package/blob/master/repoexe-api.c
 #
-# Default value: `com.termux.api.TermuxApiReceiver`
+# Default value: `__COM_REPOEXE_PLACEHOLDER__.api.repoexeApiReceiver`
 ##
-TERMUX_API_APP__ANDROID_API__ANDROID_API_RECEIVER__CLASS_NAME="$TERMUX_API_APP__NAMESPACE.TermuxApiReceiver"
+API_APP__ANDROID_API__ANDROID_API_RECEIVER__CLASS_NAME="$API_APP__NAMESPACE.repoexeApiReceiver"
 
 
 
 
 
 ####
-# Variables for the `termux-api` package.
+# Variables for the `repoexe-api` package.
 #
-# - https://github.com/termux/termux-api-package
+# - https://github.com/repoexe/repoexe-api-package
 ####
 
 ##
-# The `termux-api` package repo name.
+# The `repoexe-api` package repo name.
 #
-# Default value: `termux-api-package`
+# Default value: `repoexe-api-package`
 ##
-TERMUX_API_PKG__REPO_NAME="termux-api-package"
+API_PKG__REPO_NAME="repoexe-api-package"
 
 ##
-# The `termux-api` package repo url.
+# The `repoexe-api` package repo url.
 #
-# Default value: `https://github.com/termux/termux-api-package`
+# Default value: `https://github.com/repoexe/repoexe-api-package`
 ##
-TERMUX_API_PKG__REPO_URL="$TERMUX__REPOS_HOST_ORG_URL/$TERMUX_API_PKG__REPO_NAME"
+API_PKG__REPO_URL="$_REPOS_HOST_ORG_URL/$API_PKG__REPO_NAME"
 
 
 
 
 
-
-
-
-
-
-####
-# Variables for the `termux-core` package.
-#
-# - https://github.com/termux/termux-core-package
-####
-
-##
-# The `termux-core` package repo name.
-#
-# Default value: `termux-core-package`
-##
-TERMUX_CORE_PKG__REPO_NAME="termux-core-package"
-
-##
-# The `termux-core` package repo url.
-#
-# Default value: `https://github.com/termux/termux-core-package`
-##
-TERMUX_CORE_PKG__REPO_URL="$TERMUX__REPOS_HOST_ORG_URL/$TERMUX_CORE_PKG__REPO_NAME"
 
 
 
 
 
 ####
-# Variables for the `termux-am` package.
+# Variables for the `repoexe-core` package.
 #
-# - https://github.com/termux/TermuxAm
+# - https://github.com/repoexe/repoexe-core-package
 ####
 
 ##
-# The `termux-am` package repo name.
+# The `repoexe-core` package repo name.
 #
-# Default value: `TermuxAm`
+# Default value: `repoexe-core-package`
 ##
-TERMUX_AM_PKG__REPO_NAME="TermuxAm"
+CORE_PKG__REPO_NAME="repoexe-core-package"
 
 ##
-# The `termux-am` package repo url.
+# The `repoexe-core` package repo url.
 #
-# Default value: `https://github.com/termux/TermuxAm`
+# Default value: `https://github.com/repoexe/repoexe-core-package`
 ##
-TERMUX_AM_PKG__REPO_URL="$TERMUX__REPOS_HOST_ORG_URL/$TERMUX_AM_PKG__REPO_NAME"
+CORE_PKG__REPO_URL="$_REPOS_HOST_ORG_URL/$CORE_PKG__REPO_NAME"
 
 
 
-##
-# TermuxAm namespace, i.e the Java package name under which Termux
-# classes exists used for `TERMUX_AM__*_CLASS__*` variables.
+
+
+####
+# Variables for the `repoexe-am` package.
 #
-# This must not be changed unless the classes in the `TermuxAm` repo
+# - https://github.com/repoexe/repoexeAm
+####
+
+##
+# The `repoexe-am` package repo name.
+#
+# Default value: `repoexeAm`
+##
+AM_PKG__REPO_NAME="repoexeAm"
+
+##
+# The `repoexe-am` package repo url.
+#
+# Default value: `https://github.com/repoexe/repoexeAm`
+##
+AM_PKG__REPO_URL="$_REPOS_HOST_ORG_URL/$AM_PKG__REPO_NAME"
+
+
+
+##
+# repoexeAm namespace, i.e the Java package name under which repoexe
+# classes exists used for `AM__*_CLASS__*` variables.
+#
+# This must not be changed unless the classes in the `repoexeAm` repo
 # are moved to a different Java package name (in forks).
 #
 # **See Also:**
 # - https://developer.android.com/build/configure-app-module#set-namespace
-# - https://github.com/termux/TermuxAm/tree/master/app/src/main/java/com/termux/termuxam
+# - https://github.com/repoexe/repoexeAm/tree/master/app/src/main/java/com/repoexe/repoexeam
 #
-# Constant value: `com.termux.termuxam`
+# Constant value: `__COM_REPOEXE_PLACEHOLDER__.repoexeam`
 ##
-TERMUX_AM_APP__NAMESPACE="com.termux.termuxam"
+AM_APP__NAMESPACE="__COM_REPOEXE_PLACEHOLDER__.repoexeam"
 
-__termux_build_props__add_variables_validator_actions "TERMUX_AM_APP__NAMESPACE" "app_package_name"
+__build_props__add_variables_validator_actions "AM_APP__NAMESPACE" "app_package_name"
 
 
 
 ##
-# TermuxAm main class that is passed as `start-class-name` to
+# repoexeAm main class that is passed as `start-class-name` to
 # `/system/bin/app_process` when running `am.apk` set in `$CLASSPATH`.
 #
-# - https://github.com/termux/TermuxAm/blob/master/app/src/main/java/com/termux/termuxam/Am.java
-# - https://github.com/termux/TermuxAm/blob/v0.8.0/am-libexec-packaged#L30
+# - https://github.com/repoexe/repoexeAm/blob/master/app/src/main/java/com/repoexe/repoexeam/Am.java
+# - https://github.com/repoexe/repoexeAm/blob/v0.8.0/am-libexec-packaged#L30
 # - https://cs.android.com/android/platform/superproject/+/android-14.0.0_r1:frameworks/base/cmds/app_process/app_main.cpp;l=31
 #
-# Default value: `com.termux.termuxam.Am`
+# Default value: `__COM_REPOEXE_PLACEHOLDER__.repoexeam.Am`
 ##
-TERMUX_AM_APP__AM_CLASS__CLASS_NAME="$TERMUX_AM_APP__NAMESPACE.Am"
+AM_APP__AM_CLASS__CLASS_NAME="$AM_APP__NAMESPACE.Am"
 
 
 
 
 
 ###
-# Variables for the Termux package repositories.
+# Variables for the repoexe package repositories.
 ###
 
 # The core variable values for which the packages hosted on the
 # package repos defined in `repo.json` are compiled for.
-# If a custom repo is not being hosted, and official Termux repos are
+# If a custom repo is not being hosted, and official repoexe repos are
 # still defined in `repo.json`, then DO NOT change these values. If a
 # custom repo is being hosted whose variable values equal
-# `TERMUX_APP__PACKAGE_NAME`, `TERMUX_APP__DATA_DIR`,
-# `TERMUX__CORE_DIR`, `TERMUX__APPS_DIR`, `TERMUX__ROOTFS`,
-# `TERMUX__HOME`, and `TERMUX__PREFIX` values defined above, then
+# `APP__PACKAGE_NAME`, `APP__DATA_DIR`,
+# `_CORE_DIR`, `_APPS_DIR`, `_ROOTFS`,
+# `_HOME`, and `_PREFIX` values defined above, then
 # update these values respectively to the same values.
 # These values are used for the `-i/-I` flags to `build-package.sh`,
 # and if respective values do not match, then those flags are ignored
 # and dependency packages are not downloaded from the package repos
 # and are compiled locally.
 # FIXME: Checking for all variables will be added later in repo
-# changes pull, currently only `TERMUX_REPO_APP__PACKAGE_NAME` is checked.
-TERMUX_REPO_APP__PACKAGE_NAME="com.termux"
-TERMUX_REPO_APP__DATA_DIR="/data/data/com.termux"
-TERMUX_REPO__CORE_DIR="/data/data/com.termux/termux/core"
-TERMUX_REPO__APPS_DIR="/data/data/com.termux/termux/app"
-TERMUX_REPO__ROOTFS="/data/data/com.termux/files"
-TERMUX_REPO__HOME="/data/data/com.termux/files/home"
-TERMUX_REPO__PREFIX="/data/data/com.termux/files/usr"
+# changes pull, currently only `REPO_APP__PACKAGE_NAME` is checked.
+REPO_APP__PACKAGE_NAME="__COM_REPOEXE_PLACEHOLDER__"
+REPO_APP__DATA_DIR="/data/data/__COM_REPOEXE_PLACEHOLDER__"
+REPO__CORE_DIR="/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe/core"
+REPO__APPS_DIR="/data/data/__COM_REPOEXE_PLACEHOLDER__/repoexe/app"
+REPO__ROOTFS="/data/data/__COM_REPOEXE_PLACEHOLDER__/files"
+REPO__HOME="/data/data/__COM_REPOEXE_PLACEHOLDER__/files/home"
+REPO__PREFIX="/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr"
 
 
 
 ####
-# Variables loaded from `repo.json` file for Termux package repositories.
+# Variables loaded from `repo.json` file for repoexe package repositories.
 ####
 
-TERMUX_REPO_URL=()
-TERMUX_REPO_DISTRIBUTION=()
-TERMUX_REPO_COMPONENT=()
+REPO_URL=()
+REPO_DISTRIBUTION=()
+REPO_COMPONENT=()
 
-# FIXME: Move `repo.json` file to under `scripts/` directory and COPY it to `/tmp/termux-packages` in `Dockerfile`.
-if [[ ! -f "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json" ]]; then
-    if [[ "${TERMUX_PKGS__BUILD__IS_DOCKER_BUILD:-}" != "true" ]]; then
-        echo "The 'repo.json' file not found at the '$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json' path." 1>&2
+# FIXME: Move `repo.json` file to under `scripts/` directory and COPY it to `/tmp/repoexe-packages` in `Dockerfile`.
+if [[ ! -f "$PKGS__BUILD__REPO_ROOT_DIR/repo.json" ]]; then
+    if [[ "${PKGS__BUILD__IS_DOCKER_BUILD:-}" != "true" ]]; then
+        echo "The 'repo.json' file not found at the '$PKGS__BUILD__REPO_ROOT_DIR/repo.json' path." 1>&2
         exit 1
     fi
 else
-    export TERMUX_PACKAGES_DIRECTORIES
-    TERMUX_PACKAGES_DIRECTORIES=$(jq --raw-output '"packages"' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json")
+    export PACKAGES_DIRECTORIES
+    PACKAGES_DIRECTORIES=$(jq --raw-output '"packages"' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json")
 
-    for url in $(jq -r '.repo.url' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
-        TERMUX_REPO_URL+=("$url")
+    for url in $(jq -r '.repo.url' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+        REPO_URL+=("$url")
     done
-    for distribution in $(jq -r '.repo.distribution' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
-        TERMUX_REPO_DISTRIBUTION+=("$distribution")
+    for distribution in $(jq -r '.repo.distribution' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+        REPO_DISTRIBUTION+=("$distribution")
     done
-    for component in $(jq -r '.repo.component' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
-        TERMUX_REPO_COMPONENT+=("$component")
+    for component in $(jq -r '.repo.component' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+        REPO_COMPONENT+=("$component")
     done
 fi
 
@@ -2227,18 +2227,18 @@ fi
 # Misc
 ###
 
-TERMUX_CLEANUP_BUILT_PACKAGES_THRESHOLD="$(( 5 * 1024 ** 3 ))" # 5 GiB
-__termux_build_props__add_variables_validator_actions "TERMUX_CLEANUP_BUILT_PACKAGES_THRESHOLD" "unsigned_int"
+CLEANUP_BUILT_PACKAGES_THRESHOLD="$(( 5 * 1024 ** 3 ))" # 5 GiB
+__build_props__add_variables_validator_actions "CLEANUP_BUILT_PACKAGES_THRESHOLD" "unsigned_int"
 
 # Path to CGCT tools
-CGCT_DEFAULT_PREFIX="/data/data/com.termux/files/usr/glibc"
-__termux_build_props__add_variables_validator_actions "CGCT_DEFAULT_PREFIX" "safe_absolute_path invalid_termux_prefix_paths"
+CGCT_DEFAULT_PREFIX="/data/data/__COM_REPOEXE_PLACEHOLDER__/files/usr/glibc"
+__build_props__add_variables_validator_actions "CGCT_DEFAULT_PREFIX" "safe_absolute_path invalid_prefix_paths"
 
-export CGCT_DIR="/data/data/com.termux/cgct"
-__termux_build_props__add_variables_validator_actions "CGCT_DIR" "safe_absolute_path invalid_termux_prefix_paths"
+export CGCT_DIR="/data/data/__COM_REPOEXE_PLACEHOLDER__/cgct"
+__build_props__add_variables_validator_actions "CGCT_DIR" "safe_absolute_path invalid_prefix_paths"
 
 # Allow to override setup.
-for f in "${HOME}/.config/termux/termuxrc.sh" "${HOME}/.termux/termuxrc.sh" "${HOME}/.termuxrc"; do
+for f in "${HOME}/.config/repoexe/repoexerc.sh" "${HOME}/.repoexe/repoexerc.sh" "${HOME}/.repoexerc"; do
     if [ -f "$f" ]; then
         echo "Using builder configuration from '$f'..."
         # shellcheck source=/dev/null
@@ -2253,16 +2253,16 @@ unset f
 
 
 ###
-# Run Termux properties variable values validation.
+# Run repoexe properties variable values validation.
 ###
 
-# Uncomment to print `TERMUX_` variables set
-#compgen -v TERMUX_ | while read v; do echo "${v}=${!v}"; done
+# Uncomment to print `` variables set
+#compgen -v  | while read v; do echo "${v}=${!v}"; done
 
 ##
-# `__termux_build_props__validate_variables`
+# `__build_props__validate_variables`
 ##
-__termux_build_props__validate_variables() {
+__build_props__validate_variables() {
 
     local is_value_defined
     local validator_action
@@ -2270,34 +2270,34 @@ __termux_build_props__validate_variables() {
     local variable_name
     local variable_value
 
-    if [[ ! "$TERMUX__INTERNAL_NAME" =~ ${TERMUX__INTERNAL_NAME_REGEX:?} ]]; then
-        echo "The TERMUX__INTERNAL_NAME '$TERMUX__INTERNAL_NAME' with length ${#TERMUX__INTERNAL_NAME} is invalid." 1>&2
-        echo "Check 'TERMUX__INTERNAL_NAME_REGEX' variable docs for info on what is a valid internal name." 1>&2
+    if [[ ! "$_INTERNAL_NAME" =~ ${_INTERNAL_NAME_REGEX:?} ]]; then
+        echo "The _INTERNAL_NAME '$_INTERNAL_NAME' with length ${#_INTERNAL_NAME} is invalid." 1>&2
+        echo "Check '_INTERNAL_NAME_REGEX' variable docs for info on what is a valid internal name." 1>&2
         return 1
     fi
 
-    if [ "${#TERMUX__INTERNAL_NAME}" -gt ${TERMUX__INTERNAL_NAME___MAX_LEN:?} ]; then
-        echo "The TERMUX__INTERNAL_NAME '$TERMUX__INTERNAL_NAME' with length ${#TERMUX__INTERNAL_NAME} is invalid." 1>&2
-        echo "The TERMUX__INTERNAL_NAME must have max length \`<= TERMUX__INTERNAL_NAME___MAX_LEN ($TERMUX__INTERNAL_NAME___MAX_LEN)\`." 1>&2
+    if [ "${#_INTERNAL_NAME}" -gt ${_INTERNAL_NAME___MAX_LEN:?} ]; then
+        echo "The _INTERNAL_NAME '$_INTERNAL_NAME' with length ${#_INTERNAL_NAME} is invalid." 1>&2
+        echo "The _INTERNAL_NAME must have max length \`<= _INTERNAL_NAME___MAX_LEN ($_INTERNAL_NAME___MAX_LEN)\`." 1>&2
         return 1
     fi
 
-    if [[ ! "$TERMUX_APP__DATA_DIR" =~ ${TERMUX_REGEX__APP_DATA_DIR_PATH:?} ]]; then
-        echo "The TERMUX_APP__DATA_DIR '$TERMUX_APP__DATA_DIR' with length ${#TERMUX_APP__DATA_DIR} is invalid." 1>&2
-        echo "The TERMUX_APP__DATA_DIR must match \`/data/data/<package_name>\`, \`/data/user/<user_id>/<package_name>\` \
+    if [[ ! "$APP__DATA_DIR" =~ ${REGEX__APP_DATA_DIR_PATH:?} ]]; then
+        echo "The APP__DATA_DIR '$APP__DATA_DIR' with length ${#APP__DATA_DIR} is invalid." 1>&2
+        echo "The APP__DATA_DIR must match \`/data/data/<package_name>\`, \`/data/user/<user_id>/<package_name>\` \
 or \`/mnt/expand/<volume_uuid>/user/<user_id>/<package_name>\` formats." 1>&2
         return 1
     fi
 
 
-    for variable_name in "${__TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES[@]}"; do
+    for variable_name in "${__BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES[@]}"; do
         if [[ ! "$variable_name" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
-            echo "The variable_name '$variable_name' in Termux properties variables validator actions is not a valid shell variable name." 1>&2
+            echo "The variable_name '$variable_name' in repoexe properties variables validator actions is not a valid shell variable name." 1>&2
             return 1
         fi
 
         variable_value="${!variable_name:-}"
-        validator_actions="${__TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP["$variable_name"]}"
+        validator_actions="${__BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP["$variable_name"]}"
         [[ -z "$validator_actions" ]] && continue
 
         if [[ -n "$variable_value" ]]; then
@@ -2308,14 +2308,14 @@ or \`/mnt/expand/<volume_uuid>/user/<user_id>/<package_name>\` formats." 1>&2
 
             # If not defined.
             if [[ "$is_value_defined" = "0" ]]; then
-                echo "The variable_name '$variable_name' in Termux properties variables validator actions is not defined." 1>&2
+                echo "The variable_name '$variable_name' in repoexe properties variables validator actions is not defined." 1>&2
                 return 1
             fi
 
             # If defined but unset.
             [[ " ${validator_actions[*]} " == *" allow_unset_value "* ]] && continue
 
-            echo "The Termux properties variable value for variable name '$variable_name' is not set." 1>&2
+            echo "The repoexe properties variable value for variable name '$variable_name' is not set." 1>&2
             return 1
         fi
 
@@ -2325,61 +2325,61 @@ or \`/mnt/expand/<volume_uuid>/user/<user_id>/<package_name>\` formats." 1>&2
                     :
                     ;;
                 app_package_name)
-                    if [[ ! "$variable_value" =~ ${TERMUX_REGEX__APP_PACKAGE_NAME:?} ]] || \
-                            [ "${#variable_value}" -gt "${TERMUX__NAME_MAX:?}" ]; then
+                    if [[ ! "$variable_value" =~ ${REGEX__APP_PACKAGE_NAME:?} ]] || \
+                            [ "${#variable_value}" -gt "${_NAME_MAX:?}" ]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
                         echo "The $variable_name must be a valid android app package name with \
-max length \`<= TERMUX__NAME_MAX ($TERMUX__NAME_MAX)\`." 1>&2
+max length \`<= _NAME_MAX ($_NAME_MAX)\`." 1>&2
                         echo "- https://developer.android.com/build/configure-app-module#set-application-id" 1>&2
                         return 1
                     fi
                     ;;
-                invalid_termux_rootfs_paths)
-                    if [[ "$variable_value" =~ ${TERMUX_REGEX__INVALID_TERMUX_ROOTFS_PATHS:?} ]]; then
+                invalid_rootfs_paths)
+                    if [[ "$variable_value" =~ ${REGEX__INVALID_ROOTFS_PATHS:?} ]]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
                         echo "The $variable_name must not match one of the invalid paths \
-in TERMUX_REGEX__INVALID_TERMUX_ROOTFS_PATHS \`$TERMUX_REGEX__INVALID_TERMUX_ROOTFS_PATHS\`." 1>&2
+in REGEX__INVALID_ROOTFS_PATHS \`$REGEX__INVALID_ROOTFS_PATHS\`." 1>&2
                         return 1
                     fi
                     ;;
-                invalid_termux_home_paths)
-                    if [[ "$variable_value" =~ ${TERMUX_REGEX__INVALID_TERMUX_HOME_PATHS:?} ]]; then
+                invalid_home_paths)
+                    if [[ "$variable_value" =~ ${REGEX__INVALID_HOME_PATHS:?} ]]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
                         echo "The $variable_name must not match one of the invalid paths \
-in TERMUX_REGEX__INVALID_TERMUX_HOME_PATHS \`$TERMUX_REGEX__INVALID_TERMUX_HOME_PATHS\`." 1>&2
+in REGEX__INVALID_HOME_PATHS \`$REGEX__INVALID_HOME_PATHS\`." 1>&2
                         return 1
                     fi
                     ;;
-                invalid_termux_prefix_paths)
-                    if [[ "$variable_value" =~ ${TERMUX_REGEX__INVALID_TERMUX_PREFIX_PATHS:?} ]]; then
+                invalid_prefix_paths)
+                    if [[ "$variable_value" =~ ${REGEX__INVALID_PREFIX_PATHS:?} ]]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
                         echo "The $variable_name must not match one of the invalid paths \
-in TERMUX_REGEX__INVALID_TERMUX_PREFIX_PATHS \`$TERMUX_REGEX__INVALID_TERMUX_PREFIX_PATHS\`." 1>&2
+in REGEX__INVALID_PREFIX_PATHS \`$REGEX__INVALID_PREFIX_PATHS\`." 1>&2
                         return 1
                     fi
                     ;;
-                path_equal_to_or_under_termux_rootfs)
-                    if [[ "$variable_value" != "${TERMUX__ROOTFS:?}" ]] && \
+                path_equal_to_or_under_rootfs)
+                    if [[ "$variable_value" != "${_ROOTFS:?}" ]] && \
                             {
-                                { [[ "${TERMUX__ROOTFS:?}" != "/" ]] && [[ "$variable_value" != "${TERMUX__ROOTFS}/"* ]]; } || \
-                                { [[ "${TERMUX__ROOTFS:?}" == "/" ]] && [[ "$variable_value" != "/"* ]]; };
+                                { [[ "${_ROOTFS:?}" != "/" ]] && [[ "$variable_value" != "${_ROOTFS}/"* ]]; } || \
+                                { [[ "${_ROOTFS:?}" == "/" ]] && [[ "$variable_value" != "/"* ]]; };
                             }; then
                         echo "The $variable_name '$variable_value' is invalid." 1>&2
-                        echo "The $variable_name must be equal to or be under TERMUX__ROOTFS \`$TERMUX__ROOTFS\`." 1>&2
+                        echo "The $variable_name must be equal to or be under _ROOTFS \`$_ROOTFS\`." 1>&2
                         return 1
                     fi
                     ;;
-                path_under_termux_rootfs)
-                    if { [[ "${TERMUX__ROOTFS:?}" != "/" ]] && [[ "$variable_value" != "${TERMUX__ROOTFS}/"* ]]; } || \
-                        { [[ "${TERMUX__ROOTFS:?}" == "/" ]] && [[ "$variable_value" != "/"* ]]; }; then
+                path_under_rootfs)
+                    if { [[ "${_ROOTFS:?}" != "/" ]] && [[ "$variable_value" != "${_ROOTFS}/"* ]]; } || \
+                        { [[ "${_ROOTFS:?}" == "/" ]] && [[ "$variable_value" != "/"* ]]; }; then
                         echo "The $variable_name '$variable_value' is invalid." 1>&2
-                        echo "The $variable_name must be under TERMUX__ROOTFS \`$TERMUX__ROOTFS\`." 1>&2
+                        echo "The $variable_name must be under _ROOTFS \`$_ROOTFS\`." 1>&2
                         return 1
                     fi
                     ;;
                 safe_absolute_path)
-                    if [[ ! "$variable_value" =~ ${TERMUX_REGEX__SAFE_ABSOLUTE_PATH:?} ]] || \
-                            [[ "$variable_value" =~ ${TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH:?} ]]; then
+                    if [[ ! "$variable_value" =~ ${REGEX__SAFE_ABSOLUTE_PATH:?} ]] || \
+                            [[ "$variable_value" =~ ${REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH:?} ]]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
                         echo "The $variable_name must match a safe absolute path that starts with a \`/\` with at least one \
 characters under rootfs \`/\`. Duplicate or trailing path separators \`/\` are not allowed. \
@@ -2389,8 +2389,8 @@ double \`/../\` dot components." 1>&2
                     fi
                     ;;
                 safe_relative_path)
-                    if [[ ! "$variable_value" =~ ${TERMUX_REGEX__SAFE_RELATIVE_PATH:?} ]] || \
-                            [[ "$variable_value" =~ ${TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH:?} ]]; then
+                    if [[ ! "$variable_value" =~ ${REGEX__SAFE_RELATIVE_PATH:?} ]] || \
+                            [[ "$variable_value" =~ ${REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH:?} ]]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
                         echo "The $variable_name must match a safe relative path that does not start with a \`/\`. \
 Duplicate or trailing path separators \`/\` are not allowed. The path component characters must be in the \
@@ -2399,8 +2399,8 @@ range \`[a-zA-Z0-9+,.=_-]\`. The path must not contain single \`/./\` or double 
                     fi
                     ;;
                 safe_rootfs_or_absolute_path)
-                    if [[ ! "$variable_value" =~ ${TERMUX_REGEX__SAFE_ROOTFS_OR_ABSOLUTE_PATH:?} ]] || \
-                            [[ "$variable_value" =~ ${TERMUX_REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH:?} ]]; then
+                    if [[ ! "$variable_value" =~ ${REGEX__SAFE_ROOTFS_OR_ABSOLUTE_PATH:?} ]] || \
+                            [[ "$variable_value" =~ ${REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH:?} ]]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
                         echo "The $variable_name must match (rootfs \`/\`) or (a safe absolute path that starts with a \`/\`). \
 Duplicate or trailing path separators \`/\` are not allowed. The path component characters must be in the \
@@ -2409,30 +2409,30 @@ range \`[a-zA-Z0-9+,.=_-]\`. The path must not contain single \`/./\` or double 
                     fi
                     ;;
                 apps_api_socket__server_parent_dir)
-                    if [[ "${#variable_value}" -ge "${TERMUX__APPS_API_SOCKET__SERVER_PARENT_DIR___MAX_LEN:?}" ]]; then
+                    if [[ "${#variable_value}" -ge "${_APPS_API_SOCKET__SERVER_PARENT_DIR___MAX_LEN:?}" ]]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
-                        echo "The $variable_name must have max length \`<= TERMUX__APPS_API_SOCKET__SERVER_PARENT_DIR___MAX_LEN \
-($TERMUX__APPS_API_SOCKET__SERVER_PARENT_DIR___MAX_LEN)\` including the null \`\0\` terminator." 1>&2
+                        echo "The $variable_name must have max length \`<= _APPS_API_SOCKET__SERVER_PARENT_DIR___MAX_LEN \
+($_APPS_API_SOCKET__SERVER_PARENT_DIR___MAX_LEN)\` including the null \`\0\` terminator." 1>&2
                         return 1
                     fi
                     ;;
                 unix_path_max)
-                    if [[ "${#variable_value}" -ge "${TERMUX__UNIX_PATH_MAX:?}" ]]; then
+                    if [[ "${#variable_value}" -ge "${_UNIX_PATH_MAX:?}" ]]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
-                        echo "The $variable_name must have max length \`<= TERMUX__UNIX_PATH_MAX ($TERMUX__UNIX_PATH_MAX)\` \
+                        echo "The $variable_name must have max length \`<= _UNIX_PATH_MAX ($_UNIX_PATH_MAX)\` \
 including the null \`\0\` terminator." 1>&2
                         return 1
                     fi
                     ;;
                 unsigned_int)
-                    if [[ ! "$variable_value" =~ ${TERMUX_REGEX__UNSIGNED_INT:?} ]]; then
+                    if [[ ! "$variable_value" =~ ${REGEX__UNSIGNED_INT:?} ]]; then
                         echo "The $variable_name '$variable_value' is invalid." 1>&2
                         echo "The $variable_name must be an unsigned integer \`>= 0\`." 1>&2
                         return 1
                     fi
                     ;;
                 *)
-                    echo "The Termux properties variables validator action '$validator_action' for \
+                    echo "The repoexe properties variables validator action '$validator_action' for \
 variable name '$variable_name' is invalid." 1>&2
                     return 1
                     ;;
@@ -2441,126 +2441,126 @@ variable name '$variable_name' is invalid." 1>&2
     done
 
 
-    if [[ "$__TERMUX_BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
-            [ "${#TERMUX_APP__DATA_DIR}" -ge ${TERMUX_APP__DATA_DIR___MAX_LEN:?} ]; then
-        echo "The TERMUX_APP__DATA_DIR '$TERMUX_APP__DATA_DIR' with length ${#TERMUX_APP__DATA_DIR} is invalid." 1>&2
-        echo "The TERMUX_APP__DATA_DIR must have max length \`<= TERMUX_APP__DATA_DIR___MAX_LEN ($TERMUX_APP__DATA_DIR___MAX_LEN)\` \
+    if [[ "$__BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
+            [ "${#APP__DATA_DIR}" -ge ${APP__DATA_DIR___MAX_LEN:?} ]; then
+        echo "The APP__DATA_DIR '$APP__DATA_DIR' with length ${#APP__DATA_DIR} is invalid." 1>&2
+        echo "The APP__DATA_DIR must have max length \`<= APP__DATA_DIR___MAX_LEN ($APP__DATA_DIR___MAX_LEN)\` \
 including the null \`\0\` terminator." 1>&2
         return 1
     fi
 
-    if [[ "$__TERMUX_BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
-            [ "${#TERMUX__APPS_DIR}" -ge ${TERMUX__APPS_DIR___MAX_LEN:?} ]; then
-        echo "The TERMUX__APPS_DIR '$TERMUX__APPS_DIR' with length ${#TERMUX__APPS_DIR} is invalid." 1>&2
-        echo "The TERMUX__APPS_DIR must have max length \`<= TERMUX__APPS_DIR___MAX_LEN ($TERMUX__APPS_DIR___MAX_LEN)\` \
-including the null \`\0\` terminator." 1>&2
-        return 1
-    fi
-
-
-    if [[ ! "$TERMUX_APP__APP_IDENTIFIER" =~ ${TERMUX__APPS_APP_IDENTIFIER_REGEX:?} ]]; then
-        echo "The TERMUX_APP__APP_IDENTIFIER '$TERMUX_APP__APP_IDENTIFIER' with length ${#TERMUX_APP__APP_IDENTIFIER} is invalid." 1>&2
-        echo "Check 'TERMUX__APPS_APP_IDENTIFIER_REGEX' variable docs for info on what is a valid app identifier." 1>&2
-        return 1
-    fi
-
-    if [[ "$__TERMUX_BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
-            [ "${#TERMUX_APP__APP_IDENTIFIER}" -gt ${TERMUX__APPS_APP_IDENTIFIER___MAX_LEN:?} ]; then
-        echo "The TERMUX_APP__APP_IDENTIFIER '$TERMUX_APP__APP_IDENTIFIER' with length ${#TERMUX_APP__APP_IDENTIFIER} is invalid." 1>&2
-        echo "The TERMUX_APP__APP_IDENTIFIER must have max length \
-\`<= TERMUX__APPS_APP_IDENTIFIER___MAX_LEN ($TERMUX__APPS_APP_IDENTIFIER___MAX_LEN)\`." 1>&2
-        return 1
-    fi
-
-
-    if [[ "$__TERMUX_BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
-            [ "${#TERMUX__ROOTFS}" -ge ${TERMUX__ROOTFS_DIR___MAX_LEN:?} ]; then
-        echo "The TERMUX__ROOTFS '$TERMUX__ROOTFS' with length ${#TERMUX__ROOTFS} is invalid." 1>&2
-        echo "The TERMUX__ROOTFS must have max length \`<= TERMUX__ROOTFS_DIR___MAX_LEN ($TERMUX__ROOTFS_DIR___MAX_LEN)\` \
-including the null \`\0\` terminator." 1>&2
-        return 1
-    fi
-
-    if [[ "$__TERMUX_BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
-            [ "${#TERMUX__PREFIX}" -ge ${TERMUX__PREFIX_DIR___MAX_LEN:?} ]; then
-        echo "The TERMUX__PREFIX '$TERMUX__PREFIX' with length ${#TERMUX__PREFIX} is invalid." 1>&2
-        echo "The TERMUX__PREFIX must have max length \`<= TERMUX__PREFIX_DIR___MAX_LEN ($TERMUX__PREFIX_DIR___MAX_LEN)\` \
-including the null \`\0\` terminator." 1>&2
-        return 1
-    fi
-
-    if [[ "$__TERMUX_BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
-            [ "${#TERMUX__PREFIX__TMP_DIR}" -ge ${TERMUX__PREFIX__TMP_DIR___MAX_LEN:?} ]; then
-        echo "The TERMUX__PREFIX__TMP_DIR '$TERMUX__PREFIX__TMP_DIR' with length ${#TERMUX__PREFIX__TMP_DIR} is invalid." 1>&2
-        echo "The TERMUX__PREFIX__TMP_DIR must have max length \`<= TERMUX__PREFIX__TMP_DIR___MAX_LEN ($TERMUX__PREFIX__TMP_DIR___MAX_LEN)\` \
+    if [[ "$__BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
+            [ "${#_APPS_DIR}" -ge ${_APPS_DIR___MAX_LEN:?} ]; then
+        echo "The _APPS_DIR '$_APPS_DIR' with length ${#_APPS_DIR} is invalid." 1>&2
+        echo "The _APPS_DIR must have max length \`<= _APPS_DIR___MAX_LEN ($_APPS_DIR___MAX_LEN)\` \
 including the null \`\0\` terminator." 1>&2
         return 1
     fi
 
 
-    if [[ "$TERMUX__ROOTFS" != "/" ]] && \
-            [[ "$__TERMUX_BUILD_PROPS__VALIDATE_TERMUX_PREFIX_USR_MERGE_FORMAT" == "true" ]]; then
-        if [[ "$TERMUX__PREFIX" != "$TERMUX__ROOTFS/usr" ]]; then
-            echo "The TERMUX__PREFIX '$TERMUX__PREFIX' is invalid." 1>&2
-            echo "The TERMUX__PREFIX must be equal to '\$TERMUX__ROOTFS/usr' ($TERMUX__ROOTFS/usr) as per 'usr' merge format." 1>&2
+    if [[ ! "$APP__APP_IDENTIFIER" =~ ${_APPS_APP_IDENTIFIER_REGEX:?} ]]; then
+        echo "The APP__APP_IDENTIFIER '$APP__APP_IDENTIFIER' with length ${#APP__APP_IDENTIFIER} is invalid." 1>&2
+        echo "Check '_APPS_APP_IDENTIFIER_REGEX' variable docs for info on what is a valid app identifier." 1>&2
+        return 1
+    fi
+
+    if [[ "$__BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
+            [ "${#APP__APP_IDENTIFIER}" -gt ${_APPS_APP_IDENTIFIER___MAX_LEN:?} ]; then
+        echo "The APP__APP_IDENTIFIER '$APP__APP_IDENTIFIER' with length ${#APP__APP_IDENTIFIER} is invalid." 1>&2
+        echo "The APP__APP_IDENTIFIER must have max length \
+\`<= _APPS_APP_IDENTIFIER___MAX_LEN ($_APPS_APP_IDENTIFIER___MAX_LEN)\`." 1>&2
+        return 1
+    fi
+
+
+    if [[ "$__BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
+            [ "${#_ROOTFS}" -ge ${_ROOTFS_DIR___MAX_LEN:?} ]; then
+        echo "The _ROOTFS '$_ROOTFS' with length ${#_ROOTFS} is invalid." 1>&2
+        echo "The _ROOTFS must have max length \`<= _ROOTFS_DIR___MAX_LEN ($_ROOTFS_DIR___MAX_LEN)\` \
+including the null \`\0\` terminator." 1>&2
+        return 1
+    fi
+
+    if [[ "$__BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
+            [ "${#_PREFIX}" -ge ${_PREFIX_DIR___MAX_LEN:?} ]; then
+        echo "The _PREFIX '$_PREFIX' with length ${#_PREFIX} is invalid." 1>&2
+        echo "The _PREFIX must have max length \`<= _PREFIX_DIR___MAX_LEN ($_PREFIX_DIR___MAX_LEN)\` \
+including the null \`\0\` terminator." 1>&2
+        return 1
+    fi
+
+    if [[ "$__BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
+            [ "${#_PREFIX__TMP_DIR}" -ge ${_PREFIX__TMP_DIR___MAX_LEN:?} ]; then
+        echo "The _PREFIX__TMP_DIR '$_PREFIX__TMP_DIR' with length ${#_PREFIX__TMP_DIR} is invalid." 1>&2
+        echo "The _PREFIX__TMP_DIR must have max length \`<= _PREFIX__TMP_DIR___MAX_LEN ($_PREFIX__TMP_DIR___MAX_LEN)\` \
+including the null \`\0\` terminator." 1>&2
+        return 1
+    fi
+
+
+    if [[ "$_ROOTFS" != "/" ]] && \
+            [[ "$__BUILD_PROPS__VALIDATE_PREFIX_USR_MERGE_FORMAT" == "true" ]]; then
+        if [[ "$_PREFIX" != "$_ROOTFS/usr" ]]; then
+            echo "The _PREFIX '$_PREFIX' is invalid." 1>&2
+            echo "The _PREFIX must be equal to '\$_ROOTFS/usr' ($_ROOTFS/usr) as per 'usr' merge format." 1>&2
             return 1
         fi
 
-        if [[ "${TERMUX__PREFIX:?}" == "${TERMUX__HOME:?}" ]] || \
-                [[ "$TERMUX__PREFIX" == "$TERMUX__HOME/"* ]] || \
-                [[ "$TERMUX__HOME" == "$TERMUX__PREFIX/"* ]]; then
-            echo "The TERMUX__PREFIX '$TERMUX__PREFIX' or TERMUX__HOME '$TERMUX__HOME' is invalid." 1>&2
-            echo "The TERMUX__PREFIX must not be equal to TERMUX__HOME and they must not be under each other as per 'usr' merge format." 1>&2
+        if [[ "${_PREFIX:?}" == "${_HOME:?}" ]] || \
+                [[ "$_PREFIX" == "$_HOME/"* ]] || \
+                [[ "$_HOME" == "$_PREFIX/"* ]]; then
+            echo "The _PREFIX '$_PREFIX' or _HOME '$_HOME' is invalid." 1>&2
+            echo "The _PREFIX must not be equal to _HOME and they must not be under each other as per 'usr' merge format." 1>&2
             return 1
         fi
     else
-        if [[ "${TERMUX__PREFIX:?}" == "${TERMUX__HOME:?}" ]] || \
-                [[ "$TERMUX__PREFIX" == "$TERMUX__HOME/"* ]]; then
-            echo "The TERMUX__PREFIX '$TERMUX__PREFIX' or TERMUX__HOME '$TERMUX__HOME' is invalid." 1>&2
-            echo "The TERMUX__PREFIX must not be equal to or be under TERMUX__HOME." 1>&2
+        if [[ "${_PREFIX:?}" == "${_HOME:?}" ]] || \
+                [[ "$_PREFIX" == "$_HOME/"* ]]; then
+            echo "The _PREFIX '$_PREFIX' or _HOME '$_HOME' is invalid." 1>&2
+            echo "The _PREFIX must not be equal to or be under _HOME." 1>&2
             return 1
         fi
     fi
 
-    if [[ "${TERMUX__PREFIX:?}" == "${CGCT_DIR:?}" ]] || \
-            [[ "$TERMUX__PREFIX" == "$CGCT_DIR/"* ]] || \
-            [[ "$CGCT_DIR" == "$TERMUX__PREFIX/"* ]]; then
-        echo "The TERMUX__PREFIX '$TERMUX__PREFIX' or CGCT_DIR '$CGCT_DIR' is invalid." 1>&2
-        echo "The TERMUX__PREFIX must not be equal to CGCT_DIR and they must not be under each other." 1>&2
+    if [[ "${_PREFIX:?}" == "${CGCT_DIR:?}" ]] || \
+            [[ "$_PREFIX" == "$CGCT_DIR/"* ]] || \
+            [[ "$CGCT_DIR" == "$_PREFIX/"* ]]; then
+        echo "The _PREFIX '$_PREFIX' or CGCT_DIR '$CGCT_DIR' is invalid." 1>&2
+        echo "The _PREFIX must not be equal to CGCT_DIR and they must not be under each other." 1>&2
         return 1
     fi
 
-    if [[ "$TERMUX__PREFIX" != "$TERMUX_PREFIX_CLASSICAL" ]]; then
-        echo "The TERMUX__PREFIX '$TERMUX__PREFIX' or TERMUX_PREFIX_CLASSICAL '$TERMUX_PREFIX_CLASSICAL' is invalid." 1>&2
-        echo "The TERMUX__PREFIX must be equal to TERMUX_PREFIX_CLASSICAL." 1>&2
+    if [[ "$_PREFIX" != "$PREFIX_CLASSICAL" ]]; then
+        echo "The _PREFIX '$_PREFIX' or PREFIX_CLASSICAL '$PREFIX_CLASSICAL' is invalid." 1>&2
+        echo "The _PREFIX must be equal to PREFIX_CLASSICAL." 1>&2
         return 1
     fi
 
-    if [[ "$TERMUX__PREFIX" == "$TERMUX__PREFIX_GLIBC" ]]; then
-        echo "The TERMUX__PREFIX '$TERMUX__PREFIX' or TERMUX__PREFIX_GLIBC '$TERMUX__PREFIX_GLIBC' is invalid." 1>&2
-        echo "The TERMUX__PREFIX must not be equal to TERMUX__PREFIX_GLIBC." 1>&2
+    if [[ "$_PREFIX" == "$_PREFIX_GLIBC" ]]; then
+        echo "The _PREFIX '$_PREFIX' or _PREFIX_GLIBC '$_PREFIX_GLIBC' is invalid." 1>&2
+        echo "The _PREFIX must not be equal to _PREFIX_GLIBC." 1>&2
         return 1
     fi
 
-    if [[ "$TERMUX__PREFIX__BASE_LIB_DIR" == "$TERMUX__PREFIX__MULTI_LIB_DIR" ]]; then
-        echo "The TERMUX__PREFIX__BASE_LIB_DIR '$TERMUX__PREFIX__BASE_LIB_DIR' or TERMUX__PREFIX__MULTI_LIB_DIR '$TERMUX__PREFIX__MULTI_LIB_DIR' is invalid." 1>&2
-        echo "The TERMUX__PREFIX__BASE_LIB_DIR must not be equal to TERMUX__PREFIX__MULTI_LIB_DIR." 1>&2
+    if [[ "$_PREFIX__BASE_LIB_DIR" == "$_PREFIX__MULTI_LIB_DIR" ]]; then
+        echo "The _PREFIX__BASE_LIB_DIR '$_PREFIX__BASE_LIB_DIR' or _PREFIX__MULTI_LIB_DIR '$_PREFIX__MULTI_LIB_DIR' is invalid." 1>&2
+        echo "The _PREFIX__BASE_LIB_DIR must not be equal to _PREFIX__MULTI_LIB_DIR." 1>&2
         return 1
     fi
 
-    if [[ "$TERMUX__PREFIX__BASE_INCLUDE_DIR" == "$TERMUX__PREFIX__MULTI_INCLUDE_DIR" ]]; then
-        echo "The TERMUX__PREFIX__BASE_INCLUDE_DIR '$TERMUX__PREFIX__BASE_INCLUDE_DIR' or TERMUX__PREFIX__MULTI_INCLUDE_DIR '$TERMUX__PREFIX__MULTI_INCLUDE_DIR' is invalid." 1>&2
-        echo "The TERMUX__PREFIX__BASE_INCLUDE_DIR must not be equal to TERMUX__PREFIX__MULTI_INCLUDE_DIR." 1>&2
+    if [[ "$_PREFIX__BASE_INCLUDE_DIR" == "$_PREFIX__MULTI_INCLUDE_DIR" ]]; then
+        echo "The _PREFIX__BASE_INCLUDE_DIR '$_PREFIX__BASE_INCLUDE_DIR' or _PREFIX__MULTI_INCLUDE_DIR '$_PREFIX__MULTI_INCLUDE_DIR' is invalid." 1>&2
+        echo "The _PREFIX__BASE_INCLUDE_DIR must not be equal to _PREFIX__MULTI_INCLUDE_DIR." 1>&2
         return 1
     fi
 
 }
 
-__termux_build_props__validate_variables || exit $?
+__build_props__validate_variables || exit $?
 
-unset __TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP
-unset __TERMUX_BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES
-unset __TERMUX_BUILD_PROPS__VALIDATE_PATHS_MAX_LEN
-unset __TERMUX_BUILD_PROPS__VALIDATE_TERMUX_PREFIX_USR_MERGE_FORMAT
-unset __termux_build_props__add_variables_validator_actions
-unset __termux_build_props__validate_variables
+unset __BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_MAP
+unset __BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES
+unset __BUILD_PROPS__VALIDATE_PATHS_MAX_LEN
+unset __BUILD_PROPS__VALIDATE_PREFIX_USR_MERGE_FORMAT
+unset __build_props__add_variables_validator_actions
+unset __build_props__validate_variables

@@ -91,7 +91,7 @@ function loadMockData() {
     allPackages = [
         { Package: "example-pkg", component: "main", Version: "1.0.0", architectures: ["all"], Description: "An example package", Homepage: "https://github.com/example/pkg", Depends: "python" },
         { Package: "python", component: "main", Version: "3.11.4", architectures: ["aarch64", "arm"], Description: "Python programming language", Depends: "libffi, openssl" },
-        { Package: "repoexe-dev", component: "dev", Version: "1.0.0", architectures: ["all"], Description: "Opt-in package for the RepoExe dev component", Homepage: "https://github.com/SjnExe/RepoExe" }
+        { Package: "repoexe-dev", component: "dev", Version: "1.0.0", architectures: ["all"], Description: "Opt-in package for the repoexe dev component", Homepage: "https://github.com/SjnExe/repoexe" }
     ];
 }
 
@@ -141,7 +141,7 @@ function renderPackages(packages, append = false) {
         card.innerHTML = `
             <h2>
                 <div>
-                    <a href="https://github.com/SjnExe/RepoExe/releases/tag/${tagPackageName}" target="_blank" style="color: inherit; text-decoration: none;">${pkg.Package}</a>
+                    <a href="https://github.com/SjnExe/repoexe/releases/tag/${tagPackageName}" target="_blank" style="color: inherit; text-decoration: none;">${pkg.Package}</a>
                     ${compTag}
                 </div>
                 <span>v${pkg.Version}</span>

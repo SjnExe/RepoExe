@@ -5,7 +5,7 @@
  #include "android-base/properties.h"
 
 -#if defined(__BIONIC__)
-+#if defined(__BIONIC__) && !defined(__TERMUX__)
++#if defined(__BIONIC__) && !defined(___)
  #include <sys/system_properties.h>
  #endif
 
@@ -14,7 +14,7 @@
  #include <android-base/thread_annotations.h>
 
 -#if !defined(__BIONIC__)
-+#if !defined(__BIONIC__) || defined(__TERMUX__)
++#if !defined(__BIONIC__) || defined(___)
 
  // Here lies a rudimentary implementation of system properties for non-Bionic
  // platforms. We are using weak symbols here because we want to allow
@@ -25,7 +25,7 @@
 +
 +#endif
 +
-+#if !defined(__BIONIC__) || defined(__TERMUX__)
++#if !defined(__BIONIC__) || defined(___)
  }
 
  SYSPROP_WEAK int __system_property_get(const char* key, char* value) {
@@ -34,7 +34,7 @@
  }
 
 -#if defined(__BIONIC__)
-+#if defined(__BIONIC__) && !defined(__TERMUX__)
++#if defined(__BIONIC__) && !defined(___)
 
  struct WaitForPropertyData {
    bool done;

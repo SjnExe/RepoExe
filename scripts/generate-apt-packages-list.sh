@@ -20,36 +20,36 @@ if [[ "$#" != 1 ]]; then
 fi
 
 
-TERMUX_PACKAGES_DIR="$(realpath "$(dirname "$(realpath "$0")")/..")"
+PACKAGES_DIR="$(realpath "$(dirname "$(realpath "$0")")/..")"
 OUTPUT_DIR="$1"
 
-readarray -t repo_paths <<< "$(jq --raw-output '"packages"' "$TERMUX_PACKAGES_DIR/repo.json")"
+readarray -t repo_paths <<< "$(jq --raw-output '"packages"' "$PACKAGES_DIR/repo.json")"
 
 for arch in "aarch64" "arm" "i686" "x86_64"; do
 	# Note that this is loop for generating the list of packages is being parallelized for each architecture
 	for repo_path in "${repo_paths[@]}"; do
-		repo_name="$(jq --raw-output ".name" "$TERMUX_PACKAGES_DIR/repo.json")"
-		for pkg_path in "$TERMUX_PACKAGES_DIR/$repo_path"/*; do
+		repo_name="$(jq --raw-output ".name" "$PACKAGES_DIR/repo.json")"
+		for pkg_path in "$PACKAGES_DIR/$repo_path"/*; do
 			(
 				APT_VERSION=
-				export TERMUX_PKG_REVISION=0
-				export TERMUX_PKG_NO_STATICSPLIT=false
+				export PKG_REVISION=0
+				export PKG_NO_STATICSPLIT=false
 				set +euo pipefail
 				. "$pkg_path/build.sh" &> /dev/null || :
 				set -euo pipefail
 				# We are erroneously adding a revision for packages with version containing a dash when generating the apt packages in our build scripts.
 				# So reproduce the same bug here
-				# Source: scripts/build/termux_extract_dep_info.sh
-				#	if [[ "$TERMUX_PKG_REVISION" != "0" || "$TERMUX_PKG_VERSION" != "${TERMUX_PKG_VERSION/-/}" ]]; then
-				#		VER_DEBIAN+="-$TERMUX_PKG_REVISION"
+				# Source: scripts/build/extract_dep_info.sh
+				#	if [[ "$PKG_REVISION" != "0" || "$PKG_VERSION" != "${PKG_VERSION/-/}" ]]; then
+				#		VER_DEBIAN+="-$PKG_REVISION"
 				# fi
-				if [[ "$TERMUX_PKG_REVISION" != 0 || "$TERMUX_PKG_VERSION" != "${TERMUX_PKG_VERSION/-/}" ]]; then
-					APT_VERSION="$TERMUX_PKG_VERSION-$TERMUX_PKG_REVISION"
+				if [[ "$PKG_REVISION" != 0 || "$PKG_VERSION" != "${PKG_VERSION/-/}" ]]; then
+					APT_VERSION="$PKG_VERSION-$PKG_REVISION"
 				else
-					APT_VERSION="$TERMUX_PKG_VERSION"
+					APT_VERSION="$PKG_VERSION"
 				fi
 
-				IFS="," read -r -a EXCLUDED_ARCHES <<< "${TERMUX_PKG_EXCLUDED_ARCHES:-}"
+				IFS="," read -r -a EXCLUDED_ARCHES <<< "${PKG_EXCLUDED_ARCHES:-}"
 				excluded=false
 				for excluded_arch in "${EXCLUDED_ARCHES[@]}"; do
 					if [[ "$excluded_arch" == *"$arch"* ]]; then
@@ -60,7 +60,7 @@ for arch in "aarch64" "arm" "i686" "x86_64"; do
 					if [[ -d "$pkg_path" ]]; then
 						echo -n "$(basename "$pkg_path") $repo_name $APT_VERSION"
 					fi
-					if [[ "$TERMUX_PKG_NO_STATICSPLIT" == true ]]; then
+					if [[ "$PKG_NO_STATICSPLIT" == true ]]; then
 						echo " false"
 					else
 						echo " true"
@@ -70,12 +70,12 @@ for arch in "aarch64" "arm" "i686" "x86_64"; do
 					if [[ -f "$subpkg" ]]; then
 						(
 							set +euo pipefail
-							export TERMUX_SUBPKG_PLATFORM_INDEPENDENT=false
+							export SUBPKG_PLATFORM_INDEPENDENT=false
 							. "$subpkg" &> /dev/null || :
 							set -euo pipefail
-							IFS="," read -r -a SUBPKG_EXCLUDED_ARCHES <<< "${TERMUX_SUBPKG_EXCLUDED_ARCHES:-}"
+							IFS="," read -r -a SUBPKG_EXCLUDED_ARCHES <<< "${SUBPKG_EXCLUDED_ARCHES:-}"
 							subpkg_excluded=false
-							if [[ "${TERMUX_SUBPKG_PLATFORM_INDEPENDENT}" == "false" ]]; then
+							if [[ "${SUBPKG_PLATFORM_INDEPENDENT}" == "false" ]]; then
 								subpkg_excluded="$excluded"
 							fi
 							for excluded_subpkg_arch in "${SUBPKG_EXCLUDED_ARCHES[@]}"; do
