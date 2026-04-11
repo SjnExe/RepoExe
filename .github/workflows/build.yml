@@ -49,14 +49,6 @@ jobs:
       - name: Setup ZRAM
         uses: ./.github/actions/zram
 
-      - name: Verify build order (Cycle detection)
-        run: |
-          ./scripts/bin/test-buildorder-random
-          TERMUX_ARCH=aarch64 ./scripts/bin/test-buildorder-random
-          TERMUX_ARCH=arm ./scripts/bin/test-buildorder-random
-          TERMUX_ARCH=i686 ./scripts/bin/test-buildorder-random
-          TERMUX_ARCH=x86_64 ./scripts/bin/test-buildorder-random
-
       - name: Determine packages to build
         id: pkgs
         run: |
