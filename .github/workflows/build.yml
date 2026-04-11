@@ -78,6 +78,11 @@ jobs:
             echo "packages=${CHANGED}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Lint Packages
+        if: steps.pkgs.outputs.packages != '' && steps.pkgs.outputs.packages != ' '
+        run: |
+          ./scripts/lint-packages.sh ${{ steps.pkgs.outputs.packages }}
+
       - name: Restore cache
         uses: actions/cache/restore@v5
         with:

@@ -27,12 +27,10 @@ RUN apt-get update && \
 	chmod a+rx /tmp/termux-packages/scripts/*.sh /tmp/termux-packages/scripts/build/termux_download.sh && \
 	su - builder -c "TERMUX_PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/termux-packages/scripts/setup-ubuntu.sh" && \
 	su - builder -c "TERMUX_PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/termux-packages/scripts/setup-android-sdk.sh" && \
-	# Removed unused parts to make a smaller Docker image:
 	apt-get remove -yq --autoremove lsb-release software-properties-common && \
 	apt-get clean && \
 	rm -rf /var/lib/apt/lists/* && \
-	su - builder -c "rm ~/lib/*.zip" && \
-	su - builder -c "rm -r ~/.android/cache/"
+	su - builder -c "rm -rf ~/lib/*.zip ~/.android/cache/"
 
 # Switch User
 USER builder:builder
