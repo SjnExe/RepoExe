@@ -271,7 +271,50 @@ check_version() {
 lint_package() {
 	local package_script package_name
 
-	package_script="$1"
+	local input="$1"
+	package_script=""
+
+	# If it's an existing build.sh file or subpackage.sh file, use its directory's build.sh
+	if [[ -f "$input" ]]; then
+		if [[ "$(basename "$input")" == "build.sh" ]]; then
+			package_script="$(realpath "$input")"
+		elif [[ "$input" == *.subpackage.sh ]]; then
+			package_script="$(realpath "$(dirname "$input")/build.sh")"
+		fi
+	fi
+
+	# If input is a directory with a build.sh
+	if [[ -z "$package_script" && -d "$input" && -f "$input/build.sh" ]]; then
+		package_script="$(realpath "$input/build.sh")"
+	fi
+
+	# Otherwise, it might be a package name or subpackage name, resolve it
+	if [[ -z "$package_script" ]]; then
+		for channel in $TERMUX_PACKAGES_DIRECTORIES; do
+			# Check if it's a main package
+			if [[ -f "$TERMUX_SCRIPTDIR/$channel/$input/build.sh" ]]; then
+				package_script="$TERMUX_SCRIPTDIR/$channel/$input/build.sh"
+				break
+			fi
+			# Check if it's a subpackage
+			local subpkg_match
+			subpkg_match=$(find "$TERMUX_SCRIPTDIR/$channel" -mindepth 2 -maxdepth 2 -name "${input}.subpackage.sh" -print -quit 2>/dev/null || true)
+			if [[ -n "$subpkg_match" && -f "$(dirname "$subpkg_match")/build.sh" ]]; then
+				package_script="$(dirname "$subpkg_match")/build.sh"
+				break
+			fi
+		done
+	fi
+
+	if [[ -z "$package_script" || ! -f "$package_script" ]]; then
+		echo "================================================================"
+		echo
+		echo "Package: $input"
+		echo
+		echo "FAIL - Could not resolve '$input' to a package build.sh file"
+		return 1
+	fi
+
 	package_name="$(basename "$(dirname "$package_script")")"
 
 	echo "================================================================"
@@ -783,7 +826,11 @@ linter_main() {
 	if [[ "$problems_found" == 'true' ]]; then
 		echo "================================================================"
 		echo
-		echo "A problem has been found in '$(realpath --relative-to="$TERMUX_SCRIPTDIR" "$package_script")'."
+		if [[ -f "$package_script" ]]; then
+			echo "A problem has been found in '$(realpath --relative-to="$TERMUX_SCRIPTDIR" "$package_script" 2>/dev/null || echo "$package_script")'."
+		else
+			echo "A problem has been found in '$package_script'."
+		fi
 		echo "Checked $package_counter packages before the first error was detected."
 		echo
 		echo "================================================================"
