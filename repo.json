@@ -1,0 +1,9 @@
+{
+  "name": "RepoExe",
+  "description": "Custom standalone Termux repository.",
+  "repo": {
+    "url": "https://sjnexe.github.io/RepoExe",
+    "distribution": "stable",
+    "component": "main"
+  }
+}
