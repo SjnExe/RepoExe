@@ -306,7 +306,7 @@ TERMUX_ANDROID_BUILD_TOOLS_VERSION=33.0.1
 #   apksigner, d8
 # and trigger rebuild of them
 : "${TERMUX_NDK_VERSION_NUM:="29"}"
-: "${TERMUX_NDK_REVISION:=""}"
+: "${TERMUX_NDK_REVISION:="c"}"
 TERMUX_NDK_VERSION="${TERMUX_NDK_VERSION_NUM}${TERMUX_NDK_REVISION}"
 # when changing the above:
 # update version and hashsum in packages
@@ -2206,15 +2206,15 @@ if [[ ! -f "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json" ]]; then
     fi
 else
     export TERMUX_PACKAGES_DIRECTORIES
-    TERMUX_PACKAGES_DIRECTORIES=$(jq --raw-output 'del(.pkg_format) | keys | .[]' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json")
+    TERMUX_PACKAGES_DIRECTORIES=$(jq --raw-output '"packages"' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json")
 
-    for url in $(jq -r 'del(.pkg_format) | .[] | .url' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+    for url in $(jq -r '.repo.url' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
         TERMUX_REPO_URL+=("$url")
     done
-    for distribution in $(jq -r 'del(.pkg_format) | .[] | .distribution' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+    for distribution in $(jq -r '.repo.distribution' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
         TERMUX_REPO_DISTRIBUTION+=("$distribution")
     done
-    for component in $(jq -r 'del(.pkg_format) | .[] | .component' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+    for component in $(jq -r '.repo.component' "$TERMUX_PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
         TERMUX_REPO_COMPONENT+=("$component")
     done
 fi

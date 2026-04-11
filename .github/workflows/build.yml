@@ -49,6 +49,14 @@ jobs:
       - name: Setup ZRAM
         uses: ./.github/actions/zram
 
+      - name: Verify build order (Cycle detection)
+        run: |
+          ./scripts/bin/test-buildorder-random
+          TERMUX_ARCH=aarch64 ./scripts/bin/test-buildorder-random
+          TERMUX_ARCH=arm ./scripts/bin/test-buildorder-random
+          TERMUX_ARCH=i686 ./scripts/bin/test-buildorder-random
+          TERMUX_ARCH=x86_64 ./scripts/bin/test-buildorder-random
+
       - name: Determine packages to build
         id: pkgs
         run: |
@@ -82,6 +90,19 @@ jobs:
         if: steps.pkgs.outputs.packages != '' && steps.pkgs.outputs.packages != ' '
         run: |
           ./scripts/lint-packages.sh ${{ steps.pkgs.outputs.packages }}
+
+      - name: Validate golang / zig environment
+        if: steps.pkgs.outputs.packages != '' && steps.pkgs.outputs.packages != ' '
+        run: |
+          # If the setup script or build for golang/zig is modified, validate them
+          if echo "${{ steps.pkgs.outputs.packages }}" | grep -qw "golang"; then
+            echo "Validating Golang packages..."
+            ./scripts/bin/validation ${{ matrix.arch }} golang 1 || exit 1
+          fi
+          if echo "${{ steps.pkgs.outputs.packages }}" | grep -qw "zig"; then
+            echo "Validating Zig packages..."
+            ./scripts/bin/validation ${{ matrix.arch }} zig 1 || exit 1
+          fi
 
       - name: Restore cache
         uses: actions/cache/restore@v5
