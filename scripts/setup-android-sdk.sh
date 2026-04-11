@@ -10,7 +10,7 @@ set -e -u
 
 ANDROID_SDK_FILE=commandlinetools-linux-${TERMUX_SDK_REVISION}_latest.zip
 ANDROID_SDK_SHA256=0bebf59339eaa534f4217f8aa0972d14dc49e7207be225511073c661ae01da0a
-if [ "$TERMUX_NDK_VERSION" = "29c" ]; then
+if [ "$TERMUX_NDK_VERSION" = "29" ]; then
 	ANDROID_NDK_FILE=android-ndk-r${TERMUX_NDK_VERSION}-linux.zip
 	ANDROID_NDK_SHA256=4abbbcdc842f3d4879206e9695d52709603e52dd68d3c1fff04b3b5e7a308ecf
 elif [ "$TERMUX_NDK_VERSION" = 23c ]; then

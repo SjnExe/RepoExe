@@ -306,7 +306,7 @@ TERMUX_ANDROID_BUILD_TOOLS_VERSION=33.0.1
 #   apksigner, d8
 # and trigger rebuild of them
 : "${TERMUX_NDK_VERSION_NUM:="29"}"
-: "${TERMUX_NDK_REVISION:="c"}"
+: "${TERMUX_NDK_REVISION:=""}"
 TERMUX_NDK_VERSION="${TERMUX_NDK_VERSION_NUM}${TERMUX_NDK_REVISION}"
 # when changing the above:
 # update version and hashsum in packages
