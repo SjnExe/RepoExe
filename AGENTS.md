@@ -17,10 +17,48 @@ This file contains instructions for AI agents working on the **RepoExe** reposit
 ## Environment Setup
 
 The build process for these packages requires a specialized Termux build environment. The repository provides a custom Docker image (`ghcr.io/sjnexe/repoexe-builder:latest`) to ensure reproducible builds.
-For the agent environment, the repository is already cloned to `/app`. The following environmental setup script uses `fuse-overlayfs` for optimal performance, starts the builder container in the background, applies NDK patches, and mirrors the custom packages.
+The following environmental setup script uses `fuse-overlayfs` for optimal performance, starts the builder container in the background, applies NDK patches, and mirrors the custom packages. Run this in the root of the cloned repository.
 
-```
-((test -x /usr/local/bin/fuse-overlayfs || (sudo curl -sSL "https://github.com/containers/fuse-overlayfs/releases/download/v1.16/fuse-overlayfs-$(uname -m)" -o /usr/local/bin/fuse-overlayfs && sudo chmod +x /usr/local/bin/fuse-overlayfs)) && (grep -q fuse-overlayfs /etc/docker/daemon.json 2>/dev/null || (sudo bash -c 'echo "{\"storage-driver\": \"fuse-overlayfs\"}" > /etc/docker/daemon.json' && sudo systemctl restart docker)) && sudo docker pull -q ghcr.io/sjnexe/repoexe-builder:latest) & mkdir -p ~/.ccache /app/output & wait; sudo docker run -d --name builder -u builder --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor:unconfined -v /app:/home/builder/RepoExe -v ~/.ccache:/home/builder/.ccache -w /home/builder/RepoExe -e REPO_ROOT=/home/builder/RepoExe ghcr.io/sjnexe/repoexe-builder:latest tail -f /dev/null; sudo docker exec builder bash -c "shopt -s nullglob; (sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/ && echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null) & (for p in ndk-patches/29c/*.patch; do sudo patch -p1 -d /home/builder/RepoExe/build-tools/android-ndk-r29c/sysroot <\"\$p\" || true; done) & wait"
+```bash
+# Setup fuse-overlayfs and docker daemon config
+(
+    if ! test -x /usr/local/bin/fuse-overlayfs; then
+        sudo curl -sSL "https://github.com/containers/fuse-overlayfs/releases/download/v1.16/fuse-overlayfs-$(uname -m)" -o /usr/local/bin/fuse-overlayfs
+        sudo chmod +x /usr/local/bin/fuse-overlayfs
+    fi
+    if ! grep -q fuse-overlayfs /etc/docker/daemon.json 2>/dev/null; then
+        sudo bash -c 'echo "{\"storage-driver\": \"fuse-overlayfs\"}" > /etc/docker/daemon.json'
+        sudo systemctl restart docker
+    fi
+    sudo docker pull -q ghcr.io/sjnexe/repoexe-builder:latest
+) &
+
+# Create local directories
+mkdir -p ~/.ccache "$(pwd)/output" &
+wait
+
+# Run the builder container
+sudo docker run -d --name builder -u builder --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor:unconfined \
+    -v "$(pwd):/home/builder/RepoExe" \
+    -v ~/.ccache:/home/builder/.ccache \
+    -w /home/builder/RepoExe \
+    -e REPO_ROOT=/home/builder/RepoExe \
+    ghcr.io/sjnexe/repoexe-builder:latest tail -f /dev/null
+
+# Initialize the container environment
+sudo docker exec builder bash -c "
+shopt -s nullglob
+(
+    sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/
+    echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
+) &
+(
+    for p in ndk-patches/29/*.patch; do
+        sudo patch -p1 -d /home/builder/RepoExe/build-tools/android-ndk-r29/sysroot <\"\$p\" || true
+    done
+) &
+wait
+"
 ```
 
 ## Useful Commands
