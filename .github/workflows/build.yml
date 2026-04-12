@@ -142,7 +142,7 @@ jobs:
               echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
               sudo chown -R builder:builder /data/data/com.termux/files/usr/etc/apt/sources.list.d/
 
-              # Fix paths for termux-packages to parse versions during build
+              # Fix paths for RepoExe to parse versions during build
               for f in \
                 scripts/build/termux_step_setup_variables.sh \
                 scripts/build/setup/termux_setup_build_python.sh \
@@ -163,12 +163,12 @@ jobs:
                 scripts/build/setup/termux_setup_zig.sh \
                 scripts/build/termux_step_install_license.sh; do
                   if [ -f "\$f" ]; then
-                      sed -i 's|${TERMUX_SCRIPTDIR}/packages|/home/builder/termux-packages/packages|g' "\$f"
-                      sed -i 's|"$TERMUX_SCRIPTDIR"/packages|/home/builder/termux-packages/packages|g' "\$f"
-                      sed -i 's|$TERMUX_SCRIPTDIR/packages|/home/builder/termux-packages/packages|g' "\$f"
-                      sed -i 's|${TERMUX_SCRIPTDIR}/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
-                      sed -i 's|"$TERMUX_SCRIPTDIR"/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
-                      sed -i 's|$TERMUX_SCRIPTDIR/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
+                      sed -i 's|\${TERMUX_SCRIPTDIR}/packages|/home/builder/RepoExe/packages|g' "\$f"
+                      sed -i 's|"\$TERMUX_SCRIPTDIR"/packages|/home/builder/RepoExe/packages|g' "\$f"
+                      sed -i 's|\$TERMUX_SCRIPTDIR/packages|/home/builder/RepoExe/packages|g' "\$f"
+                      sed -i 's|\${TERMUX_SCRIPTDIR}/gpkg|/home/builder/RepoExe/gpkg|g' "\$f"
+                      sed -i 's|"\$TERMUX_SCRIPTDIR"/gpkg|/home/builder/RepoExe/gpkg|g' "\$f"
+                      sed -i 's|\$TERMUX_SCRIPTDIR/gpkg|/home/builder/RepoExe/gpkg|g' "\$f"
                   fi
               done
 
@@ -178,7 +178,7 @@ jobs:
                 for patch in ndk-patches/29/*.patch; do
                   if [ -f \"\$patch\" ]; then
                     echo \"Applying \$patch\"
-                    sudo patch -p1 -d /home/builder/lib/android-ndk-r29/sysroot < \"\$patch\" || true
+                    sudo patch -p1 -d /home/builder/RepoExe/build-tools/android-ndk-r29/sysroot < \"\$patch\" || true
                   fi
                 done
               fi
