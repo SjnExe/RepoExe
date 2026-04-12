@@ -31,6 +31,7 @@ RUN apt-get update && \
 	apt-get clean && \
 	rm -rf /var/lib/apt/lists/* && \
 	su - builder -c "rm -rf ~/lib/*.zip ~/.android/cache/" && \
+	su - builder -c "git clone --depth 1 https://github.com/termux/termux-packages.git ~/termux-packages" && \
 	rm -rf /tmp/termux-packages
 
 # Switch User
