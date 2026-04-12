@@ -171,9 +171,9 @@ termux_step_setup_variables() {
 	TERMUX_PKG_SETUP_PYTHON=false # setting python to compile a package
 	TERMUX_PYTHON_VERSION="$( # get the latest version of python
 		if [[ "${TERMUX_PACKAGE_LIBRARY}" == "bionic" ]]; then
-			. "$TERMUX_SCRIPTDIR/packages/python/build.sh"
+			. "/home/builder/termux-packages/packages/python/build.sh"
 		else # glibc
-			. "$TERMUX_SCRIPTDIR/gpkg/python/build.sh"
+			. "/home/builder/termux-packages/gpkg/python/build.sh"
 		fi
 		echo "$_MAJOR_VERSION"
 	)"
@@ -186,9 +186,9 @@ termux_step_setup_variables() {
 	TERMUX_PYTHON_HOME=$TERMUX__PREFIX__LIB_DIR/python${TERMUX_PYTHON_VERSION} # location of python libraries
 	TERMUX_LLVM_VERSION="$( # get the latest version of LLVM
 		if [[ "${TERMUX_PACKAGE_LIBRARY}" == "bionic" ]]; then
-			. "$TERMUX_SCRIPTDIR/packages/libllvm/build.sh"
+			. "/home/builder/termux-packages/packages/libllvm/build.sh"
 		else # glibc
-			. "$TERMUX_SCRIPTDIR/gpkg/llvm/build.sh"
+			. "/home/builder/termux-packages/gpkg/llvm/build.sh"
 		fi
 		echo "$TERMUX_PKG_VERSION"
 	)"

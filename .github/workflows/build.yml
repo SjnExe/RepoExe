@@ -163,12 +163,14 @@ jobs:
                 scripts/build/setup/termux_setup_zig.sh \
                 scripts/build/termux_step_install_license.sh; do
                   if [ -f "\$f" ]; then
-                      sed -i 's|${TERMUX_SCRIPTDIR}/packages|/home/builder/termux-packages/packages|g' "\$f"
-                      sed -i 's|"$TERMUX_SCRIPTDIR"/packages|/home/builder/termux-packages/packages|g' "\$f"
-                      sed -i 's|$TERMUX_SCRIPTDIR/packages|/home/builder/termux-packages/packages|g' "\$f"
-                      sed -i 's|${TERMUX_SCRIPTDIR}/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
-                      sed -i 's|"$TERMUX_SCRIPTDIR"/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
-                      sed -i 's|$TERMUX_SCRIPTDIR/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
+                      sed -i 's|\${TERMUX_SCRIPTDIR}/packages|/home/builder/termux-packages/packages|g' "\$f"
+                      sed -i 's|"\$TERMUX_SCRIPTDIR"/packages|/home/builder/termux-packages/packages|g' "\$f"
+                      sed -i 's|\$TERMUX_SCRIPTDIR/packages|/home/builder/termux-packages/packages|g' "\$f"
+                      sed -i 's|"\$TERMUX_SCRIPTDIR/packages|"/home/builder/termux-packages/packages|g' "\$f"
+                      sed -i 's|\${TERMUX_SCRIPTDIR}/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
+                      sed -i 's|"\$TERMUX_SCRIPTDIR"/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
+                      sed -i 's|\$TERMUX_SCRIPTDIR/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
+                      sed -i 's|"\$TERMUX_SCRIPTDIR/gpkg|"/home/builder/termux-packages/gpkg|g' "\$f"
                   fi
               done
 
