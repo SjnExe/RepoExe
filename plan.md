@@ -10,19 +10,28 @@
 - **Main Component:** `main` (Default component for stable, public packages)
 - **Dev Component:** `dev` (Enabled by installing the `repoexe-dev` package, which adds the component source list. Uninstalling `repoexe-dev` disables the component.)
 
-## Workflows and CI/CD Guidelines
+## Environment & CI/CD Specs
 
-- **Custom Docker Image (`docker.yml`):** Built and uploaded to GHCR. Will be adapted from the `backup` directory.
-- **Dual-Mode Build Workflow (`build.yml`):** Replaces Termux's overly complex `packages.yml`. Adapted from `backup`, but refined using beneficial features from Termux.
+- **GitHub Runner Specs:** 4 Cores, 16GB RAM. *Note: The environment does NOT support swap or zram. Memory usage must be tightly controlled to prevent OOM errors, while maximizing parallelization.*
+- **Custom Docker Image (`docker.yml`):** Built and uploaded to GHCR. Will be adapted from the `backup` directory, focusing on layer optimization.
+- **Dual-Mode Build Workflow (`build.yml`):** Replaces Termux's overly complex `packages.yml`. Adapted from `backup`, refined using beneficial features from Termux.
   - **PR Mode:** Compiles the packages as a test in PR workflow runs to ensure they build correctly.
   - **Release Mode:** When merged to `main`, compiles and releases the packages via GitHub Releases.
 - **ZRAM Action (`.github/actions/zram`):** Use the streamlined version from `backup` that skips fragile Linux kernel GPG verifications to ensure stable, reliable memory management on GitHub runners.
 - **Package Updates (`package_updates.yml`):** Use the version from `backup` that automatically creates PRs using `gh pr create` when upstream package versions change. Needs further refinement for reliability.
 - **Security Analysis (`codeql.yml`):** Integrate CodeQL from Termux to run static code analysis on PRs and merges to `main`.
+- **Host Cleanup (`free-space.sh`):** Use an extremely fast `rm -rf` approach targeting massive, isolated toolchains (like .NET, Android SDK, and Haskell) on the GitHub Host VM. This instantly frees ~40GB of disk space required for our Docker builder, bypassing the slow `apt purge` mechanisms.
 - **Ignored/Removed Workflows:**
   - `golang_validation.yml` and `zig_validation.yml` (RepoExe will not maintain custom-patched compiler standard libraries).
   - `bootstrap_archives.yml` (Specific to Termux app bootstrapping).
   - Termux's complex `packages.yml`.
+
+## Architectural Guidelines
+
+1. **Independent Packages:** Unlike Termux, which bundles tools into monolithic packages (e.g., `android-tools`), RepoExe will treat every package independently. Packages like `aapt`, `zipalign`, and `aidl` will have isolated `build.sh` scripts pulling only their necessary source code directly from upstream to ensure modularity and prevent conflicts.
+2. **Standardize on NDK 29:** Remove all legacy NDK 23c infrastructure. The build system will exclusively use NDK 29. Any package compilation issues will be resolved by patching the package itself to support NDK 29.
+3. **Parallelization Enforcement:** Ensure variables like `MAKEFLAGS="-j4"` or `ninja -j4` are globally standardized across the build scripts to fully utilize the 4-core runners without triggering memory exhaustion.
+4. **Preserve Cross-Compilation Logic:** Scripts inside `scripts/build/setup/` (e.g., Python, CMake, Rust setups) contain vital cross-compilation engineering. Do *not* strip them out blindly. Instead, refactor them to remove external dependencies on Termux repositories and standardize their path variables.
 
 ## Refactoring Guidelines
 
@@ -30,16 +39,17 @@
 2. **Brand Usage:** When appropriate, use the brand as "RepoExe", "repoexe", or "REPOEXE" depending on the context.
 3. **Comment Cleanup:** Remove useless or overly verbose comments found in the original Termux repository scripts; keep only necessary comments.
 4. **Base Selection Strategy:** Some files should be copied from the `backup` folder and refactored using `termux-packages` as a reference. Others should be copied from `termux-packages` and refactored using `backup` as a reference. The choice depends on which file is closer to the end goal.
-5. **Packages Scope:** We will only maintain standard packages. Currently, only the `aapt` package is in focus. Root packages (`root-packages`) and X11 packages (`x11-packages`) are entirely removed and out of scope.
+5. **Packages Scope:** We will only maintain standard packages. Root packages (`root-packages`) and X11 packages (`x11-packages`) are entirely removed and out of scope.
 6. **APT Features:** Utilize all possible APT features suitable for our setup.
 
 ## Refactor Checklist
 
 The following is a layout of directories and files to be refactored, sorted generally from easiest (lowest severity) to hardest (highest severity).
 
-### 1. NDK Patches (Severity: 10/100)
-*Can be largely copied directly with minimal modifications.*
-- [ ] `ndk-patches/` (Copy from `backup` or `termux-packages` as needed)
+### 1. NDK Patches & Versions (Severity: 10/100)
+*Standardize on NDK 29 and clear legacy.*
+- [ ] `ndk-patches/29/` (Copy from `backup` or `termux-packages` as needed)
+- [ ] Delete `ndk-patches/23c/` completely.
 
 ### 2. Basic Configuration Files (Severity: 20/100)
 *Simple updates to standard repo configs, removing Termux-specific tracking or metadata.*
@@ -49,13 +59,14 @@ The following is a layout of directories and files to be refactored, sorted gene
 - [ ] `README.md` (Rewrite for RepoExe context)
 - [ ] `LICENSE`
 
-### 3. Utility Scripts (Severity: 30/100)
-*Scripts that need some useless comments removed and minor standardization.*
+### 3. Utility Scripts & Host Cleanup (Severity: 30/100)
+*Scripts that need minor standardization. Implement fast rm-rf logic for free-space.*
 - [ ] `scripts/properties.sh`
 - [ ] `scripts/utils/` directory scripts
 - [ ] `scripts/get_hash_from_file.py`
 - [ ] `scripts/check-versions.sh`
 - [ ] `scripts/lint-packages.sh`
+- [ ] `scripts/free-space.sh` (Refine using fast `rm -rf` logic for host cleanup)
 
 ### 4. Site and GitHub Pages Metadata (Severity: 40/100)
 *Migrate site directory from `backup`, tailor to RepoExe APT repository hosted on GitHub Pages.*
@@ -64,8 +75,8 @@ The following is a layout of directories and files to be refactored, sorted gene
 - [ ] `scripts/aptly_api.sh`
 
 ### 5. Package Definitions (Severity: 50/100)
-*Adapt the packages keeping RepoExe branding rules in mind. Currently starting with `aapt` and `repoexe-dev`.*
-- [ ] `packages/aapt/`
+*Adapt packages as fully independent entities. Ensure NDK 29 compatibility.*
+- [ ] `packages/aapt/` (Review independent build logic)
 - [ ] `packages/repoexe-dev/` (Ensure this correctly provisions the `dev` component list)
 
 ### 6. Action Modules & Security Checks (Severity: 60/100)
@@ -75,22 +86,24 @@ The following is a layout of directories and files to be refactored, sorted gene
 - [ ] `.github/workflows/check_repository_health.yml` (Clean up for RepoExe)
 
 ### 7. Docker Configuration (Severity: 70/100)
-*Modify Docker setup to be tailored for RepoExe and GHCR.*
-- [ ] `Dockerfile` / `Dockerfile.cgct`
+*Optimize Docker builder. Remove legacy cloning and `cgct`.*
+- [ ] `Dockerfile` (Drop hardcoded termux-packages clones; configure to mount RepoExe code directly. Optimize RUN layers.)
+- [ ] Delete `Dockerfile.cgct`.
 - [ ] `scripts/run-docker.sh`
 - [ ] `scripts/update-docker.sh`
 - [ ] `.github/workflows/docker.yml` (From `backup` referencing RepoExe registry)
 
-### 8. Core Build Scripts (Severity: 80/100)
-*Core compilation logic. Needs branding cleanup, unused comment removal, and ensuring standard compilation works.*
+### 8. Core Build Scripts & Setup Logic (Severity: 80/100)
+*Core compilation logic. Enforce parallelization (-j4). Preserve setup scripts but rename paths.*
 - [ ] `build-package.sh`
 - [ ] `build-all.sh`
 - [ ] `clean.sh`
-- [ ] `scripts/build/` directory scripts
+- [ ] `scripts/build/setup/` (Refactor variables, do not remove vital compilation steps)
+- [ ] `scripts/build/` general scripts
 - [ ] `scripts/buildorder.py`
 - [ ] `scripts/check-built-packages.py`
 
 ### 9. GitHub Actions Core Workflows (Severity: 90/100)
 *Crucial for the dual-mode compilation and automated update processes.*
-- [ ] `.github/workflows/build.yml` (Use `backup` as base for dual PR/Release mode, refine using features from `termux-packages`)
+- [ ] `.github/workflows/build.yml` (Use `backup` as base for dual PR/Release mode, enforce parallelization limits)
 - [ ] `.github/workflows/package_updates.yml` (Refine the automated update and PR logic from `backup`)
