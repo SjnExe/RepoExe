@@ -1,0 +1,12 @@
+TERMUX_PKG_HOMEPAGE=https://pybind11.readthedocs.io/
+TERMUX_PKG_DESCRIPTION="A lightweight header-only library that exposes C++ types in Python and vice versa"
+TERMUX_PKG_LICENSE="BSD"
+TERMUX_PKG_MAINTAINER="@termux"
+TERMUX_PKG_VERSION="3.0.3"
+TERMUX_PKG_SRCURL="https://github.com/pybind/pybind11/archive/refs/tags/v${TERMUX_PKG_VERSION}/pybind11-${TERMUX_PKG_VERSION}.tar.gz"
+TERMUX_PKG_SHA256=787459e1e186ee82001759508fefa408373eae8a076ffe0078b126c6f8f0ec5e
+TERMUX_PKG_AUTO_UPDATE=true
+TERMUX_PKG_DEPENDS="python"
+TERMUX_PKG_BUILD_DEPENDS="boost, eigen"
+TERMUX_PKG_PYTHON_COMMON_BUILD_DEPS="setuptools"
+TERMUX_PKG_CMAKE_BUILD="Unix Makefiles"

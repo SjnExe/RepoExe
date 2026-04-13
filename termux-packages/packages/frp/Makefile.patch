@@ -1,0 +1,15 @@
+--- a/Makefile
++++ b/Makefile
+@@ -33,10 +33,10 @@
+ 	go vet -tags "$(NOWEB_TAG)" ./...
+ 
+ frps:
+-	env CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -tags "frps$(NOWEB_TAG)" -o bin/frps ./cmd/frps
++	env go build -trimpath -ldflags "$(LDFLAGS)" -tags "frps$(NOWEB_TAG)" -o bin/frps ./cmd/frps
+ 
+ frpc:
+-	env CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -tags "frpc$(NOWEB_TAG)" -o bin/frpc ./cmd/frpc
++	env go build -trimpath -ldflags "$(LDFLAGS)" -tags "frpc$(NOWEB_TAG)" -o bin/frpc ./cmd/frpc
+ 
+ test: gotest
+ 
