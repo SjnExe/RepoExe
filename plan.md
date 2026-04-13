@@ -32,10 +32,12 @@
 1. **Independent Packages & Maintenance Strategy:** Unlike Termux, which bundles tools into monolithic packages (e.g., `android-tools`), RepoExe will treat packages independently to avoid conflicts and simplify updates.
    - `aapt` is deprecated upstream and will be built once and kept static.
    - Modern tools like `aapt2`, `zipalign`, and `aidl` will be actively maintained, utilizing independent `build.sh` scripts pulling source directly from upstream.
-2. **Preserve Core Features (Sub-packages):** While we are shifting to an independent package structure, the build system's core capabilities, including Termux's **sub-package support**, will be fully preserved so they can be utilized if a package naturally generates useful sub-components (like `-static` or `-dev` packages).
-3. **Standardize on NDK 29:** Remove all legacy NDK 23c infrastructure. The build system will exclusively use NDK 29. Any package compilation issues will be resolved by patching the package itself to support NDK 29.
-4. **Parallelization Enforcement:** Ensure variables like `MAKEFLAGS="-j4"` or `ninja -j4` are globally standardized across the build scripts to fully utilize the 4-core runners without triggering memory exhaustion.
-5. **Preserve Cross-Compilation Logic:** Scripts inside `scripts/build/setup/` (e.g., Python, CMake, Rust setups) contain vital cross-compilation engineering. Do *not* strip them out blindly. Instead, refactor them to remove external dependencies on Termux repositories and standardize their path variables.
+2. **Granular Dependency Splitting:** Do not use monolithic shared library packages. The existing `libandroid-tools-shared` package from the backup must be split into its individual upstream libraries (e.g., `liblog`, `libziparchive`, `libbase`, `libcutils`). These exact names will be used since they currently do not conflict with Termux. If a conflict arises in the future, a `-repoexe` suffix will be applied.
+3. **Preserve Core Features (Sub-packages):** While we are shifting to an independent package structure, the build system's core capabilities, including Termux's **sub-package support**, will be fully preserved so they can be utilized if a package naturally generates useful sub-components (like `-static` or `-dev` packages).
+4. **Standardize on NDK 29:** Remove all legacy NDK 23c infrastructure. The build system will exclusively use NDK 29. Any package compilation issues will be resolved by patching the package itself to support NDK 29.
+5. **Parallelization Enforcement:** Ensure variables like `MAKEFLAGS="-j4"` or `ninja -j4` are globally standardized across the build scripts to fully utilize the 4-core runners without triggering memory exhaustion.
+6. **Preserve Cross-Compilation Logic:** Scripts inside `scripts/build/setup/` (e.g., Python, CMake, Rust setups) contain vital cross-compilation engineering. Do *not* strip them out blindly. Instead, refactor them to remove external dependencies on Termux repositories and standardize their path variables.
+7. **Reference Retention:** The `backup/` and `termux-packages/` directories MUST be preserved throughout the refactoring process for reference. They will only be deleted at the very end.
 
 ## Refactoring Guidelines
 
@@ -79,7 +81,8 @@ The following is a layout of directories and files to be refactored, sorted gene
 - [ ] `scripts/aptly_api.sh`
 
 ### 5. Package Definitions (Severity: 50/100)
-*Adapt packages as fully independent entities. Ensure NDK 29 compatibility.*
+*Adapt packages as fully independent entities. Granularize dependencies.*
+- [ ] Split `libandroid-tools-shared` into independent packages (`liblog`, `libziparchive`, `libbase`, `libcutils`).
 - [ ] `packages/aapt/` (Build once, deprecate upstream tracking)
 - [ ] `packages/aapt2/`, `packages/zipalign/`, `packages/aidl/` (Setup for active upstream tracking)
 - [ ] `packages/repoexe-dev/` (Ensure this correctly provisions the `dev` component list)
@@ -112,3 +115,8 @@ The following is a layout of directories and files to be refactored, sorted gene
 *Crucial for the dual-mode compilation and automated update processes.*
 - [ ] `.github/workflows/build.yml` (Use `backup` as base for dual PR/Release mode, enforce parallelization limits)
 - [ ] `.github/workflows/package_updates.yml` (Refine the automated update and PR logic from `backup`)
+
+### 10. Final Cleanup (Severity: 0/100)
+*Execute only after everything is verified to work.*
+- [ ] Delete `backup/` directory (Requires explicit user confirmation).
+- [ ] Delete `termux-packages/` directory (Requires explicit user confirmation).
