@@ -12,41 +12,34 @@
 
 ## Environment & CI/CD Specs
 
-- **CI-First Optimization:** The core codebase (`Dockerfile`, workflows, build scripts) must be **strictly optimized for GitHub Actions**. Any configurations required for local/Agent environments (like `fuse-overlayfs` or background daemons) must remain isolated in `AGENTS.md` and *never* compromise or pollute the CI pipeline's performance.
+- **CI-First Optimization:** The core codebase (`Dockerfile`, workflows, build scripts) must be **strictly optimized for GitHub Actions**.
 - **GitHub Runner Specs:** 4 Cores, 16GB RAM. *Note: The environment does NOT support swap or zram. Memory usage must be tightly controlled to prevent OOM errors, while maximizing parallelization.*
-- **Custom Docker Image (`docker.yml`):** Built and uploaded to GHCR. Will be adapted from the `backup` directory, focusing on layer optimization.
-- **Dual-Mode Build Workflow (`build.yml`):** Replaces Termux's overly complex `packages.yml`. Adapted from `backup`, refined using beneficial features from Termux.
-  - **PR Mode:** Compiles the packages as a test in PR workflow runs to ensure they build correctly.
-  - **Release Mode:** When merged to `main`, compiles and releases the packages via GitHub Releases.
-- **ZRAM Action (`.github/actions/zram`):** Use the streamlined version from `backup` that skips fragile Linux kernel GPG verifications to ensure stable, reliable memory management on GitHub runners.
-- **Package Updates (`package_updates.yml`):** Use the version from `backup` that automatically creates PRs using `gh pr create` when upstream package versions change. Needs further refinement for reliability.
-- **Security Analysis (`codeql.yml`):** Integrate CodeQL from Termux to run static code analysis on PRs and merges to `main`.
-- **Host Cleanup (`free-space.sh`):** Use an extremely fast `rm -rf` approach targeting massive, isolated toolchains (like .NET, Android SDK, and Haskell) on the GitHub Host VM. This instantly frees ~40GB of disk space required for our Docker builder, bypassing the slow `apt purge` mechanisms.
-- **Ignored/Removed Workflows:**
-  - `golang_validation.yml` and `zig_validation.yml` (RepoExe will not maintain custom-patched compiler standard libraries).
-  - `bootstrap_archives.yml` (Specific to Termux app bootstrapping).
-  - Termux's complex `packages.yml`.
+- **Custom Docker Image (`docker.yml`):** Built and uploaded to GHCR. Docker is the **only officially supported environment** for local building to prevent host pollution.
+- **Dual-Mode Build Workflow (`build.yml`):** PR Mode (compiles as a test) and Release Mode (compiles and pushes to GitHub Releases on `main`).
+- **Publish & Signing (`publish.yml`):** Retain the existing `backup` publishing workflow and `metadata.py` script that handles the RepoExe APT metadata generation and secure GPG signing.
+- **ZRAM Action (`.github/actions/zram`):** Use the streamlined version from `backup` that skips fragile Linux kernel GPG verifications.
+- **Package Updates (`package_updates.yml`):** Retain auto-PRs via `gh pr create`. **Exception:** AOSP-derived tools like `aapt2`, `zipalign`, and `aidl` must be excluded from auto-updating since they require manual patch/revision alignment.
+- **Security Analysis (`codeql.yml`):** Integrate CodeQL for static analysis.
+- **Host Cleanup (`free-space.sh`):** Use extremely fast `rm -rf` logic for massive toolchains on the GitHub Host VM.
 
 ## Architectural Guidelines
 
-1. **Independent Packages & Maintenance Strategy:** Unlike Termux, which bundles tools into monolithic packages (e.g., `android-tools`), RepoExe will treat packages independently to avoid conflicts and simplify updates.
-   - `aapt` is deprecated upstream and will be built once and kept static.
-   - Modern tools like `aapt2`, `zipalign`, and `aidl` will be actively maintained, utilizing independent `build.sh` scripts pulling source directly from upstream.
-2. **Granular Dependency Splitting:** Do not use monolithic shared library packages. The existing `libandroid-tools-shared` package from the backup must be split into its individual upstream libraries (e.g., `liblog`, `libziparchive`, `libbase`, `libcutils`). These exact names will be used since they currently do not conflict with Termux. If a conflict arises in the future, a `-repoexe` suffix will be applied.
-3. **Preserve Core Features (Sub-packages):** While we are shifting to an independent package structure, the build system's core capabilities, including Termux's **sub-package support**, will be fully preserved so they can be utilized if a package naturally generates useful sub-components (like `-static` or `-dev` packages).
-4. **Standardize on NDK 29:** Remove all legacy NDK 23c infrastructure. The build system will exclusively use NDK 29. Any package compilation issues will be resolved by patching the package itself to support NDK 29.
-5. **Parallelization Enforcement:** Ensure variables like `MAKEFLAGS="-j4"` or `ninja -j4` are globally standardized across the build scripts to fully utilize the 4-core runners without triggering memory exhaustion.
-6. **Preserve Cross-Compilation Logic:** Scripts inside `scripts/build/setup/` (e.g., Python, CMake, Rust setups) contain vital cross-compilation engineering. Do *not* strip them out blindly. Instead, refactor them to remove external dependencies on Termux repositories and standardize their path variables.
-7. **Reference Retention:** The `backup/` and `termux-packages/` directories MUST be preserved throughout the refactoring process for reference. They will only be deleted at the very end.
+1. **Agent Directive - Continuous Clarification:** The Agent (Jules) MUST proactively ask the user questions and request confirmation whenever making ambiguous refactoring decisions, to ensure zero issues.
+2. **Independent Packages:** Bundled packages (like `android-tools`) will be replaced with independent packages that pull specific upstream sources.
+3. **Granular Dependency Splitting:** `libandroid-tools-shared` must be split into specific, independent upstream libraries (e.g., `liblog`, `libziparchive`, `libbase`, `libcutils`). Suffixes will only be used if explicit conflicts with Termux are found.
+4. **Preserve Sub-packages:** Termux's sub-package functionality (e.g., generating `-static` or `-dev` packages) must be retained in the build system.
+5. **Standardize on NDK 29:** Remove all NDK 23c infrastructure and standardize build scripts for NDK 29.
+6. **Parallelization Enforcement:** Globally standardize `MAKEFLAGS="-j4"` / `ninja -j4` to maximize the 4-core runners.
+7. **Preserve Cross-Compilation Logic:** Refactor setup scripts (`scripts/build/setup/`) by replacing Termux paths, but DO NOT arbitrarily strip out vital cross-compilation engineering.
+8. **Reference Retention:** The `backup/` and `termux-packages/` directories MUST be preserved throughout the refactoring process for reference. They will only be deleted at the very end.
 
 ## Refactoring Guidelines
 
-1. **Branding Removal:** Strip out "termux" branding wherever possible to make the codebase standard. Do *not* blindly replace "termux" with "RepoExe". Only use the "termux" brand name where the context strictly dictates it (e.g., specific Termux app interactions or terminal references).
+1. **Branding Removal:** Strip out "termux" branding wherever possible to make the codebase standard. Do *not* blindly replace "termux" with "RepoExe". Only use the "termux" brand name where the context strictly dictates it.
 2. **Brand Usage:** When appropriate, use the brand as "RepoExe", "repoexe", or "REPOEXE" depending on the context.
-3. **Comment Cleanup:** Remove useless or overly verbose comments found in the original Termux repository scripts; keep only necessary comments.
-4. **Base Selection Strategy:** Some files should be copied from the `backup` folder and refactored using `termux-packages` as a reference. Others should be copied from `termux-packages` and refactored using `backup` as a reference. The choice depends on which file is closer to the end goal.
+3. **Comment Cleanup:** Remove useless or overly verbose comments found in the original Termux repository scripts.
+4. **Base Selection Strategy:** Some files should be copied from `backup` and refactored using `termux-packages` as a reference, or vice-versa, depending on which is closer to the end goal.
 5. **Packages Scope:** We will only maintain standard packages. Root packages (`root-packages`) and X11 packages (`x11-packages`) are entirely removed and out of scope.
-6. **APT Features:** Utilize all possible APT features suitable for our setup.
 
 ## Refactor Checklist
 
@@ -57,16 +50,15 @@ The following is a layout of directories and files to be refactored, sorted gene
 - [ ] `ndk-patches/29/` (Copy from `backup` or `termux-packages` as needed)
 - [ ] Delete `ndk-patches/23c/` completely.
 
-### 2. Basic Configuration Files (Severity: 20/100)
-*Simple updates to standard repo configs, removing Termux-specific tracking or metadata.*
-- [ ] `.gitignore`
-- [ ] `.gitattributes`
-- [ ] `.editorconfig`
-- [ ] `README.md` (Rewrite for RepoExe context)
+### 2. Basic Configuration & Community Files (Severity: 20/100)
+*Updates to standard repo configs and community docs.*
+- [ ] `.gitignore`, `.gitattributes`, `.editorconfig`
 - [ ] `LICENSE`
+- [ ] `README.md` (Rewrite for RepoExe, but retain useful Termux structural features like status badges)
+- [ ] `CONTRIBUTING.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/` (Clean up and adapt for RepoExe)
 
 ### 3. Utility Scripts & Host Cleanup (Severity: 30/100)
-*Scripts that need minor standardization. Implement fast rm-rf logic for free-space.*
+*Scripts that need minor standardization.*
 - [ ] `scripts/properties.sh`
 - [ ] `scripts/utils/` directory scripts
 - [ ] `scripts/get_hash_from_file.py`
@@ -79,12 +71,13 @@ The following is a layout of directories and files to be refactored, sorted gene
 - [ ] `site/` (Index, CSS, JS from `backup`)
 - [ ] `scripts/generate-apt-packages-list.sh` (or equivalent aptly scripts)
 - [ ] `scripts/aptly_api.sh`
+- [ ] `scripts/repoexe/metadata.py` (Verify GPG logic)
 
 ### 5. Package Definitions (Severity: 50/100)
 *Adapt packages as fully independent entities. Granularize dependencies.*
 - [ ] Split `libandroid-tools-shared` into independent packages (`liblog`, `libziparchive`, `libbase`, `libcutils`).
 - [ ] `packages/aapt/` (Build once, deprecate upstream tracking)
-- [ ] `packages/aapt2/`, `packages/zipalign/`, `packages/aidl/` (Setup for active upstream tracking)
+- [ ] `packages/aapt2/`, `packages/zipalign/`, `packages/aidl/` (Setup for manual active tracking, exclude from auto-updates)
 - [ ] `packages/repoexe-dev/` (Ensure this correctly provisions the `dev` component list)
 
 ### 6. Action Modules & Security Checks (Severity: 60/100)
@@ -102,7 +95,7 @@ The following is a layout of directories and files to be refactored, sorted gene
 - [ ] `.github/workflows/docker.yml` (From `backup` referencing RepoExe registry)
 
 ### 8. Core Build Scripts & Setup Logic (Severity: 80/100)
-*Core compilation logic. Enforce parallelization (-j4). Preserve setup scripts but rename paths.*
+*Core compilation logic. Enforce parallelization (-j4).*
 - [ ] `build-package.sh`
 - [ ] `build-all.sh`
 - [ ] `clean.sh`
@@ -114,7 +107,8 @@ The following is a layout of directories and files to be refactored, sorted gene
 ### 9. GitHub Actions Core Workflows (Severity: 90/100)
 *Crucial for the dual-mode compilation and automated update processes.*
 - [ ] `.github/workflows/build.yml` (Use `backup` as base for dual PR/Release mode, enforce parallelization limits)
-- [ ] `.github/workflows/package_updates.yml` (Refine the automated update and PR logic from `backup`)
+- [ ] `.github/workflows/package_updates.yml` (Refine the automated update and PR logic from `backup`. Implement exclusions.)
+- [ ] `.github/workflows/publish.yml` (Review and integrate metadata GPG signing)
 
 ### 10. Final Cleanup (Severity: 0/100)
 *Execute only after everything is verified to work.*
