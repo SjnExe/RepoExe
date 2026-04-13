@@ -12,6 +12,7 @@
 
 ## Environment & CI/CD Specs
 
+- **CI-First Optimization:** The core codebase (`Dockerfile`, workflows, build scripts) must be **strictly optimized for GitHub Actions**. Any configurations required for local/Agent environments (like `fuse-overlayfs` or background daemons) must remain isolated in `AGENTS.md` and *never* compromise or pollute the CI pipeline's performance.
 - **GitHub Runner Specs:** 4 Cores, 16GB RAM. *Note: The environment does NOT support swap or zram. Memory usage must be tightly controlled to prevent OOM errors, while maximizing parallelization.*
 - **Custom Docker Image (`docker.yml`):** Built and uploaded to GHCR. Will be adapted from the `backup` directory, focusing on layer optimization.
 - **Dual-Mode Build Workflow (`build.yml`):** Replaces Termux's overly complex `packages.yml`. Adapted from `backup`, refined using beneficial features from Termux.
@@ -28,10 +29,13 @@
 
 ## Architectural Guidelines
 
-1. **Independent Packages:** Unlike Termux, which bundles tools into monolithic packages (e.g., `android-tools`), RepoExe will treat every package independently. Packages like `aapt`, `zipalign`, and `aidl` will have isolated `build.sh` scripts pulling only their necessary source code directly from upstream to ensure modularity and prevent conflicts.
-2. **Standardize on NDK 29:** Remove all legacy NDK 23c infrastructure. The build system will exclusively use NDK 29. Any package compilation issues will be resolved by patching the package itself to support NDK 29.
-3. **Parallelization Enforcement:** Ensure variables like `MAKEFLAGS="-j4"` or `ninja -j4` are globally standardized across the build scripts to fully utilize the 4-core runners without triggering memory exhaustion.
-4. **Preserve Cross-Compilation Logic:** Scripts inside `scripts/build/setup/` (e.g., Python, CMake, Rust setups) contain vital cross-compilation engineering. Do *not* strip them out blindly. Instead, refactor them to remove external dependencies on Termux repositories and standardize their path variables.
+1. **Independent Packages & Maintenance Strategy:** Unlike Termux, which bundles tools into monolithic packages (e.g., `android-tools`), RepoExe will treat packages independently to avoid conflicts and simplify updates.
+   - `aapt` is deprecated upstream and will be built once and kept static.
+   - Modern tools like `aapt2`, `zipalign`, and `aidl` will be actively maintained, utilizing independent `build.sh` scripts pulling source directly from upstream.
+2. **Preserve Core Features (Sub-packages):** While we are shifting to an independent package structure, the build system's core capabilities, including Termux's **sub-package support**, will be fully preserved so they can be utilized if a package naturally generates useful sub-components (like `-static` or `-dev` packages).
+3. **Standardize on NDK 29:** Remove all legacy NDK 23c infrastructure. The build system will exclusively use NDK 29. Any package compilation issues will be resolved by patching the package itself to support NDK 29.
+4. **Parallelization Enforcement:** Ensure variables like `MAKEFLAGS="-j4"` or `ninja -j4` are globally standardized across the build scripts to fully utilize the 4-core runners without triggering memory exhaustion.
+5. **Preserve Cross-Compilation Logic:** Scripts inside `scripts/build/setup/` (e.g., Python, CMake, Rust setups) contain vital cross-compilation engineering. Do *not* strip them out blindly. Instead, refactor them to remove external dependencies on Termux repositories and standardize their path variables.
 
 ## Refactoring Guidelines
 
@@ -76,7 +80,8 @@ The following is a layout of directories and files to be refactored, sorted gene
 
 ### 5. Package Definitions (Severity: 50/100)
 *Adapt packages as fully independent entities. Ensure NDK 29 compatibility.*
-- [ ] `packages/aapt/` (Review independent build logic)
+- [ ] `packages/aapt/` (Build once, deprecate upstream tracking)
+- [ ] `packages/aapt2/`, `packages/zipalign/`, `packages/aidl/` (Setup for active upstream tracking)
 - [ ] `packages/repoexe-dev/` (Ensure this correctly provisions the `dev` component list)
 
 ### 6. Action Modules & Security Checks (Severity: 60/100)
