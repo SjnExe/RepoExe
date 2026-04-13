@@ -1,6 +1,0 @@
-Name: editor
-Link: bin/editor
-Alternative: bin/kibi
-Priority: 10
-
-# vim: ft=raml
