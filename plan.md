@@ -26,7 +26,7 @@
 
 ## Architectural Guidelines
 1. **Agent Directive - Continuous Clarification:** The Agent (Jules) MUST proactively ask the user questions and request confirmation whenever making ambiguous refactoring decisions, to ensure zero issues.
-2. **Independent Packages:** Bundled packages (like `android-tools`) will be replaced with independent packages that pull specific upstream sources.
+2. **Independent Packages:** Bundled packages (like `android-tools`) will be replaced with independent packages that pull specific upstream sources. 
 3. **Granular Dependency Splitting:** `libandroid-tools-shared` must be split into specific, independent upstream libraries (e.g., `liblog`, `libziparchive`, `libbase`, `libcutils`). Suffixes will only be used if explicit conflicts with Termux are found.
 4. **Preserve Sub-packages:** Termux's sub-package functionality (e.g., generating `-static` or `-dev` packages) must be retained in the build system.
 5. **Standardize on NDK 29:** Remove all NDK 23c infrastructure and standardize build scripts for NDK 29.
