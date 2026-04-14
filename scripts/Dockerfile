@@ -16,7 +16,7 @@ COPY ./scripts/llvm-snapshot.gpg.key ./scripts/properties.sh ./scripts/setup-and
 RUN mkdir -p /tmp/termux-packages/scripts/build
 COPY ./scripts/build/termux_download.sh /tmp/termux-packages/scripts/build/
 
-# Setup needed packages and the Android SDK and NDK and the CGCT:
+# Setup needed packages and the Android SDK and NDK
 RUN apt-get update && \
 	apt-get -yq upgrade && \
 	apt-get install -yq --no-install-recommends sudo lsb-release software-properties-common && \

@@ -194,9 +194,9 @@ _Setup the essential GitHub Actions modules and security checks._
 
 _Optimize Docker builder. Remove legacy cloning and `cgct`._
 
-- [ ] `Dockerfile` (Drop hardcoded termux-packages clones; configure to mount
+- [x] `Dockerfile` (Drop hardcoded termux-packages clones; configure to mount
       RepoExe code directly. Optimize RUN layers.)
-- [ ] Delete `Dockerfile.cgct`.
+- [x] Delete `Dockerfile.cgct`.
 - [ ] `scripts/run-docker.sh`
 - [ ] `scripts/update-docker.sh`
 - [ ] `scripts/profile-restricted.apparmor`, `scripts/profile-relaxed.apparmor`,
