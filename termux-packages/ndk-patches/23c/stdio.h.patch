@@ -37,7 +37,7 @@
 -#endif /* __ANDROID_API__ >= 26 */
 +/* Needed by gnulibs freading(). */
 +#define __sferror(p)    (((p)->_flags & __SERR) != 0)
- 
+
 +/* Used by perl, fish, and others. */
 +static __inline__ char* ctermid(char* s) {
 +	if (s == 0) return (char*) "/dev/tty";
