@@ -34,13 +34,12 @@
 7. **Preserve Cross-Compilation Logic:** Refactor setup scripts (`scripts/build/setup/`) by replacing Termux paths, but DO NOT arbitrarily strip out vital cross-compilation engineering.
 8. **Reference Retention:** The `backup/` and `termux-packages/` directories MUST be preserved throughout the refactoring process for reference. They will only be deleted at the very end.
 
-## Refactoring Guidelines
+## Ignored/Removed Components
 
-1. **Branding Removal:** Strip out "termux" branding wherever possible to make the codebase standard. Do *not* blindly replace "termux" with "RepoExe". Only use the "termux" brand name where the context strictly dictates it.
-2. **Brand Usage:** When appropriate, use the brand as "RepoExe", "repoexe", or "REPOEXE" depending on the context.
-3. **Comment Cleanup:** Remove useless or overly verbose comments found in the original Termux repository scripts.
-4. **Base Selection Strategy:** Some files should be copied from `backup` and refactored using `termux-packages` as a reference, or vice-versa, depending on which is closer to the end goal.
-5. **Packages Scope:** We will only maintain standard packages. Root packages (`root-packages`) and X11 packages (`x11-packages`) are entirely removed and out of scope.
+- `golang_validation.yml` and `zig_validation.yml` (RepoExe will not maintain custom-patched compiler standard libraries).
+- `bootstrap_archives.yml` and `scripts/bootstrap/` (Specific to base Termux app bootstrapping).
+- Termux's complex `packages.yml`.
+- `scripts/buildorder.py` (RepoExe fetches missing dependencies directly from Termux rather than dictating a local monolithic build order).
 
 ## Refactor Checklist
 
@@ -57,6 +56,7 @@ The following is a layout of directories and files to be refactored, sorted gene
 - [ ] `LICENSE`
 - [ ] `README.md` (Rewrite for RepoExe, but retain useful Termux structural features like status badges)
 - [ ] `CONTRIBUTING.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md` (Clean up and adapt for RepoExe)
+- [ ] `.github/stale.yml` (Ensure it ignores Renovate tags)
 
 ### 3. Utility Scripts & Host Cleanup (Severity: 30/100)
 *Scripts that need minor standardization.*
@@ -93,6 +93,7 @@ The following is a layout of directories and files to be refactored, sorted gene
 - [ ] Delete `Dockerfile.cgct`.
 - [ ] `scripts/run-docker.sh`
 - [ ] `scripts/update-docker.sh`
+- [ ] `scripts/profile-restricted.apparmor`, `scripts/profile-relaxed.apparmor`, `scripts/profile.json` (Verify container security profiles)
 - [ ] `.github/workflows/docker.yml` (From `backup` referencing RepoExe registry)
 
 ### 8. Core Build Scripts & Setup Logic (Severity: 80/100)
@@ -102,8 +103,8 @@ The following is a layout of directories and files to be refactored, sorted gene
 - [ ] `clean.sh`
 - [ ] `scripts/build/setup/` (Refactor variables, do not remove vital compilation steps)
 - [ ] `scripts/build/` general scripts
-- [ ] `scripts/buildorder.py`
-- [ ] `scripts/check-built-packages.py`
+- [ ] `scripts/check-built-packages.py` (Retain for metadata validation)
+- [ ] `scripts/test-runner.sh` (Adapt for RepoExe local package testing)
 
 ### 9. GitHub Actions Core Workflows (Severity: 90/100)
 *Crucial for the dual-mode compilation and automated update processes.*
