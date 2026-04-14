@@ -295,7 +295,7 @@ __termux_build_props__set_termux_builder__repo_root_dir() {
 }
 __termux_build_props__set_termux_builder__repo_root_dir "/.." || exit $?
 unset __termux_build_props__set_termux_builder__repo_root_dir
-SCRIPTDIR="${SCRIPTDIR:-PKGS__BUILD__REPO_ROOT_DIR}" # Deprecated alternative variable for `PKGS__BUILD__REPO_ROOT_DIR`
+SCRIPTDIR="${SCRIPTDIR:-$PKGS__BUILD__REPO_ROOT_DIR}" # Deprecated alternative variable for `PKGS__BUILD__REPO_ROOT_DIR`
 
 
 
@@ -1073,7 +1073,7 @@ fi
 
 
 # Override `PREFIX`, but keep original value in `PREFIX_CLASSICAL`.
-PREFIX="$termux__prefix"
+PREFIX_CLASSICAL="$PREFIX"
 PREFIX="$termux__prefix"
 
 
