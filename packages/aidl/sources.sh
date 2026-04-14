@@ -1,0 +1,40 @@
+local libaidl_sources="
+	aidl_checkapi.cpp
+	aidl_const_expressions.cpp
+	aidl_dumpapi.cpp
+	aidl_language.cpp
+	aidl_to_cpp_common.cpp
+	aidl_to_cpp.cpp
+	aidl_to_java.cpp
+	aidl_to_ndk.cpp
+	aidl_to_rust.cpp
+	aidl_typenames.cpp
+	aidl.cpp
+	ast_java.cpp
+	check_valid.cpp
+	code_writer.cpp
+	comments.cpp
+	diagnostics.cpp
+	generate_aidl_mappings.cpp
+	generate_cpp.cpp
+	generate_java_binder.cpp
+	generate_java.cpp
+	generate_ndk.cpp
+	generate_rust.cpp
+	import_resolver.cpp
+	io_delegate.cpp
+	location.cpp
+	logging.cpp
+	options.cpp
+	parser.cpp
+	permission.cpp
+	preprocess.cpp
+"
+libaidl_sources+="
+	lex.yy.c
+	aidl_language_y.tab.cc
+"
+local aidl_sources="
+	$libaidl_sources
+	main.cpp
+"

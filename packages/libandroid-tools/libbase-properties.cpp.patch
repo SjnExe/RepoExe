@@ -1,0 +1,76 @@
+--- a/libbase/properties.cpp
++++ b/libbase/properties.cpp
+@@ -16,7 +16,7 @@
+
+ #include "android-base/properties.h"
+
+-#if defined(__BIONIC__)
++#if defined(__BIONIC__) && !defined(__REPOEXE__)
+ #include <sys/system_properties.h>
+ #endif
+
+@@ -31,7 +31,7 @@
+ #include <android-base/strings.h>
+ #include <android-base/thread_annotations.h>
+
+-#if !defined(__BIONIC__)
++#if !defined(__BIONIC__) || defined(__REPOEXE__)
+
+ // Here lies a rudimentary implementation of system properties for non-Bionic
+ // platforms. We are using weak symbols here because we want to allow
+@@ -82,6 +82,10 @@
+     ++it->serial;
+   }
+   return 0;
++
++#endif
++
++#if !defined(__BIONIC__) || defined(__REPOEXE__)
+ }
+
+ SYSPROP_WEAK int __system_property_get(const char* key, char* value) {
+@@ -178,7 +182,7 @@
+   return (__system_property_set(key.c_str(), value.c_str()) == 0);
+ }
+
+-#if defined(__BIONIC__)
++#if defined(__BIONIC__) && !defined(__REPOEXE__)
+
+ struct WaitForPropertyData {
+   bool done;
+@@ -232,7 +236,11 @@
+     // Wait for a global change and then look again.
+     timespec ts;
+     UpdateTimeSpec(ts, relative_timeout, start_time);
++    #if __ANDROID_API__ >= 26
+     if (!__system_property_wait(nullptr, global_serial, &global_serial, &ts)) return nullptr;
++#else
++    return nullptr;
++#endif
+   }
+   return pi;
+ }
+@@ -255,7 +263,11 @@
+     // It didn't, so wait for the property to change before checking again.
+     UpdateTimeSpec(ts, relative_timeout, start_time);
+     uint32_t unused;
++    #if __ANDROID_API__ >= 26
+     if (!__system_property_wait(pi, data.last_read_serial, &unused, &ts)) return false;
++#else
++    return false;
++#endif
+   }
+ }
+
+@@ -337,7 +349,11 @@
+
+     uint32_t old_serial = cached_property_serial_.value_or(0);
+     uint32_t new_serial;
++    #if __ANDROID_API__ >= 26
+     if (!__system_property_wait(prop_info_, old_serial, &new_serial, &ts)) return nullptr;
++#else
++    return nullptr;
++#endif
+   }
+
+   return Get(nullptr);
