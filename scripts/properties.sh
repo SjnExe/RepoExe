@@ -1362,9 +1362,9 @@ PKGS__REPO_URL="$REPOS_HOST_ORG_URL/$PKGS__REPO_NAME"
 ###
 
 # The core variable values for which the packages hosted on the
-# package repos defined in `repo.json` are compiled for.
+# package repos defined in `scripts/repo.json` are compiled for.
 # If a custom repo is not being hosted, and official RepoExe repos are
-# still defined in `repo.json`, then DO NOT change these values. If a
+# still defined in `scripts/repo.json`, then DO NOT change these values. If a
 # custom repo is being hosted whose variable values equal
 # `APP__PACKAGE_NAME`, `APP__DATA_DIR`,
 # `CORE_DIR`, `APPS_DIR`, `ROOTFS`,
@@ -1385,30 +1385,30 @@ REPO__HOME="/data/data/com.termux/files/home"
 REPO__PREFIX="/data/data/com.termux/files/usr"
 
 ####
-# Variables loaded from `repo.json` file for RepoExe package repositories.
+# Variables loaded from `scripts/repo.json` file for RepoExe package repositories.
 ####
 
 REPO_URL=()
 REPO_DISTRIBUTION=()
 REPO_COMPONENT=()
 
-# FIXME: Move `repo.json` file to under `scripts/` directory and COPY it to `/tmp/termux-packages` in `Dockerfile`.
-if [[ ! -f "$PKGS__BUILD__REPO_ROOT_DIR/repo.json" ]]; then
+# COPY `scripts/repo.json` to `/tmp/termux-packages` in `Dockerfile`.
+if [[ ! -f "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json" ]]; then
     if [[ "${PKGS__BUILD__IS_DOCKER_BUILD:-}" != "true" ]]; then
-        echo "The 'repo.json' file not found at the '$PKGS__BUILD__REPO_ROOT_DIR/repo.json' path." 1>&2
+        echo "The 'scripts/repo.json' file not found at the '$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json' path." 1>&2
         exit 1
     fi
 else
     export PACKAGES_DIRECTORIES
-    PACKAGES_DIRECTORIES=$(jq --raw-output '"packages"' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json")
+    PACKAGES_DIRECTORIES=$(jq --raw-output '"packages"' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json")
 
-    for url in $(jq -r '.repo.url' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+    for url in $(jq -r '.repo.url' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
         REPO_URL+=("$url")
     done
-    for distribution in $(jq -r '.repo.distribution' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+    for distribution in $(jq -r '.repo.distribution' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
         REPO_DISTRIBUTION+=("$distribution")
     done
-    for component in $(jq -r '.repo.component' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+    for component in $(jq -r '.repo.component' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
         REPO_COMPONENT+=("$component")
     done
 fi
