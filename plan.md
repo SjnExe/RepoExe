@@ -20,7 +20,8 @@ and base app bootstrappers).
 - **Main Component:** `main` (Default component for stable, public packages)
 - **Dev Component:** `dev` (Enabled by installing the `repoexe-dev` package,
   which adds the component source list. Uninstalling `repoexe-dev` disables the
-  component.)
+  component. Hosted in the `main` branch under a different folder similar to
+  standard packages.)
 
 ## Environment & CI/CD Specs
 
@@ -59,10 +60,13 @@ and base app bootstrappers).
    ambiguous refactoring decisions, to ensure zero issues.
 2. **Independent Packages:** Bundled packages (like `android-tools`) will be
    replaced with independent packages that pull specific upstream sources.
-3. **Granular Dependency Splitting:** `libandroid-tools-shared` must be split
-   into specific, independent upstream libraries (e.g., `liblog`,
-   `libziparchive`, `libbase`, `libcutils`). Suffixes will only be used if
-   explicit conflicts with Termux are found.
+3. **Granular Dependency Splitting:** `libandroid-tools` (formerly
+   `libandroid-tools-shared`) must be split into specific, independent upstream
+   libraries (e.g., `libbase`, `libcutils`, `libutils`, `libziparchive`,
+   `libandroidfw`). These will be implemented as subpackages within the
+   `libandroid-tools` package to maintain them easily from a single source
+   directory, while allowing granular dependencies. Suffixes will only be used
+   if explicit conflicts with Termux are found.
 4. **Preserve Sub-packages:** Termux's sub-package functionality (e.g.,
    generating `-static` or `-dev` packages) must be retained in the build
    system.
@@ -173,13 +177,17 @@ on GitHub Pages._
 
 _Adapt packages as fully independent entities. Granularize dependencies._
 
-- [ ] Split `libandroid-tools-shared` into independent packages (`liblog`,
-      `libziparchive`, `libbase`, `libcutils`).
-- [ ] `packages/aapt/` (Build once, deprecate upstream tracking)
-- [ ] `packages/aapt2/`, `packages/zipalign/`, `packages/aidl/` (Setup for
+- [x] Create `packages/` directory at the root and move definitions from
+      `backup/`.
+- [x] Split `libandroid-tools` into independent subpackages (`libbase`,
+      `libcutils`, `libutils`, `libziparchive`, `libandroidfw`, etc.) to reduce
+      bloat, maintained under one folder.
+- [x] `packages/aapt/` (Build once, deprecate upstream tracking)
+- [x] `packages/aapt2/`, `packages/zipalign/`, `packages/aidl/` (Setup for
       manual active tracking, exclude from auto-updates)
-- [ ] `packages/repoexe-dev/` (Ensure this correctly provisions the `dev`
-      component list)
+- [x] `packages/repoexe-dev/` (Ensure this correctly provisions the `dev`
+      component list, noting that dev will be hosted in a different folder on
+      main branch)
 
 ### 6. Action Modules & Security Checks (Severity: 60/100)
 
@@ -247,3 +255,17 @@ _Execute only after everything is verified to work._
   web assets via CI.
 - The `lint.yml` workflow was updated to use Node 24 instead of Node 20 to
   suppress GitHub Actions deprecation warnings and ensure CI pipeline stability.
+
+## Severity 50 Implementation Notes (Handover Context)
+
+- `libandroid-tools` is now split into multiple subpackages (`libbase`,
+  `libcutils`, `libutils`, `libziparchive`, `libandroidfw`, `liblog`,
+  `libandroid-pathutils`) which means dependent packages must explicitly list
+  the ones they need in `PKG_DEPENDS` instead of pulling the entire
+  `libandroid-tools-shared`.
+- The bundled `android.jar` in `aapt` and `aapt2` is no longer sourced from a
+  hardcoded `$ANDROID_HOME` runner path. It dynamically fetches the latest
+  `platform-36_r02.zip` from `dl.google.com/android/repository`.
+- Headers for `libandroid-tools` subpackages are installed collectively under
+  `$PREFIX/include/android-tools`. Ensure packages compiling against them use
+  `-I$PREFIX/include/android-tools`.

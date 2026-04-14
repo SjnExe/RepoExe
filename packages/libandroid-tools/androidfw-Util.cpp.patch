@@ -1,0 +1,14 @@
+--- a/base/libs/androidfw/Util.cpp.orig	2026-04-08 08:02:00.564021431 +0000
++++ b/base/libs/androidfw/Util.cpp	2026-04-08 08:02:00.564021431 +0000
+@@ -68,10 +68,8 @@
+   }
+
+   std::string utf8;
+-  utf8.resize_and_overwrite(utf8_length, [&utf16](char* data, size_t size) {
+-    utf16_to_utf8(utf16.data(), utf16.length(), data, size + 1);
+-    return size;
+-  });
++  utf8.resize(utf8_length);
++  utf16_to_utf8(utf16.data(), utf16.length(), utf8.data(), utf8_length + 1);
+   return utf8;
+ }
