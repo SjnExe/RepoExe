@@ -32,7 +32,7 @@ repoexe_package__is_package_on_device_build_supported() {
 
 ##
 # Check if a specific version of a package has been built by checking
-# the `$TERMUX_BUILT_PACKAGES_DIRECTORY/<package_name>` file.
+# the `$BUILT_PACKAGES_DIRECTORY/<package_name>` file.
 # .
 # .
 # **Parameters:**
@@ -48,7 +48,7 @@ repoexe_package__is_package_on_device_build_supported() {
 repoexe_package__is_package_version_built() {
 
     # bash builtins only, a bit faster than [ -e $file ] && [ "$(cat $file)" == "smth" ]
-    [[ -f "$TERMUX_BUILT_PACKAGES_DIRECTORY/$1" ]] && [[ "$(< "$TERMUX_BUILT_PACKAGES_DIRECTORY/$1")" == "$2" ]]
+    [[ -f "$BUILT_PACKAGES_DIRECTORY/$1" ]] && [[ "$(< "$BUILT_PACKAGES_DIRECTORY/$1")" == "$2" ]]
     return $?
 
 }

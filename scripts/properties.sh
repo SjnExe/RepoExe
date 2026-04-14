@@ -305,9 +305,9 @@ ANDROID_BUILD_TOOLS_VERSION=33.0.1
 # change PKG_VERSION (and remove PKG_REVISION if necessary) in:
 #   apksigner, d8
 # and trigger rebuild of them
-: "${TERMUX_NDK_VERSION_NUM:="29"}"
-: "${TERMUX_NDK_REVISION:=""}"
-TERMUX_NDK_VERSION="${TERMUX_NDK_VERSION_NUM}${TERMUX_NDK_REVISION}"
+: "${NDK_VERSION_NUM:="29"}"
+: "${NDK_REVISION:=""}"
+NDK_VERSION="${NDK_VERSION_NUM}${NDK_REVISION}"
 # when changing the above:
 # update version and hashsum in packages
 #   libandroid-stub, libc++, ndk-multilib, ndk-sysroot, vulkan-loader-android
@@ -322,10 +322,10 @@ export JAVA_HOME="${JAVA_HOME}"
 
 if [[ "${PACKAGES_OFFLINE-false}" == "true" ]]; then
     export ANDROID_HOME="${PKGS__BUILD__REPO_ROOT_DIR}/build-tools/android-sdk-${SDK_REVISION}"
-    export NDK="${PKGS__BUILD__REPO_ROOT_DIR}/build-tools/android-ndk-r${TERMUX_NDK_VERSION}"
+    export NDK="${PKGS__BUILD__REPO_ROOT_DIR}/build-tools/android-ndk-r${NDK_VERSION}"
 else
     : "${ANDROID_HOME:="${HOME}/lib/android-sdk-$SDK_REVISION"}"
-    : "${NDK:="${HOME}/lib/android-ndk-r${TERMUX_NDK_VERSION}"}"
+    : "${NDK:="${HOME}/lib/android-ndk-r${NDK_VERSION}"}"
 fi
 
 

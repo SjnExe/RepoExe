@@ -34,7 +34,8 @@
 7. **Preserve Cross-Compilation Logic:** Refactor setup scripts (`scripts/build/setup/`) by replacing Termux paths, but DO NOT arbitrarily strip out vital cross-compilation engineering.
 8. **Reference Retention:** The `backup/` and `termux-packages/` directories MUST be preserved throughout the refactoring process for reference. They will only be deleted at the very end.
 
-## Refactoring Guidelines
+## Refactoring Guidelines (Session Handover Context)
+*Note to future agents: We are refactoring Termux to RepoExe. A strict rule has been established concerning variable modification across the codebase.*
 1. **Branding Removal (Variables):** Strip out `TERMUX_` branding from variables wherever possible to make the codebase standard and reduce bloat.
     - e.g., `TERMUX_APP__PACKAGE_NAME` becomes `APP__PACKAGE_NAME`. `TERMUX_PKG_*` becomes `PKG_*`.
     - **Collision Fallback Strategy:** Attempt to use generic variables directly (e.g., `PREFIX`, `ARCH`). If collisions occur during cross-compilation (e.g., standard `make` conflicting with generic names), fall back to `PKG_ARCH` or generic equivalents rather than immediately restoring the `TERMUX_` brand.
@@ -57,25 +58,25 @@ The following is a layout of directories and files to be refactored, sorted gene
 
 ### 1. NDK Patches & Versions (Severity: 10/100)
 *Standardize on NDK 29 and clear legacy.*
-- [ ] `ndk-patches/29/` (Copy from `backup` or `termux-packages` as needed)
-- [ ] Delete `ndk-patches/23c/` completely.
+- [x] `ndk-patches/29/` (Copy from `backup` or `termux-packages` as needed)
+- [x] Clear out legacy configurations (Note: Ref directory `23c/` stays intact in `termux-packages` until final cleanup).
 
 ### 2. Basic Configuration & Community Files (Severity: 20/100)
 *Updates to standard repo configs and community docs. (Action version bumps handled automatically by Renovate).*
-- [ ] `.gitignore`, `.gitattributes`, `.editorconfig`
-- [ ] `LICENSE`
-- [ ] `README.md` (Rewrite for RepoExe, but retain useful Termux structural features like status badges)
-- [ ] `CONTRIBUTING.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md` (Clean up and adapt for RepoExe)
-- [ ] `.github/stale.yml` (Ensure it ignores Renovate tags)
+- [x] `.gitignore`, `.gitattributes`, `.editorconfig`
+- [x] `LICENSE`
+- [x] `README.md` (Rewrite for RepoExe, but retain useful Termux structural features like status badges)
+- [x] `CONTRIBUTING.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md` (Clean up and adapt for RepoExe)
+- [x] `.github/stale.yml` (Ensure it ignores Renovate tags)
 
 ### 3. Utility Scripts & Host Cleanup (Severity: 30/100)
 *Scripts that need minor standardization.*
-- [ ] `scripts/properties.sh`
-- [ ] `scripts/utils/` directory scripts
-- [ ] `scripts/get_hash_from_file.py`
-- [ ] `scripts/check-versions.sh`
-- [ ] `scripts/lint-packages.sh`
-- [ ] `scripts/free-space.sh` (Refine using fast `rm -rf` logic for host cleanup)
+- [x] `scripts/properties.sh`
+- [x] `scripts/utils/` directory scripts
+- [x] `scripts/get_hash_from_file.py`
+- [x] `scripts/check-versions.sh`
+- [x] `scripts/lint-packages.sh`
+- [x] `scripts/free-space.sh` (Refine using fast `rm -rf` logic for host cleanup)
 
 ### 4. Site and GitHub Pages Metadata (Severity: 40/100)
 *Migrate site directory from `backup`, tailor to RepoExe APT repository hosted on GitHub Pages.*

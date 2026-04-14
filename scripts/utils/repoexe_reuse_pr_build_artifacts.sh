@@ -87,7 +87,7 @@ readarray -t COMMITS < <(git rev-list --no-merges "$OLD_COMMIT..$HEAD_COMMIT" ||
 	# and make sure buildsystem nor dependencies were changed.
 	# If so we can reuse PR check artifacts and upload them to apt repo to save some CI time
 
-	readarray -t TERMUX_PACKAGE_DIRECTORIES < <(jq --raw-output '"packages"' repo.json) || :
+	readarray -t PACKAGE_DIRECTORIES < <(jq --raw-output '"packages"' repo.json) || :
 
 	# We should obtain data about all commits in this push to check that they are from the same PR if any
 	RELATED_PRS_QUERY="
@@ -139,7 +139,7 @@ readarray -t COMMITS < <(git rev-list --no-merges "$OLD_COMMIT..$HEAD_COMMIT" ||
 		(( PR_CI_REUSE )) && echo "PR description contains [ci reuse]"
 	fi
 
-	DIRS_REGEX="$(paste -sd'|' <<< "${TERMUX_PACKAGE_DIRECTORIES[@]}")" || exit 0
+	DIRS_REGEX="$(paste -sd'|' <<< "${PACKAGE_DIRECTORIES[@]}")" || exit 0
 
 	# fetch PR commit tree
 	mask_output git fetch origin "$PR_HEAD_COMMIT:ref/tmp/$PR_HEAD_COMMIT" || infoexit "failed to fetch PR head tree, not performing CI fast path"
@@ -188,7 +188,7 @@ readarray -t COMMITS < <(git rev-list --no-merges "$OLD_COMMIT..$HEAD_COMMIT" ||
 	# obtain the set of all dependencies of packages changed by this PR
 	readarray -t PR_CHANGED_PACKAGES_DEPS < <(
 		for dep in "${PR_CHANGED_PACKAGES[@]:-}"; do
-			./scripts/buildorder.py "$dep" "${TERMUX_PACKAGE_DIRECTORIES[@]}" 2>/dev/null | awk '{print $NF}'
+			./scripts/buildorder.py "$dep" "${PACKAGE_DIRECTORIES[@]}" 2>/dev/null | awk '{print $NF}'
 		done | sort -u
 	) || :
 	echo "Dependencies changed by this PR: ${PR_CHANGED_PACKAGES_DEPS[*]:-none}"

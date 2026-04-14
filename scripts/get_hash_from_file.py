@@ -12,7 +12,7 @@ def get_pkg_hash_from_Packages(Packages_file, package, version, hash_type="SHA25
                 if line.startswith('Filename:'):
                     print(line.split(" ")[1] + " ")
                 elif line.startswith('Version:'):
-                    if os.getenv('TERMUX_WITHOUT_DEPVERSION_BINDING') != 'true' and line != 'Version: '+version:
+                    if os.getenv('WITHOUT_DEPVERSION_BINDING') != 'true' and line != 'Version: '+version:
                         # Seems the repo contains the wrong version, or several versions
                         # We can't use this one so continue looking
                         break

@@ -28,4 +28,4 @@ See `.github/renovate.json` for dependency management.
 
 ## Security
 
-If you discover a security vulnerability within RepoExe, please refer to our Security Policy in `.github/SECURITY.md`.
+If you discover a security vulnerability within RepoExe, please refer to our Security Policy in [SECURITY.md](.github/SECURITY.md).
