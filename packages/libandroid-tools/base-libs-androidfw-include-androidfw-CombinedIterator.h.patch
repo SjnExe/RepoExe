@@ -1,0 +1,13 @@
+diff --git a/base/libs/androidfw/include/androidfw/CombinedIterator.h b/base/libs/androidfw/include/androidfw/CombinedIterator.h
+index 4ff6a7d7e..377146f9f 100644
+--- a/base/libs/androidfw/include/androidfw/CombinedIterator.h
++++ b/base/libs/androidfw/include/androidfw/CombinedIterator.h
+@@ -59,7 +59,7 @@ struct RefPair : BaseRefPair<It1, It2> {
+   std::strong_ordering operator<=>(const Value& other) const {
+     return this->first <=> other.first;
+   }
+-  friend void swap(RefPair& l, RefPair& r) {
++  friend void swap(RefPair l, RefPair r) {
+     using std::swap;
+     swap(l.first, r.first);
+     swap(l.second, r.second);
