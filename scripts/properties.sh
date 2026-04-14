@@ -933,10 +933,6 @@ else
     __build_props__add_variables_validator_actions "PREFIX" " path_under_termux_rootfs"
 fi
 
-
-
-
-
 ##
 # The original value for `PREFIX` set above, as `PREFIX`
 # can be overridden at runtime, like when compiling `glibc` packages.
