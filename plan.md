@@ -237,6 +237,13 @@ _Execute only after everything is verified to work._
 - [ ] Delete `termux-packages/` directory (Requires explicit user confirmation).
 
 ## Severity 40 Implementation Notes (Handover Context)
-- The installer script `site/install` was modified to intentionally EXCLUDE `apt-transport-https`. The default Termux environment's `apt` package explicitly conflicts with and replaces `apt-transport-https` (as of apt v2.8.1). Trying to install it manually causes package manager resolution errors.
-- Prettier formatting has been strictly enforced for `site/js/app.js` and other web assets via CI.
-- The `lint.yml` workflow was updated to use Node 24 instead of Node 20 to suppress GitHub Actions deprecation warnings and ensure CI pipeline stability.
+
+- The installer script `site/install` was modified to intentionally EXCLUDE
+  `apt-transport-https`. The default Termux environment's `apt` package
+  explicitly conflicts with and replaces `apt-transport-https` (as of apt
+  v2.8.1). Trying to install it manually causes package manager resolution
+  errors.
+- Prettier formatting has been strictly enforced for `site/js/app.js` and other
+  web assets via CI.
+- The `lint.yml` workflow was updated to use Node 24 instead of Node 20 to
+  suppress GitHub Actions deprecation warnings and ensure CI pipeline stability.
