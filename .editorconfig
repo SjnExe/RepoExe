@@ -15,19 +15,5 @@ trim_trailing_whitespace = false
 indent_style = space
 indent_size = 2
 
-[*.sh]
-indent_style = space
-indent_size = 4
-
-[Dockerfile]
-indent_style = space
-indent_size = 4
-
 [*.md]
 trim_trailing_whitespace = false
-indent_style = space
-indent_size = 4
-
-[ndk-patches/*.h]
-indent_style = space
-indent_size = 4

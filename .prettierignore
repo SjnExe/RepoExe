@@ -17,3 +17,5 @@ __pycache__/
 # Ignore patches
 *.patch
 *.diff
+backup/
+termux-packages/

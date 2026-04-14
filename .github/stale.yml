@@ -2,14 +2,14 @@ daysUntilStale: 75
 daysUntilClose: false
 
 exemptLabels:
-  - "WIP"
-  - "discussion"
-  - "information"
-  - "package request"
-  - "tracker"
-  - "untriaged"
-  - "dependencies"
-  - "renovate"
+  - 'WIP'
+  - 'discussion'
+  - 'information'
+  - 'package request'
+  - 'tracker'
+  - 'untriaged'
+  - 'dependencies'
+  - 'renovate'
 
 exemptAssignees: true
 

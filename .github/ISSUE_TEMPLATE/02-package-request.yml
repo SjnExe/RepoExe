@@ -1,7 +1,7 @@
-name: "Package Request"
-description: "Suggest a new standalone package or tool for RepoExe"
-title: "[Request]: "
-labels: [untriaged, "package request"]
+name: 'Package Request'
+description: 'Suggest a new standalone package or tool for RepoExe'
+title: '[Request]: '
+labels: [untriaged, 'package request']
 type: 'feature'
 body:
   - type: markdown
