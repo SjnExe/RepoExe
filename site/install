@@ -8,8 +8,6 @@ REPO_LIST="$PREFIX/etc/apt/sources.list.d/repoexe.list"
 echo "[*] Updating existing packages..."
 pkg update -y
 
-echo "[*] Installing apt-transport-https (required for secure repositories)..."
-pkg install -y apt-transport-https
 
 echo "[*] Adding RepoExe to sources.list.d..."
 echo "deb [trusted=yes] $REPO_URL/ stable main" > "$REPO_LIST"
