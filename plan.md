@@ -16,6 +16,7 @@
 - **GitHub Runner Specs:** 4 Cores, 16GB RAM. *Note: The environment does NOT support swap or zram. Memory usage must be tightly controlled to prevent OOM errors, while maximizing parallelization.*
 - **Custom Docker Image (`docker.yml`):** Built and uploaded to GHCR. Docker is the **only officially supported environment** for local building to prevent host pollution.
 - **Dual-Mode Build Workflow (`build.yml`):** PR Mode (compiles as a test) and Release Mode (compiles and pushes to GitHub Releases on `main`).
+- **Strict Caching Strategy:** Caching (e.g., `ccache` for C/C++ compilation, Docker layers, etc.) must be integrated to speed up workflows. However, **caches must only be saved when workflows run manually on `main` or are pushed to `main`**. PR workflows must strictly *restore* caches only, to prevent cache pollution and invalidation issues.
 - **Publish & Signing (`publish.yml`):** Retain the existing `backup` publishing workflow and `metadata.py` script that handles the RepoExe APT metadata generation and secure GPG signing.
 - **ZRAM Action (`.github/actions/zram`):** Use the streamlined version from `backup` that skips fragile Linux kernel GPG verifications.
 - **Package Updates (`package_updates.yml`):** Retain auto-PRs via `gh pr create`. **Exception:** AOSP-derived tools like `aapt2`, `zipalign`, and `aidl` must be excluded from auto-updating since they require manual patch/revision alignment.
@@ -51,11 +52,11 @@ The following is a layout of directories and files to be refactored, sorted gene
 - [ ] Delete `ndk-patches/23c/` completely.
 
 ### 2. Basic Configuration & Community Files (Severity: 20/100)
-*Updates to standard repo configs and community docs.*
+*Updates to standard repo configs and community docs. (Action version bumps handled automatically by Renovate).*
 - [ ] `.gitignore`, `.gitattributes`, `.editorconfig`
 - [ ] `LICENSE`
 - [ ] `README.md` (Rewrite for RepoExe, but retain useful Termux structural features like status badges)
-- [ ] `CONTRIBUTING.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/` (Clean up and adapt for RepoExe)
+- [ ] `CONTRIBUTING.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md` (Clean up and adapt for RepoExe)
 
 ### 3. Utility Scripts & Host Cleanup (Severity: 30/100)
 *Scripts that need minor standardization.*
@@ -106,7 +107,7 @@ The following is a layout of directories and files to be refactored, sorted gene
 
 ### 9. GitHub Actions Core Workflows (Severity: 90/100)
 *Crucial for the dual-mode compilation and automated update processes.*
-- [ ] `.github/workflows/build.yml` (Use `backup` as base for dual PR/Release mode, enforce parallelization limits)
+- [ ] `.github/workflows/build.yml` (Use `backup` as base for dual PR/Release mode, enforce parallelization limits, implement strict `Restore-Only` caching for PRs)
 - [ ] `.github/workflows/package_updates.yml` (Refine the automated update and PR logic from `backup`. Implement exclusions.)
 - [ ] `.github/workflows/publish.yml` (Review and integrate metadata GPG signing)
 
