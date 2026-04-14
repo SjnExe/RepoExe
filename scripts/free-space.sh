@@ -11,7 +11,6 @@ else
 	sudo rm -rf /opt/ghc /opt/az /opt/hostedtoolcache /opt/actionarchivecache /opt/runner-cache
 	sudo rm -rf /opt/pipx /usr/share/dotnet /usr/share/swift /usr/share/miniconda /usr/share/az_* /usr/share/gradle-* /usr/share/java /home/runner/.rustup
 	sudo rm -rf /etc/skel /home/packer /home/linuxbrew
-	sudo rm -rf /usr/local /usr/src/
 
 	# Android SDKs and NDKs (we use our own dockerized versions)
 	sudo rm -rf /usr/local/lib/android

@@ -92,7 +92,7 @@ readarray -t COMMITS < <(git rev-list --no-merges "$OLD_COMMIT..$HEAD_COMMIT" ||
 	# We should obtain data about all commits in this push to check that they are from the same PR if any
 	RELATED_PRS_QUERY="
 	query {
-		repository(owner: \"termux\", name: \"termux-packages\") {
+		repository(owner: \"SjnExe\", name: \"RepoExe\") {
 		$(
 			for commit in "${COMMITS[@]}"; do
 				# Add a query for this commit with the shorthash as the label
@@ -206,7 +206,7 @@ readarray -t COMMITS < <(git rev-list --no-merges "$OLD_COMMIT..$HEAD_COMMIT" ||
 		# The same commit can be used in more than one PR or even push
 		WORKFLOW_PR_QUERY="
 		query {
-			repository(owner: \"termux\", name: \"termux-packages\") {
+			repository(owner: \"SjnExe\", name: \"RepoExe\") {
 				object(oid: \"$PR_HEAD_COMMIT\") { ...workflowRun }
 			}
 		}
@@ -253,7 +253,7 @@ readarray -t COMMITS < <(git rev-list --no-merges "$OLD_COMMIT..$HEAD_COMMIT" ||
 	# to allow CI reuse artifacts of other PRs in the case if current PR diverged from another PR branch.
 	WORKFLOW_COMMITS_QUERY="
 	query {
-		repository(owner: \"termux\", name: \"termux-packages\") {
+		repository(owner: \"SjnExe\", name: \"RepoExe\") {
 		$(
 			for commit in "${COMMITS[@]}"; do
 				# Add a query for this commit with the shorthash as the label

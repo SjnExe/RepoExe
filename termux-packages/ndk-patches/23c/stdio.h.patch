@@ -1,58 +1,53 @@
-diff -u -r /home/builder/lib/android-ndk-r28b/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/stdio.h ./usr/include/stdio.h
---- /home/builder/lib/android-ndk-r28b/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/stdio.h	2024-11-14 00:52:25.000000000 +0000
-+++ ./usr/include/stdio.h	2025-05-09 18:52:59.008875200 +0000
-@@ -44,6 +44,11 @@
+--- ./usr/include/stdio.h.orig	2021-08-16 11:48:44.308954400 +0200
++++ ./usr/include/stdio.h	2021-08-16 11:50:00.438924014 +0200
+@@ -44,6 +44,9 @@
  #include <stdarg.h>
  #include <stddef.h>
  
-+#if !defined(__swift__)
 +#include <string.h>            /* For strcpy(3) used by ctermid() */
-+#endif
 +#include <asm/fcntl.h>         /* For O_RDWR and other O_* constants */
 +
  #include <bits/seek_constants.h>
  
  #if __ANDROID_API__ < 24
-@@ -149,7 +154,7 @@
+@@ -165,7 +166,7 @@
      __printflike(2, 0) __warnattr_strict("vsprintf is often misused; please use vsnprintf");
- char* _Nullable tmpnam(char* _Nullable __s)
+ char* tmpnam(char* __s)
      __warnattr("tmpnam is unsafe, use mkstemp or tmpfile instead");
 -#define P_tmpdir "/tmp/" /* deprecated */
 +#define P_tmpdir "@TERMUX_PREFIX@/tmp/" /* deprecated */
- char* _Nullable tempnam(const char* _Nullable __dir, const char* _Nullable __prefix)
+ char* tempnam(const char* __dir, const char* __prefix)
      __warnattr("tempnam is unsafe, use mkstemp or tmpfile instead");
  
-@@ -276,8 +281,6 @@
- FILE* _Nullable freopen64(const char* _Nullable __path, const char* _Nonnull __mode, FILE* _Nonnull __fp) __INTRODUCED_IN(24);
- #endif /* __BIONIC_AVAILABILITY_GUARD(24) */
+@@ -289,8 +290,6 @@
+ FILE* freopen64(const char* __path, const char* __mode, FILE* __fp) __INTRODUCED_IN(24);
+ #endif /* __ANDROID_API__ >= 24 */
  
--__nodiscard FILE* _Nullable tmpfile(void);
+-FILE* tmpfile(void);
 -
- #if __BIONIC_AVAILABILITY_GUARD(24)
- __nodiscard FILE* _Nullable tmpfile64(void) __INTRODUCED_IN(24);
- #endif /* __BIONIC_AVAILABILITY_GUARD(24) */
-@@ -291,9 +294,17 @@
+ #if __ANDROID_API__ >= 24
+ FILE* tmpfile64(void) __INTRODUCED_IN(24);
+ #endif /* __ANDROID_API__ >= 24 */
+@@ -304,10 +303,15 @@
  
  #define L_ctermid 1024 /* size for ctermid() */
  
--#if __BIONIC_AVAILABILITY_GUARD(26)
--char* _Nonnull ctermid(char* _Nullable __buf) __INTRODUCED_IN(26);
--#endif /* __BIONIC_AVAILABILITY_GUARD(26) */
+-#if __ANDROID_API__ >= 26
+-char* ctermid(char* __buf) __INTRODUCED_IN(26);
+-#endif /* __ANDROID_API__ >= 26 */
 +/* Needed by gnulibs freading(). */
 +#define __sferror(p)    (((p)->_flags & __SERR) != 0)
-+
+
 +/* Used by perl, fish, and others. */
-+#if !defined(__swift__)
-+static __inline__ char* _Nonnull ctermid(char* _Nullable s) {
++static __inline__ char* ctermid(char* s) {
 +	if (s == 0) return (char*) "/dev/tty";
 +	strcpy(s, "/dev/tty");
 +	return s;
 +}
-+#endif
-
  
- __nodiscard FILE* _Nullable fdopen(int __fd, const char* _Nonnull __mode);
-@@ -363,6 +374,30 @@
+ FILE* fdopen(int __fd, const char* __mode);
+ int fileno(FILE* __fp);
+@@ -376,6 +380,30 @@
  #include <bits/fortify/stdio.h>
  #endif
  
@@ -61,7 +56,7 @@ diff -u -r /home/builder/lib/android-ndk-r28b/toolchains/llvm/prebuilt/linux-x86
 +extern int unlink(const char*);
 +void free(void* p);
 +uint32_t arc4random(void);
-+static __inline__ FILE* _Nullable tmpfile() {
++static __inline__ FILE* tmpfile() {
 +	int p = getpid();
 +	char* path;
 +	int i;

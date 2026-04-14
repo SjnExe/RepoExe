@@ -4,8 +4,8 @@ set -e -u
 
 start_time="$(date +%10s.%3N)"
 
-TERMUX_SCRIPTDIR=$(realpath "$(dirname "$0")/../")
-. "$TERMUX_SCRIPTDIR/scripts/properties.sh"
+SCRIPTDIR=$(realpath "$(dirname "$0")/../")
+. "$SCRIPTDIR/scripts/properties.sh"
 
 check_package_license() {
 	local pkg_licenses license license_ok=true
@@ -160,7 +160,7 @@ check_version() {
 		printf '%s\n' "FAIL" \
 			"Couldn't determine HEAD commit of 'origin/master'." \
 			"This shouldn't be able to happen..."
-		ls -AR "$TERMUX_SCRIPTDIR/.git/refs/remotes/origin"
+		ls -AR "$SCRIPTDIR/.git/refs/remotes/origin"
 		return 1
 	} >&2
 
@@ -290,15 +290,15 @@ lint_package() {
 
 	# Otherwise, it might be a package name or subpackage name, resolve it
 	if [[ -z "$package_script" ]]; then
-		for channel in $TERMUX_PACKAGES_DIRECTORIES; do
+		for channel in $PACKAGES_DIRECTORIES; do
 			# Check if it's a main package
-			if [[ -f "$TERMUX_SCRIPTDIR/$channel/$input/build.sh" ]]; then
-				package_script="$TERMUX_SCRIPTDIR/$channel/$input/build.sh"
+			if [[ -f "$SCRIPTDIR/$channel/$input/build.sh" ]]; then
+				package_script="$SCRIPTDIR/$channel/$input/build.sh"
 				break
 			fi
 			# Check if it's a subpackage
 			local subpkg_match
-			subpkg_match=$(find "$TERMUX_SCRIPTDIR/$channel" -mindepth 2 -maxdepth 2 -name "${input}.subpackage.sh" -print -quit 2>/dev/null || true)
+			subpkg_match=$(find "$SCRIPTDIR/$channel" -mindepth 2 -maxdepth 2 -name "${input}.subpackage.sh" -print -quit 2>/dev/null || true)
 			if [[ -n "$subpkg_match" && -f "$(dirname "$subpkg_match")/build.sh" ]]; then
 				package_script="$(dirname "$subpkg_match")/build.sh"
 				break
@@ -324,9 +324,9 @@ lint_package() {
 
 	echo -n "Layout: "
 	local channel in_dir=''
-	for channel in $TERMUX_PACKAGES_DIRECTORIES; do
-		[[ -d "$TERMUX_SCRIPTDIR/$channel/$package_name" ]] && {
-			in_dir="$TERMUX_SCRIPTDIR/$channel/$package_name"
+	for channel in $PACKAGES_DIRECTORIES; do
+		[[ -d "$SCRIPTDIR/$channel/$package_name" ]] && {
+			in_dir="$SCRIPTDIR/$channel/$package_name"
 			break
 		}
 	done
@@ -827,7 +827,7 @@ linter_main() {
 		echo "================================================================"
 		echo
 		if [[ -f "$package_script" ]]; then
-			echo "A problem has been found in '$(realpath --relative-to="$TERMUX_SCRIPTDIR" "$package_script" 2>/dev/null || echo "$package_script")'."
+			echo "A problem has been found in '$(realpath --relative-to="$SCRIPTDIR" "$package_script" 2>/dev/null || echo "$package_script")'."
 		else
 			echo "A problem has been found in '$package_script'."
 		fi
@@ -865,7 +865,7 @@ if (( $# )); then
 	linter_main "$@"
 	unset package_counter
 else
-	for repo_dir in $(jq --raw-output '"packages"' "$TERMUX_SCRIPTDIR/repo.json"); do
+	for repo_dir in $(jq --raw-output '"packages"' "$SCRIPTDIR/repo.json"); do
 		linter_main "$repo_dir"/*/build.sh
 	done
 	unset package_counter

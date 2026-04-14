@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-# Title:          termux_package
+# Title:          repoexe_package
 # Description:    A library for Termux package utils.
 
 
@@ -18,9 +18,9 @@
 # Returns `0` if supported, otherwise `1`.
 # .
 # .
-# termux_package__is_package_on_device_build_supported `<package_dir>`
+# repoexe_package__is_package_on_device_build_supported `<package_dir>`
 ##
-termux_package__is_package_on_device_build_supported() {
+repoexe_package__is_package_on_device_build_supported() {
 
     # shellcheck disable=SC1091
     [[ "$(. "$1/build.sh"; echo "$PKG_ON_DEVICE_BUILD_NOT_SUPPORTED")" != "true" ]]
@@ -43,9 +43,9 @@ termux_package__is_package_on_device_build_supported() {
 # Returns `0` if built, otherwise `1`.
 # .
 # .
-# termux_package__is_package_version_built `<package_name>` `<package_version>`
+# repoexe_package__is_package_version_built `<package_name>` `<package_version>`
 ##
-termux_package__is_package_version_built() {
+repoexe_package__is_package_version_built() {
 
     # bash builtins only, a bit faster than [ -e $file ] && [ "$(cat $file)" == "smth" ]
     [[ -f "$TERMUX_BUILT_PACKAGES_DIRECTORY/$1" ]] && [[ "$(< "$TERMUX_BUILT_PACKAGES_DIRECTORY/$1")" == "$2" ]]
@@ -66,9 +66,9 @@ termux_package__is_package_version_built() {
 # Returns `0` if have, otherwise `1`.
 # .
 # .
-# termux_package__is_package_name_have_glibc_prefix `<package_name>`
+# repoexe_package__is_package_name_have_glibc_prefix `<package_name>`
 ##
-termux_package__is_package_name_have_glibc_prefix() {
+repoexe_package__is_package_name_have_glibc_prefix() {
 
     for __pkgname_part in ${1//-/ }; do
         if [ "$__pkgname_part" = "glibc" ] || [ "$__pkgname_part" = "glibc32" ]; then
@@ -93,9 +93,9 @@ termux_package__is_package_name_have_glibc_prefix() {
 # Returns a modified package name.
 # .
 # .
-# termux_package__add_prefix_glibc_to_package_name `<package_name>`
+# repoexe_package__add_prefix_glibc_to_package_name `<package_name>`
 ##
-termux_package__add_prefix_glibc_to_package_name() {
+repoexe_package__add_prefix_glibc_to_package_name() {
 
     if [[ "${1}" = *"-static" ]]; then
         echo "${1/-static/-glibc-static}"
@@ -118,9 +118,9 @@ termux_package__add_prefix_glibc_to_package_name() {
 # Returns a modified list of package names.
 # .
 # .
-# termux_package__add_prefix_glibc_to_package_list `<package_list>`
+# repoexe_package__add_prefix_glibc_to_package_list `<package_list>`
 ##
-termux_package__add_prefix_glibc_to_package_list() {
+repoexe_package__add_prefix_glibc_to_package_list() {
 
     local packages=""
 
@@ -130,8 +130,8 @@ termux_package__add_prefix_glibc_to_package_list() {
                 packages+=","
             fi
             packages+=" "
-            if ! termux_package__is_package_name_have_glibc_prefix "$__pkg"; then
-                packages+="$(termux_package__add_prefix_glibc_to_package_name "$__pkg")"
+            if ! repoexe_package__is_package_name_have_glibc_prefix "$__pkg"; then
+                packages+="$(repoexe_package__add_prefix_glibc_to_package_name "$__pkg")"
             else
                 packages+="$__pkg"
             fi
