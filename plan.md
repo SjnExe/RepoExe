@@ -164,10 +164,10 @@ _Scripts that need minor standardization._
 _Migrate site directory from `backup`, tailor to RepoExe APT repository hosted
 on GitHub Pages._
 
-- [ ] `site/` (Index, CSS, JS from `backup`)
-- [ ] `scripts/generate-apt-packages-list.sh` (or equivalent aptly scripts)
-- [ ] `scripts/aptly_api.sh`
-- [ ] `scripts/repoexe/metadata.py` (Verify GPG logic)
+- [x] `site/` (Index, CSS, JS from `backup`)
+- [x] `scripts/generate-apt-packages-list.sh` (or equivalent aptly scripts)
+- [x] `scripts/aptly_api.sh`
+- [x] `scripts/repoexe/metadata.py` (Verify GPG logic)
 
 ### 5. Package Definitions (Severity: 50/100)
 
