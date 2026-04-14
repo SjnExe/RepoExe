@@ -142,7 +142,7 @@ step_make() {
 }
 
 step_make_install() {
-	install -Dm600 -t $PREFIX/lib \
+	install -Dm644 -t $PREFIX/lib \
 		$_TMP_LIBDIR/libandroid-{cutils,utils,base,ziparchive,fw,pathutils}.so
 
 	# Install headers to the prefix so other tools like aapt2 can find them

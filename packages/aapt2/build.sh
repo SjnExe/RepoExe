@@ -113,7 +113,10 @@ step_make_install() {
 	rm -rf android-jar
 	mkdir android-jar
 	cd android-jar
-	cp $ANDROID_HOME/platforms/android-35/android.jar .
+	# Fetch android.jar directly from Google instead of relying on a pre-installed host SDK
+	curl -sL https://dl.google.com/android/repository/platform-36_r02.zip -o platform.zip
+	unzip -q platform.zip "android-*/android.jar"
+	mv android-*/android.jar .
 	unzip -q android.jar
 	mkdir -p $PREFIX/share/aapt
 	jar cfM $PREFIX/share/aapt/android.jar AndroidManifest.xml resources.arsc

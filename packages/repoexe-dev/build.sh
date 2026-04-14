@@ -9,10 +9,5 @@ PKG_PLATFORM_INDEPENDENT=true
 step_make_install() {
 	mkdir -p "$PREFIX/etc/apt/sources.list.d"
 	echo "deb [trusted=yes] https://SjnExe.github.io/RepoExe stable dev" > repoexe-dev.list
-	cp repoexe-dev.list "$PREFIX/etc/apt/sources.list.d/repoexe-dev.list"
-}
-
-step_post_massage() {
-	# Ensure proper permissions during packaging massage
-	chmod 600 $PREFIX/etc/apt/sources.list.d/repoexe-dev.list
+	install -Dm644 repoexe-dev.list "$PREFIX/etc/apt/sources.list.d/repoexe-dev.list"
 }
