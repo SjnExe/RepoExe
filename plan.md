@@ -20,7 +20,8 @@ and base app bootstrappers).
 - **Main Component:** `main` (Default component for stable, public packages)
 - **Dev Component:** `dev` (Enabled by installing the `repoexe-dev` package,
   which adds the component source list. Uninstalling `repoexe-dev` disables the
-  component. Hosted in the `main` branch under a different folder similar to standard packages.)
+  component. Hosted in the `main` branch under a different folder similar to
+  standard packages.)
 
 ## Environment & CI/CD Specs
 
@@ -59,8 +60,13 @@ and base app bootstrappers).
    ambiguous refactoring decisions, to ensure zero issues.
 2. **Independent Packages:** Bundled packages (like `android-tools`) will be
    replaced with independent packages that pull specific upstream sources.
-3. **Granular Dependency Splitting:** `libandroid-tools` (formerly `libandroid-tools-shared`) must be split
-   into specific, independent upstream libraries (e.g., `libbase`, `libcutils`, `libutils`, `libziparchive`, `libandroidfw`). These will be implemented as subpackages within the `libandroid-tools` package to maintain them easily from a single source directory, while allowing granular dependencies. Suffixes will only be used if explicit conflicts with Termux are found.
+3. **Granular Dependency Splitting:** `libandroid-tools` (formerly
+   `libandroid-tools-shared`) must be split into specific, independent upstream
+   libraries (e.g., `libbase`, `libcutils`, `libutils`, `libziparchive`,
+   `libandroidfw`). These will be implemented as subpackages within the
+   `libandroid-tools` package to maintain them easily from a single source
+   directory, while allowing granular dependencies. Suffixes will only be used
+   if explicit conflicts with Termux are found.
 4. **Preserve Sub-packages:** Termux's sub-package functionality (e.g.,
    generating `-static` or `-dev` packages) must be retained in the build
    system.
@@ -171,13 +177,17 @@ on GitHub Pages._
 
 _Adapt packages as fully independent entities. Granularize dependencies._
 
-- [x] Create `packages/` directory at the root and move definitions from `backup/`.
-- [x] Split `libandroid-tools` into independent subpackages (`libbase`, `libcutils`, `libutils`, `libziparchive`, `libandroidfw`, etc.) to reduce bloat, maintained under one folder.
+- [x] Create `packages/` directory at the root and move definitions from
+      `backup/`.
+- [x] Split `libandroid-tools` into independent subpackages (`libbase`,
+      `libcutils`, `libutils`, `libziparchive`, `libandroidfw`, etc.) to reduce
+      bloat, maintained under one folder.
 - [x] `packages/aapt/` (Build once, deprecate upstream tracking)
 - [x] `packages/aapt2/`, `packages/zipalign/`, `packages/aidl/` (Setup for
       manual active tracking, exclude from auto-updates)
 - [x] `packages/repoexe-dev/` (Ensure this correctly provisions the `dev`
-      component list, noting that dev will be hosted in a different folder on main branch)
+      component list, noting that dev will be hosted in a different folder on
+      main branch)
 
 ### 6. Action Modules & Security Checks (Severity: 60/100)
 
