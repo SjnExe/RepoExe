@@ -12,11 +12,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN rm -rf /tmp/termux-packages && \
     mkdir -p /tmp/termux-packages/scripts
 # Since we build from RepoExe root, the paths should reflect our structure
-COPY ./scripts/llvm-snapshot.gpg.key ./scripts/properties.sh ./scripts/setup-android-sdk.sh ./scripts/setup-cgct.sh ./scripts/setup-ubuntu.sh /tmp/termux-packages/scripts/
+COPY ./scripts/llvm-snapshot.gpg.key ./scripts/properties.sh ./scripts/setup-android-sdk.sh ./scripts/setup-ubuntu.sh ./scripts/repo.json /tmp/termux-packages/scripts/
 RUN mkdir -p /tmp/termux-packages/scripts/build
 COPY ./scripts/build/termux_download.sh /tmp/termux-packages/scripts/build/
 
-# Setup needed packages and the Android SDK and NDK and the CGCT:
+# Setup needed packages and the Android SDK and NDK
 RUN apt-get update && \
 	apt-get -yq upgrade && \
 	apt-get install -yq --no-install-recommends sudo lsb-release software-properties-common && \
@@ -31,7 +31,6 @@ RUN apt-get update && \
 	apt-get clean && \
 	rm -rf /var/lib/apt/lists/* && \
 	su - builder -c "rm -rf ~/lib/*.zip ~/.android/cache/" && \
-	su - builder -c "git clone --depth 1 https://github.com/termux/termux-packages.git ~/termux-packages" && \
 	rm -rf /tmp/termux-packages
 
 # Switch User

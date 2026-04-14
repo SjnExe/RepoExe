@@ -9,38 +9,33 @@ if [ -z "${BASH_VERSION:-}" ]; then
     echo "The 'properties.sh' script must be run from a 'bash' shell."; return 64 2>/dev/null|| exit 64 # EX__USAGE
 fi
 
-
-
 ###
 # Variables for validation of build properties variables.
 # Validation is done to ensure packages are not compiled for invalid
 # values that are not supported, and values are as per repository file
 # path limits.
-#
 # Additionally, the RepoExe build system is an unsafe mess of
 # unquoted variables in shell scripts, and so validation is necessary
 # for important variables, especially specific path variables against
 # `REGEX__SAFE_*_PATH` regexes to reduce any potential damage.
-#
 ###
 
 ##
 # The map of variable names to their space separated list of validator
 # actions to perform.
-#
 # Following are the supported validator actions.
 # - `allow_unset_value`: Allow variable to be defined but unset, and
 #    skip other validations.
 # - `app_package_name`: Variable must match `REGEX__APP_PACKAGE_NAME`.
-# - `invalid_termux_rootfs_paths`: Path variable must not match
+# - `invalid_rootfs_paths`: Path variable must not match
 #   `REGEX__INVALID_ROOTFS_PATHS`.
-# - `invalid_termux_home_paths`: Path variable must not match
+# - `invalid_home_paths`: Path variable must not match
 #   `REGEX__INVALID_HOME_PATHS`.
-# - `invalid_termux_prefix_paths`: Path variable must not match
+# - `invalid_prefix_paths`: Path variable must not match
 #   `REGEX__INVALID_PREFIX_PATHS`.
-# - `path_equal_to_or_under_termux_rootfs`: Path variable must be equal
+# - `path_equal_to_or_under_rootfs`: Path variable must be equal
 #   to or be under `ROOTFS`.
-# - `path_under_termux_rootfs`:Path variable must be under `ROOTFS`.
+# - `path_under_rootfs`:Path variable must be under `ROOTFS`.
 # - `safe_absolute_path`: Path variable must match
 #   `REGEX__SAFE_ABSOLUTE_PATH` and must not match
 #   `REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
@@ -76,8 +71,6 @@ __BUILD_PROPS__VALIDATE_PATHS_MAX_LEN="true"
 ##
 __BUILD_PROPS__VALIDATE_PREFIX_USR_MERGE_FORMAT="true"
 
-
-
 ##
 # `__build_props__add_variables_validator_actions` `<variable_name>` `<validator_actions>`
 ##
@@ -104,10 +97,6 @@ __build_props__add_variables_validator_actions() {
 
 }
 
-
-
-
-
 ####
 # Variables for validating build variables.
 ####
@@ -132,13 +121,11 @@ REGEX__RELATIVE_PATH='^[^/]+(/[^/]+)*$'
 ##
 REGEX__ROOTFS_OR_ABSOLUTE_PATH='^((/)|((/[^/]+)+))$'
 
-
 ##
 # Regex that matches a safe absolute path that starts with a `/` with
 # at least one characters under rootfs `/`. Duplicate or trailing path
 # separators `/` are not allowed. The path component characters must
 # be in the range `[a-zA-Z0-9+,.=_-]`.
-#
 # The path must also be validated against
 # `REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
 ##
@@ -148,7 +135,6 @@ REGEX__SAFE_ABSOLUTE_PATH='^(/[a-zA-Z0-9+,.=_-]+)+$'
 # Regex that matches a safe relative path that does not start with a
 # `/`. Duplicate or trailing path separators `/` are not allowed. The
 # path component characters must be in the range `[a-zA-Z0-9+,.=_-]`.
-#
 # The path must also be validated against
 # `REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
 ##
@@ -159,69 +145,55 @@ REGEX__SAFE_RELATIVE_PATH='^[a-zA-Z0-9+,.=_-]+(/[a-zA-Z0-9+,.=_-]+)*$'
 # with a `/`). Duplicate or trailing path separators `/` are not
 # allowed. The path component characters must be in the range
 # `[a-zA-Z0-9+,.=_-]`.
-#
 # The path must also be validated against
 # `REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH`.
 ##
 REGEX__SAFE_ROOTFS_OR_ABSOLUTE_PATH='^((/)|((/[a-zA-Z0-9+,.=_-]+)+))$'
-
 
 ##
 # Regex that matches a path containing single `/./` or double `/../` dot components.
 ##
 REGEX__SINGLE_OR_DOUBLE_DOT_CONTAINING_PATH='((^\./)|(^\.\./)|(/\.$)|(/\.\.$)|(/\./)|(/\.\./))'
 
-
 ##
 # Regex that matches invalid RepoExe rootfs paths.
-#
 # The RepoExe rootfs or prefix paths must not be equal to or be under
 # specific Filesystem Hierarchy Standard paths or paths used by RepoExe
 # docker image/host OS for its own files, as RepoExe packages files
 # must be kept separate from the build host. The RepoExe app data/prefix
 # directories are also wiped by `clean.sh` when not running on-device,
 # which wouldn't be possible if RepoExe and host directories are shared.
-#
 # The invalid paths list does not include the `/data` and `/mnt/expand`
 # paths under which private app data directories are assigned to
 # Android apps, or the `/data/local/tmp` directory assigned to `adb`
 # `shell` user, or the `/system` directory for the Android system.
-#
-# - https://refspecs.linuxfoundation.org/FHS_3.0/fhs-3.0.html
-# - https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard
 ##
 REGEX__INVALID_ROOTFS_PATHS='^((/bin(/.*)?)|(/boot(/.*)?)|(/dev(/.*)?)|(/etc(/.*)?)|(/home)|(/lib(/.*)?)|(/lib[^/]+(/.*)?)|(/media)|(/mnt)|(/opt)|(/proc(/.*)?)|(/root)|(/run(/.*)?)|(/sbin(/.*)?)|(/srv(/.*)?)|(/sys(/.*)?)|(/tmp(/.*)?)|(/usr)|(/usr/local)|(((/usr/)|(/usr/local/))((bin)|(games)|(include)|(lib)|(libexec)|(lib[^/]+)|(sbin)|(share)|(src)|(X11R6))(/.*)?)|(/var(/.*)?)|(/bin.usr-is-merged)|(/lib.usr-is-merged)|(/sbin.usr-is-merged)|(/.dockerinit)|(/.dockerenv))$'
 
 ##
 # Regex that matches invalid RepoExe home paths.
-#
 # Same reasoning as `REGEX__INVALID_ROOTFS_PATHS`,
 # and invalid paths are the same as well except that `/home` is
 # allowed, and `/` and all paths under `/usr` are not allowed.
-#
 # `/home` is allowed as package data files are not packaged from there.
 ##
 REGEX__INVALID_HOME_PATHS='^((/)|(/bin(/.*)?)|(/boot(/.*)?)|(/dev(/.*)?)|(/etc(/.*)?)|(/lib(/.*)?)|(/lib[^/]+(/.*)?)|(/media)|(/mnt)|(/opt)|(/proc(/.*)?)|(/root)|(/run(/.*)?)|(/sbin(/.*)?)|(/srv(/.*)?)|(/sys(/.*)?)|(/tmp(/.*)?)|(/usr(/.*)?)|(/var(/.*)?)|(/bin.usr-is-merged)|(/lib.usr-is-merged)|(/sbin.usr-is-merged)|(/.dockerinit)|(/.dockerenv))$'
 
 ##
 # Regex that matches invalid RepoExe prefix paths.
-#
 # Same reasoning as `REGEX__INVALID_ROOTFS_PATHS`,
 # and invalid paths are the same as well except that `/` is not
 # allowed.
 ##
 REGEX__INVALID_PREFIX_PATHS='^((/)|(/bin(/.*)?)|(/boot(/.*)?)|(/dev(/.*)?)|(/etc(/.*)?)|(/home)|(/lib(/.*)?)|(/lib[^/]+(/.*)?)|(/media)|(/mnt)|(/opt)|(/proc(/.*)?)|(/root)|(/run(/.*)?)|(/sbin(/.*)?)|(/srv(/.*)?)|(/sys(/.*)?)|(/tmp(/.*)?)|(/usr)|(/usr/local)|(((/usr/)|(/usr/local/))((bin)|(games)|(include)|(lib)|(libexec)|(lib[^/]+)|(sbin)|(share)|(src)|(X11R6))(/.*)?)|(/var(/.*)?)|(/bin.usr-is-merged)|(/lib.usr-is-merged)|(/sbin.usr-is-merged)|(/.dockerinit)|(/.dockerenv))$'
 
-
 ##
 # Regex that matches an unsigned integer `>= 0`.
 ##
 REGEX__UNSIGNED_INT='^[0-9]+$'
 
-
 ##
 # Regex to match an android app package name.
-#
 # The package name must have at least two segments separated by a dot
 # `.`, where each segment must start with at least one character in
 # the range `[a-zA-Z]`, followed by zero or more characters in the
@@ -229,21 +201,13 @@ REGEX__UNSIGNED_INT='^[0-9]+$'
 # `<= 255` (`NAME_MAX` for ext4 partitions). The length is not checked
 # by this regex and it must be checked with `NAME_MAX`, as
 # `bash` `=~` regex conditional does not support lookaround.
-#
 # Unlike Android, the RepoExe app package name max length is not `255`
 # as its limited by `APPS_DIR___MAX_LEN` and `ROOTFS_DIR___MAX_LEN`.
-#
-# - https://developer.android.com/build/configure-app-module#set-application-id
-# - https://cs.android.com/android/platform/superproject/+/android-14.0.0_r1:frameworks/base/core/java/android/content/pm/parsing/ApkLiteParseUtils.java;l=669-677
-# - https://cs.android.com/android/platform/superproject/+/android-14.0.0_r1:frameworks/base/core/java/android/content/pm/parsing/FrameworkParsingPackageUtils.java;l=63-103
-# - https://cs.android.com/android/platform/superproject/+/android-14.0.0_r1:frameworks/base/core/java/android/os/FileUtils.java;l=954-994
-# - https://cs.android.com/android/platform/superproject/+/android-14.0.0_r1:frameworks/base/core/java/android/content/pm/PackageManager.java;l=2147-2155
 ##
 REGEX__APP_PACKAGE_NAME="^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$"
 
 ##
 # Regex to match an android app data path.
-#
 # The supported formats are:
 # - `/data/data/<package_name>` (for primary user `0`) if app is to be
 #   installed on internal sd.
@@ -252,13 +216,8 @@ REGEX__APP_PACKAGE_NAME="^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$"
 # `/mnt/expand/<volume_uuid>/user/<user_id>/<package_name>` if app is
 #  to be installed on a removable/portable volume/sd card being used as
 #  adoptable storage.
-#
 ##
 REGEX__APP_DATA_DIR_PATH='^(((/data/data)|(/data/user/[0-9]+)|(/mnt/expand/[^/]+/user/[0-9]+))/[^/]+)$'
-
-
-
-
 
 ###
 # Variables for the RepoExe build tools.
@@ -269,7 +228,7 @@ REGEX__APP_DATA_DIR_PATH='^(((/data/data)|(/data/user/[0-9]+)|(/mnt/expand/[^/]+
 ##
 PKGS__BUILD__REPO_ROOT_DIR="${PKGS__BUILD__REPO_ROOT_DIR:-}"
 
-__termux_build_props__set_termux_builder__repo_root_dir() {
+__build_props__set_repo_root_dir() {
 
     local relative_path="${1:-}"
     local return_value=0
@@ -289,11 +248,9 @@ __termux_build_props__set_termux_builder__repo_root_dir() {
     fi
 
 }
-__termux_build_props__set_termux_builder__repo_root_dir "/.." || exit $?
-unset __termux_build_props__set_termux_builder__repo_root_dir
+__build_props__set_repo_root_dir "/.." || exit $?
+unset __build_props__set_repo_root_dir
 SCRIPTDIR="${SCRIPTDIR:-$PKGS__BUILD__REPO_ROOT_DIR}" # Deprecated alternative variable for `PKGS__BUILD__REPO_ROOT_DIR`
-
-
 
 SDK_REVISION=9123335
 ANDROID_BUILD_TOOLS_VERSION=33.0.1
@@ -324,17 +281,12 @@ else
     : "${NDK:="${HOME}/lib/android-ndk-r${NDK_VERSION}"}"
 fi
 
-
-
 ###
 # Variables for the RepoExe apps and packages for which to compile packages.
-#
-# Variables defined in this file need to be in sync with `termux-app`
-# (`RepoExeConstants` and `RepoExeCoreConstants`), termux site and `termux-exec`.
-#
+# Variables defined in this file need to be in sync with `repoexe-app`
+# (`RepoExeConstants` and `RepoExeCoreConstants`), RepoExe site and `repoexe-exec`.
 # Following is a list of `TERMUX_` variables that are safe to modify when forking.
 # **DO NOT MODIFY ANY OTHER VARIABLE UNLESS YOU KNOW WHAT YOU ARE DOING.**
-#
 # - `NAME`, `LNAME` and `UNAME`.
 # - `REPOS_HOST_ORG_NAME` and `REPOS_HOST_ORG_URL`.
 # - `TERMUX_*__REPO_NAME` and `TERMUX_*__REPO_URL`.
@@ -362,97 +314,74 @@ fi
 
 ##
 # RepoExe project name.
-#
 # Default value: `RepoExe`
 ##
 NAME="Termux"
 
 ##
 # The lower case value for `NAME`.
-#
 # Default value: `termux`
 ##
 LNAME="${NAME,,}"
 
 ##
 # The upper case value for `NAME`.
-#
 # Default value: `TERMUX`
 ##
 UNAME="${NAME^^}"
 
-
-
 ##
 # RepoExe internal project name.
-#
 # This is used internally for paths, filenames, and other internal use
 # cases and must match the `INTERNAL_NAME_REGEX` regex and
 # have max length `INTERNAL_NAME___MAX_LEN`.
-#
 # **This must not be changed unless doing a full fork of RepoExe where
 # all RepoExe references are changed instead of just changing the
 # `NAME`, `APP__PACKAGE_NAME` and urls.**
-#
 # Default value: `termux`
 ##
 INTERNAL_NAME="termux"
 
 ##
 # The regex to validate `INTERNAL_NAME`.
-#
 # The internal name must start with characters in the range
 # `[a-z0-9]`, followed by at least one character in the range
 # `[a-z0-9_-]`, and end with characters in the range `[a-z0-9]`. The
 # min length is `3`. The max length `7` as per
 # `INTERNAL_NAME___MAX_LEN` is not checked by this regex and
 # must be checked separately.
-#
-#
 # Constant value: `^[a-z0-9][a-z0-9_-]+[a-z0-9]$`
 ##
 INTERNAL_NAME_REGEX="^[a-z0-9][a-z0-9_-]+[a-z0-9]$"
 
 ##
 # The max length for the `INTERNAL_NAME`.
-#
 # for why the value `7` is chosen.
-#
 # Constant value: `7`
 ##
 INTERNAL_NAME___MAX_LEN=7
 
-
-
 ##
 # RepoExe repositories host organization name.
-#
 # Default value: `termux`
 ##
 REPOS_HOST_ORG_NAME="SjnExe"
 
 ##
 # RepoExe repositories host organization url.
-#
 # Default value: `https://github.com/termux`
 ##
 REPOS_HOST_ORG_URL="https://github.com/$REPOS_HOST_ORG_NAME"
 
-
-
 ##
 # RepoExe app package name used for `APP__DATA_DIR` and
 # `APP__*_(ACTIVITY|RECEIVER|SERVICE)__*` variables.
-#
 # Ideally package name should be `<= 21` characters and max `33`
 # characters. If package name has not yet been chosen, then it would
 # be best to keep it to `<= 10` characters. Check
 # for why.
-#
 # **See Also:**
 # - `APP__NAMESPACE`.
-# - https://developer.android.com/build/configure-app-module#set-application-id
-#
 # Default value: `com.termux`
 ##
 APP__PACKAGE_NAME="com.termux"
@@ -466,14 +395,11 @@ __build_props__add_variables_validator_actions "APP__PACKAGE_NAME" "app_package_
 # its app data, that will contain the RepoExe project directory
 # (`PROJECT_DIR`), and optionally the RepoExe rootfs directory
 # (`ROOTFS`).
-#
 # The path must match `REGEX__APP_DATA_DIR_PATH`.
-#
 # The directory set will be deleted by `clean.sh` if `PREFIX`
 # is under `APP__DATA_DIR` and not running on-device, so make
 # sure a safe path is set if running `clean.sh` in RepoExe docker or
 # host OS build environment.
-#
 # Default value: `/data/data/com.termux`
 ##
 APP__DATA_DIR="/data/data/$APP__PACKAGE_NAME"
@@ -482,20 +408,13 @@ __build_props__add_variables_validator_actions "APP__DATA_DIR" "safe_absolute_pa
 ##
 # The max length for the `APP__DATA_DIR` including the null '\0'
 # terminator.
-#
 # for why the value `69` is chosen.
-#
 # Constant value: `69`
 ##
 APP__DATA_DIR___MAX_LEN=69
 
-
-
-
-
 ##
 # RepoExe subdirectory path for `PROJECT_DIR`.
-#
 # Default value: `termux`
 ##
 PROJECT_SUBDIR="$INTERNAL_NAME"
@@ -503,72 +422,49 @@ __build_props__add_variables_validator_actions "PROJECT_SUBDIR" "safe_relative_p
 
 ##
 # RepoExe project directory path under `APP__DATA_DIR`.
-#
 # This is an exclusive directory for all repository files that includes
 # RepoExe core directory (`CORE_DIR`), RepoExe apps directory
 # (`APPS_DIR`), and optionally the RepoExe rootfs directory
 # (`ROOTFS`).
-#
 # Currently, the default RepoExe rootfs directory is not under it and
 # is at the `/files`  subdirectory but there are plans to move it to
-# `termux/rootfs/II` in future where `II` refers to rootfs id starting
+# `repoexe/rootfs/II` in future where `II` refers to rootfs id starting
 # at `0` for multi-rootfs support.
-#
 # An exclusive directory is required so that all repository files exist
 # under a single directory, especially for when RepoExe is provided as
 # a library, so that repository files do not interfere with other files
 # of RepoExe app forks or apps that may use the RepoExe library.
-#
-#
 # Default value: `/data/data/com.termux/termux`
 ##
 PROJECT_DIR="$APP__DATA_DIR/$PROJECT_SUBDIR"
 __build_props__add_variables_validator_actions "PROJECT_DIR" "safe_absolute_path"
 
-
-
-
-
 ##
 # RepoExe subdirectory path for `CORE_DIR`.
-#
 # Constant value: `core`
 ##
 CORE_SUBDIR="core"
 
 ##
 # RepoExe core directory path under `PROJECT_DIR`.
-#
 # This contains RepoExe core files for the RepoExe app, like user settings and configs for the app,
 # which and are independent of any specific rootfs.
-#
-#
 # Default value: `/data/data/com.termux/termux/core`
 ##
 CORE_DIR="$PROJECT_DIR/$CORE_SUBDIR"
 __build_props__add_variables_validator_actions "CORE_DIR" "safe_absolute_path"
 
-
-
-
-
-
 ##
 # RepoExe subdirectory path for `APPS_DIR`.
-#
 # Constant value: `app`
 ##
 APPS_SUBDIR="app"
 
 ##
 # RepoExe apps directory path under `PROJECT_DIR`.
-#
 # This contains app specific files for the RepoExe app, its plugin
 # apps, and third party apps, like used for app APIs and
 # filesystem/pathname socket files of servers created by the apps.
-# - https://man7.org/linux/man-pages/man7/unix.7.html
-#
-#
 # Default value: `/data/data/com.termux/termux/app`
 ##
 APPS_DIR="$PROJECT_DIR/$APPS_SUBDIR"
@@ -577,9 +473,7 @@ __build_props__add_variables_validator_actions "APPS_DIR" "safe_absolute_path"
 ##
 # The max length for the `APPS_DIR` including the null '\0'
 # terminator.
-#
 # for why the value `84` is chosen.
-#
 # Constant value: `84`
 ##
 APPS_DIR___MAX_LEN=84
@@ -587,25 +481,19 @@ APPS_DIR___MAX_LEN=84
 ##
 # The max length for the RepoExe apps api socket server parent directory
 # including the null '\0' terminator.
-#
 # for why the value `98` is chosen.
-#
 # Constant value: `98`
 ##
 APPS_API_SOCKET__SERVER_PARENT_DIR___MAX_LEN=98
 
-
-
 ##
 # RepoExe subdirectory path for `APPS_DIR_BY_IDENTIFIER`.
-#
 # Constant value: `i`
 ##
 APPS_DIR_BY_IDENTIFIER_SUBDIR="i"
 
 ##
 # RepoExe apps directory path by app identifier under `APPS_DIR`.
-#
 # Default value: `/data/data/com.termux/termux/app/i`
 ##
 APPS_DIR_BY_IDENTIFIER="$APPS_DIR/$APPS_DIR_BY_IDENTIFIER_SUBDIR"
@@ -614,14 +502,12 @@ APPS_DIR_BY_IDENTIFIER="$APPS_DIR/$APPS_DIR_BY_IDENTIFIER_SUBDIR"
 # The regex to validate a subdirectory name under the
 # `APPS_DIR_BY_IDENTIFIER` excluding the null '\0' terminator
 # that represents an app identifier.
-#
 # The app identifier must only contain characters in the range
 # `[a-zA-Z0-9]` as segments, with `[._-]` as separators between
 # segments, and with the first segment containing at least `3`
 # characters. The max length `10` as per
 # `APPS_APP_IDENTIFIER___MAX_LEN` is not checked by this regex
 # and must be checked separately.
-#
 # Constant value: `^[a-zA-Z0-9]{3,}([._-][a-zA-Z0-9]+)*$`
 ##
 APPS_APP_IDENTIFIER_REGEX="^[a-zA-Z0-9]{3,}([._-][a-zA-Z0-9]+)*$"
@@ -630,20 +516,13 @@ APPS_APP_IDENTIFIER_REGEX="^[a-zA-Z0-9]{3,}([._-][a-zA-Z0-9]+)*$"
 # The max length for a subdirectory name under the
 # `APPS_DIR_BY_IDENTIFIER` excluding the null '\0' terminator
 # that represents an app identifier.
-#
 # for why the value `10` is chosen.
-#
 # Constant value: `10`
 ##
 APPS_APP_IDENTIFIER___MAX_LEN=10
 
-
-
-
-
 ##
 # RepoExe subdirectory path for `APPS_DIR_BY_UID`.
-#
 # Constant value: `u`
 ##
 APPS_DIR_BY_UID_SUBDIR="u"
@@ -651,7 +530,6 @@ APPS_DIR_BY_UID_SUBDIR="u"
 ##
 # RepoExe apps directory path by app uid (user_id + app_id) under
 # `APPS_DIR`.
-#
 # Default value: `/data/data/com.termux/termux/app/u`
 ##
 APPS_DIR_BY_UID="$APPS_DIR/$APPS_DIR_BY_UID_SUBDIR"
@@ -660,10 +538,8 @@ APPS_DIR_BY_UID="$APPS_DIR/$APPS_DIR_BY_UID_SUBDIR"
 # The regex to validate a  subdirectory name under the
 # `APPS_DIR_BY_UID` excluding the null '\0' terminator that
 # represents an app uid.
-#
 # The app uid must only contains `5` to `9` characters that are
 # numbers and must not start with a `0`.
-#
 # Constant value: `^[1-9][0-9]{4,8}$`
 ##
 APPS_APP_UID_REGEX="^[1-9][0-9]{4,8}$"
@@ -672,21 +548,14 @@ APPS_APP_UID_REGEX="^[1-9][0-9]{4,8}$"
 # The max length for a subdirectory name under the
 # `APPS_DIR_BY_UID` excluding the null '\0' terminator that
 # represents an app uid.
-#
 # for why the value `9` is chosen.
-#
 # Constant value: `9`
 ##
 APPS_APP_UID___MAX_LEN=9
 
-
-
-
-
 ##
 # RepoExe apps info environment subfile path under an app directory of
 # `APPS_DIR_BY_IDENTIFIER`.
-#
 # Default value: `termux-apps-info.env`
 ##
 CORE__APPS_INFO_ENV_SUBFILE="$INTERNAL_NAME-apps-info.env"
@@ -694,28 +563,19 @@ CORE__APPS_INFO_ENV_SUBFILE="$INTERNAL_NAME-apps-info.env"
 ##
 # RepoExe apps info json subfile path under an app directory of
 # `APPS_DIR_BY_IDENTIFIER`.
-#
 # Default value: `termux-apps-info.json`
 ##
 CORE__APPS_INFO_JSON_SUBFILE="$INTERNAL_NAME-apps-info.json"
 
-
-
 ##
-# `termux-am-socket` server subfile path under an app directory of
+# `repoexe-am-socket` server subfile path under an app directory of
 # `APPS_DIR_BY_IDENTIFIER`.
-#
 # Default value: `termux-am`
 ##
 AM_SOCKET__SERVER_SOCKET_SUBFILE="$INTERNAL_NAME-am"
 
-
-
-
-
 ##
 # RepoExe `ROOTFS` id.
-#
 # Default value: `0`
 ##
 ROOTFS_ID="0"
@@ -723,7 +583,6 @@ __build_props__add_variables_validator_actions "ROOTFS_ID" "unsigned_int"
 
 ##
 # RepoExe subdirectory path for `ROOTFS`.
-#
 # Default value: `files`
 ##
 ROOTFS_SUBDIR="files"
@@ -737,7 +596,6 @@ __build_props__add_variables_validator_actions "ROOTFS_SUBDIR" "allow_unset_valu
 ##
 # RepoExe subdirectory path for parent directory of all RepoExe rootfses
 # including `ROOTFS`.
-#
 # Default value: `termux/rootfs`
 ##
 #ROOTFSES_SUBDIR="$PROJECT_SUBDIR/rootfs"
@@ -745,48 +603,36 @@ __build_props__add_variables_validator_actions "ROOTFS_SUBDIR" "allow_unset_valu
 
 ##
 # RepoExe subdirectory path for `ROOTFS`.
-#
 # Default value: `termux/rootfs/0`
 ##
 #ROOTFS_SUBDIR="$ROOTFSES_SUBDIR/$ROOTFS_ID"
 ###########
 
-
 ##
 # RepoExe rootfs directory path under `APP__DATA_DIR` that
 # contains the Linux environment rootfs provided by RepoExe.
-#
-# - https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03.html
-#
 # The RepoExe rootfs must not be set to path in
 # `REGEX__INVALID_ROOTFS_PATHS`. It can exist outside
 # the `APP__DATA_DIR` if compiling packages for the Android
 # system or `adb` `shell` user.
-#
 # Default value: `/data/data/com.termux/files`
 ##
 ROOTFS="$APP__DATA_DIR/$ROOTFS_SUBDIR"
 BASE_DIR="$ROOTFS" # Deprecated alternative variable for `ROOTFS`
 
-__build_props__add_variables_validator_actions "ROOTFS" "safe_rootfs_or_absolute_path invalid_termux_rootfs_paths"
+__build_props__add_variables_validator_actions "ROOTFS" "safe_rootfs_or_absolute_path invalid_rootfs_paths"
 
-# FIXME: Remove after updating RepoExe app and `termux-am-socket`
+# FIXME: Remove after updating RepoExe app and `repoexe-am-socket`
 # package sources and use `APPS_DIR`.
 APPS_DIR="$ROOTFS/apps"
 
 ##
 # The max length for the `ROOTFS` including the null '\0'
 # terminator.
-#
 # for why the value `86` is chosen.
-#
 # Constant value: `86`
 ##
 ROOTFS_DIR___MAX_LEN=86
-
-
-
-
 
 ####
 # Variables for the RepoExe home.
@@ -794,7 +640,6 @@ ROOTFS_DIR___MAX_LEN=86
 
 ##
 # RepoExe subdirectory path for `HOME`.
-#
 # Default value: `home`
 ##
 HOME_SUBDIR="home"
@@ -802,34 +647,24 @@ __build_props__add_variables_validator_actions "HOME_SUBDIR" "safe_relative_path
 
 ##
 # RepoExe home directory path under `ROOTFS` used for `$HOME`.
-#
 # It serves the same purpose as the `/home` directory on Linux distros.
-#
-# - https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s08.html
-#
 # Check `PREFIX` variable docs for rules that apply depending
 # on if `ROOTFS` is equal to Android/Linux rootfs `/` or not.
 # The RepoExe home must not be set to Android/Linux rootfs `/` or any
 # other path in `REGEX__INVALID_HOME_PATHS`.
-#
 # Default value: `/data/data/com.termux/files/home`
 ##
 [[ "$ROOTFS" != "/" ]] && HOME="$ROOTFS/$HOME_SUBDIR" || \
     HOME="/$HOME_SUBDIR"
-__build_props__add_variables_validator_actions "HOME" "safe_absolute_path invalid_termux_home_paths path_under_termux_rootfs"
+__build_props__add_variables_validator_actions "HOME" "safe_absolute_path invalid_home_paths path_under_rootfs"
 
 ANDROID_HOME="$HOME" # Deprecated alternative variable for `HOME`
 
 ##
 # RepoExe legacy project user config directory path under `HOME`.
-#
 # Default value: `/data/data/com.termux/files/home/.termux`
 ##
 LEGACY_PROJECT_USER_CONFIG_DIR="$HOME/.termux"
-
-
-
-
 
 ####
 # Variables for the RepoExe prefix.
@@ -837,7 +672,6 @@ LEGACY_PROJECT_USER_CONFIG_DIR="$HOME/.termux"
 
 ##
 # RepoExe subdirectory path for `PREFIX`.
-#
 # Default value: `usr`
 ##
 PREFIX_SUBDIR="usr"
@@ -846,13 +680,9 @@ __build_props__add_variables_validator_actions "PREFIX_SUBDIR" "allow_unset_valu
 ##
 # RepoExe prefix directory path under or equal to `ROOTFS`
 # where all RepoExe packages data is installed.
-#
 # It serves the same purpose as the `/usr` directory on Linux distros
 # and contains the `bin`, `etc`, `include`, `lib`, `libexec`, `opt`,
 # `share`, `tmp` and `var` sub directories.
-#
-# - https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch04.html
-#
 # If `ROOTFS` is not equal to `/`, then by default RepoExe
 # uses `usr` merge format, like used by `debian`, as per
 # `__BUILD_PROPS__VALIDATE_PREFIX_USR_MERGE_FORMAT`
@@ -868,7 +698,7 @@ __build_props__add_variables_validator_actions "PREFIX_SUBDIR" "allow_unset_valu
 # Additionally, `PREFIX` must not be equal to `HOME`
 # and they must not be under each other, as RepoExe app requires that
 # prefix and home are separate directories as prefix gets wiped during
-# bootstrap installation or if `termux-reset` is run, and backup
+# bootstrap installation or if `repoexe-reset` is run, and backup
 # scripts require the same. Package data also needs to be kept
 # separate from `home`, so it does not make sense for them to be
 # equal to or be under each other.
@@ -880,11 +710,6 @@ __build_props__add_variables_validator_actions "PREFIX_SUBDIR" "allow_unset_valu
 # `PREFIX`, or a custom directory other than `usr`. In this
 # case `HOME` can optionally be under `PREFIX`, but
 # not be equal to it.
-#
-# - https://wiki.debian.org/UsrMerge
-# - https://lists.debian.org/debian-devel-announce/2019/03/msg00001.html
-# - https://dep-team.pages.debian.net/deps/dep17/
-#
 # If `ROOTFS` is equal to Android/Linux rootfs `/`, then
 # `PREFIX_SUBDIR` must not be set to an empty string as
 # `PREFIX` must be a subdirectory under rootfs `/`, and must
@@ -892,7 +717,6 @@ __build_props__add_variables_validator_actions "PREFIX_SUBDIR" "allow_unset_valu
 # `REGEX__INVALID_PREFIX_PATHS`. Check the
 # `REGEX__INVALID_ROOTFS_PATHS` variable docs for why
 # some paths like `/usr`, etc are now allowed.
-#
 # Basically, the following rules apply for `PREFIX`.
 # - If `ROOTFS` is not equal to `/`:
 #     - If `usr` merge format is enabled:
@@ -907,46 +731,37 @@ __build_props__add_variables_validator_actions "PREFIX_SUBDIR" "allow_unset_valu
 #         - `PREFIX` must be under `$ROOTFS` and not
 #           equal to `/usr` or other paths in `REGEX__INVALID_PREFIX_PATHS`.
 #         - `PREFIX` must not be equal to or be under `HOME`.
-#
 # The directory set will be deleted by `clean.sh` if not running
 # on-device, so make sure a safe path is set if running `clean.sh` in
 # RepoExe docker or host OS build environment.
-#
 # At runtime, `PREFIX` may be overridden and set to
 # `PREFIX_GLIBC` when compiling `glibc` packages by calling
 # `build_props__set_prefix_dir_and_sub_variables` in
 # `repoexe_step_setup_variables` if `PACKAGE_LIBRARY` equals `glibc`.
 # However, `PREFIX_CLASSICAL` retains the original value
 # set below for `PREFIX`.
-# - https://github.com/termux/termux-packages/pull/16901
-# - https://github.com/termux/termux-packages/pull/20864
-#
 # Default value: `/data/data/com.termux/files/usr`
 ##
 [[ "$ROOTFS" != "/" ]] && PREFIX="$ROOTFS${PREFIX_SUBDIR:+"/$PREFIX_SUBDIR"}" || \
     PREFIX="/$PREFIX_SUBDIR"
-__build_props__add_variables_validator_actions "PREFIX" "safe_absolute_path invalid_termux_prefix_paths"
+__build_props__add_variables_validator_actions "PREFIX" "safe_absolute_path invalid_prefix_paths"
 
 if [[ "$ROOTFS" != "/" ]] && [[ "$__BUILD_PROPS__VALIDATE_PREFIX_USR_MERGE_FORMAT" != "true" ]]; then
-    __build_props__add_variables_validator_actions "PREFIX" " path_equal_to_or_under_termux_rootfs"
+    __build_props__add_variables_validator_actions "PREFIX" " path_equal_to_or_under_rootfs"
 else
-    __build_props__add_variables_validator_actions "PREFIX" " path_under_termux_rootfs"
+    __build_props__add_variables_validator_actions "PREFIX" " path_under_rootfs"
 fi
 
 ##
 # The original value for `PREFIX` set above, as `PREFIX`
 # can be overridden at runtime, like when compiling `glibc` packages.
 # Checks variable docs of `PREFIX` for more info.
-#
 # Default value: `/data/data/com.termux/files/usr`
 ##
 PREFIX_CLASSICAL="$PREFIX"
 
-
-
 ##
 # RepoExe subdirectory path for `PREFIX_GLIBC`.
-#
 # Default value: `glibc`
 ##
 PREFIX_GLIBC_SUBDIR="glibc"
@@ -954,32 +769,22 @@ PREFIX_GLIBC_SUBDIR="glibc"
 ##
 # RepoExe `glibc` prefix directory path under `PREFIX`
 # where all RepoExe `glibc` packages data is installed.
-#
 # **See Also:**
-# - https://github.com/termux-pacman/glibc-packages
-# - https://github.com/termux/glibc-packages (mirror)
-#
 # Default value: `/data/data/com.termux/files/usr/glibc`
 ##
 PREFIX_GLIBC="$PREFIX/$PREFIX_GLIBC_SUBDIR"
-__build_props__add_variables_validator_actions "PREFIX_GLIBC" "safe_absolute_path invalid_termux_prefix_paths path_under_termux_rootfs"
-
-
+__build_props__add_variables_validator_actions "PREFIX_GLIBC" "safe_absolute_path invalid_prefix_paths path_under_rootfs"
 
 ##
 # The max length for the `PREFIX` including the null '\0'
 # terminator.
-#
 # for why the value `90` is chosen.
-#
 # Constant value: `90`
 ##
 PREFIX_DIR___MAX_LEN="$((ROOTFS_DIR___MAX_LEN + 1 + 3))" # "/usr" (90)
 
-
 ##
 # The max length for the `BIN_DIR` including the null '\0' terminator.
-#
 # Constant value: `94`
 ##
 PREFIX__BIN_DIR___MAX_LEN="$((PREFIX_DIR___MAX_LEN + 1 + 3))" # "/bin" (94)
@@ -987,37 +792,26 @@ PREFIX__BIN_DIR___MAX_LEN="$((PREFIX_DIR___MAX_LEN + 1 + 3))" # "/bin" (94)
 ##
 # The max safe length for a sub file path under the `BIN_DIR`
 # including the null '\0' terminator.
-#
 # This allows for a filename with max length `33` so that the path
 # length is under `128` (`BINPRM_BUF_SIZE`) for Linux kernel `< 5.1`,
 # and ensures `argv[0]` length is `< 128` on Android `< 6`, otherwise
 # commands will fail with exit code 1 without any error on `stderr`,
 # but with the `library name "<library_name>" too long` error in
 # `logcat` if linker debugging is enabled.
-#
 # **See Also:**
-# - https://github.com/termux/termux-core-package/blob/master/lib/termux-core_nos_c/tre/include/termux/termux_core__nos__c/v1/termux/file/RepoExeFile.h
-# - https://github.com/termux/termux-exec-package/blob/master/lib/termux-exec_nos_c/tre/include/termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/direct/exec/ExecIntercept.h
-#
 # Constant value: `127`
 ##
 PREFIX__BIN_FILE___SAFE_MAX_LEN="$((PREFIX__BIN_DIR___MAX_LEN + 1 + 33))" # "/<filename_with_len_33>" (127)
 
 ##
-# The max length for entire shebang line for `termux-exec`.
-#
+# The max length for entire shebang line for `repoexe-exec`.
 # **See Also:**
-# - https://github.com/termux/termux-exec-package/blob/master/lib/termux-exec_nos_c/tre/include/termux/termux_exec__nos__c/v1/termux/api/termux_exec/service/ld_preload/direct/exec/ExecIntercept.h
-#
 # Default value: `340`
 ##
 FILE_HEADER__BUFFER_SIZE="340"
 
-
-
-
 ##
-# `build_props__set_prefix_dir_and_sub_variables` `<termux__prefix>` [`<skip_validation>`]
+# `build_props__set_prefix_dir_and_sub_variables` `<repoexe__prefix>` [`<skip_validation>`]
 ##
 build_props__set_prefix_dir_and_sub_variables() {
 
@@ -1043,197 +837,150 @@ in REGEX__INVALID_PREFIX_PATHS \`$REGEX__INVALID_PREFIX_PATHS\`." 1>&2
     fi
 fi
 
-
 # Override `PREFIX`, but keep original value in `PREFIX_CLASSICAL`.
 PREFIX_CLASSICAL="$PREFIX"
 PREFIX="$termux__prefix"
 
-
-
 ##
 # RepoExe subdirectory path for `PREFIX__BIN_DIR`.
-#
 # Constant value: `bin`
 ##
 PREFIX__BIN_SUBDIR="bin"
 
 ##
 # RepoExe bin directory path under `PREFIX`.
-#
-#
 # Default value: `/data/data/com.termux/files/usr/bin`
 ##
 PREFIX__BIN_DIR="$PREFIX/$PREFIX__BIN_SUBDIR"
 
-
-
 ##
 # RepoExe subdirectory path for `PREFIX__ETC_DIR`.
-#
 # Constant value: `etc`
 ##
 PREFIX__ETC_SUBDIR="etc"
 
 ##
 # RepoExe etc directory path under `PREFIX`.
-#
 # Default value: `/data/data/com.termux/files/usr/etc`
 ##
 PREFIX__ETC_DIR="$PREFIX/$PREFIX__ETC_SUBDIR"
 
-
-
 ##
 # RepoExe subdirectory path for `PREFIX__BASE_INCLUDE_DIR`.
-#
 # Constant value: `include`
 ##
 PREFIX__BASE_INCLUDE_SUBDIR="include"
 
 ##
 # RepoExe base include directory path under `PREFIX`.
-#
 # Default value: `/data/data/com.termux/files/usr/include`
 ##
 PREFIX__BASE_INCLUDE_DIR="$PREFIX/$PREFIX__BASE_INCLUDE_SUBDIR"
 
-
 ##
 # RepoExe subdirectory path for `PREFIX__MULTI_INCLUDE_DIR`.
-#
 # Constant value: `include32`
 ##
 PREFIX__MULTI_INCLUDE_SUBDIR="include32"
 
 ##
 # RepoExe multi include directory path under `PREFIX`.
-#
 # Default value: `/data/data/com.termux/files/usr/include32`
 ##
 PREFIX__MULTI_INCLUDE_DIR="$PREFIX/$PREFIX__MULTI_INCLUDE_SUBDIR"
 
-
 ##
 # RepoExe include subdirectory path under `PREFIX`.
-#
 # Default value: `include`
 ##
 PREFIX__INCLUDE_SUBDIR="$PREFIX__BASE_INCLUDE_SUBDIR"
 
 ##
 # RepoExe include directory path under `PREFIX`.
-#
 # Default value: `/data/data/com.termux/files/usr/include` (`$PREFIX__BASE_INCLUDE_DIR`)
 ##
 PREFIX__INCLUDE_DIR="$PREFIX__BASE_INCLUDE_DIR"
 
-
-
 ##
 # RepoExe subdirectory path for `PREFIX__BASE_LIB_DIR`.
-#
 # Constant value: `lib`
 ##
 PREFIX__BASE_LIB_SUBDIR="lib"
 
 ##
 # RepoExe base lib directory path under `PREFIX`.
-#
 # Default value: `/data/data/com.termux/files/usr/lib`
 ##
 PREFIX__BASE_LIB_DIR="$PREFIX/$PREFIX__BASE_LIB_SUBDIR"
 
-
 ##
 # RepoExe subdirectory path for `PREFIX__MULTI_LIB_DIR`.
-#
 # Constant value: `lib32`
 ##
 PREFIX__MULTI_LIB_SUBDIR="lib32"
 
 ##
 # RepoExe multi lib directory path under `PREFIX`.
-#
 # Default value: `/data/data/com.termux/files/usr/lib32`
 ##
 PREFIX__MULTI_LIB_DIR="$PREFIX/$PREFIX__MULTI_LIB_SUBDIR"
 
-
 ##
 # RepoExe lib subdirectory path under `PREFIX`.
-#
 # Default value: `lib`
 ##
 PREFIX__LIB_SUBDIR="$PREFIX__BASE_LIB_SUBDIR"
 
 ##
 # RepoExe lib directory path under `PREFIX`.
-#
-#
 # Default value: `/data/data/com.termux/files/usr/lib` (`$PREFIX__BASE_LIB_DIR`)
 ##
 PREFIX__LIB_DIR="$PREFIX__BASE_LIB_DIR"
 
-
-
 ##
 # RepoExe subdirectory path for `PREFIX__LIBEXEC_DIR`.
-#
 # Constant value: `libexec`
 ##
 PREFIX__LIBEXEC_SUBDIR="libexec"
 
 ##
 # RepoExe libexec directory path under `PREFIX`.
-#
 # Default value: `/data/data/com.termux/files/usr/libexec`
 ##
 PREFIX__LIBEXEC_DIR="$PREFIX/$PREFIX__LIBEXEC_SUBDIR"
 
-
-
 ##
 # RepoExe subdirectory path for `PREFIX__OPT_DIR`.
-#
 # Constant value: `opt`
 ##
 PREFIX__OPT_SUBDIR="opt"
 
 ##
 # RepoExe opt directory path under `PREFIX`.
-#
 # Default value: `/data/data/com.termux/files/usr/opt`
 ##
 PREFIX__OPT_DIR="$PREFIX/$PREFIX__OPT_SUBDIR"
 
-
-
 ##
 # RepoExe subdirectory path for `PREFIX__SHARE_DIR`.
-#
 # Constant value: `share`
 ##
 PREFIX__SHARE_SUBDIR="share"
 
 ##
 # RepoExe share directory path under `PREFIX`.
-#
 # Default value: `/data/data/com.termux/files/usr/share`
 ##
 PREFIX__SHARE_DIR="$PREFIX/$PREFIX__SHARE_SUBDIR"
 
-
-
 ##
 # RepoExe subdirectory path for `PREFIX__VAR_DIR`.
-#
 # Constant value: `var`
 ##
 PREFIX__VAR_SUBDIR="var"
 
 ##
 # RepoExe var directory path under `PREFIX`.
-#
 # Default value: `/data/data/com.termux/files/usr/var`
 ##
 PREFIX__VAR_DIR="$PREFIX/$PREFIX__VAR_SUBDIR"
@@ -1246,23 +993,17 @@ PREFIX__VAR_DIR="$PREFIX/$PREFIX__VAR_SUBDIR"
 # Skip validation as it will be done below by `__build_props__validate_variables`.
 build_props__set_prefix_dir_and_sub_variables "$PREFIX" "true" || exit $?
 
-
-
-
-
 # The following variables must always be under the original value of
 # `PREFIX` set in `PREFIX_CLASSICAL` by default.
 
 ##
 # RepoExe subdirectory path for `PREFIX__TMP_DIR`.
-#
 # Constant value: `tmp`
 ##
 PREFIX__TMP_SUBDIR="tmp"
 
 ##
 # RepoExe tmp directory path under `PREFIX`.
-#
 # Default value: `/data/data/com.termux/files/usr/tmp`
 ##
 PREFIX__TMP_DIR="$PREFIX/$PREFIX__TMP_SUBDIR"
@@ -1270,33 +1011,22 @@ PREFIX__TMP_DIR="$PREFIX/$PREFIX__TMP_SUBDIR"
 ##
 # The max length for the `PREFIX__TMP_DIR` including the null
 # '\0' terminator.
-#
 # for why the value `94` is chosen.
-#
 # Constant value: `94`
 ##
 PREFIX__TMP_DIR___MAX_LEN=94
 
-
-
 ##
 # RepoExe `profile.d` directory path under `PREFIX__ETC_DIR`.
-#
 # Default value: `/data/data/com.termux/files/usr/etc/profile.d`
 ##
 PREFIX__PROFILE_D_DIR="$PREFIX__ETC_DIR/profile.d"
 
-
 ##
 # RepoExe project system config directory path under `PREFIX__ETC_DIR`.
-#
 # Default value: `/data/data/com.termux/files/usr/etc/termux`
 ##
 PROJECT_SYSTEM_CONFIG_DIR="$PREFIX__ETC_DIR/$INTERNAL_NAME"
-
-
-
-
 
 ####
 # Variables for the RepoExe cache.
@@ -1304,7 +1034,6 @@ PROJECT_SYSTEM_CONFIG_DIR="$PREFIX__ETC_DIR/$INTERNAL_NAME"
 
 ##
 # RepoExe subdirectory path for `CACHE_DIR`.
-#
 # Constant value: `cache`
 ##
 CACHE_SUBDIR="cache"
@@ -1312,14 +1041,13 @@ CACHE_SUBDIR="cache"
 ###########
 # Uncomment if to place `ROOTFS`  under `PROJECT_DIR`
 # instead of at `files`. This may be used for future multi-rootfs
-# design. This will also ensure `termux` files are not mixed with
+# design. This will also ensure `repoexe` files are not mixed with
 # other cached files of an app, especially if RepoExe is forked or
 # used as a library in other apps. Make sure to update
 # `ROOTFS_SUBDIR` above as well.
 
 ##
 # RepoExe subdirectory path for `CACHE_DIR`.
-#
 # Default value: `cache/termux/rootfs/0`
 ##
 #CACHE_SUBDIR="cache/$INTERNAL_NAME/rootfs/$ROOTFS_ID"
@@ -1329,14 +1057,10 @@ CACHE_SUBDIR="cache"
 # RepoExe app cache directory path under `APP__DATA_DIR`
 # contains cache files that are safe to be deleted by Android or
 # RepoExe if required.
-#
 # The `cache` subdirectory is hardcoded in Android and must not be
 # changed.
-#
 # Currently this is primarily used for packages cache files of package
 # managers (`apt`/`pacman`).
-#
-#
 # Default value: `/data/data/com.termux/cache`
 ##
 CACHE_DIR="$APP__DATA_DIR/$CACHE_SUBDIR"
@@ -1344,81 +1068,44 @@ __build_props__add_variables_validator_actions "CACHE_DIR" "safe_absolute_path"
 
 CACHE_DIR="$CACHE_DIR" # Deprecated alternative variable for `CACHE_DIR`
 
-
-
-
-
 ####
 # Variables for the RepoExe bootstrap.
 ####
 
 ##
 # RepoExe bootstrap system config directory path under `PROJECT_SYSTEM_CONFIG_DIR`.
-#
 # Default value: `/data/data/com.termux/files/usr/etc/termux/termux-bootstrap`
 ##
 BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR="$PROJECT_SYSTEM_CONFIG_DIR/termux-bootstrap"
 
-
 ##
 # RepoExe subdirectory path for `BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR`.
-#
 # Constant value: `second-stage`
 ##
 BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_SUBDIR="second-stage"
 
 ##
 # RepoExe bootstrap second stage directory path under `BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR`.
-#
 # Default value: `/data/data/com.termux/files/usr/etc/termux/termux-bootstrap/second-stage`
 ##
 BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR="$BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR/$BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_SUBDIR"
 
-
 ##
 # RepoExe bootstrap second stage entry point subfile path path under `BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR`.
-#
 # Default value: `termux-bootstrap-second-stage.sh`
 ##
 BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_ENTRY_POINT_SUBFILE="termux-bootstrap-second-stage.sh"
 
-
-
-
-
 ##
 # Max size in bytes for a path component or file name without the
 # terminating `null` byte `\0`.
-#
 # On unix systems, any path component length of a path cannot be
 # greater than what is supported by the filesystem under which the
 # path is mounted.
-#
 # The common filesystems like `ext4`/`f2fs`/`btrfs`/`erofs`/`fat32`/`exfat`/`ntfs`
 # all support max path component length of `255`. Check
 # [filesystems limits wiki page] for more info on limits.
-#
 # The [POSIX standard requires `NAME_MAX` to be defined in `limits.h`] (not `c` standard).
-#
-# [`NAME_MAX`]: https://cs.android.com/android/platform/superproject/+/android-13.0.0_r18:bionic/libc/kernel/uapi/linux/limits.h;l=27
-# [`readdir`]: https://www.man7.org/linux/man-pages/man3/readdir.3.html
-# [`readdir_r`]: https://www.man7.org/linux/man-pages/man3/readdir_r.3.html
-# [filesystems limits wiki page]: https://en.wikipedia.org/wiki/Comparison_of_file_systems#Limits
-# [POSIX standard requires `NAME_MAX` to be defined in `limits.h`]: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/limits.h.html
-# [path component length greater than `NAME_MAX` should be considered an error]: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#4.13
-# [`NAME_MAX` value should normally be set to `255`]: https://cs.android.com/android/platform/superproject/+/android-13.0.0_r18:bionic/libc/kernel/uapi/linux/limits.h;l=27
-# [the `NAME_MAX` value may not always be enforced, like by the GNU C library]: https://www.gnu.org/software/libc/manual/html_node/Limits-for-Files.html
-# [`_PC_NAME_MAX` defined by POSIX]: https://pubs.opengroup.org/onlinepubs/9699919799/functions/pathconf.html
-# [`glibc` `_PC_NAME_MAX` source]: https://github.com/bminor/glibc/blob/569cfcc6/sysdeps/posix/fpathconf.c#L65
-# [`bionic` `_PC_NAME_MAX` source]: https://cs.android.com/android/platform/superproject/+/android-13.0.0_r18:bionic/libc/bionic/pathconf.cpp;l=91
-# [`pathconf`]: https://man7.org/linux/man-pages/man3/pathconf.3.html
-# [`statvfs.f_namemax`]: https://man7.org/linux/man-pages/man3/statvfs.3.html
-# [`realpath(1)`]: https://man7.org/linux/man-pages/man1/realpath.1.html
-# [`realpath(3)`]: https://man7.org/linux/man-pages/man3/realpath.3.html
-# [To what extent does Linux support file names longer than 255 bytes?]: https://unix.stackexchange.com/questions/619625/to-what-extent-does-linux-support-file-names-longer-than-255-bytes
-# [Extending ext4 File system's filename size limit to 1012 characters]: https://stackoverflow.com/questions/34980895/extending-ext4-file-systems-filename-size-limit-to-1012-characters
-# [Limit on file name length in bash]: https://stackoverflow.com/questions/6571435/limit-on-file-name-length-in-bash
-#
 # Constant value: `255`
 ##
 NAME_MAX=255
@@ -1427,23 +1114,13 @@ NAME_MAX=255
 # The max length for a filesystem socket file path (pathanme UNIX domain socket)
 # for the `sockaddr_un.sun_path` field including the null `\0`
 # terminator as per `UNIX_PATH_MAX`.
-#
 # All filesystem socket path lengths created by RepoExe apps and packages must be `< 108`.
-#
-# - https://man7.org/linux/man-pages/man7/unix.7.html
-# - https://cs.android.com/android/platform/superproject/+/android-13.0.0_r18:bionic/libc/kernel/uapi/linux/un.h;l=22
-#
 # Constant value: `108`
 ##
 UNIX_PATH_MAX=108
 
-
-
-
-
 ##
 # RepoExe environment variables root scope.
-#
 # The name of this variable `ENV__S_ROOT` is considered a
 # constant for RepoExe execution environment that's exported by RepoExe
 # app containing the root scope and **must not be changed even for
@@ -1453,20 +1130,16 @@ UNIX_PATH_MAX=108
 # variables under the `TERMUX_` root scope and may do it under a
 # different root scope like `FOO_`, so the `PREFIX` variable
 # would be `FOO__PREFIX` instead.
-#
 # The `ENV__S_APP` environment variable will be exported at
 # runtime for the scope of the current RepoExe app running the shell.
-#
 # RepoExe packages and external programs can use the
-# `termux-scoped-env-variable` util from the `termux-core`
+# `repoexe-scoped-env-variable` util from the `repoexe-core`
 # package to get variable names and values for RepoExe. It uses the
 # root scope from the `$ENV__S_ROOT` environment variable
 # exported by the RepoExe app to dynamically generate the RepoExe
 # variable names and/or get their values, with support for fallback
 # to the build values defined here if `$ENV__S_ROOT` variable
 # is not exported.**
-# - https://github.com/termux/termux-core-package/blob/master/site/pages/en/projects/docs/usage/utils/repoexe/shell/command/environment/termux-scoped-env-variable.md
-#
 # The value of this variable `ENV__S_ROOT` may be modified,
 # although not advisable since external programs would be using
 # hardcoded `TERMUX_` value for reading RepoExe environment variables,
@@ -1475,29 +1148,23 @@ UNIX_PATH_MAX=108
 # external programs behaviour and may break them.
 # **If the value is changed here, it must also be set to the same
 # value in RepoExe app that is exported.**
-#
-# Moreover, currently, only `termux-exec` supports modifying this, all
-# other termux (internal) packages, like `termux-tools`, etc do not.
-# So forks should not modify it at least until all termux packages
+# Moreover, currently, only `repoexe-exec` supports modifying this, all
+# other RepoExe (internal) packages, like `repoexe-tools`, etc do not.
+# So forks should not modify it at least until all RepoExe packages
 # support modifying it.
-#
 # Default value: `TERMUX_`
 ##
 ENV__S_ROOT="TERMUX_"
 
-
-
 ##
 # RepoExe environment variables RepoExe sub scope for primary variables
 # or variables for currently running RepoExe config.
-#
 # **Do not modify this!** This is considered a constant RepoExe sub
 # scope for RepoExe execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
+# programs that do not use the RepoExe packages building infrastructure
 # and rely on `$ENV__S_ROOT` environment variable exported by
 # RepoExe app containing the root scope to generate the value for
 # `$ENV__S` and variable names under it.**
-#
 # Default value: `_`
 ##
 ENV__SS="_"
@@ -1505,265 +1172,199 @@ ENV__SS="_"
 ##
 # RepoExe environment variables RepoExe scope for primary variables or
 # variables for currently running RepoExe config.
-#
 # **Do not modify this!**
-#
 # Default value: `TERMUX__`
 ##
 ENV__S="${ENV__S_ROOT}${ENV__SS}"
 
-
-
 ##
 # RepoExe environment variables RepoExe app sub scope.
-#
 # **Do not modify this!** This is considered a constant RepoExe app sub
 # scope for RepoExe execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
+# programs that do not use the RepoExe packages building infrastructure
 # and rely on `$ENV__S_ROOT` environment variable exported by
 # RepoExe app containing the root scope to generate the value for
 # `$ENV__S_APP` and variable names under it.**
-#
 # Default value: `APP__`
 ##
 ENV__SS_APP="APP__"
 
 ##
 # RepoExe environment variables RepoExe app scope.
-#
 # **Do not modify this!**
-#
 # Default value: `APP__`
 ##
 ENV__S_APP="${ENV__S_ROOT}${ENV__SS_APP}"
 
-
-
 ##
 # RepoExe environment variables RepoExe:API sub scope.
-#
 # **Do not modify this!** This is considered a constant RepoExe:API
 # sub scope for RepoExe execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
+# programs that do not use the RepoExe packages building infrastructure
 # and rely on `$ENV__S_ROOT` environment variable exported by
 # RepoExe app containing the root scope to generate the value for
 # `$ENV__S_API` and variable names under it.**
-#
 # Default value: `API__`
 ##
 ENV__SS_API="API__"
 
 ##
 # RepoExe environment variables RepoExe:API scope.
-#
 # **Do not modify this!**
-#
 # Default value: `API__`
 ##
 ENV__S_API="${ENV__S_ROOT}${ENV__SS_API}"
 
-
-
 ##
 # RepoExe environment variables RepoExe:API app sub scope.
-#
 # This may be allowed to be modified, in case APIs are provided under
 # a different app name or under the main RepoExe app itself by a fork.
 # Consequences for changing this haven't been fully looked at yet.
-#
 # Default value: `API_APP__`
 ##
 ENV__SS_API_APP="API_APP__"
 
 ##
 # RepoExe environment variables RepoExe:API app scope.
-#
 # **Do not modify this!**
-#
 # Default value: `API_APP__`
 ##
 ENV__S_API_APP="${ENV__S_ROOT}${ENV__SS_API_APP}"
 
-
-
 ##
 # RepoExe environment variables RepoExe rootfs sub scope.
-#
 # **Do not modify this!** This is considered a constant RepoExe rootfs
 # sub scope for RepoExe execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
+# programs that do not use the RepoExe packages building infrastructure
 # and rely on `$ENV__S_ROOT` environment variable exported by
 # RepoExe app containing the root scope to generate the value for
 # `$ENV__S_ROOTFS` and variable names under it.**
-#
 # Default value: `ROOTFS__`
 ##
 ENV__SS_ROOTFS="ROOTFS__"
 
 ##
 # RepoExe environment variables RepoExe rootfs scope.
-#
 # **Do not modify this!**
-#
 # Default value: `TERMUX_ROOTFS__`
 ##
 ENV__S_ROOTFS="${ENV__S_ROOT}${ENV__SS_ROOTFS}"
 
-
-
 ##
-# RepoExe environment variables `termux-core` sub scope.
-#
-# **Do not modify this!** This is considered a constant `termux-core`
+# RepoExe environment variables `repoexe-core` sub scope.
+# **Do not modify this!** This is considered a constant `repoexe-core`
 # sub scope for RepoExe execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
+# programs that do not use the RepoExe packages building infrastructure
 # and rely on `$ENV__S_ROOT` environment variable exported by
 # RepoExe app containing the root scope to generate the value for
 # `$ENV__S_CORE` and variable names under it.**
-#
 # Default value: `CORE__`
 ##
 ENV__SS_CORE="CORE__"
 
 ##
-# RepoExe environment variables `termux-core` scope.
-#
+# RepoExe environment variables `repoexe-core` scope.
 # **Do not modify this!**
-#
 # Default value: `CORE__`
 ##
 ENV__S_CORE="${ENV__S_ROOT}${ENV__SS_CORE}"
 
-
 ##
-# RepoExe environment variables `termux-core-tests` sub scope.
-#
+# RepoExe environment variables `repoexe-core-tests` sub scope.
 # **Do not modify this!** This is considered a constant
-# `termux-core-tests` sub scope for RepoExe execution environment
-#  that's used by `termux-core` package to generate the value for
+# `repoexe-core-tests` sub scope for RepoExe execution environment
+#  that's used by `repoexe-core` package to generate the value for
 # `$ENV__S_CORE__TESTS` and variable names under it.**
-#
 # Default value: `CORE__TESTS__`
 ##
 ENV__SS_CORE__TESTS="CORE__TESTS__"
 
 ##
-# RepoExe environment variables `termux-core-tests` scope.
-#
+# RepoExe environment variables `repoexe-core-tests` scope.
 # **Do not modify this!**
-#
 # Default value: `CORE__TESTS__`
 ##
 ENV__S_CORE__TESTS="${ENV__S_ROOT}${ENV__SS_CORE__TESTS}"
 
-
-
 ##
-# RepoExe environment variables `termux-exec` sub scope.
-#
-# **Do not modify this!** This is considered a constant `termux-exec`
+# RepoExe environment variables `repoexe-exec` sub scope.
+# **Do not modify this!** This is considered a constant `repoexe-exec`
 # sub scope for RepoExe execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
+# programs that do not use the RepoExe packages building infrastructure
 # and rely on `$ENV__S_ROOT` environment variable exported by
 # RepoExe app containing the root scope to generate the value for
 # `$ENV__S_EXEC` and variable names under it.**
-#
 # Default value: `EXEC__`
 ##
 ENV__SS_EXEC="EXEC__"
 
 ##
-# RepoExe environment variables `termux-exec` scope.
-#
+# RepoExe environment variables `repoexe-exec` scope.
 # **Do not modify this!**
-#
 # Default value: `TERMUX_EXEC__`
 ##
 ENV__S_EXEC="${ENV__S_ROOT}${ENV__SS_EXEC}"
 
-
 ##
-# RepoExe environment variables `termux-exec-tests` sub scope.
-#
+# RepoExe environment variables `repoexe-exec-tests` sub scope.
 # **Do not modify this!** This is considered a constant
-# `termux-exec-tests` sub scope for RepoExe execution environment
-#  that's used by `termux-exec` package to generate the value for
+# `repoexe-exec-tests` sub scope for RepoExe execution environment
+#  that's used by `repoexe-exec` package to generate the value for
 # `$ENV__S_EXEC__TESTS` and variable names under it.**
-#
 # Default value: `TERMUX_EXEC__TESTS__`
 ##
 ENV__SS_EXEC__TESTS="EXEC__TESTS__"
 
 ##
-# RepoExe environment variables `termux-exec-tests` scope.
-#
+# RepoExe environment variables `repoexe-exec-tests` scope.
 # **Do not modify this!**
-#
 # Default value: `TERMUX_EXEC__TESTS__`
 ##
 ENV__S_EXEC__TESTS="${ENV__S_ROOT}${ENV__SS_EXEC__TESTS}"
 
-
-
 ##
-# RepoExe environment variables `termux-am-socket` sub scope.
-#
-# **Do not modify this!** This is considered a constant `termux-am-socket`
+# RepoExe environment variables `repoexe-am-socket` sub scope.
+# **Do not modify this!** This is considered a constant `repoexe-am-socket`
 # sub scope for RepoExe execution environment that's used by external
-# programs that do not use the termux packages building infrastructure
+# programs that do not use the RepoExe packages building infrastructure
 # and rely on `$ENV__S_ROOT` environment variable exported by
 # RepoExe app containing the root scope to generate the value for
 # `$ENV__S_AM_SOCKET` and variable names under it.**
-#
 # Default value: `AM_SOCKET__`
 ##
 ENV__SS_AM_SOCKET="AM_SOCKET__"
 
 ##
-# RepoExe environment variables `termux-am-socket` scope.
-#
+# RepoExe environment variables `repoexe-am-socket` scope.
 # **Do not modify this!**
-#
 # Default value: `AM_SOCKET__`
 ##
 ENV__S_AM_SOCKET="${ENV__S_ROOT}${ENV__SS_AM_SOCKET}"
 
-
-
-
-
 ####
 # Variables for the RepoExe packages.
-#
-# - https://github.com/termux/termux-packages
 ####
 
 ##
 # RepoExe packages repo name.
-#
 # Default value: `termux-packages`
 ##
 PKGS__REPO_NAME="RepoExe"
 
 ##
 # RepoExe packages repo url.
-#
 # Default value: `https://github.com/termux/termux-packages`
 ##
 PKGS__REPO_URL="$REPOS_HOST_ORG_URL/$PKGS__REPO_NAME"
-
-
-
-
 
 ####
 # Variables for the RepoExe package repositories.
 ###
 
 # The core variable values for which the packages hosted on the
-# package repos defined in `repo.json` are compiled for.
+# package repos defined in `scripts/repo.json` are compiled for.
 # If a custom repo is not being hosted, and official RepoExe repos are
-# still defined in `repo.json`, then DO NOT change these values. If a
+# still defined in `scripts/repo.json`, then DO NOT change these values. If a
 # custom repo is being hosted whose variable values equal
 # `APP__PACKAGE_NAME`, `APP__DATA_DIR`,
 # `CORE_DIR`, `APPS_DIR`, `ROOTFS`,
@@ -1783,40 +1384,34 @@ REPO__ROOTFS="/data/data/com.termux/files"
 REPO__HOME="/data/data/com.termux/files/home"
 REPO__PREFIX="/data/data/com.termux/files/usr"
 
-
-
 ####
-# Variables loaded from `repo.json` file for RepoExe package repositories.
+# Variables loaded from `scripts/repo.json` file for RepoExe package repositories.
 ####
 
 REPO_URL=()
 REPO_DISTRIBUTION=()
 REPO_COMPONENT=()
 
-# FIXME: Move `repo.json` file to under `scripts/` directory and COPY it to `/tmp/termux-packages` in `Dockerfile`.
-if [[ ! -f "$PKGS__BUILD__REPO_ROOT_DIR/repo.json" ]]; then
+# COPY `scripts/repo.json` to `/tmp/termux-packages` in `Dockerfile`.
+if [[ ! -f "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json" ]]; then
     if [[ "${PKGS__BUILD__IS_DOCKER_BUILD:-}" != "true" ]]; then
-        echo "The 'repo.json' file not found at the '$PKGS__BUILD__REPO_ROOT_DIR/repo.json' path." 1>&2
+        echo "The 'scripts/repo.json' file not found at the '$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json' path." 1>&2
         exit 1
     fi
 else
     export PACKAGES_DIRECTORIES
-    PACKAGES_DIRECTORIES=$(jq --raw-output '"packages"' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json")
+    PACKAGES_DIRECTORIES=$(jq --raw-output '"packages"' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json")
 
-    for url in $(jq -r '.repo.url' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+    for url in $(jq -r '.repo.url' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
         REPO_URL+=("$url")
     done
-    for distribution in $(jq -r '.repo.distribution' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+    for distribution in $(jq -r '.repo.distribution' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
         REPO_DISTRIBUTION+=("$distribution")
     done
-    for component in $(jq -r '.repo.component' "$PKGS__BUILD__REPO_ROOT_DIR/repo.json"); do
+    for component in $(jq -r '.repo.component' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
         REPO_COMPONENT+=("$component")
     done
 fi
-
-
-
-
 
 ###
 # Misc
@@ -1827,10 +1422,10 @@ __build_props__add_variables_validator_actions "CLEANUP_BUILT_PACKAGES_THRESHOLD
 
 # Path to CGCT tools
 CGCT_DEFAULT_PREFIX="/data/data/com.termux/files/usr/glibc"
-__build_props__add_variables_validator_actions "CGCT_DEFAULT_PREFIX" "safe_absolute_path invalid_termux_prefix_paths"
+__build_props__add_variables_validator_actions "CGCT_DEFAULT_PREFIX" "safe_absolute_path invalid_prefix_paths"
 
 export CGCT_DIR="/data/data/com.termux/cgct"
-__build_props__add_variables_validator_actions "CGCT_DIR" "safe_absolute_path invalid_termux_prefix_paths"
+__build_props__add_variables_validator_actions "CGCT_DIR" "safe_absolute_path invalid_prefix_paths"
 
 # Allow to override setup.
 for f in "${HOME}/.config/termux/termuxrc.sh" "${HOME}/.termux/termuxrc.sh" "${HOME}/.termuxrc"; do
@@ -1842,10 +1437,6 @@ for f in "${HOME}/.config/termux/termuxrc.sh" "${HOME}/.termux/termuxrc.sh" "${H
     fi
 done
 unset f
-
-
-
-
 
 ###
 # Run build properties variable values validation.
@@ -1883,7 +1474,6 @@ __build_props__validate_variables() {
 or \`/mnt/expand/<volume_uuid>/user/<user_id>/<package_name>\` formats." 1>&2
         return 1
     fi
-
 
     for variable_name in "${__BUILD_PROPS__VARIABLES_VALIDATOR_ACTIONS_VARIABLE_NAMES[@]}"; do
         if [[ ! "$variable_name" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
@@ -1929,7 +1519,7 @@ max length \`<= NAME_MAX ($NAME_MAX)\`." 1>&2
                         return 1
                     fi
                     ;;
-                invalid_termux_rootfs_paths)
+                invalid_rootfs_paths)
                     if [[ "$variable_value" =~ ${REGEX__INVALID_ROOTFS_PATHS:?} ]]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
                         echo "The $variable_name must not match one of the invalid paths \
@@ -1937,7 +1527,7 @@ in REGEX__INVALID_ROOTFS_PATHS \`$REGEX__INVALID_ROOTFS_PATHS\`." 1>&2
                         return 1
                     fi
                     ;;
-                invalid_termux_home_paths)
+                invalid_home_paths)
                     if [[ "$variable_value" =~ ${REGEX__INVALID_HOME_PATHS:?} ]]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
                         echo "The $variable_name must not match one of the invalid paths \
@@ -1945,7 +1535,7 @@ in REGEX__INVALID_HOME_PATHS \`$REGEX__INVALID_HOME_PATHS\`." 1>&2
                         return 1
                     fi
                     ;;
-                invalid_termux_prefix_paths)
+                invalid_prefix_paths)
                     if [[ "$variable_value" =~ ${REGEX__INVALID_PREFIX_PATHS:?} ]]; then
                         echo "The $variable_name '$variable_value' with length ${#variable_value} is invalid." 1>&2
                         echo "The $variable_name must not match one of the invalid paths \
@@ -1953,7 +1543,7 @@ in REGEX__INVALID_PREFIX_PATHS \`$REGEX__INVALID_PREFIX_PATHS\`." 1>&2
                         return 1
                     fi
                     ;;
-                path_equal_to_or_under_termux_rootfs)
+                path_equal_to_or_under_rootfs)
                     if [[ "$variable_value" != "${ROOTFS:?}" ]] && \
                             {
                                 { [[ "${ROOTFS:?}" != "/" ]] && [[ "$variable_value" != "${ROOTFS}/"* ]]; } || \
@@ -1964,7 +1554,7 @@ in REGEX__INVALID_PREFIX_PATHS \`$REGEX__INVALID_PREFIX_PATHS\`." 1>&2
                         return 1
                     fi
                     ;;
-                path_under_termux_rootfs)
+                path_under_rootfs)
                     if { [[ "${ROOTFS:?}" != "/" ]] && [[ "$variable_value" != "${ROOTFS}/"* ]]; } || \
                         { [[ "${ROOTFS:?}" == "/" ]] && [[ "$variable_value" != "/"* ]]; }; then
                         echo "The $variable_name '$variable_value' is invalid." 1>&2
@@ -2035,7 +1625,6 @@ variable name '$variable_name' is invalid." 1>&2
         done
     done
 
-
     if [[ "$__BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
             [ "${#APP__DATA_DIR}" -ge ${APP__DATA_DIR___MAX_LEN:?} ]; then
         echo "The APP__DATA_DIR '$APP__DATA_DIR' with length ${#APP__DATA_DIR} is invalid." 1>&2
@@ -2052,7 +1641,6 @@ including the null \`\0\` terminator." 1>&2
         return 1
     fi
 
-
     if [[ ! "$APP__APP_IDENTIFIER" =~ ${APPS_APP_IDENTIFIER_REGEX:?} ]]; then
         echo "The APP__APP_IDENTIFIER '$APP__APP_IDENTIFIER' with length ${#APP__APP_IDENTIFIER} is invalid." 1>&2
         echo "Check 'APPS_APP_IDENTIFIER_REGEX' variable docs for info on what is a valid app identifier." 1>&2
@@ -2066,7 +1654,6 @@ including the null \`\0\` terminator." 1>&2
 \`<= APPS_APP_IDENTIFIER___MAX_LEN ($APPS_APP_IDENTIFIER___MAX_LEN)\`." 1>&2
         return 1
     fi
-
 
     if [[ "$__BUILD_PROPS__VALIDATE_PATHS_MAX_LEN" == "true" ]] && \
             [ "${#ROOTFS}" -ge ${ROOTFS_DIR___MAX_LEN:?} ]; then
@@ -2091,7 +1678,6 @@ including the null \`\0\` terminator." 1>&2
 including the null \`\0\` terminator." 1>&2
         return 1
     fi
-
 
     if [[ "$ROOTFS" != "/" ]] && \
             [[ "$__BUILD_PROPS__VALIDATE_PREFIX_USR_MERGE_FORMAT" == "true" ]]; then
