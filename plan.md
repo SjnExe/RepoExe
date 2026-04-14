@@ -1,7 +1,9 @@
 # Refactoring Plan for RepoExe
 
-## Repository Configurations
+## Project Context & Goals
+**Goal:** To migrate and extensively refactor the Termux build environment into a highly customized, CI-optimized repository called **RepoExe**. The refactoring process will utilize files from the upstream `termux-packages` repository and the previous `backup` directory, merging the best configurations while aggressively stripping out unnecessary legacy components (like X11/root packages and base app bootstrappers).
 
+## Repository Configurations
 - **Repository Name:** RepoExe
 - **GitHub Repository:** https://github.com/SjnExe/RepoExe
 - **GitHub Pages:** https://sjnexe.github.io/RepoExe/ (Used for hosting APT repository metadata)
@@ -11,7 +13,6 @@
 - **Dev Component:** `dev` (Enabled by installing the `repoexe-dev` package, which adds the component source list. Uninstalling `repoexe-dev` disables the component.)
 
 ## Environment & CI/CD Specs
-
 - **CI-First Optimization:** The core codebase (`Dockerfile`, workflows, build scripts) must be **strictly optimized for GitHub Actions**.
 - **GitHub Runner Specs:** 4 Cores, 16GB RAM. *Note: The environment does NOT support swap or zram. Memory usage must be tightly controlled to prevent OOM errors, while maximizing parallelization.*
 - **Custom Docker Image (`docker.yml`):** Built and uploaded to GHCR. Docker is the **only officially supported environment** for local building to prevent host pollution.
@@ -24,7 +25,6 @@
 - **Host Cleanup (`free-space.sh`):** Use extremely fast `rm -rf` logic for massive toolchains on the GitHub Host VM.
 
 ## Architectural Guidelines
-
 1. **Agent Directive - Continuous Clarification:** The Agent (Jules) MUST proactively ask the user questions and request confirmation whenever making ambiguous refactoring decisions, to ensure zero issues.
 2. **Independent Packages:** Bundled packages (like `android-tools`) will be replaced with independent packages that pull specific upstream sources.
 3. **Granular Dependency Splitting:** `libandroid-tools-shared` must be split into specific, independent upstream libraries (e.g., `liblog`, `libziparchive`, `libbase`, `libcutils`). Suffixes will only be used if explicit conflicts with Termux are found.
@@ -34,8 +34,14 @@
 7. **Preserve Cross-Compilation Logic:** Refactor setup scripts (`scripts/build/setup/`) by replacing Termux paths, but DO NOT arbitrarily strip out vital cross-compilation engineering.
 8. **Reference Retention:** The `backup/` and `termux-packages/` directories MUST be preserved throughout the refactoring process for reference. They will only be deleted at the very end.
 
-## Ignored/Removed Components
+## Refactoring Guidelines
+1. **Branding Removal:** Strip out "termux" branding wherever possible to make the codebase standard. Do *not* blindly replace "termux" with "RepoExe". Only use the "termux" brand name where the context strictly dictates it (e.g., specific Termux app interactions).
+2. **Brand Usage:** When appropriate, use the brand as "RepoExe", "repoexe", or "REPOEXE" depending on the context.
+3. **Comment Cleanup:** Remove useless or overly verbose comments found in the original Termux repository scripts. Keep only necessary, informative comments.
+4. **Base Selection Strategy:** Some files should be copied from `backup` and refactored using `termux-packages` as a reference, or vice-versa. The choice must be dynamically made based on which file is structurally closer to the end goal.
+5. **Packages Scope:** We will only maintain standard packages. Root packages (`root-packages`) and X11 packages (`x11-packages`) are entirely removed and out of scope.
 
+## Ignored/Removed Components
 - `golang_validation.yml` and `zig_validation.yml` (RepoExe will not maintain custom-patched compiler standard libraries).
 - `bootstrap_archives.yml` and `scripts/bootstrap/` (Specific to base Termux app bootstrapping).
 - Termux's complex `packages.yml`.
