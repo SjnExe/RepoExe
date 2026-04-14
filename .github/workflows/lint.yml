@@ -1,0 +1,36 @@
+name: Linting
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+
+jobs:
+  prettier:
+    name: Prettier (Format Check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Prettier
+        run: npm install -g prettier
+
+      - name: Run Prettier Check
+        run: prettier --check "**/*.{yml,yaml,json,md,js}"
+
+  shellcheck:
+    name: Shellcheck (Bash Linting)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Shellcheck
+        run: |
+          find . -type f -name "*.sh" -not -path "*/node_modules/*" -not -path "*/build/*" | xargs shellcheck --severity=warning || true
+          # For now, we only warn to not block builds, as upstream Termux scripts have many warnings.

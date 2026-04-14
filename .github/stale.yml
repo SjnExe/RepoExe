@@ -1,0 +1,20 @@
+daysUntilStale: 75
+daysUntilClose: false
+
+exemptLabels:
+  - 'WIP'
+  - 'discussion'
+  - 'information'
+  - 'package request'
+  - 'tracker'
+  - 'untriaged'
+  - 'dependencies'
+  - 'renovate'
+
+exemptAssignees: true
+
+markComment: false
+
+only: issues
+
+staleLabel: inactive
