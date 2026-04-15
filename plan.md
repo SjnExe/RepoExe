@@ -205,11 +205,11 @@ _Optimize Docker builder. Remove legacy cloning and `cgct`._
 - [x] `Dockerfile` (Drop hardcoded termux-packages clones; configure to mount
       RepoExe code directly. Optimize RUN layers.)
 - [x] Delete `Dockerfile.cgct`.
-- [ ] `scripts/run-docker.sh`
-- [ ] `scripts/update-docker.sh`
-- [ ] `scripts/profile-restricted.apparmor`, `scripts/profile-relaxed.apparmor`,
+- [x] `scripts/run-docker.sh`
+- [x] `scripts/update-docker.sh`
+- [x] `scripts/profile-restricted.apparmor`, `scripts/profile-relaxed.apparmor`,
       `scripts/profile.json` (Verify container security profiles)
-- [ ] `.github/workflows/docker.yml` (From `backup` referencing RepoExe
+- [x] `.github/workflows/docker.yml` (From `backup` referencing RepoExe
       registry)
 
 ### 8. Core Build Scripts & Setup Logic (Severity: 80/100)
