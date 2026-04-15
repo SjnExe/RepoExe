@@ -27,9 +27,7 @@ and base app bootstrappers).
 
 - **CI-First Optimization:** The core codebase (`Dockerfile`, workflows, build
   scripts) must be **strictly optimized for GitHub Actions**.
-- **GitHub Runner Specs:** 4 Cores, 16GB RAM. _Note: The environment does NOT
-  support swap or zram. Memory usage must be tightly controlled to prevent OOM
-  errors, while maximizing parallelization._
+- **GitHub Runner Specs:** 4 Cores, 16GB RAM. _Note: There are two environments: the GitHub runner and Jules (the agent) environment. Everything in the repository should be tailored for the GitHub runner, which has 4 cores, 16GB RAM, and DOES support swap and zram._
 - **Custom Docker Image (`docker.yml`):** Built and uploaded to GHCR. Docker is
   the **only officially supported environment** for local building to prevent
   host pollution.
@@ -229,12 +227,12 @@ _Core compilation logic. Enforce parallelization (-j4)._
 
 _Crucial for the dual-mode compilation and automated update processes._
 
-- [ ] `.github/workflows/build.yml` (Use `backup` as base for dual PR/Release
+- [x] `.github/workflows/build.yml` (Use `backup` as base for dual PR/Release
       mode, enforce parallelization limits, implement strict `Restore-Only`
       caching for PRs)
-- [ ] `.github/workflows/package_updates.yml` (Refine the automated update and
+- [x] `.github/workflows/package_updates.yml` (Refine the automated update and
       PR logic from `backup`. Implement exclusions.)
-- [ ] `.github/workflows/publish.yml` (Review and integrate metadata GPG
+- [x] `.github/workflows/publish.yml` (Review and integrate metadata GPG
       signing)
 
 ### 10. Final Cleanup (Severity: 0/100)
