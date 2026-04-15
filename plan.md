@@ -193,10 +193,10 @@ _Adapt packages as fully independent entities. Granularize dependencies._
 
 _Setup the essential GitHub Actions modules and security checks._
 
-- [ ] `.github/actions/zram/action.yml` (Use backup version to avoid GPG
+- [x] `.github/actions/zram/action.yml` (Use backup version to avoid GPG
       fragility)
-- [ ] `.github/workflows/codeql.yml` (Configure to run on PRs and push to main)
-- [ ] `.github/workflows/check_repository_health.yml` (Clean up for RepoExe)
+- [x] `.github/workflows/codeql.yml` (Configure to run on PRs and push to main)
+- [x] `.github/workflows/check_repository_health.yml` (Clean up for RepoExe)
 
 ### 7. Docker Configuration (Severity: 70/100)
 

@@ -1,0 +1,54 @@
+name: Check Repository Health
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Run weekly on Sunday
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Validate build.sh files
+        run: |
+          ERROR_COUNT=0
+          for build_file in $(find packages -name 'build.sh'); do
+            if ! grep -q "PKG_VERSION" "$build_file"; then
+              echo "Error: $build_file is missing PKG_VERSION"
+              ERROR_COUNT=$((ERROR_COUNT + 1))
+            fi
+            if ! grep -q "PKG_HOMEPAGE" "$build_file"; then
+              echo "Error: $build_file is missing PKG_HOMEPAGE"
+              ERROR_COUNT=$((ERROR_COUNT + 1))
+            fi
+            if ! grep -q "PKG_DESCRIPTION" "$build_file"; then
+              echo "Error: $build_file is missing PKG_DESCRIPTION"
+              ERROR_COUNT=$((ERROR_COUNT + 1))
+            fi
+          done
+
+          if [ $ERROR_COUNT -ne 0 ]; then
+            echo "Repository Health Check Failed with $ERROR_COUNT errors."
+            exit 1
+          fi
+          echo "All packages passed basic health validation."
+
+      - name: Create Issue on Failure
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "🚨 Repository Health Check Failed",
+              body: "The weekly repository health check failed. Please review the workflow logs to correct package definition errors."
+            })
