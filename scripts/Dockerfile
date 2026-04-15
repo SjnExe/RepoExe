@@ -9,12 +9,12 @@ ENV LANG=en_US.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Needed for setup:
-RUN rm -rf /tmp/repoexe-packages && \
-    mkdir -p /tmp/repoexe-packages/scripts
+RUN rm -rf /tmp/packages && \
+    mkdir -p /tmp/packages/scripts
 # Since we build from RepoExe root, the paths should reflect our structure
-COPY ./scripts/llvm-snapshot.gpg.key ./scripts/properties.sh ./scripts/setup-android-sdk.sh ./scripts/setup-ubuntu.sh ./scripts/repo.json /tmp/repoexe-packages/scripts/
-RUN mkdir -p /tmp/repoexe-packages/scripts/build
-COPY ./scripts/build/termux_download.sh /tmp/repoexe-packages/scripts/build/
+COPY ./scripts/llvm-snapshot.gpg.key ./scripts/properties.sh ./scripts/setup-android-sdk.sh ./scripts/setup-ubuntu.sh ./scripts/repo.json /tmp/packages/scripts/
+RUN mkdir -p /tmp/packages/scripts/build
+COPY ./scripts/build/repoexe_download.sh /tmp/packages/scripts/build/
 
 # Setup needed packages and the Android SDK and NDK
 RUN apt-get update && \
@@ -24,14 +24,14 @@ RUN apt-get update && \
 	useradd -u 1001 -U -m -s /bin/bash builder && \
 	echo "builder ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/builder && \
 	chmod 0440 /etc/sudoers.d/builder && \
-	chmod a+rx /tmp/repoexe-packages/scripts/*.sh /tmp/repoexe-packages/scripts/build/termux_download.sh && \
-	su - builder -c "TERMUX_PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/repoexe-packages/scripts/setup-ubuntu.sh" && \
-	su - builder -c "TERMUX_PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/repoexe-packages/scripts/setup-android-sdk.sh" && \
+	chmod a+rx /tmp/packages/scripts/*.sh /tmp/packages/scripts/build/repoexe_download.sh && \
+	su - builder -c "PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/packages/scripts/setup-ubuntu.sh" && \
+	su - builder -c "PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/packages/scripts/setup-android-sdk.sh" && \
 	apt-get remove -yq --autoremove lsb-release software-properties-common && \
 	apt-get clean && \
 	rm -rf /var/lib/apt/lists/* && \
 	su - builder -c "rm -rf ~/lib/*.zip ~/.android/cache/" && \
-	rm -rf /tmp/repoexe-packages
+	rm -rf /tmp/packages
 
 # Switch User
 USER builder:builder
