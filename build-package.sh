@@ -56,7 +56,7 @@ if [[ -f "${SCRIPTDIR}/build-tools/.installed" ]]; then
 fi
 
 # Lock file to prevent parallel running in the same environment.
-BUILD_LOCK_FILE="${TMPDIR}/.termux-build.lck"
+BUILD_LOCK_FILE="${TMPDIR}/.build.lck"
 if [[ ! -e "$BUILD_LOCK_FILE" ]]; then
 	touch "$BUILD_LOCK_FILE"
 fi

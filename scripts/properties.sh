@@ -1428,7 +1428,7 @@ export CGCT_DIR="/data/data/com.termux/cgct"
 __build_props__add_variables_validator_actions "CGCT_DIR" "safe_absolute_path invalid_prefix_paths"
 
 # Allow to override setup.
-for f in "${HOME}/.config/termux/termuxrc.sh" "${HOME}/.termux/termuxrc.sh" "${HOME}/.termuxrc"; do
+for f in "${HOME}/.config/termux/termuxrc.sh" "${HOME}/.termux/termuxrc.sh" "${HOME}/.repoexerc"; do
     if [ -f "$f" ]; then
         echo "Using builder configuration from '$f'..."
         # shellcheck source=/dev/null
