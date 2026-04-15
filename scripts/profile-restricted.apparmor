@@ -43,11 +43,11 @@ profile _custom-repoexe-package-builder-{{CONTAINER_NAME}} flags=(attach_disconn
   # provided all other LSM and yama setting allow it.
   ptrace (trace,tracedby,read,readby) peer=_custom-repoexe-package-builder-{{CONTAINER_NAME}},
 
-  # Allow mounting fuse overlayfs filesystems in ~/.repoexe-build/
+  # Allow mounting fuse overlayfs filesystems in ~/.build/
 	# This is used for mounting overlayfs of our build toolchain. This is
 	# more efficient than copying over the entire NDK as this takes up
 	# just under 50MB storage than 2.4GB
-	mount fstype=fuse.fuse-overlayfs -> /home/builder/.repoexe-build/**,
+	mount fstype=fuse.fuse-overlayfs -> /home/builder/.build/**,
 
   # Deal with privilege escalation
 	deny capability setuid,

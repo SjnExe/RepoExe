@@ -45,7 +45,7 @@ ci_artifact_url() {
 
 download_ci_artifacts() {
 	local WORKFLOW_ID="$1" CI_ARTIFACT_URL CI_ARTIFACT_ZIP
-	CI_ARTIFACT_ZIP="$HOME/.termux-build/_cache/artifact-${WORKFLOW_ID}.zip"
+	CI_ARTIFACT_ZIP="$HOME/.build/_cache/artifact-${WORKFLOW_ID}.zip"
 	CI_ARTIFACT_URL="$(ci_artifact_url "${WORKFLOW_ID}")" || { echo "Failed to get CI artifact URL" >&2; return 1; }
 	echo "CI artifact URL is ${CI_ARTIFACT_URL}"
 
