@@ -216,14 +216,14 @@ _Optimize Docker builder. Remove legacy cloning and `cgct`._
 
 _Core compilation logic. Enforce parallelization (-j4)._
 
-- [ ] `build-package.sh`
-- [ ] `build-all.sh`
-- [ ] `clean.sh`
-- [ ] `scripts/build/setup/` (Refactor variables, do not remove vital
+- [x] `build-package.sh`
+- [x] `build-all.sh`
+- [x] `clean.sh`
+- [x] `scripts/build/setup/` (Refactor variables, do not remove vital
       compilation steps)
-- [ ] `scripts/build/` general scripts
-- [ ] `scripts/check-built-packages.py` (Retain for metadata validation)
-- [ ] `scripts/test-runner.sh` (Adapt for RepoExe local package testing)
+- [x] `scripts/build/` general scripts
+- [x] `scripts/check-built-packages.py` (Retain for metadata validation)
+- [x] `scripts/test-runner.sh` (Adapt for RepoExe local package testing)
 
 ### 9. GitHub Actions Core Workflows (Severity: 90/100)
 
