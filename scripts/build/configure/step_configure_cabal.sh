@@ -10,7 +10,7 @@ step_configure_cabal() {
 	# Avoid gnulib wrapping of functions when cross compiling. See
 	# http://wiki.osdev.org/Cross-Porting_Software#Gnulib
 	# https://gitlab.com/sortix/sortix/wikis/Gnulib
-	# https://github.com/RepoExe/RepoExe/issues/76
+	# https://github.com/termux/RepoExe/issues/76
 	AVOID_GNULIB=""
 	AVOID_GNULIB+=" ac_cv_func_nl_langinfo=yes"
 	AVOID_GNULIB+=" ac_cv_func_calloc_0_nonnull=yes"

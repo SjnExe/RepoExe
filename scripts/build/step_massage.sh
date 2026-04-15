@@ -95,7 +95,7 @@ step_massage() {
 			# rest of the header line to avoid wasting time reading `4096` characters for non-shebang files.
 			# `|| :` is used for second `read` to include files with just a shebang line as `read` will exit with `1` for those due to EOF.
 			# For example, `pip` from `python-pip` package is set with the following shebang at build time:
-			# `#!/home/builder/.repoexe-build/python3.12-crossenv-prefix-bionic-x86_64/cross/bin/python3.12`
+			# `#!/home/builder/.termux-build/python3.12-crossenv-prefix-bionic-x86_64/cross/bin/python3.12`
 			header_line=""
 			{ { read -r -n 2 header_line && [[ "$header_line" == "#!" ]]; } || continue; read -r -n 4096 header_line || :; } < "$file"
 			header_line="#!${header_line}"
@@ -233,7 +233,7 @@ step_massage() {
 
 	# Check so that package is not affected by
 	# https://github.com/android/ndk/issues/1614, or
-	# https://github.com/RepoExe/RepoExe/issues/9944
+	# https://github.com/termux/RepoExe/issues/9944
 	if [[ "${PACKAGE_LIBRARY}" == "bionic" ]]; then
 		echo "INFO: READELF=${READELF} ... $(command -v ${READELF})"
 		export pattern_file_undef=$(mktemp)

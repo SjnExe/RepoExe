@@ -130,7 +130,7 @@ step_start_build() {
 			local ELF_CLEANER_VERSION
 			ELF_CLEANER_VERSION=$(bash -c ". $SCRIPTDIR/packages/repoexe-elf-cleaner/build.sh; echo \$PKG_VERSION")
 			download \
-				"https://github.com/RepoExe/repoexe-elf-cleaner/releases/download/v${ELF_CLEANER_VERSION}/repoexe-elf-cleaner" \
+				"https://github.com/termux/repoexe-elf-cleaner/releases/download/v${ELF_CLEANER_VERSION}/repoexe-elf-cleaner" \
 				"$ELF_CLEANER" \
 				59645fb25b84d11f108436e83d9df5e874ba4eb76ab62948869a23a3ee692fa7
 			chmod u+x "$ELF_CLEANER"

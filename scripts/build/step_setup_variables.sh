@@ -14,7 +14,7 @@ step_setup_variables() {
 	: "${WITHOUT_DEPVERSION_BINDING:="false"}"
 	: "${SKIP_DEPCHECK:="false"}"
 	: "${GLOBAL_LIBRARY:="false"}"
-	: "${TOPDIR:="$HOME/.repoexe-build"}"
+	: "${TOPDIR:="$HOME/.termux-build"}"
 	: "${PACMAN_PACKAGE_COMPRESSION:="xz"}"
 
 	if [ -z "${PACKAGE_FORMAT-}" ]; then

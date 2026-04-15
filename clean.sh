@@ -24,14 +24,14 @@ if [ "$(id -u)" = "0" ] && [[ "$ON_DEVICE_BUILD" == "true" ]]; then
 	exit 1
 fi
 
-# Read settings from .repoexerc if existing
-test -f "$HOME/.repoexerc" && . "$HOME/.repoexerc"
-: "${TOPDIR:="$HOME/.repoexe-build"}"
+# Read settings from .termuxrc if existing
+test -f "$HOME/.termuxrc" && . "$HOME/.termuxrc"
+: "${TOPDIR:="$HOME/.termux-build"}"
 : "${TMPDIR:=/tmp}"
 export TMPDIR
 
 # Lock file. Same as used in build-package.sh.
-BUILD_LOCK_FILE="${TMPDIR}/.repoexe-build.lck"
+BUILD_LOCK_FILE="${TMPDIR}/.termux-build.lck"
 if [ ! -e "$BUILD_LOCK_FILE" ]; then
 	touch "$BUILD_LOCK_FILE"
 fi
