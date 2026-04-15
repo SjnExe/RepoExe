@@ -13,9 +13,9 @@ if [ "$(uname -o)" = "Android" ] || [ -e "/system/bin/app_process" ]; then
 	exit 1
 fi
 
-# Read settings from .termuxrc if existing
-test -f "$HOME"/.termuxrc && . "$HOME"/.termuxrc
-: ${TOPDIR:="$HOME/.termux-build"}
+# Read settings from .repoexerc if existing
+test -f "$HOME"/.repoexerc && . "$HOME"/.repoexerc
+: ${TOPDIR:="$HOME/.build"}
 : ${ARCH:="aarch64"}
 : ${FORMAT:="debian"}
 : ${DEBUG_BUILD:=""}
