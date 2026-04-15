@@ -255,3 +255,17 @@ _Execute only after everything is verified to work._
   web assets via CI.
 - The `lint.yml` workflow was updated to use Node 24 instead of Node 20 to
   suppress GitHub Actions deprecation warnings and ensure CI pipeline stability.
+
+## Severity 50 Implementation Notes (Handover Context)
+
+- `libandroid-tools` is now split into multiple subpackages (`libbase`,
+  `libcutils`, `libutils`, `libziparchive`, `libandroidfw`, `liblog`,
+  `libandroid-pathutils`) which means dependent packages must explicitly list
+  the ones they need in `PKG_DEPENDS` instead of pulling the entire
+  `libandroid-tools-shared`.
+- The bundled `android.jar` in `aapt` and `aapt2` is no longer sourced from a
+  hardcoded `$ANDROID_HOME` runner path. It dynamically fetches the latest
+  `platform-36_r02.zip` from `dl.google.com/android/repository`.
+- Headers for `libandroid-tools` subpackages are installed collectively under
+  `$PREFIX/include/android-tools`. Ensure packages compiling against them use
+  `-I$PREFIX/include/android-tools`.
