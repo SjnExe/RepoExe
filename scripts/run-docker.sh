@@ -19,7 +19,7 @@ _show_usage() {
 	echo "  -d, --dry-run              Run 'build-package-dry-run-simulation.sh' before"
 	echo "                             building any package. This is useful for CI to"
 	echo "                             skip unnecessary docker runs."
-	echo "  -m, --mount-repoexe-dirs    Mount /data and ~/.repoexe-build into the container."
+	echo "  -m, --mount-repoexe-dirs    Mount /data and ~/.termux-build into the container."
 	echo "                             This is useful for building locally for development"
 	echo "                             with host IDE and editors."
 	echo "Supported environment variables:"
@@ -56,7 +56,7 @@ while (( $# != 0 )); do
 			dry_run="true"
 			shift 1;;
 		-m|--mount-repoexe-dirs)
-			DOCKER_RUN_EXTRA_ARGS="--volume /data:/data --volume $HOME/.repoexe-build:$CONTAINER_HOME_DIR/.repoexe-build $DOCKER_RUN_EXTRA_ARGS"
+			DOCKER_RUN_EXTRA_ARGS="--volume /data:/data --volume $HOME/.termux-build:$CONTAINER_HOME_DIR/.termux-build $DOCKER_RUN_EXTRA_ARGS"
 			shift 1;;
 		--) shift 1; break;;
 		-*) echo "Error: Unknown option '$1'" 1>&2; shift 1; exit 1;;
