@@ -33,9 +33,7 @@ runs:
       uses: actions/cache/restore@v5
       with:
         path: scripts/zram.ko.zst
-        key:
-          ${{ steps.kernel-info.outputs.kernel_version }}-${{
-          hashFiles('.github/actions/zram/action.yml') }}
+        key: ${{ steps.kernel-info.outputs.kernel_version }}-${{ hashFiles('.github/actions/zram/action.yml') }}
 
     - name: Build zram kernel module
       if: steps.cache-zram.outputs.cache-hit != 'true'
@@ -77,9 +75,7 @@ runs:
         sudo swapon --discard --priority ${{ inputs.priority }} ${{ inputs.device_name }}
 
     - name: Save built zram kernel module
-      if:
-        steps.cache-zram.outputs.cache-hit != 'true' && github.ref ==
-        'refs/heads/main'
+      if: steps.cache-zram.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
       uses: actions/cache/save@v5
       with:
         path: scripts/zram.ko.zst

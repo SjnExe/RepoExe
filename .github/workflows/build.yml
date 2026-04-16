@@ -20,9 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description:
-          'Space separated list of packages to build (use @all to build
-          everything)'
+        description: 'Space separated list of packages to build (use @all to build everything)'
         required: true
         default: '@all'
 
@@ -81,16 +79,12 @@ jobs:
           fi
 
       - name: Lint Packages
-        if:
-          steps.pkgs.outputs.packages != '' && steps.pkgs.outputs.packages != '
-          '
+        if: steps.pkgs.outputs.packages != '' && steps.pkgs.outputs.packages != ' '
         run: |
           ./scripts/lint-packages.sh ${{ steps.pkgs.outputs.packages }}
 
       - name: Validate golang / zig environment
-        if:
-          steps.pkgs.outputs.packages != '' && steps.pkgs.outputs.packages != '
-          '
+        if: steps.pkgs.outputs.packages != '' && steps.pkgs.outputs.packages != ' '
         run: |
           # If the setup script or build for golang/zig is modified, validate them
           if echo "${{ steps.pkgs.outputs.packages }}" | grep -qw "golang"; then
@@ -217,8 +211,7 @@ jobs:
             "
 
       - name: Save cache
-        if:
-          github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@v5
         with:
           path: |
@@ -228,8 +221,7 @@ jobs:
 
       # Generate SLSA build provenance (only for non-PR runs)
       - name: Generate build provenance
-        if:
-          github.event_name != 'pull_request' && hashFiles('output/*.deb') != ''
+        if: github.event_name != 'pull_request' && hashFiles('output/*.deb') != ''
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: 'output/*.deb'

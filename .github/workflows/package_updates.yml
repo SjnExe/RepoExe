@@ -15,8 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description:
-          'A space-separated list of packages to update. Defaults to @all'
+        description: 'A space-separated list of packages to update. Defaults to @all'
         default: '@all'
         required: false
 

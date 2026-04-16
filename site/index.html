@@ -13,29 +13,17 @@
   <body>
     <header>
       <h1>
-        <a
-          href="https://github.com/SjnExe/RepoExe"
-          style="color: inherit; text-decoration: none"
-          >RepoExe</a
-        >
+        <a href="https://github.com/SjnExe/RepoExe" style="color: inherit; text-decoration: none">RepoExe</a>
       </h1>
       <p>
         APT repository by
-        <a
-          href="https://github.com/SjnExe"
-          style="color: var(--primary-color); text-decoration: none"
-          >SjnExe</a
-        >
+        <a href="https://github.com/SjnExe" style="color: var(--primary-color); text-decoration: none">SjnExe</a>
       </p>
 
       <div class="install-section">
         <div class="tabs">
-          <button class="tab-btn active" onclick="switchInstallTab('auto')">
-            Auto script
-          </button>
-          <button class="tab-btn" onclick="switchInstallTab('manual')">
-            Manual apt-key
-          </button>
+          <button class="tab-btn active" onclick="switchInstallTab('auto')">Auto script</button>
+          <button class="tab-btn" onclick="switchInstallTab('manual')">Manual apt-key</button>
         </div>
         <div id="tab-auto" class="tab-content active">
           <div class="repo-install">
@@ -48,15 +36,9 @@
               <div class="terminal-title">bash - repoexe</div>
             </div>
             <div class="terminal-body">
-              <code
-                >curl -sL https://SjnExe.github.io/RepoExe/install | bash</code
-              >
+              <code>curl -sL https://SjnExe.github.io/RepoExe/install | bash</code>
               <button
-                onclick="
-                  copyInstallCmd(
-                    'curl -sL https://SjnExe.github.io/RepoExe/install | bash'
-                  )
-                "
+                onclick="copyInstallCmd('curl -sL https://SjnExe.github.io/RepoExe/install | bash')"
                 title="Copy to clipboard"
               >
                 <span class="material-symbols-outlined">content_copy</span>
@@ -76,10 +58,9 @@
             </div>
             <div class="terminal-body">
               <code
-                >mkdir -p $PREFIX/etc/apt/sources.list.d &amp;&amp; echo "deb
-                [trusted=yes] https://SjnExe.github.io/RepoExe stable main" &gt;
-                $PREFIX/etc/apt/sources.list.d/repoexe.list &amp;&amp; apt
-                update</code
+                >mkdir -p $PREFIX/etc/apt/sources.list.d &amp;&amp; echo "deb [trusted=yes]
+                https://SjnExe.github.io/RepoExe stable main" &gt; $PREFIX/etc/apt/sources.list.d/repoexe.list
+                &amp;&amp; apt update</code
               >
               <button
                 onclick="
@@ -99,17 +80,10 @@
       <div class="controls">
         <div class="search-box">
           <span class="material-symbols-outlined">search</span>
-          <input
-            type="text"
-            id="search"
-            placeholder="Search packages..."
-            onkeyup="filterPackages()"
-          />
+          <input type="text" id="search" placeholder="Search packages..." onkeyup="filterPackages()" />
         </div>
         <button onclick="toggleView()" title="Toggle View">
-          <span class="material-symbols-outlined" id="view-icon"
-            >view_list</span
-          >
+          <span class="material-symbols-outlined" id="view-icon">view_list</span>
         </button>
       </div>
     </header>
