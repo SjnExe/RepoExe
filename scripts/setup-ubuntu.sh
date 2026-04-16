@@ -323,15 +323,28 @@ PACKAGES+=" glslang-tools"
 # Do not require sudo if already running as root.
 SUDO="sudo"
 if [ "$(id -u)" = "0" ]; then
-	SUDO=""
+  SUDO=""
 fi
 
 # Allow 32-bit packages.
 $SUDO dpkg --add-architecture i386
 
+# Speed up apt by configuring parallel downloads and using eatmydata
+echo 'Acquire::Queue-Mode "host";' | $SUDO tee /etc/apt/apt.conf.d/99parallel
+echo 'Acquire::Retries "3";' | $SUDO tee -a /etc/apt/apt.conf.d/99parallel
+echo 'Acquire::http::Timeout "10";' | $SUDO tee -a /etc/apt/apt.conf.d/99parallel
+
+# Make sure eatmydata and aria2 are installed (aria2 for parallel downloading)
+if ! command -v eatmydata > /dev/null || ! command -v aria2c > /dev/null; then
+  $SUDO env DEBIAN_FRONTEND=noninteractive \
+    apt-get update
+  $SUDO env DEBIAN_FRONTEND=noninteractive \
+    apt-get install -yq --no-install-recommends eatmydata aria2
+fi
+
 # Install jq first, then source properties.sh
 $SUDO env DEBIAN_FRONTEND=noninteractive \
-	apt-get install -yq --no-install-recommends jq
+  eatmydata apt-get install -yq --no-install-recommends jq
 
 . $(dirname "$(realpath "$0")")/properties.sh
 
@@ -339,7 +352,7 @@ $SUDO env DEBIAN_FRONTEND=noninteractive \
 $SUDO cp $(dirname "$(realpath "$0")")/llvm-snapshot.gpg.key /etc/apt/trusted.gpg.d/apt.llvm.org.asc
 $SUDO chmod a+r /etc/apt/trusted.gpg.d/apt.llvm.org.asc
 {
-	echo "deb [arch=amd64] http://apt.llvm.org/noble/ llvm-toolchain-noble-${HOST_LLVM_MAJOR_VERSION} main"
+  echo "deb [arch=amd64] http://apt.llvm.org/noble/ llvm-toolchain-noble-${HOST_LLVM_MAJOR_VERSION} main"
 } | $SUDO tee /etc/apt/sources.list.d/apt-llvm-org.list > /dev/null
 
 LLVM_PACKAGES=""
@@ -353,15 +366,15 @@ LLVM_PACKAGES+=" lld-${HOST_LLVM_MAJOR_VERSION}"
 $SUDO apt-get -yq update
 
 $SUDO env DEBIAN_FRONTEND=noninteractive \
-	apt-get install -yq --no-install-recommends $PACKAGES $LLVM_PACKAGES
+  eatmydata apt-get install -yq --no-install-recommends $PACKAGES $LLVM_PACKAGES
 
 $SUDO locale-gen --purge en_US.UTF-8
 echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' | $SUDO tee -a /etc/default/locale
 
-# Ownership of `_PREFIX` must be fixed before `APP__DATA_DIR`
+# Ownership of `PREFIX` must be fixed before `APP__DATA_DIR`
 # if its under it, otherwise `_ROOTFS` will not have its ownership fixed.
-$SUDO mkdir -p "$_PREFIX"
-$SUDO chown -R "$(whoami)" "$_PREFIX"
+$SUDO mkdir -p "$PREFIX"
+$SUDO chown -R "$(whoami)" "$PREFIX"
 $SUDO mkdir -p "$APP__DATA_DIR"
 $SUDO chown -R "$(whoami)" "${APP__DATA_DIR%"${APP__DATA_DIR#/*/}"}" # Get `/path/` from `/path/to/app__data_dir`.
 
@@ -386,9 +399,9 @@ cd pkgconf-${PKGCONF_VERSION}
 echo "SYSTEM_LIBDIRS: $SYSTEM_LIBDIRS"
 echo "PKG_CONFIG_DIRS: $PKG_CONFIG_DIRS"
 ./configure --prefix=/usr \
-	--with-system-libdir=${SYSTEM_LIBDIRS} \
-	--with-pkg-config-dir=${PKG_CONFIG_DIRS}
-make
+  --with-system-libdir=${SYSTEM_LIBDIRS} \
+  --with-pkg-config-dir=${PKG_CONFIG_DIRS}
+make -j$(nproc)
 $SUDO make install
 cd -
 rm -Rf /tmp/pkgconf-build
