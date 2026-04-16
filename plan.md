@@ -27,7 +27,10 @@ and base app bootstrappers).
 
 - **CI-First Optimization:** The core codebase (`Dockerfile`, workflows, build
   scripts) must be **strictly optimized for GitHub Actions**.
-- **GitHub Runner Specs:** 4 Cores, 16GB RAM. _Note: There are two environments: the GitHub runner and Jules (the agent) environment. Everything in the repository should be tailored for the GitHub runner, which has 4 cores, 16GB RAM, and DOES support swap and zram._
+- **GitHub Runner Specs:** 4 Cores, 16GB RAM. _Note: There are two environments:
+  the GitHub runner and Jules (the agent) environment. Everything in the
+  repository should be tailored for the GitHub runner, which has 4 cores, 16GB
+  RAM, and DOES support swap and zram._
 - **Custom Docker Image (`docker.yml`):** Built and uploaded to GHCR. Docker is
   the **only officially supported environment** for local building to prevent
   host pollution.

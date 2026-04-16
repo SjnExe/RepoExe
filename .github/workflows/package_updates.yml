@@ -11,12 +11,13 @@ on:
     paths:
       - 'packages/**'
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: '0 */6 * * *'
   workflow_dispatch:
     inputs:
       packages:
-        description: "A space-separated list of packages to update. Defaults to @all"
-        default: "@all"
+        description:
+          'A space-separated list of packages to update. Defaults to @all'
+        default: '@all'
         required: false
 
 permissions: {} # none
@@ -29,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -69,10 +70,10 @@ jobs:
       - name: Process package updates
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BUILD_PACKAGES: "false"
-          CREATE_ISSUE: "false"
-          GIT_COMMIT_PACKAGES: "false"
-          GIT_PUSH_PACKAGES: "false"
+          BUILD_PACKAGES: 'false'
+          CREATE_ISSUE: 'false'
+          GIT_COMMIT_PACKAGES: 'false'
+          GIT_PUSH_PACKAGES: 'false'
         run: |
           readarray -t packages < ./built-packages.txt
           # Exclude manually managed AOSP packages
@@ -92,7 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -106,10 +107,10 @@ jobs:
       - name: Process package updates
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BUILD_PACKAGES: "true"
-          CREATE_ISSUE: "true"
-          GIT_COMMIT_PACKAGES: "true"
-          GIT_PUSH_PACKAGES: "true"
+          BUILD_PACKAGES: 'true'
+          CREATE_ISSUE: 'true'
+          GIT_COMMIT_PACKAGES: 'true'
+          GIT_PUSH_PACKAGES: 'true'
           MANUAL_INPUT_PACKAGES: ${{ github.event.inputs.packages }}
         run: |
           git config --global user.name "RepoExe Auto-Updater"

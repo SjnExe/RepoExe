@@ -20,7 +20,9 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: 'Space separated list of packages to build (use @all to build everything)'
+        description:
+          'Space separated list of packages to build (use @all to build
+          everything)'
         required: true
         default: '@all'
 
@@ -38,7 +40,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -79,12 +81,16 @@ jobs:
           fi
 
       - name: Lint Packages
-        if: steps.pkgs.outputs.packages != '' && steps.pkgs.outputs.packages != ' '
+        if:
+          steps.pkgs.outputs.packages != '' && steps.pkgs.outputs.packages != '
+          '
         run: |
           ./scripts/lint-packages.sh ${{ steps.pkgs.outputs.packages }}
 
       - name: Validate golang / zig environment
-        if: steps.pkgs.outputs.packages != '' && steps.pkgs.outputs.packages != ' '
+        if:
+          steps.pkgs.outputs.packages != '' && steps.pkgs.outputs.packages != '
+          '
         run: |
           # If the setup script or build for golang/zig is modified, validate them
           if echo "${{ steps.pkgs.outputs.packages }}" | grep -qw "golang"; then
@@ -97,7 +103,7 @@ jobs:
           fi
 
       - name: Restore cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/.ccache
@@ -107,7 +113,7 @@ jobs:
             ${{ runner.os }}-build-${{ matrix.arch }}-
 
       - name: Log in to registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -211,8 +217,9 @@ jobs:
             "
 
       - name: Save cache
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@v4
+        if:
+          github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v5
         with:
           path: |
             ~/.ccache
@@ -221,8 +228,9 @@ jobs:
 
       # Generate SLSA build provenance (only for non-PR runs)
       - name: Generate build provenance
-        if: github.event_name != 'pull_request' && hashFiles('output/*.deb') != ''
-        uses: actions/attest-build-provenance@v2
+        if:
+          github.event_name != 'pull_request' && hashFiles('output/*.deb') != ''
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: 'output/*.deb'
 
