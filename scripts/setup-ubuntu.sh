@@ -329,9 +329,20 @@ fi
 # Allow 32-bit packages.
 $SUDO dpkg --add-architecture i386
 
+# Speed up apt by configuring parallel downloads and using eatmydata
+echo 'Acquire::Queue-Mode "host";' | $SUDO tee /etc/apt/apt.conf.d/99parallel
+echo 'Acquire::Retries "3";' | $SUDO tee -a /etc/apt/apt.conf.d/99parallel
+echo 'Acquire::http::Timeout "10";' | $SUDO tee -a /etc/apt/apt.conf.d/99parallel
+
+# Make sure eatmydata is installed
+$SUDO env DEBIAN_FRONTEND=noninteractive \
+	apt-get update
+$SUDO env DEBIAN_FRONTEND=noninteractive \
+	apt-get install -yq --no-install-recommends eatmydata
+
 # Install jq first, then source properties.sh
 $SUDO env DEBIAN_FRONTEND=noninteractive \
-	apt-get install -yq --no-install-recommends jq
+	eatmydata apt-get install -yq --no-install-recommends jq
 
 . $(dirname "$(realpath "$0")")/properties.sh
 
@@ -353,7 +364,7 @@ LLVM_PACKAGES+=" lld-${HOST_LLVM_MAJOR_VERSION}"
 $SUDO apt-get -yq update
 
 $SUDO env DEBIAN_FRONTEND=noninteractive \
-	apt-get install -yq --no-install-recommends $PACKAGES $LLVM_PACKAGES
+	eatmydata apt-get install -yq --no-install-recommends $PACKAGES $LLVM_PACKAGES
 
 $SUDO locale-gen --purge en_US.UTF-8
 echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' | $SUDO tee -a /etc/default/locale
@@ -388,7 +399,7 @@ echo "PKG_CONFIG_DIRS: $PKG_CONFIG_DIRS"
 ./configure --prefix=/usr \
 	--with-system-libdir=${SYSTEM_LIBDIRS} \
 	--with-pkg-config-dir=${PKG_CONFIG_DIRS}
-make
+make -j$(nproc)
 $SUDO make install
 cd -
 rm -Rf /tmp/pkgconf-build
