@@ -38,9 +38,6 @@ step_setup_variables() {
 
 	if [ "$PACKAGE_LIBRARY" = "glibc" ]; then
 		build_props__set_prefix_dir_and_sub_variables "$_PREFIX_GLIBC"
-		if [ "$ON_DEVICE_BUILD" = "false" ] && [ "$PREFIX" != "$CGCT_DEFAULT_PREFIX" ]; then
-			export CGCT_APP_PREFIX="$PREFIX"
-		fi
 		if ! repoexe_package__is_package_name_have_glibc_prefix "$PKG_NAME"; then
 			PKG_NAME="$(repoexe_package__add_prefix_glibc_to_package_name "${PKG_NAME}")"
 		fi
@@ -84,10 +81,6 @@ step_setup_variables() {
 			fi
 			if [ ! -d "${PREFIX}/bin" ]; then
 				error_exit "Glibc components are not installed, run './scripts/setup-RepoExe-glibc.sh'"
-			fi
-		else
-			if [ ! -d "${CGCT_DIR}/${ARCH}/bin" ]; then
-				error_exit "The cgct tools were not found, run './scripts/setup-cgct.sh'"
 			fi
 		fi
 	fi

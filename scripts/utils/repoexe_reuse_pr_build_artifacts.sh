@@ -87,7 +87,7 @@ readarray -t COMMITS < <(git rev-list --no-merges "$OLD_COMMIT..$HEAD_COMMIT" ||
 	# and make sure buildsystem nor dependencies were changed.
 	# If so we can reuse PR check artifacts and upload them to apt repo to save some CI time
 
-	readarray -t PACKAGE_DIRECTORIES < <(jq --raw-output '"packages"' repo.json) || :
+	readarray -t PACKAGE_DIRECTORIES < <(jq --raw-output '"packages"' scripts/repo.json) || :
 
 	# We should obtain data about all commits in this push to check that they are from the same PR if any
 	RELATED_PRS_QUERY="
@@ -186,11 +186,12 @@ readarray -t COMMITS < <(git rev-list --no-merges "$OLD_COMMIT..$HEAD_COMMIT" ||
 	echo "Packages updated since PR divergence: ${PR_BASE_TO_HEAD_CHANGED_PACKAGES[*]:-none}"
 
 	# obtain the set of all dependencies of packages changed by this PR
-	readarray -t PR_CHANGED_PACKAGES_DEPS < <(
-		for dep in "${PR_CHANGED_PACKAGES[@]:-}"; do
-			./scripts/buildorder.py "$dep" "${PACKAGE_DIRECTORIES[@]}" 2>/dev/null | awk '{print $NF}'
-		done | sort -u
-	) || :
+	# readarray -t PR_CHANGED_PACKAGES_DEPS < <(
+	# 	for dep in "${PR_CHANGED_PACKAGES[@]:-}"; do
+	# 		./scripts/buildorder.py "$dep" "${PACKAGE_DIRECTORIES[@]}" 2>/dev/null | awk '{print $NF}'
+	# 	done | sort -u
+	# ) || :
+	PR_CHANGED_PACKAGES_DEPS=()
 	echo "Dependencies changed by this PR: ${PR_CHANGED_PACKAGES_DEPS[*]:-none}"
 
 	# obtain the set of all build dependencies changed since this PR diverged

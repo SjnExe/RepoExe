@@ -29,7 +29,7 @@ setup_ghc() {
 		local target="$HOST_PLATFORM"
 		[[ "$ARCH" == "arm" ]] && target="armv7a-linux-androideabi"
 
-		download "https://github.com/termux/ghc-cross-tools/releases/download/ghc-v$GHC_VERSION/ghc-$GHC_VERSION-$target.tar.xz" \
+		download "https://github.com/repoexe/ghc-cross-tools/releases/download/ghc-v$GHC_VERSION/ghc-$GHC_VERSION-$target.tar.xz" \
 			"$GHC_TAR" \
 			"${checksums[$ARCH]}"
 

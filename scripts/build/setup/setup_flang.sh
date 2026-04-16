@@ -32,7 +32,7 @@ b957bafa43b24b6a68a42ce3aac09f7be7987b8f0c732d7245f4602beb0df5dd  package-flang-
 	while read -r __checksum __file; do
 		if [ "$__checksum" == "" ]; then continue; fi
 		download \
-			https://github.com/termux/ndk-toolchain-clang-with-flang/releases/download/"$__version"/"$__file" \
+			https://github.com/repoexe/ndk-toolchain-clang-with-flang/releases/download/"$__version"/"$__file" \
 			"$__cache_dir/$__file" "$__checksum"
 	done <<< "$__sha256sums"
 

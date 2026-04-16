@@ -98,7 +98,7 @@ def generate_packages(deb_dir, base_output_dir, component, prev_packages_content
         for t_arch in target_arches:
             arch_data[t_arch]["appstream"].append({
                 "Type": "desktop-application",
-                "ID": f"com.termux.{pkg_name}",
+                "ID": f"com.repoexe.{pkg_name}",
                 "Name": {"C": pkg_info.get("Package", "")},
                 "Summary": {"C": pkg_info.get("Description", "").split('\n')[0]},
                 "Version": pkg_info.get("Version", "")

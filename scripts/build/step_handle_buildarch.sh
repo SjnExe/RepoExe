@@ -17,10 +17,6 @@ step_handle_buildarch() {
 			fi
 			if [ -d /data/data ]; then
 				mv /data/data "$DATA_PREVIOUS_BACKUPDIR"
-				if [ -d "${DATA_PREVIOUS_BACKUPDIR}/${APP_PACKAGE}/cgct" ]; then
-					mkdir -p "/data/data/${APP_PACKAGE}"
-					mv "${DATA_PREVIOUS_BACKUPDIR}/${APP_PACKAGE}/cgct" "/data/data/${APP_PACKAGE}"
-				fi
 			fi
 			# Restore new one (if any)
 			if [ -d "$DATA_CURRENT_BACKUPDIR" ]; then

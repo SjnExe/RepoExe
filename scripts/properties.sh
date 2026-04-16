@@ -224,7 +224,7 @@ REGEX__APP_DATA_DIR_PATH='^(((/data/data)|(/data/user/[0-9]+)|(/mnt/expand/[^/]+
 ###
 
 ##
-# The path to the `termux-packages` repo root directory.
+# The path to the `repoexe` repo root directory.
 ##
 PKGS__BUILD__REPO_ROOT_DIR="${PKGS__BUILD__REPO_ROOT_DIR:-}"
 
@@ -316,11 +316,11 @@ fi
 # RepoExe project name.
 # Default value: `RepoExe`
 ##
-NAME="Termux"
+NAME="RepoExe"
 
 ##
 # The lower case value for `NAME`.
-# Default value: `termux`
+# Default value: `repoexe`
 ##
 LNAME="${NAME,,}"
 
@@ -338,9 +338,9 @@ UNAME="${NAME^^}"
 # **This must not be changed unless doing a full fork of RepoExe where
 # all RepoExe references are changed instead of just changing the
 # `NAME`, `APP__PACKAGE_NAME` and urls.**
-# Default value: `termux`
+# Default value: `repoexe`
 ##
-INTERNAL_NAME="termux"
+INTERNAL_NAME="repoexe"
 
 ##
 # The regex to validate `INTERNAL_NAME`.
@@ -363,13 +363,13 @@ INTERNAL_NAME___MAX_LEN=7
 
 ##
 # RepoExe repositories host organization name.
-# Default value: `termux`
+# Default value: `repoexe`
 ##
 REPOS_HOST_ORG_NAME="SjnExe"
 
 ##
 # RepoExe repositories host organization url.
-# Default value: `https://github.com/termux`
+# Default value: `https://github.com/repoexe`
 ##
 REPOS_HOST_ORG_URL="https://github.com/$REPOS_HOST_ORG_NAME"
 
@@ -382,9 +382,9 @@ REPOS_HOST_ORG_URL="https://github.com/$REPOS_HOST_ORG_NAME"
 # for why.
 # **See Also:**
 # - `APP__NAMESPACE`.
-# Default value: `com.termux`
+# Default value: `com.repoexe`
 ##
-APP__PACKAGE_NAME="com.termux"
+APP__PACKAGE_NAME="com.repoexe"
 APP_PACKAGE="$APP__PACKAGE_NAME" # Deprecated alternative variable for `APP__PACKAGE_NAME`
 
 __build_props__add_variables_validator_actions "APP__PACKAGE_NAME" "app_package_name"
@@ -400,7 +400,7 @@ __build_props__add_variables_validator_actions "APP__PACKAGE_NAME" "app_package_
 # is under `APP__DATA_DIR` and not running on-device, so make
 # sure a safe path is set if running `clean.sh` in RepoExe docker or
 # host OS build environment.
-# Default value: `/data/data/com.termux`
+# Default value: `/data/data/com.repoexe`
 ##
 APP__DATA_DIR="/data/data/$APP__PACKAGE_NAME"
 __build_props__add_variables_validator_actions "APP__DATA_DIR" "safe_absolute_path"
@@ -415,7 +415,7 @@ APP__DATA_DIR___MAX_LEN=69
 
 ##
 # RepoExe subdirectory path for `PROJECT_DIR`.
-# Default value: `termux`
+# Default value: `repoexe`
 ##
 PROJECT_SUBDIR="$INTERNAL_NAME"
 __build_props__add_variables_validator_actions "PROJECT_SUBDIR" "safe_relative_path"
@@ -434,7 +434,7 @@ __build_props__add_variables_validator_actions "PROJECT_SUBDIR" "safe_relative_p
 # under a single directory, especially for when RepoExe is provided as
 # a library, so that repository files do not interfere with other files
 # of RepoExe app forks or apps that may use the RepoExe library.
-# Default value: `/data/data/com.termux/termux`
+# Default value: `/data/data/com.repoexe/repoexe`
 ##
 PROJECT_DIR="$APP__DATA_DIR/$PROJECT_SUBDIR"
 __build_props__add_variables_validator_actions "PROJECT_DIR" "safe_absolute_path"
@@ -449,7 +449,7 @@ CORE_SUBDIR="core"
 # RepoExe core directory path under `PROJECT_DIR`.
 # This contains RepoExe core files for the RepoExe app, like user settings and configs for the app,
 # which and are independent of any specific rootfs.
-# Default value: `/data/data/com.termux/termux/core`
+# Default value: `/data/data/com.repoexe/repoexe/core`
 ##
 CORE_DIR="$PROJECT_DIR/$CORE_SUBDIR"
 __build_props__add_variables_validator_actions "CORE_DIR" "safe_absolute_path"
@@ -465,7 +465,7 @@ APPS_SUBDIR="app"
 # This contains app specific files for the RepoExe app, its plugin
 # apps, and third party apps, like used for app APIs and
 # filesystem/pathname socket files of servers created by the apps.
-# Default value: `/data/data/com.termux/termux/app`
+# Default value: `/data/data/com.repoexe/repoexe/app`
 ##
 APPS_DIR="$PROJECT_DIR/$APPS_SUBDIR"
 __build_props__add_variables_validator_actions "APPS_DIR" "safe_absolute_path"
@@ -494,7 +494,7 @@ APPS_DIR_BY_IDENTIFIER_SUBDIR="i"
 
 ##
 # RepoExe apps directory path by app identifier under `APPS_DIR`.
-# Default value: `/data/data/com.termux/termux/app/i`
+# Default value: `/data/data/com.repoexe/repoexe/app/i`
 ##
 APPS_DIR_BY_IDENTIFIER="$APPS_DIR/$APPS_DIR_BY_IDENTIFIER_SUBDIR"
 
@@ -522,6 +522,17 @@ APPS_APP_IDENTIFIER_REGEX="^[a-zA-Z0-9]{3,}([._-][a-zA-Z0-9]+)*$"
 APPS_APP_IDENTIFIER___MAX_LEN=10
 
 ##
+# RepoExe app identifier.
+##
+APP__APP_IDENTIFIER="repoexe"
+
+##
+# RepoExe:API app identifier.
+##
+API_APP__APP_IDENTIFIER="repoexeapi"
+
+
+##
 # RepoExe subdirectory path for `APPS_DIR_BY_UID`.
 # Constant value: `u`
 ##
@@ -530,7 +541,7 @@ APPS_DIR_BY_UID_SUBDIR="u"
 ##
 # RepoExe apps directory path by app uid (user_id + app_id) under
 # `APPS_DIR`.
-# Default value: `/data/data/com.termux/termux/app/u`
+# Default value: `/data/data/com.repoexe/repoexe/app/u`
 ##
 APPS_DIR_BY_UID="$APPS_DIR/$APPS_DIR_BY_UID_SUBDIR"
 
@@ -556,21 +567,21 @@ APPS_APP_UID___MAX_LEN=9
 ##
 # RepoExe apps info environment subfile path under an app directory of
 # `APPS_DIR_BY_IDENTIFIER`.
-# Default value: `termux-apps-info.env`
+# Default value: `repoexe-apps-info.env`
 ##
 CORE__APPS_INFO_ENV_SUBFILE="$INTERNAL_NAME-apps-info.env"
 
 ##
 # RepoExe apps info json subfile path under an app directory of
 # `APPS_DIR_BY_IDENTIFIER`.
-# Default value: `termux-apps-info.json`
+# Default value: `repoexe-apps-info.json`
 ##
 CORE__APPS_INFO_JSON_SUBFILE="$INTERNAL_NAME-apps-info.json"
 
 ##
 # `repoexe-am-socket` server subfile path under an app directory of
 # `APPS_DIR_BY_IDENTIFIER`.
-# Default value: `termux-am`
+# Default value: `repoexe-am`
 ##
 AM_SOCKET__SERVER_SOCKET_SUBFILE="$INTERNAL_NAME-am"
 
@@ -596,14 +607,14 @@ __build_props__add_variables_validator_actions "ROOTFS_SUBDIR" "allow_unset_valu
 ##
 # RepoExe subdirectory path for parent directory of all RepoExe rootfses
 # including `ROOTFS`.
-# Default value: `termux/rootfs`
+# Default value: `repoexe/rootfs`
 ##
 #ROOTFSES_SUBDIR="$PROJECT_SUBDIR/rootfs"
 ###########
 
 ##
 # RepoExe subdirectory path for `ROOTFS`.
-# Default value: `termux/rootfs/0`
+# Default value: `repoexe/rootfs/0`
 ##
 #ROOTFS_SUBDIR="$ROOTFSES_SUBDIR/$ROOTFS_ID"
 ###########
@@ -615,7 +626,7 @@ __build_props__add_variables_validator_actions "ROOTFS_SUBDIR" "allow_unset_valu
 # `REGEX__INVALID_ROOTFS_PATHS`. It can exist outside
 # the `APP__DATA_DIR` if compiling packages for the Android
 # system or `adb` `shell` user.
-# Default value: `/data/data/com.termux/files`
+# Default value: `/data/data/com.repoexe/files`
 ##
 ROOTFS="$APP__DATA_DIR/$ROOTFS_SUBDIR"
 BASE_DIR="$ROOTFS" # Deprecated alternative variable for `ROOTFS`
@@ -652,7 +663,7 @@ __build_props__add_variables_validator_actions "HOME_SUBDIR" "safe_relative_path
 # on if `ROOTFS` is equal to Android/Linux rootfs `/` or not.
 # The RepoExe home must not be set to Android/Linux rootfs `/` or any
 # other path in `REGEX__INVALID_HOME_PATHS`.
-# Default value: `/data/data/com.termux/files/home`
+# Default value: `/data/data/com.repoexe/files/home`
 ##
 [[ "$ROOTFS" != "/" ]] && HOME="$ROOTFS/$HOME_SUBDIR" || \
     HOME="/$HOME_SUBDIR"
@@ -662,9 +673,9 @@ ANDROID_HOME="$HOME" # Deprecated alternative variable for `HOME`
 
 ##
 # RepoExe legacy project user config directory path under `HOME`.
-# Default value: `/data/data/com.termux/files/home/.termux`
+# Default value: `/data/data/com.repoexe/files/home/.repoexe`
 ##
-LEGACY_PROJECT_USER_CONFIG_DIR="$HOME/.termux"
+LEGACY_PROJECT_USER_CONFIG_DIR="$HOME/.repoexe"
 
 ####
 # Variables for the RepoExe prefix.
@@ -740,7 +751,7 @@ __build_props__add_variables_validator_actions "PREFIX_SUBDIR" "allow_unset_valu
 # `repoexe_step_setup_variables` if `PACKAGE_LIBRARY` equals `glibc`.
 # However, `PREFIX_CLASSICAL` retains the original value
 # set below for `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr`
+# Default value: `/data/data/com.repoexe/files/usr`
 ##
 [[ "$ROOTFS" != "/" ]] && PREFIX="$ROOTFS${PREFIX_SUBDIR:+"/$PREFIX_SUBDIR"}" || \
     PREFIX="/$PREFIX_SUBDIR"
@@ -756,7 +767,7 @@ fi
 # The original value for `PREFIX` set above, as `PREFIX`
 # can be overridden at runtime, like when compiling `glibc` packages.
 # Checks variable docs of `PREFIX` for more info.
-# Default value: `/data/data/com.termux/files/usr`
+# Default value: `/data/data/com.repoexe/files/usr`
 ##
 PREFIX_CLASSICAL="$PREFIX"
 
@@ -770,7 +781,7 @@ PREFIX_GLIBC_SUBDIR="glibc"
 # RepoExe `glibc` prefix directory path under `PREFIX`
 # where all RepoExe `glibc` packages data is installed.
 # **See Also:**
-# Default value: `/data/data/com.termux/files/usr/glibc`
+# Default value: `/data/data/com.repoexe/files/usr/glibc`
 ##
 PREFIX_GLIBC="$PREFIX/$PREFIX_GLIBC_SUBDIR"
 __build_props__add_variables_validator_actions "PREFIX_GLIBC" "safe_absolute_path invalid_prefix_paths path_under_rootfs"
@@ -849,7 +860,7 @@ PREFIX__BIN_SUBDIR="bin"
 
 ##
 # RepoExe bin directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/bin`
+# Default value: `/data/data/com.repoexe/files/usr/bin`
 ##
 PREFIX__BIN_DIR="$PREFIX/$PREFIX__BIN_SUBDIR"
 
@@ -861,7 +872,7 @@ PREFIX__ETC_SUBDIR="etc"
 
 ##
 # RepoExe etc directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/etc`
+# Default value: `/data/data/com.repoexe/files/usr/etc`
 ##
 PREFIX__ETC_DIR="$PREFIX/$PREFIX__ETC_SUBDIR"
 
@@ -873,7 +884,7 @@ PREFIX__BASE_INCLUDE_SUBDIR="include"
 
 ##
 # RepoExe base include directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/include`
+# Default value: `/data/data/com.repoexe/files/usr/include`
 ##
 PREFIX__BASE_INCLUDE_DIR="$PREFIX/$PREFIX__BASE_INCLUDE_SUBDIR"
 
@@ -885,7 +896,7 @@ PREFIX__MULTI_INCLUDE_SUBDIR="include32"
 
 ##
 # RepoExe multi include directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/include32`
+# Default value: `/data/data/com.repoexe/files/usr/include32`
 ##
 PREFIX__MULTI_INCLUDE_DIR="$PREFIX/$PREFIX__MULTI_INCLUDE_SUBDIR"
 
@@ -897,7 +908,7 @@ PREFIX__INCLUDE_SUBDIR="$PREFIX__BASE_INCLUDE_SUBDIR"
 
 ##
 # RepoExe include directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/include` (`$PREFIX__BASE_INCLUDE_DIR`)
+# Default value: `/data/data/com.repoexe/files/usr/include` (`$PREFIX__BASE_INCLUDE_DIR`)
 ##
 PREFIX__INCLUDE_DIR="$PREFIX__BASE_INCLUDE_DIR"
 
@@ -909,7 +920,7 @@ PREFIX__BASE_LIB_SUBDIR="lib"
 
 ##
 # RepoExe base lib directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/lib`
+# Default value: `/data/data/com.repoexe/files/usr/lib`
 ##
 PREFIX__BASE_LIB_DIR="$PREFIX/$PREFIX__BASE_LIB_SUBDIR"
 
@@ -921,7 +932,7 @@ PREFIX__MULTI_LIB_SUBDIR="lib32"
 
 ##
 # RepoExe multi lib directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/lib32`
+# Default value: `/data/data/com.repoexe/files/usr/lib32`
 ##
 PREFIX__MULTI_LIB_DIR="$PREFIX/$PREFIX__MULTI_LIB_SUBDIR"
 
@@ -933,7 +944,7 @@ PREFIX__LIB_SUBDIR="$PREFIX__BASE_LIB_SUBDIR"
 
 ##
 # RepoExe lib directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/lib` (`$PREFIX__BASE_LIB_DIR`)
+# Default value: `/data/data/com.repoexe/files/usr/lib` (`$PREFIX__BASE_LIB_DIR`)
 ##
 PREFIX__LIB_DIR="$PREFIX__BASE_LIB_DIR"
 
@@ -945,7 +956,7 @@ PREFIX__LIBEXEC_SUBDIR="libexec"
 
 ##
 # RepoExe libexec directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/libexec`
+# Default value: `/data/data/com.repoexe/files/usr/libexec`
 ##
 PREFIX__LIBEXEC_DIR="$PREFIX/$PREFIX__LIBEXEC_SUBDIR"
 
@@ -957,7 +968,7 @@ PREFIX__OPT_SUBDIR="opt"
 
 ##
 # RepoExe opt directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/opt`
+# Default value: `/data/data/com.repoexe/files/usr/opt`
 ##
 PREFIX__OPT_DIR="$PREFIX/$PREFIX__OPT_SUBDIR"
 
@@ -969,7 +980,7 @@ PREFIX__SHARE_SUBDIR="share"
 
 ##
 # RepoExe share directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/share`
+# Default value: `/data/data/com.repoexe/files/usr/share`
 ##
 PREFIX__SHARE_DIR="$PREFIX/$PREFIX__SHARE_SUBDIR"
 
@@ -981,7 +992,7 @@ PREFIX__VAR_SUBDIR="var"
 
 ##
 # RepoExe var directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/var`
+# Default value: `/data/data/com.repoexe/files/usr/var`
 ##
 PREFIX__VAR_DIR="$PREFIX/$PREFIX__VAR_SUBDIR"
 
@@ -1004,7 +1015,7 @@ PREFIX__TMP_SUBDIR="tmp"
 
 ##
 # RepoExe tmp directory path under `PREFIX`.
-# Default value: `/data/data/com.termux/files/usr/tmp`
+# Default value: `/data/data/com.repoexe/files/usr/tmp`
 ##
 PREFIX__TMP_DIR="$PREFIX/$PREFIX__TMP_SUBDIR"
 
@@ -1018,13 +1029,13 @@ PREFIX__TMP_DIR___MAX_LEN=94
 
 ##
 # RepoExe `profile.d` directory path under `PREFIX__ETC_DIR`.
-# Default value: `/data/data/com.termux/files/usr/etc/profile.d`
+# Default value: `/data/data/com.repoexe/files/usr/etc/profile.d`
 ##
 PREFIX__PROFILE_D_DIR="$PREFIX__ETC_DIR/profile.d"
 
 ##
 # RepoExe project system config directory path under `PREFIX__ETC_DIR`.
-# Default value: `/data/data/com.termux/files/usr/etc/termux`
+# Default value: `/data/data/com.repoexe/files/usr/etc/repoexe`
 ##
 PROJECT_SYSTEM_CONFIG_DIR="$PREFIX__ETC_DIR/$INTERNAL_NAME"
 
@@ -1048,7 +1059,7 @@ CACHE_SUBDIR="cache"
 
 ##
 # RepoExe subdirectory path for `CACHE_DIR`.
-# Default value: `cache/termux/rootfs/0`
+# Default value: `cache/repoexe/rootfs/0`
 ##
 #CACHE_SUBDIR="cache/$INTERNAL_NAME/rootfs/$ROOTFS_ID"
 ###########
@@ -1061,40 +1072,12 @@ CACHE_SUBDIR="cache"
 # changed.
 # Currently this is primarily used for packages cache files of package
 # managers (`apt`/`pacman`).
-# Default value: `/data/data/com.termux/cache`
+# Default value: `/data/data/com.repoexe/cache`
 ##
 CACHE_DIR="$APP__DATA_DIR/$CACHE_SUBDIR"
 __build_props__add_variables_validator_actions "CACHE_DIR" "safe_absolute_path"
 
 CACHE_DIR="$CACHE_DIR" # Deprecated alternative variable for `CACHE_DIR`
-
-####
-# Variables for the RepoExe bootstrap.
-####
-
-##
-# RepoExe bootstrap system config directory path under `PROJECT_SYSTEM_CONFIG_DIR`.
-# Default value: `/data/data/com.termux/files/usr/etc/termux/termux-bootstrap`
-##
-BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR="$PROJECT_SYSTEM_CONFIG_DIR/termux-bootstrap"
-
-##
-# RepoExe subdirectory path for `BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR`.
-# Constant value: `second-stage`
-##
-BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_SUBDIR="second-stage"
-
-##
-# RepoExe bootstrap second stage directory path under `BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR`.
-# Default value: `/data/data/com.termux/files/usr/etc/termux/termux-bootstrap/second-stage`
-##
-BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR="$BOOTSTRAP__BOOTSTRAP_SYSTEM_CONFIG_DIR/$BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_SUBDIR"
-
-##
-# RepoExe bootstrap second stage entry point subfile path path under `BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_DIR`.
-# Default value: `termux-bootstrap-second-stage.sh`
-##
-BOOTSTRAP__BOOTSTRAP_SECOND_STAGE_ENTRY_POINT_SUBFILE="termux-bootstrap-second-stage.sh"
 
 ##
 # Max size in bytes for a path component or file name without the
@@ -1173,7 +1156,7 @@ ENV__SS="_"
 # RepoExe environment variables RepoExe scope for primary variables or
 # variables for currently running RepoExe config.
 # **Do not modify this!**
-# Default value: `TERMUX__`
+# Default value: `_`
 ##
 ENV__S="${ENV__S_ROOT}${ENV__SS}"
 
@@ -1246,7 +1229,7 @@ ENV__SS_ROOTFS="ROOTFS__"
 ##
 # RepoExe environment variables RepoExe rootfs scope.
 # **Do not modify this!**
-# Default value: `TERMUX_ROOTFS__`
+# Default value: `ROOTFS__`
 ##
 ENV__S_ROOTFS="${ENV__S_ROOT}${ENV__SS_ROOTFS}"
 
@@ -1301,7 +1284,7 @@ ENV__SS_EXEC="EXEC__"
 ##
 # RepoExe environment variables `repoexe-exec` scope.
 # **Do not modify this!**
-# Default value: `TERMUX_EXEC__`
+# Default value: `EXEC__`
 ##
 ENV__S_EXEC="${ENV__S_ROOT}${ENV__SS_EXEC}"
 
@@ -1311,14 +1294,14 @@ ENV__S_EXEC="${ENV__S_ROOT}${ENV__SS_EXEC}"
 # `repoexe-exec-tests` sub scope for RepoExe execution environment
 #  that's used by `repoexe-exec` package to generate the value for
 # `$ENV__S_EXEC__TESTS` and variable names under it.**
-# Default value: `TERMUX_EXEC__TESTS__`
+# Default value: `EXEC__TESTS__`
 ##
 ENV__SS_EXEC__TESTS="EXEC__TESTS__"
 
 ##
 # RepoExe environment variables `repoexe-exec-tests` scope.
 # **Do not modify this!**
-# Default value: `TERMUX_EXEC__TESTS__`
+# Default value: `EXEC__TESTS__`
 ##
 ENV__S_EXEC__TESTS="${ENV__S_ROOT}${ENV__SS_EXEC__TESTS}"
 
@@ -1347,13 +1330,13 @@ ENV__S_AM_SOCKET="${ENV__S_ROOT}${ENV__SS_AM_SOCKET}"
 
 ##
 # RepoExe packages repo name.
-# Default value: `termux-packages`
+# Default value: `repoexe`
 ##
 PKGS__REPO_NAME="RepoExe"
 
 ##
 # RepoExe packages repo url.
-# Default value: `https://github.com/termux/termux-packages`
+# Default value: `https://github.com/repoexe/repoexe`
 ##
 PKGS__REPO_URL="$REPOS_HOST_ORG_URL/$PKGS__REPO_NAME"
 
@@ -1376,13 +1359,13 @@ PKGS__REPO_URL="$REPOS_HOST_ORG_URL/$PKGS__REPO_NAME"
 # and are compiled locally.
 # FIXME: Checking for all variables will be added later in repo
 # changes pull, currently only `REPO_APP__PACKAGE_NAME` is checked.
-REPO_APP__PACKAGE_NAME="com.termux"
-REPO_APP__DATA_DIR="/data/data/com.termux"
-REPO__CORE_DIR="/data/data/com.termux/termux/core"
-REPO__APPS_DIR="/data/data/com.termux/termux/app"
-REPO__ROOTFS="/data/data/com.termux/files"
-REPO__HOME="/data/data/com.termux/files/home"
-REPO__PREFIX="/data/data/com.termux/files/usr"
+REPO_APP__PACKAGE_NAME="com.repoexe"
+REPO_APP__DATA_DIR="/data/data/com.repoexe"
+REPO__CORE_DIR="/data/data/com.repoexe/repoexe/core"
+REPO__APPS_DIR="/data/data/com.repoexe/repoexe/app"
+REPO__ROOTFS="/data/data/com.repoexe/files"
+REPO__HOME="/data/data/com.repoexe/files/home"
+REPO__PREFIX="/data/data/com.repoexe/files/usr"
 
 ####
 # Variables loaded from `scripts/repo.json` file for RepoExe package repositories.
@@ -1392,7 +1375,7 @@ REPO_URL=()
 REPO_DISTRIBUTION=()
 REPO_COMPONENT=()
 
-# COPY `scripts/repo.json` to `/tmp/termux-packages` in `Dockerfile`.
+# COPY `scripts/repo.json` to `/tmp/repoexe` in `Dockerfile`.
 if [[ ! -f "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json" ]]; then
     if [[ "${PKGS__BUILD__IS_DOCKER_BUILD:-}" != "true" ]]; then
         echo "The 'scripts/repo.json' file not found at the '$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json' path." 1>&2
@@ -1419,13 +1402,6 @@ fi
 
 CLEANUP_BUILT_PACKAGES_THRESHOLD="$(( 5 * 1024 ** 3 ))" # 5 GiB
 __build_props__add_variables_validator_actions "CLEANUP_BUILT_PACKAGES_THRESHOLD" "unsigned_int"
-
-# Path to CGCT tools
-CGCT_DEFAULT_PREFIX="/data/data/com.termux/files/usr/glibc"
-__build_props__add_variables_validator_actions "CGCT_DEFAULT_PREFIX" "safe_absolute_path invalid_prefix_paths"
-
-export CGCT_DIR="/data/data/com.termux/cgct"
-__build_props__add_variables_validator_actions "CGCT_DIR" "safe_absolute_path invalid_prefix_paths"
 
 # Allow to override setup.
 for f in "${HOME}/.config/repoexe/repoexerc.sh" "${HOME}/.repoexe/repoexerc.sh" "${HOME}/.repoexerc"; do
@@ -1701,14 +1677,6 @@ including the null \`\0\` terminator." 1>&2
             echo "The PREFIX must not be equal to or be under HOME." 1>&2
             return 1
         fi
-    fi
-
-    if [[ "${PREFIX:?}" == "${CGCT_DIR:?}" ]] || \
-            [[ "$PREFIX" == "$CGCT_DIR/"* ]] || \
-            [[ "$CGCT_DIR" == "$PREFIX/"* ]]; then
-        echo "The PREFIX '$PREFIX' or CGCT_DIR '$CGCT_DIR' is invalid." 1>&2
-        echo "The PREFIX must not be equal to CGCT_DIR and they must not be under each other." 1>&2
-        return 1
     fi
 
     if [[ "$PREFIX" != "$PREFIX_CLASSICAL" ]]; then
