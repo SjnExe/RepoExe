@@ -374,7 +374,7 @@ echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' | $SUDO tee -a /etc/default/
 # Ownership of `_PREFIX` must be fixed before `APP__DATA_DIR`
 # if its under it, otherwise `_ROOTFS` will not have its ownership fixed.
 $SUDO mkdir -p "$_PREFIX"
-$SUDO chown -R "$(whoami)" "$_PREFIX"
+$SUDO chown -R "$(whoami)" "$PREFIX"
 $SUDO mkdir -p "$APP__DATA_DIR"
 $SUDO chown -R "$(whoami)" "${APP__DATA_DIR%"${APP__DATA_DIR#/*/}"}" # Get `/path/` from `/path/to/app__data_dir`.
 
