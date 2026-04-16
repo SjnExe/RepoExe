@@ -18,8 +18,6 @@ step_setup_toolchain() {
 	elif [ "$PACKAGE_LIBRARY" = "glibc" ]; then
 		if [ "$ON_DEVICE_BUILD" = "true" ]; then
 			STANDALONE_TOOLCHAIN="$PREFIX"
-		else
-			STANDALONE_TOOLCHAIN="${CGCT_DIR}/${ARCH}"
 		fi
 		setup_toolchain_gnu
 	fi

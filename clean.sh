@@ -7,7 +7,6 @@ SCRIPTDIR=$(cd "$(realpath "$(dirname "$0")")"; pwd)
 # Store pid of current process in a file for docker__run_docker_exec_trap
 . "$SCRIPTDIR/scripts/utils/docker/docker.sh"; docker__create_docker_exec_pid_file
 
-# Get variable CGCT_DIR
 . "$SCRIPTDIR/scripts/properties.sh"
 
 # Checking if script is running on Android with 2 different methods.
@@ -48,7 +47,7 @@ fi
 
 	# For on-device build cleanup RepoExe app data directory shouldn't be erased.
 	if [[ "$ON_DEVICE_BUILD" == "false" ]]; then
-		for variable_name in _PREFIX APP__DATA_DIR CGCT_DIR; do
+		for variable_name in _PREFIX APP__DATA_DIR; do
 			variable_value="${!variable_name:-}"
 			if [[ ! "$variable_value" =~ ^(/[^/]+)+$ ]]; then
 				echo "The $variable_name '$variable_value' is not an absolute path under rootfs '/' while running 'clean.sh'." 1>&2
@@ -84,9 +83,7 @@ fi
 				exit 1
 			fi
 
-			# Escape '\$[](){}|^.?+*' with backslashes.
-			cgct_dir_escaped="$(printf "%s" "$CGCT_DIR" | sed -zE -e 's/[][\.|$(){}?+*^]/\\&/g')"
-			find "$deletion_dir" -mindepth 1 -regextype posix-extended ! -regex "^$cgct_dir_escaped(/.*)?" -delete 2>/dev/null || true
+			find "$deletion_dir" -mindepth 1 -delete 2>/dev/null || true
 		fi
 
 		# Remove list of built packages.

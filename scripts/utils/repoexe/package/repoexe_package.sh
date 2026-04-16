@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 
 # Title:          repoexe_package
-# Description:    A library for Termux package utils.
+# Description:    A library for RepoExe package utils.
 
 
 

@@ -61,7 +61,7 @@ if [[ ! -e "$BUILD_LOCK_FILE" ]]; then
 	touch "$BUILD_LOCK_FILE"
 fi
 
-REPO_PKG_FORMAT="$(jq --raw-output '.pkg_format // "debian"' "${SCRIPTDIR}/repo.json")"
+REPO_PKG_FORMAT="$(jq --raw-output '.pkg_format // "debian"' "${SCRIPTDIR}/scripts/repo.json")"
 export REPO_PKG_FORMAT
 
 # Special variable for internal use. It forces script to ignore
@@ -83,10 +83,6 @@ source "$SCRIPTDIR/scripts/build/setup/setup_proot.sh"
 # Utility function to setup blueprint-compiler (may be used by gnome-calculator and epiphany).
 # shellcheck source=scripts/build/setup/setup_bpc.sh
 source "$SCRIPTDIR/scripts/build/setup/setup_bpc.sh"
-
-# Installing packages if necessary for the full operation of CGCT.
-# shellcheck source=scripts/build/step_setup_cgct_environment.sh
-source "$SCRIPTDIR/scripts/build/step_setup_cgct_environment.sh"
 
 # Utility function to setup capnproto (may be used by bitcoin).
 # shellcheck source=scripts/build/setup/setup_capnp.sh
@@ -726,9 +722,6 @@ for (( i=0; i < ${#PACKAGE_LIST[@]}; i++ )); do
 
 		if [[ "$CONTINUE_BUILD" == "false" ]]; then
 			step_get_dependencies
-			if [[ "$PACKAGE_LIBRARY" == "glibc" ]]; then
-				step_setup_cgct_environment
-			fi
 			step_override_config_scripts
 		fi
 

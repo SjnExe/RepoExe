@@ -1,5 +1,5 @@
 #!/bin/bash
-# build-all.sh - script to build all packages with a build order specified by buildorder.py
+# build-all.sh - script to build all packages
 
 set -e -u -o pipefail
 
@@ -66,7 +66,8 @@ if [ -e "$BUILDORDER_FILE" ]; then
 	echo "Using existing buildorder file: $BUILDORDER_FILE"
 else
 	mkdir -p "$BUILDALL_DIR"
-	"$SCRIPTDIR/scripts/buildorder.py" > "$BUILDORDER_FILE"
+	# Instead of buildorder, we just list packages
+	find packages -mindepth 1 -maxdepth 1 -type d | xargs -n1 basename > "$BUILDORDER_FILE"
 fi
 if [ -e "$BUILDSTATUS_FILE" ]; then
 	echo "Continuing build-all from: $BUILDSTATUS_FILE"
