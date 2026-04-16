@@ -34,9 +34,7 @@ async function loadPackages() {
   try {
     for (const comp of components) {
       for (const arch of arches) {
-        const response = await fetch(
-          `dists/stable/${comp}/binary-${arch}/Packages`
-        );
+        const response = await fetch(`dists/stable/${comp}/binary-${arch}/Packages`);
         if (response.ok) {
           const text = await response.text();
           const pkgs = parsePackages(text);
@@ -129,23 +127,17 @@ function renderPackages(packages, append = false) {
   }
 
   if (currentRenderList.length === 0) {
-    container.innerHTML =
-      '<p style="text-align:center; color: var(--text-secondary);">No packages found.</p>';
+    container.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">No packages found.</p>';
     return;
   }
 
-  const toRender = currentRenderList.slice(
-    displayedCount,
-    displayedCount + LOAD_CHUNK
-  );
+  const toRender = currentRenderList.slice(displayedCount, displayedCount + LOAD_CHUNK);
 
   toRender.forEach((pkg) => {
     // Generate arch tags HTML
     let archTagsHTML = '';
     if (pkg.architectures && pkg.architectures.length > 0) {
-      archTagsHTML = pkg.architectures
-        .map((a) => `<span class="arch-tag">${a}</span>`)
-        .join('');
+      archTagsHTML = pkg.architectures.map((a) => `<span class="arch-tag">${a}</span>`).join('');
     } else {
       archTagsHTML = `<span class="arch-tag">${pkg.Architecture || 'all'}</span>`;
     }
@@ -164,8 +156,7 @@ function renderPackages(packages, append = false) {
             </a>`;
     }
 
-    const tagPackageName =
-      pkg.component === 'dev' ? `${pkg.Package}-dev` : pkg.Package;
+    const tagPackageName = pkg.component === 'dev' ? `${pkg.Package}-dev` : pkg.Package;
 
     const card = document.createElement('div');
     card.className = 'package-card';
@@ -247,16 +238,10 @@ function copyInstallCmd(cmd) {
 }
 
 function switchInstallTab(tabId) {
-  document
-    .querySelectorAll('.tab-btn')
-    .forEach((btn) => btn.classList.remove('active'));
-  document
-    .querySelectorAll('.tab-content')
-    .forEach((content) => content.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach((content) => content.classList.remove('active'));
 
-  document
-    .querySelector(`.tab-btn[onclick="switchInstallTab('${tabId}')"]`)
-    .classList.add('active');
+  document.querySelector(`.tab-btn[onclick="switchInstallTab('${tabId}')"]`).classList.add('active');
   document.getElementById(`tab-${tabId}`).classList.add('active');
 }
 
@@ -274,8 +259,7 @@ function buildDepTreeHTML(pkgName, visited = new Set()) {
     ? `<a href="#" onclick="showDependencies('${pkgName}'); return false;" style="color: var(--primary-color);">${pkgName}</a>`
     : pkgName;
 
-  if (visited.has(pkgName))
-    return `<li>${displayName} <i>(circular/repeated)</i></li>`;
+  if (visited.has(pkgName)) return `<li>${displayName} <i>(circular/repeated)</i></li>`;
   visited.add(pkgName);
 
   const deps = getDependencies(pkgName);
