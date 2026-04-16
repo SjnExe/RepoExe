@@ -14,7 +14,7 @@ RUN rm -rf /tmp/packages && \
 # Since we build from RepoExe root, the paths should reflect our structure
 COPY ./scripts/llvm-snapshot.gpg.key ./scripts/properties.sh ./scripts/setup-android-sdk.sh ./scripts/setup-ubuntu.sh ./scripts/repo.json /tmp/packages/scripts/
 RUN mkdir -p /tmp/packages/scripts/build
-COPY ./scripts/build/repoexe_download.sh /tmp/packages/scripts/build/
+COPY ./scripts/build/download.sh /tmp/packages/scripts/build/
 
 # Setup needed packages and the Android SDK and NDK
 RUN apt-get update && \
@@ -24,7 +24,7 @@ RUN apt-get update && \
 	useradd -u 1001 -U -m -s /bin/bash builder && \
 	echo "builder ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/builder && \
 	chmod 0440 /etc/sudoers.d/builder && \
-	chmod a+rx /tmp/packages/scripts/*.sh /tmp/packages/scripts/build/repoexe_download.sh && \
+	chmod a+rx /tmp/packages/scripts/*.sh /tmp/packages/scripts/build/download.sh && \
 	su - builder -c "PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/packages/scripts/setup-ubuntu.sh" && \
 	su - builder -c "PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/packages/scripts/setup-android-sdk.sh" && \
 	apt-get remove -yq --autoremove lsb-release software-properties-common && \
