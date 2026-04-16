@@ -323,7 +323,7 @@ PACKAGES+=" glslang-tools"
 # Do not require sudo if already running as root.
 SUDO="sudo"
 if [ "$(id -u)" = "0" ]; then
-	SUDO=""
+  SUDO=""
 fi
 
 # Allow 32-bit packages.
@@ -334,15 +334,17 @@ echo 'Acquire::Queue-Mode "host";' | $SUDO tee /etc/apt/apt.conf.d/99parallel
 echo 'Acquire::Retries "3";' | $SUDO tee -a /etc/apt/apt.conf.d/99parallel
 echo 'Acquire::http::Timeout "10";' | $SUDO tee -a /etc/apt/apt.conf.d/99parallel
 
-# Make sure eatmydata is installed
-$SUDO env DEBIAN_FRONTEND=noninteractive \
-	apt-get update
-$SUDO env DEBIAN_FRONTEND=noninteractive \
-	apt-get install -yq --no-install-recommends eatmydata
+# Make sure eatmydata and aria2 are installed (aria2 for parallel downloading)
+if ! command -v eatmydata > /dev/null || ! command -v aria2c > /dev/null; then
+  $SUDO env DEBIAN_FRONTEND=noninteractive \
+    apt-get update
+  $SUDO env DEBIAN_FRONTEND=noninteractive \
+    apt-get install -yq --no-install-recommends eatmydata aria2
+fi
 
 # Install jq first, then source properties.sh
 $SUDO env DEBIAN_FRONTEND=noninteractive \
-	eatmydata apt-get install -yq --no-install-recommends jq
+  eatmydata apt-get install -yq --no-install-recommends jq
 
 . $(dirname "$(realpath "$0")")/properties.sh
 
@@ -350,7 +352,7 @@ $SUDO env DEBIAN_FRONTEND=noninteractive \
 $SUDO cp $(dirname "$(realpath "$0")")/llvm-snapshot.gpg.key /etc/apt/trusted.gpg.d/apt.llvm.org.asc
 $SUDO chmod a+r /etc/apt/trusted.gpg.d/apt.llvm.org.asc
 {
-	echo "deb [arch=amd64] http://apt.llvm.org/noble/ llvm-toolchain-noble-${HOST_LLVM_MAJOR_VERSION} main"
+  echo "deb [arch=amd64] http://apt.llvm.org/noble/ llvm-toolchain-noble-${HOST_LLVM_MAJOR_VERSION} main"
 } | $SUDO tee /etc/apt/sources.list.d/apt-llvm-org.list > /dev/null
 
 LLVM_PACKAGES=""
@@ -364,7 +366,7 @@ LLVM_PACKAGES+=" lld-${HOST_LLVM_MAJOR_VERSION}"
 $SUDO apt-get -yq update
 
 $SUDO env DEBIAN_FRONTEND=noninteractive \
-	eatmydata apt-get install -yq --no-install-recommends $PACKAGES $LLVM_PACKAGES
+  eatmydata apt-get install -yq --no-install-recommends $PACKAGES $LLVM_PACKAGES
 
 $SUDO locale-gen --purge en_US.UTF-8
 echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' | $SUDO tee -a /etc/default/locale
@@ -397,8 +399,8 @@ cd pkgconf-${PKGCONF_VERSION}
 echo "SYSTEM_LIBDIRS: $SYSTEM_LIBDIRS"
 echo "PKG_CONFIG_DIRS: $PKG_CONFIG_DIRS"
 ./configure --prefix=/usr \
-	--with-system-libdir=${SYSTEM_LIBDIRS} \
-	--with-pkg-config-dir=${PKG_CONFIG_DIRS}
+  --with-system-libdir=${SYSTEM_LIBDIRS} \
+  --with-pkg-config-dir=${PKG_CONFIG_DIRS}
 make -j$(nproc)
 $SUDO make install
 cd -

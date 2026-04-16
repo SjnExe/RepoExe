@@ -19,7 +19,7 @@ COPY ./scripts/build/download.sh /tmp/packages/scripts/build/
 # Setup needed packages and the Android SDK and NDK
 # We use eatmydata to disable fsync and significantly speed up package installations
 RUN apt-get update && \
-	apt-get install -yq --no-install-recommends eatmydata && \
+	apt-get install -yq --no-install-recommends eatmydata aria2 && \
 	eatmydata apt-get -yq upgrade && \
 	eatmydata apt-get install -yq --no-install-recommends sudo lsb-release software-properties-common && \
 	userdel ubuntu && \
