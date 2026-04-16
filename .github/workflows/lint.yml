@@ -11,7 +11,7 @@ jobs:
     name: Prettier (Format Check)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Install Prettier
         run: npm install -g prettier
@@ -23,7 +23,7 @@ jobs:
     name: Shellcheck (Bash Linting)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Run Shellcheck
         run: |
