@@ -669,7 +669,7 @@ __build_props__add_variables_validator_actions "HOME_SUBDIR" "safe_relative_path
     HOME="/$HOME_SUBDIR"
 __build_props__add_variables_validator_actions "HOME" "safe_absolute_path invalid_home_paths path_under_rootfs"
 
-ANDROID_HOME="$HOME" # Deprecated alternative variable for `HOME`
+
 
 ##
 # RepoExe legacy project user config directory path under `HOME`.
