@@ -32,8 +32,8 @@ RUN \
   && apt-get install -yq --no-install-recommends locales \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \
-  && sed -i 's/archive.ubuntu.com/azure.archive.ubuntu.com/g' /etc/apt/sources.list.d/ubuntu.sources \
-  && sed -i 's/security.ubuntu.com/azure.archive.ubuntu.com/g' /etc/apt/sources.list.d/ubuntu.sources \
+  && sed -i 's@//archive.ubuntu.com@//azure.archive.ubuntu.com@g' /etc/apt/sources.list.d/ubuntu.sources \
+  && sed -i 's@//security.ubuntu.com@//azure.archive.ubuntu.com@g' /etc/apt/sources.list.d/ubuntu.sources \
   && apt-get update \
   && apt-get install -yq --no-install-recommends eatmydata aria2 \
   && eatmydata apt-get -yq upgrade \
