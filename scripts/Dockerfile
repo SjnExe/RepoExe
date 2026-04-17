@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Build with:
 #	docker build -t ghcr.io/<owner>/repoexe-builder .
 # Push to GitHub registry with:
@@ -18,7 +19,13 @@ RUN rm -rf /tmp/packages \
 COPY ./scripts/llvm-snapshot.gpg.key ./scripts/properties.sh ./scripts/setup-ubuntu.sh /tmp/packages/scripts/
 COPY ./scripts/repo.json /tmp/packages/scripts/
 
-RUN groupadd -r systemd-journal \
+RUN rm -f /etc/apt/apt.conf.d/docker-clean \
+  && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+
+RUN \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  groupadd -r systemd-journal \
   && useradd -r -s /bin/false systemd-network \
   && useradd -r -s /bin/false systemd-resolve \
   && apt-get update \
@@ -38,21 +45,23 @@ RUN groupadd -r systemd-journal \
 
 ENV LANG=en_US.UTF-8
 
-RUN chmod a+rx /tmp/packages/scripts/*.sh \
-  && su - builder -c "PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/packages/scripts/setup-ubuntu.sh" \
-  && eatmydata apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+RUN \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  chmod a+rx /tmp/packages/scripts/*.sh \
+  && su - builder -c "PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/packages/scripts/setup-ubuntu.sh"
 
 # 2. Android SDK Setup
 COPY ./scripts/build/download.sh /tmp/packages/scripts/build/
 COPY ./scripts/setup-android-sdk.sh /tmp/packages/scripts/
 
-RUN chmod a+rx /tmp/packages/scripts/setup-android-sdk.sh /tmp/packages/scripts/build/download.sh \
+RUN \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  chmod a+rx /tmp/packages/scripts/setup-android-sdk.sh /tmp/packages/scripts/build/download.sh \
   && su - builder -c "PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/packages/scripts/setup-android-sdk.sh" \
   && eatmydata apt-get remove -yq --autoremove lsb-release software-properties-common \
-  && eatmydata apt-get clean \
-  && rm -rf /var/lib/apt/lists/* \
-  && su - builder -c "rm -rf ~/lib/*.zip ~/.android/cache/" \
+  && su - builder -c "rm -rf ~/.android/cache/" \
   && rm -rf /tmp/packages
 
 # Switch User
