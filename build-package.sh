@@ -631,6 +631,8 @@ fi
 if [[ "${INSTALL_DEPS-false}" = "true" || "${PACKAGE_LIBRARY-bionic}" = "glibc" ]]; then
 	# Setup PGP keys for verifying integrity of dependencies.
 	# Keys are obtained from our keyring package.
+	mkdir -p "$HOME/.gnupg"
+	chmod 700 "$HOME/.gnupg"
 	gpg --list-keys 2C7F29AE97891F6419A9E2CDB0076E490B71616B > /dev/null 2>&1 || {
 		gpg --import "$SCRIPTDIR/packages/repoexe-keyring/grimler.gpg"
 		gpg --no-tty --command-file <(echo -e "trust\n5\ny") --edit-key 2C7F29AE97891F6419A9E2CDB0076E490B71616B
