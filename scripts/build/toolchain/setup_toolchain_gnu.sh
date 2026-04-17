@@ -20,10 +20,10 @@ setup_toolchain_gnu() {
 		export CXXFILT=$HOST_PLATFORM-c++filt
 	fi
 
-	if [ ! -d "$_PREFIX__LIB_DIR/" ]; then
-		error_exit "glibc library directory was not found ('$_PREFIX__LIB_DIR/')"
+	if [ ! -d "$PREFIX__LIB_DIR/" ]; then
+		error_exit "glibc library directory was not found ('$PREFIX__LIB_DIR/')"
 	fi
-	if [ ! -f "$_PREFIX__LIB_DIR/libgcc_s.so" ] && [ ! -f "$_PREFIX__LIB_DIR/libgcc_s.so.1" ]; then
+	if [ ! -f "$PREFIX__LIB_DIR/libgcc_s.so" ] && [ ! -f "$PREFIX__LIB_DIR/libgcc_s.so.1" ]; then
 		error_exit "libgcc not found, there is a risk of incorrect compiler operation"
 	fi
 	if [ ! -d "$_PREFIX__BASE_INCLUDE_DIR/" ]; then

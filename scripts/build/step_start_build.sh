@@ -128,11 +128,11 @@ step_start_build() {
 			ELF_CLEANER="$(command -v repoexe-elf-cleaner)"
 		else
 			local ELF_CLEANER_VERSION
-			ELF_CLEANER_VERSION=$(bash -c ". $SCRIPTDIR/packages/repoexe-elf-cleaner/build.sh; echo \$PKG_VERSION")
+			ELF_CLEANER_VERSION=$(curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/termux-elf-cleaner/build.sh | bash -c '. /dev/stdin; echo "$TERMUX_PKG_VERSION"')
 			download \
-				"https://github.com/repoexe/repoexe-elf-cleaner/releases/download/v${ELF_CLEANER_VERSION}/repoexe-elf-cleaner" \
+				"https://github.com/termux/termux-elf-cleaner/releases/download/v${ELF_CLEANER_VERSION}/termux-elf-cleaner" \
 				"$ELF_CLEANER" \
-				59645fb25b84d11f108436e83d9df5e874ba4eb76ab62948869a23a3ee692fa7
+				$(curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/termux-elf-cleaner/build.sh | bash -c '. /dev/stdin; echo "$TERMUX_PKG_SHA256"')
 			chmod u+x "$ELF_CLEANER"
 		fi
 
@@ -149,5 +149,5 @@ step_start_build() {
 }
 
 step_setup_pkg_config_libdir() {
-	export PKG_CONFIG_LIBDIR=$_PREFIX__LIB_DIR/pkgconfig:$PREFIX/share/pkgconfig
+	export PKG_CONFIG_LIBDIR=$PREFIX__LIB_DIR/pkgconfig:$PREFIX/share/pkgconfig
 }

@@ -1,7 +1,7 @@
 setup_toolchain_23c() {
 	export CFLAGS=""
 	export CPPFLAGS=""
-	export LDFLAGS="-L${_PREFIX__LIB_DIR}"
+	export LDFLAGS="-L${PREFIX__LIB_DIR}"
 
 	export AS=$HOST_PLATFORM-clang
 	export CC=$HOST_PLATFORM-clang
@@ -31,7 +31,7 @@ setup_toolchain_23c() {
 		if [ $ARCH = arm ]; then
 			CCHOST_PLATFORM=armv7a-linux-androideabi$PKG_API_LEVEL
 		fi
-		LDFLAGS+=" -Wl,-rpath=$_PREFIX__LIB_DIR"
+		LDFLAGS+=" -Wl,-rpath=$PREFIX__LIB_DIR"
 	else
 		export CC_FOR_BUILD=$CC
 		# Some build scripts use environment variable 'PKG_CONFIG', so
@@ -108,7 +108,7 @@ setup_toolchain_23c() {
 	fi
 	local env_host="${CARGO_TARGET_NAME//-/_}"
 	export CARGO_TARGET_${env_host@U}_LINKER="${CC}"
-	export CARGO_TARGET_${env_host@U}_RUSTFLAGS="-L${_PREFIX__LIB_DIR} -C link-arg=-Wl,-rpath=${_PREFIX__LIB_DIR} -C link-arg=-Wl,--enable-new-dtags"
+	export CARGO_TARGET_${env_host@U}_RUSTFLAGS="-L${PREFIX__LIB_DIR} -C link-arg=-Wl,-rpath=${PREFIX__LIB_DIR} -C link-arg=-Wl,--enable-new-dtags"
 	export CFLAGS_${env_host}="${CPPFLAGS} ${CFLAGS}"
 	export CC_x86_64_unknown_linux_gnu="gcc"
 	export CFLAGS_x86_64_unknown_linux_gnu="-O2"

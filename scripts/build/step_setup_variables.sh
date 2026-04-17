@@ -51,7 +51,7 @@ step_setup_variables() {
 
 		if [ "$PACKAGE_LIBRARY" = "bionic" ]; then
 			# On-device builds without RepoExe-exec are unsupported.
-			if [[ ":${LD_PRELOAD:-}:" != ":${_PREFIX__LIB_DIR}/libRepoExe-exec"*".so:" ]]; then
+			if [[ ":${LD_PRELOAD:-}:" != ":${PREFIX__LIB_DIR}/libRepoExe-exec"*".so:" ]]; then
 				error_exit "On-device builds without RepoExe-exec are not supported."
 			fi
 		fi
@@ -164,11 +164,10 @@ step_setup_variables() {
 	PKG_SETUP_PYTHON=false # setting python to compile a package
 	PYTHON_VERSION="$( # get the latest version of python
 		if [[ "${PACKAGE_LIBRARY}" == "bionic" ]]; then
-			. "$SCRIPTDIR/packages/python/build.sh"
+			curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/python/build.sh | bash -c '. /dev/stdin; echo "$_MAJOR_VERSION"'
 		else # glibc
-			. "$SCRIPTDIR/gpkg/python/build.sh"
+			curl -s https://raw.githubusercontent.com/termux-pacman/glibc-packages/master/gpkg/python/build.sh | bash -c '. /dev/stdin; echo "$_MAJOR_VERSION"'
 		fi
-		echo "$_MAJOR_VERSION"
 	)"
 	PKG_PYTHON_TARGET_DEPS="" # python modules to be installed via pip3
 	PKG_PYTHON_CROSS_BUILD_DEPS="" # python modules to be installed via build-pip
@@ -176,14 +175,13 @@ step_setup_variables() {
 	PKG_PYTHON_RUNTIME_DEPS="" # python modules to be installed via pip3 in debscriptps
 	PYTHON_CROSSENV_PREFIX="$TOPDIR/python${PYTHON_VERSION}-crossenv-prefix-$PACKAGE_LIBRARY-$ARCH" # python modules dependency location (only used in non-devices)
 	PYTHON_CROSSENV_BUILDHOME="$PYTHON_CROSSENV_PREFIX/build/lib/python${PYTHON_VERSION}"
-	PYTHON_HOME=$_PREFIX__LIB_DIR/python${PYTHON_VERSION} # location of python libraries
+	PYTHON_HOME=$PREFIX__LIB_DIR/python${PYTHON_VERSION} # location of python libraries
 	LLVM_VERSION="$( # get the latest version of LLVM
 		if [[ "${PACKAGE_LIBRARY}" == "bionic" ]]; then
-			. "$SCRIPTDIR/packages/libllvm/build.sh"
+			curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/libllvm/build.sh | bash -c '. /dev/stdin; echo "$TERMUX_PKG_VERSION"'
 		else # glibc
-			. "$SCRIPTDIR/gpkg/llvm/build.sh"
+			curl -s https://raw.githubusercontent.com/termux-pacman/glibc-packages/master/gpkg/llvm/build.sh | bash -c '. /dev/stdin; echo "$TERMUX_PKG_VERSION"'
 		fi
-		echo "$PKG_VERSION"
 	)"
 	LLVM_MAJOR_VERSION="${LLVM_VERSION%%.*}"
 	LLVM_NEXT_MAJOR_VERSION="$((LLVM_MAJOR_VERSION + 1))"
