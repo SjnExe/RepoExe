@@ -23,8 +23,8 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean \
   && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 
 RUN \
-  --mount=type=cache,target=/var/cache/apt,sharing=locked \
-  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib \
   groupadd -r systemd-journal \
   && useradd -r -s /bin/false systemd-network \
   && useradd -r -s /bin/false systemd-resolve \
@@ -32,8 +32,8 @@ RUN \
   && apt-get install -yq --no-install-recommends locales \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \
-  && sed -i 's@//archive.ubuntu.com@//azure.archive.ubuntu.com@g' /etc/apt/sources.list.d/ubuntu.sources \
-  && sed -i 's@//security.ubuntu.com@//azure.archive.ubuntu.com@g' /etc/apt/sources.list.d/ubuntu.sources \
+  && sed -i 's@http://archive.ubuntu.com/ubuntu/@mirror://mirrors.ubuntu.com/mirrors.txt@g' /etc/apt/sources.list.d/ubuntu.sources \
+  && sed -i 's@http://security.ubuntu.com/ubuntu/@mirror://mirrors.ubuntu.com/mirrors.txt@g' /etc/apt/sources.list.d/ubuntu.sources \
   && apt-get update \
   && apt-get install -yq --no-install-recommends eatmydata aria2 \
   && eatmydata apt-get -yq upgrade \
@@ -46,8 +46,8 @@ RUN \
 ENV LANG=en_US.UTF-8
 
 RUN \
-  --mount=type=cache,target=/var/cache/apt,sharing=locked \
-  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib \
   chmod a+rx /tmp/packages/scripts/*.sh \
   && su - builder -c "PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/packages/scripts/setup-ubuntu.sh"
 
@@ -56,8 +56,8 @@ COPY ./scripts/build/download.sh /tmp/packages/scripts/build/
 COPY ./scripts/setup-android-sdk.sh /tmp/packages/scripts/
 
 RUN \
-  --mount=type=cache,target=/var/cache/apt,sharing=locked \
-  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib \
   chmod a+rx /tmp/packages/scripts/setup-android-sdk.sh /tmp/packages/scripts/build/download.sh \
   && su - builder -c "PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/packages/scripts/setup-android-sdk.sh" \
   && eatmydata apt-get remove -yq --autoremove lsb-release software-properties-common \
