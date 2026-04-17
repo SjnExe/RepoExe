@@ -44,6 +44,7 @@ if [ ! -d "$ANDROID_HOME" ]; then
   else
     unzip -q tools-$SDK_REVISION.zip -d android-sdk-$SDK_REVISION
   fi
+  rm -f tools-$SDK_REVISION.zip
 fi
 
 if [ ! -d "$NDK" ]; then
@@ -63,6 +64,7 @@ if [ ! -d "$NDK" ]; then
   else
     unzip -q ndk-r${NDK_VERSION}.zip
   fi
+  rm -f ndk-r${NDK_VERSION}.zip
 
   # Remove unused parts
   rm -Rf android-ndk-r$NDK_VERSION/sources/cxx-stl/system
