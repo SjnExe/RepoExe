@@ -39,6 +39,8 @@ get_repo_files() {
 			for attempt in {1..6}; do
 				if download "${RELEASE_FILE_URL}" "${RELEASE_FILE}" SKIP_CHECKSUM \
 						&& download "${RELEASE_FILE_SIG_URL}" "${RELEASE_FILE}.gpg" SKIP_CHECKSUM; then
+					mkdir -p "$HOME/.gnupg"
+					chmod 700 "$HOME/.gnupg"
 					if ! gpg --verify "${RELEASE_FILE}.gpg" "${RELEASE_FILE}"; then
 						echo "GPG verification failed, probably we downloaded corrupted metadata. Retrying in $delay seconds."
 						sleep "$delay"
