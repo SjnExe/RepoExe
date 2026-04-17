@@ -5,21 +5,27 @@
 FROM ubuntu:24.04
 
 # Fix locale to avoid warnings:
-ENV LANG=en_US.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Needed for setup:
 RUN rm -rf /tmp/packages \
-  && mkdir -p /tmp/packages/scripts
-# Since we build from RepoExe root, the paths should reflect our structure
-COPY ./scripts/llvm-snapshot.gpg.key ./scripts/properties.sh ./scripts/setup-android-sdk.sh ./scripts/setup-ubuntu.sh ./scripts/repo.json /tmp/packages/scripts/
-RUN mkdir -p /tmp/packages/scripts/build
-COPY ./scripts/build/download.sh /tmp/packages/scripts/build/
+  && mkdir -p /tmp/packages/scripts/build
 
-# Setup needed packages and the Android SDK and NDK
-# We use eatmydata to disable fsync and significantly speed up package installations
-# We switch to Azure mirrors for Ubuntu since GitHub Actions run on Azure, drastically increasing download speeds.
-RUN sed -i 's/archive.ubuntu.com/azure.archive.ubuntu.com/g' /etc/apt/sources.list.d/ubuntu.sources \
+# Since we build from RepoExe root, the paths should reflect our structure
+# Split COPY and RUN into logical steps for better caching
+
+# 1. Base Setup & Properties
+COPY ./scripts/llvm-snapshot.gpg.key ./scripts/properties.sh ./scripts/setup-ubuntu.sh /tmp/packages/scripts/
+COPY ./scripts/repo.json /tmp/packages/scripts/
+
+RUN groupadd -r systemd-journal \
+  && useradd -r -s /bin/false systemd-network \
+  && useradd -r -s /bin/false systemd-resolve \
+  && apt-get update \
+  && apt-get install -yq --no-install-recommends locales \
+  && locale-gen en_US.UTF-8 \
+  && update-locale LANG=en_US.UTF-8 \
+  && sed -i 's/archive.ubuntu.com/azure.archive.ubuntu.com/g' /etc/apt/sources.list.d/ubuntu.sources \
   && sed -i 's/security.ubuntu.com/azure.archive.ubuntu.com/g' /etc/apt/sources.list.d/ubuntu.sources \
   && apt-get update \
   && apt-get install -yq --no-install-recommends eatmydata aria2 \
@@ -28,9 +34,20 @@ RUN sed -i 's/archive.ubuntu.com/azure.archive.ubuntu.com/g' /etc/apt/sources.li
   && userdel ubuntu \
   && useradd -u 1001 -U -m -s /bin/bash builder \
   && echo "builder ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/builder \
-  && chmod 0440 /etc/sudoers.d/builder \
-  && chmod a+rx /tmp/packages/scripts/*.sh /tmp/packages/scripts/build/download.sh \
+  && chmod 0440 /etc/sudoers.d/builder
+
+ENV LANG=en_US.UTF-8
+
+RUN chmod a+rx /tmp/packages/scripts/*.sh \
   && su - builder -c "PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/packages/scripts/setup-ubuntu.sh" \
+  && eatmydata apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+# 2. Android SDK Setup
+COPY ./scripts/build/download.sh /tmp/packages/scripts/build/
+COPY ./scripts/setup-android-sdk.sh /tmp/packages/scripts/
+
+RUN chmod a+rx /tmp/packages/scripts/setup-android-sdk.sh /tmp/packages/scripts/build/download.sh \
   && su - builder -c "PKGS__BUILD__IS_DOCKER_BUILD='true' /tmp/packages/scripts/setup-android-sdk.sh" \
   && eatmydata apt-get remove -yq --autoremove lsb-release software-properties-common \
   && eatmydata apt-get clean \
