@@ -20,7 +20,7 @@ jobs:
           persist-credentials: false
 
       - name: Cache APT packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache
         with:
           path: apt-cache
@@ -29,7 +29,7 @@ jobs:
             apt-cache-${{ runner.os }}-
 
       - name: Cache APT lists
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache-lib
         with:
           path: apt-lib
