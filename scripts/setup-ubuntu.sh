@@ -383,6 +383,8 @@ $SUDO mkdir -p "$PREFIX"
 $SUDO chown -R "$(whoami)" "$PREFIX"
 $SUDO mkdir -p "$APP__DATA_DIR"
 $SUDO chown -R "$(whoami)" "${APP__DATA_DIR%"${APP__DATA_DIR#/*/}"}" # Get `/path/` from `/path/to/app__data_dir`.
+$SUDO mkdir -p "$REPO__HOME"
+$SUDO chown -R "$(whoami)" "$REPO__HOME"
 
 # Initial symbolic link in the symbolic link chain for packages
 # that have a build dependency on 'aosp-libs'; see scripts/build/step_override_config_scripts.sh
