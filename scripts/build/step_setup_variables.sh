@@ -164,11 +164,10 @@ step_setup_variables() {
 	PKG_SETUP_PYTHON=false # setting python to compile a package
 	PYTHON_VERSION="$( # get the latest version of python
 		if [[ "${PACKAGE_LIBRARY}" == "bionic" ]]; then
-			. "$SCRIPTDIR/packages/python/build.sh"
+			curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/python/build.sh | bash -c '. /dev/stdin; echo "$_MAJOR_VERSION"'
 		else # glibc
-			. "$SCRIPTDIR/gpkg/python/build.sh"
+			curl -s https://raw.githubusercontent.com/termux-pacman/glibc-packages/master/gpkg/python/build.sh | bash -c '. /dev/stdin; echo "$_MAJOR_VERSION"'
 		fi
-		echo "$_MAJOR_VERSION"
 	)"
 	PKG_PYTHON_TARGET_DEPS="" # python modules to be installed via pip3
 	PKG_PYTHON_CROSS_BUILD_DEPS="" # python modules to be installed via build-pip
@@ -179,11 +178,10 @@ step_setup_variables() {
 	PYTHON_HOME=$_PREFIX__LIB_DIR/python${PYTHON_VERSION} # location of python libraries
 	LLVM_VERSION="$( # get the latest version of LLVM
 		if [[ "${PACKAGE_LIBRARY}" == "bionic" ]]; then
-			. "$SCRIPTDIR/packages/libllvm/build.sh"
+			curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/libllvm/build.sh | bash -c '. /dev/stdin; echo "$TERMUX_PKG_VERSION"'
 		else # glibc
-			. "$SCRIPTDIR/gpkg/llvm/build.sh"
+			curl -s https://raw.githubusercontent.com/termux-pacman/glibc-packages/master/gpkg/llvm/build.sh | bash -c '. /dev/stdin; echo "$TERMUX_PKG_VERSION"'
 		fi
-		echo "$PKG_VERSION"
 	)"
 	LLVM_MAJOR_VERSION="${LLVM_VERSION%%.*}"
 	LLVM_NEXT_MAJOR_VERSION="$((LLVM_MAJOR_VERSION + 1))"

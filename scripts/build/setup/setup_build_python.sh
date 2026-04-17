@@ -27,9 +27,9 @@ setup_build_python() {
 		local _PYTHON_SRCURL
 		local _PYTHON_SHA256
 		local _PYTHON_FOLDER
-		_PYTHON_VERSION="$(. "$SCRIPTDIR/packages/python/build.sh"; echo "$PKG_VERSION")"
-		_PYTHON_SRCURL="$(. "$SCRIPTDIR/packages/python/build.sh"; echo "$PKG_SRCURL")"
-		_PYTHON_SHA256="$(. "$SCRIPTDIR/packages/python/build.sh"; echo "$PKG_SHA256")"
+		_PYTHON_VERSION="$(curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/python/build.sh | bash -c '. /dev/stdin; echo "$TERMUX_PKG_VERSION"')"
+		_PYTHON_SRCURL="$(curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/python/build.sh | bash -c '. /dev/stdin; echo "${TERMUX_PKG_SRCURL[@]}"')"
+		_PYTHON_SHA256="$(curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/python/build.sh | bash -c '. /dev/stdin; echo "${TERMUX_PKG_SHA256[@]}"')"
 		if [[ "${PACKAGES_OFFLINE-false}" = "true" ]]; then
 			_PYTHON_FOLDER=${SCRIPTDIR}/build-tools/python-${_PYTHON_VERSION}
 		else

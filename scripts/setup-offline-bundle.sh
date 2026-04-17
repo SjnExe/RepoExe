@@ -28,7 +28,7 @@ export BUILD_TUPLE=x86_64-pc-linux-gnu
 export PKG_API_LEVEL=24
 export TOPDIR="$HOME/.repoexe-build"
 export PYTHON_CROSSENV_PREFIX="$TOPDIR/python-crossenv-prefix"
-export PYTHON_VERSION=$(. "$SCRIPTDIR/packages/python/build.sh"; echo "$_MAJOR_VERSION")
+export PYTHON_VERSION=$(curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/python/build.sh | bash -c '. /dev/stdin; echo "$_MAJOR_VERSION"')
 export PYTHON_HOME=$PREFIX/lib/python${PYTHON_VERSION}
 export CC=gcc CXX=g++ LD=ld AR=ar STRIP=strip PKG_CONFIG=pkg-config
 export CPPFLAGS="" CFLAGS="" CXXFLAGS="" LDFLAGS=""
