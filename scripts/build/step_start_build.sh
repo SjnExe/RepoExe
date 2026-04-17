@@ -100,7 +100,7 @@ step_start_build() {
 
 		# Set ELF_CLEANER for on-device continued build
 		if [ "$PACKAGE_LIBRARY" = "bionic" ] && [ "$ON_DEVICE_BUILD" = "true" ]; then
-			ELF_CLEANER="$(command -v repoexe-elf-cleaner)"
+			ELF_CLEANER="$(command -v termux-elf-cleaner)"
 		fi
 		# The rest in this function can be skipped when doing
 		# a continued build
@@ -122,17 +122,16 @@ step_start_build() {
 	if [ "$PACKAGE_LIBRARY" = "bionic" ]; then
 		if [ "$ON_DEVICE_BUILD" = "true" ]; then
 			case "$APP_PACKAGE_MANAGER" in
-				"apt") apt install -y repoexe-elf-cleaner;;
-				"pacman") pacman -S repoexe-elf-cleaner --needed --noconfirm;;
+				"apt") apt install -y termux-elf-cleaner;;
+				"pacman") pacman -S termux-elf-cleaner --needed --noconfirm;;
 			esac
-			ELF_CLEANER="$(command -v repoexe-elf-cleaner)"
+			ELF_CLEANER="$(command -v termux-elf-cleaner)"
 		else
-			local ELF_CLEANER_VERSION
-			ELF_CLEANER_VERSION=$(curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/termux-elf-cleaner/build.sh | bash -c '. /dev/stdin; echo "$TERMUX_PKG_VERSION"')
+			local ELF_CLEANER_VERSION="3.0.1"
 			download \
 				"https://github.com/termux/termux-elf-cleaner/releases/download/v${ELF_CLEANER_VERSION}/termux-elf-cleaner" \
 				"$ELF_CLEANER" \
-				$(curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/termux-elf-cleaner/build.sh | bash -c '. /dev/stdin; echo "$TERMUX_PKG_SHA256"')
+				59645fb25b84d11f108436e83d9df5e874ba4eb76ab62948869a23a3ee692fa7
 			chmod u+x "$ELF_CLEANER"
 		fi
 

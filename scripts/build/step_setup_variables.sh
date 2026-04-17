@@ -94,7 +94,7 @@ step_setup_variables() {
 	D8=$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION/d8
 
 	COMMON_CACHEDIR="$TOPDIR/_cache"
-	ELF_CLEANER=$COMMON_CACHEDIR/repoexe-elf-cleaner
+	ELF_CLEANER=$COMMON_CACHEDIR/termux-elf-cleaner
 
 	export prefix=${PREFIX}
 	export PREFIX=${PREFIX}
@@ -137,7 +137,7 @@ step_setup_variables() {
 	PKG_LICENSE_FILE="" # Relative path from $PKG_SRCDIR to LICENSE file. It is installed to $PREFIX/share/$PKG_NAME.
 	PKG_MASSAGEDIR=$TOPDIR/$PKG_NAME/massage
 	PKG_METAPACKAGE=false
-	PKG_NO_ELF_CLEANER=false # set this to true to disable running of repoexe-elf-cleaner on built binaries
+	PKG_NO_ELF_CLEANER=false # set this to true to disable running of termux-elf-cleaner on built binaries
 	PKG_NO_REPLACE_GUESS_SCRIPTS=false # if true, do not find and replace config.guess and config.sub in source directory
 	PKG_NO_SHEBANG_FIX=false # if true, skip fixing shebang accordingly to PREFIX
 	PKG_NO_SHEBANG_FIX_FILES="" # files to be excluded from fixing shebang

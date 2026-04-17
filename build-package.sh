@@ -379,7 +379,7 @@ source "$SCRIPTDIR/scripts/build/step_massage.sh"
 # shellcheck source=scripts/build/step_strip_elf_symbols.sh
 source "$SCRIPTDIR/scripts/build/step_strip_elf_symbols.sh"
 
-# Function to run repoexe-elf-cleaner during step_massage
+# Function to run termux-elf-cleaner during step_massage
 # shellcheck source=scripts/build/step_elf_cleaner.sh
 source "$SCRIPTDIR/scripts/build/step_elf_cleaner.sh"
 
