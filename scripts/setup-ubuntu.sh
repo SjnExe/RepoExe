@@ -335,11 +335,17 @@ echo 'Acquire::Retries "3";' | $SUDO tee -a /etc/apt/apt.conf.d/99parallel
 echo 'Acquire::http::Timeout "10";' | $SUDO tee -a /etc/apt/apt.conf.d/99parallel
 
 # Make sure eatmydata and aria2 are installed (aria2 for parallel downloading)
+# Also make sure eatmydata for i386 is installed to prevent LD_PRELOAD warnings when installing 32-bit packages.
 if ! command -v eatmydata > /dev/null || ! command -v aria2c > /dev/null; then
   $SUDO env DEBIAN_FRONTEND=noninteractive \
     apt-get update
   $SUDO env DEBIAN_FRONTEND=noninteractive \
-    apt-get install -yq --no-install-recommends eatmydata aria2
+    apt-get install -yq --no-install-recommends eatmydata aria2 libeatmydata1:i386
+else
+  $SUDO env DEBIAN_FRONTEND=noninteractive \
+    apt-get update
+  $SUDO env DEBIAN_FRONTEND=noninteractive \
+    apt-get install -yq --no-install-recommends libeatmydata1:i386
 fi
 
 # Install jq first, then source properties.sh
