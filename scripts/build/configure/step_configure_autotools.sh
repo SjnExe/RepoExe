@@ -104,7 +104,7 @@ step_configure_autotools() {
 	env $AVOID_GNULIB "$PKG_SRCDIR/configure" \
 		--disable-dependency-tracking \
 		--prefix="$PREFIX" \
-		--libdir="$_PREFIX__LIB_DIR" \
+		--libdir="$PREFIX__LIB_DIR" \
 		--includedir="$_PREFIX__INCLUDE_DIR" \
 		--sbindir="$PREFIX/bin" \
 		--disable-rpath --disable-rpath-hack \

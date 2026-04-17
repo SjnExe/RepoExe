@@ -57,6 +57,6 @@ setup_golang() {
 			exit 1
 		fi
 
-		export GOROOT="$_PREFIX__LIB_DIR/go"
+		export GOROOT="$PREFIX__LIB_DIR/go"
 	fi
 }

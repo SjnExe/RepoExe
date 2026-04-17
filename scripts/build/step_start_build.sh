@@ -149,5 +149,5 @@ step_start_build() {
 }
 
 step_setup_pkg_config_libdir() {
-	export PKG_CONFIG_LIBDIR=$_PREFIX__LIB_DIR/pkgconfig:$PREFIX/share/pkgconfig
+	export PKG_CONFIG_LIBDIR=$PREFIX__LIB_DIR/pkgconfig:$PREFIX/share/pkgconfig
 }
