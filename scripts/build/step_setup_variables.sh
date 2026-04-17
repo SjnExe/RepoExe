@@ -51,7 +51,7 @@ step_setup_variables() {
 
 		if [ "$PACKAGE_LIBRARY" = "bionic" ]; then
 			# On-device builds without RepoExe-exec are unsupported.
-			if [[ ":${LD_PRELOAD:-}:" != ":${_PREFIX__LIB_DIR}/libRepoExe-exec"*".so:" ]]; then
+			if [[ ":${LD_PRELOAD:-}:" != ":${PREFIX__LIB_DIR}/libRepoExe-exec"*".so:" ]]; then
 				error_exit "On-device builds without RepoExe-exec are not supported."
 			fi
 		fi
@@ -175,7 +175,7 @@ step_setup_variables() {
 	PKG_PYTHON_RUNTIME_DEPS="" # python modules to be installed via pip3 in debscriptps
 	PYTHON_CROSSENV_PREFIX="$TOPDIR/python${PYTHON_VERSION}-crossenv-prefix-$PACKAGE_LIBRARY-$ARCH" # python modules dependency location (only used in non-devices)
 	PYTHON_CROSSENV_BUILDHOME="$PYTHON_CROSSENV_PREFIX/build/lib/python${PYTHON_VERSION}"
-	PYTHON_HOME=$_PREFIX__LIB_DIR/python${PYTHON_VERSION} # location of python libraries
+	PYTHON_HOME=$PREFIX__LIB_DIR/python${PYTHON_VERSION} # location of python libraries
 	LLVM_VERSION="$( # get the latest version of LLVM
 		if [[ "${PACKAGE_LIBRARY}" == "bionic" ]]; then
 			curl -s https://raw.githubusercontent.com/termux/termux-packages/master/packages/libllvm/build.sh | bash -c '. /dev/stdin; echo "$TERMUX_PKG_VERSION"'
