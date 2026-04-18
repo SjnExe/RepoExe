@@ -645,6 +645,10 @@ if [[ "${INSTALL_DEPS-false}" = "true" || "${PACKAGE_LIBRARY-bionic}" = "glibc" 
 		gpg --import "$SCRIPTDIR/packages/repoexe-keyring/repoexe-pacman.gpg"
 		gpg --no-tty --command-file <(echo -e "trust\n5\ny") --edit-key 998DE27318E867EA976BA877389CEED64573DFCA
 	}
+	gpg --list-keys 9B31F2588A2751CF3507ED7705DF607D51676DCD > /dev/null 2>&1 || {
+		gpg --import "$SCRIPTDIR/packages/repoexe-keyring/repoexe.gpg"
+		gpg --no-tty --command-file <(echo -e "trust\n5\ny") --edit-key 9B31F2588A2751CF3507ED7705DF607D51676DCD
+	}
 fi
 
 for (( i=0; i < ${#PACKAGE_LIST[@]}; i++ )); do
