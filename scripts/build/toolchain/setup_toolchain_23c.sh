@@ -216,7 +216,7 @@ setup_toolchain_23c() {
 	rm -Rf usr/include/vulkan
 	rm -Rf usr/include/{EGL,GLES{,2,3}}
 
-	$ELF_CLEANER --api-level=$PKG_API_LEVEL usr/lib/*/*/*.so | { [[ "${CI-}" == "true" ]] && sed -e '1i\::group::Applying `repoexe-elf-cleaner`' -e '$a\::endgroup::' || cat; }
+	$ELF_CLEANER --api-level=$PKG_API_LEVEL usr/lib/*/*/*.so | { [[ "${CI-}" == "true" ]] && sed -e '1i\::group::Applying `termux-elf-cleaner`' -e '$a\::endgroup::' || cat; }
 	for dir in usr/lib/*; do
 		# This seem to be needed when building rust
 		# packages
