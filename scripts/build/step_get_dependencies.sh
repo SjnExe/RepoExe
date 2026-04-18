@@ -83,7 +83,7 @@ step_get_dependencies() {
 			fi
 			run_build-package
 		fi
-	done < <(echo "ERROR")
+	done < <(./scripts/bin/buildorder.py $([[ "${INSTALL_DEPS}" == "true" ]] && echo "-i") "$PKG_BUILDER_DIR" $PACKAGES_DIRECTORIES || echo "ERROR")
 }
 
 force_check_package_dependency() {
