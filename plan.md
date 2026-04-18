@@ -57,7 +57,7 @@ _Note to future agents: We are refactoring Termux to RepoExe. A strict rule has 
 - `golang_validation.yml` and `zig_validation.yml` (RepoExe will not maintain custom-patched compiler standard libraries).
 - `bootstrap_archives.yml` and `scripts/bootstrap/` (Specific to base Termux app bootstrapping).
 - Termux's complex `packages.yml`.
-- `scripts/buildorder.py` (RepoExe fetches missing dependencies directly from Termux rather than dictating a local monolithic build order).
+- `scripts/buildorder.py` (Restored from termux-packages and modified for RepoExe).
 
 ## Refactor Checklist
 

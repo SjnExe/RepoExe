@@ -66,8 +66,8 @@ if [ -e "$BUILDORDER_FILE" ]; then
 	echo "Using existing buildorder file: $BUILDORDER_FILE"
 else
 	mkdir -p "$BUILDALL_DIR"
-	# Instead of buildorder, we just list packages
-	find packages -mindepth 1 -maxdepth 1 -type d | xargs -n1 basename > "$BUILDORDER_FILE"
+	"$SCRIPTDIR/scripts/buildorder.py" > "$BUILDORDER_FILE"
+
 fi
 if [ -e "$BUILDSTATUS_FILE" ]; then
 	echo "Continuing build-all from: $BUILDSTATUS_FILE"
