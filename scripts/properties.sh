@@ -275,10 +275,10 @@ export JAVA_HOME="${JAVA_HOME}"
 
 if [[ "${PACKAGES_OFFLINE-false}" == "true" ]]; then
     export ANDROID_HOME="${PKGS__BUILD__REPO_ROOT_DIR}/build-tools/android-sdk-${SDK_REVISION}"
-    export NDK="${PKGS__BUILD__REPO_ROOT_DIR}/build-tools/android-ndk-r${NDK_VERSION}"
+    export NDK="${PKGS__BUILD__REPO_ROOT_DIR}/build-tools/android-ndk"
 else
     : "${ANDROID_HOME:="${HOME}/lib/android-sdk-$SDK_REVISION"}"
-    : "${NDK:="${HOME}/lib/android-ndk-r${NDK_VERSION}"}"
+    : "${NDK:="${HOME}/lib/android-ndk"}"
 fi
 
 ###

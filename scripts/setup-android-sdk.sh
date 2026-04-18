@@ -68,8 +68,8 @@ if [ ! -d "$NDK" ]; then
 
   # Remove unused parts
   rm -Rf android-ndk-r$NDK_VERSION/sources/cxx-stl/system
-  # Create generic symlink
-  ln -s android-ndk-r${NDK_VERSION} android-ndk
+
+  mv android-ndk-r${NDK_VERSION} android-ndk
 fi
 
 if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
