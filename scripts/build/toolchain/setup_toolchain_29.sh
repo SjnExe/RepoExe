@@ -197,7 +197,7 @@ setup_toolchain_29() {
 	chmod +x "$STANDALONE_TOOLCHAIN"/bin/pkg-config
 
 	cd $STANDALONE_TOOLCHAIN/sysroot
-	for f in $(dirname "$SCRIPTDIR")/ndk-patches/$NDK_VERSION/*.patch; do
+	for f in $REPO_ROOT/ndk-patches/$NDK_VERSION/*.patch; do
 		echo "Applying ndk-patch: $(basename $f)"
 		sed "s%\@PREFIX\@%${PREFIX}%g" "$f" | \
 			sed "s%\@HOME\@%${ANDROID_HOME}%g" | \
@@ -205,7 +205,7 @@ setup_toolchain_29() {
 	done
 	# libintl.h: Inline implementation gettext functions.
 	# langinfo.h: Inline implementation of nl_langinfo().
-	cp $(dirname "$SCRIPTDIR")/ndk-patches/{libintl.h,langinfo.h} usr/include
+	cp $REPO_ROOT/ndk-patches/{libintl.h,langinfo.h} usr/include
 
 	# Remove <sys/capability.h> because it is provided by libcap.
 	# Remove <sys/shm.h> from the NDK in favour of that from the libandroid-shmem.
