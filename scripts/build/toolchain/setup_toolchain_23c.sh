@@ -194,7 +194,7 @@ setup_toolchain_23c() {
 		echo "Applying ndk-patch: $(basename $f)"
 		sed "s%\@PREFIX\@%${PREFIX}%g" "$f" | \
 			sed "s%\@HOME\@%${ANDROID_HOME}%g" | \
-			patch --silent -p1;
+			patch --silent --forward -p1 || true;
 	done
 	# libintl.h: Inline implementation gettext functions.
 	# langinfo.h: Inline implementation of nl_langinfo().
