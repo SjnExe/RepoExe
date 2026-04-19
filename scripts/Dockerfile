@@ -29,7 +29,7 @@ RUN \
   && useradd -r -s /bin/false systemd-network \
   && useradd -r -s /bin/false systemd-resolve \
   && apt-get update \
-  && apt-get install -yq --no-install-recommends locales \
+  && apt-get install -yq --no-install-recommends locales apt-utils \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \
   && sed -i 's@http://archive.ubuntu.com/ubuntu/@mirror://mirrors.ubuntu.com/mirrors.txt@g' /etc/apt/sources.list.d/ubuntu.sources \
