@@ -20,6 +20,7 @@ PKG_SHA256=(SKIP_CHECKSUM
 PKG_SKIP_SRC_EXTRACT=true
 PKG_BUILD_IN_SRC=true
 PKG_DEPENDS="libc++, libexpat, libpng, zlib, libbase, libandroidfw, libutils, libziparchive, libandroid-pathutils"
+PKG_BUILD_DEPENDS="fmt"
 step_post_get_source() {
 	for i in $(seq 0 $(( ${#PKG_SRCURL[@]}-1 ))); do
 		local REPO_URL=${PKG_SRCURL[$i]}

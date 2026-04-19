@@ -18,6 +18,7 @@ PKG_SHA256=(SKIP_CHECKSUM
 PKG_SKIP_SRC_EXTRACT=true
 PKG_BUILD_IN_SRC=true
 PKG_DEPENDS="libc++, libzopfli, zlib, libbase, libutils, libziparchive"
+PKG_BUILD_DEPENDS="fmt"
 
 step_post_get_source() {
 	for i in $(seq 0 $(( ${#PKG_SRCURL[@]}-1 ))); do
