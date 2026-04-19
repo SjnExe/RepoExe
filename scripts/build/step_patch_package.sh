@@ -26,7 +26,7 @@ step_patch_package() {
 			-e "s%\@HOME\@%${ANDROID_HOME}%g" \
 			-e "s%\@PREFIX\@%${PREFIX}%g" \
 			-e "s%\@PREFIX_CLASSICAL\@%${PREFIX_CLASSICAL}%g" \
-			-e "s%\@ENV__S_REPOEXE\@%${ENV__S_REPOEXE}%g" \
+			-e "s%\@ENV__S\@%${ENV__S}%g" \
 			-e "s%\@ENV__S_APP\@%${ENV__S_APP}%g" \
 			-e "s%\@ENV__S_API_APP\@%${ENV__S_API_APP}%g" \
 			-e "s%\@ENV__S_ROOTFS\@%${ENV__S_ROOTFS}%g" \
