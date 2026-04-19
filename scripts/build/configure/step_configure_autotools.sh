@@ -105,7 +105,7 @@ step_configure_autotools() {
 		--disable-dependency-tracking \
 		--prefix="$PREFIX" \
 		--libdir="$PREFIX__LIB_DIR" \
-		--includedir="$_PREFIX__INCLUDE_DIR" \
+		--includedir="$PREFIX__INCLUDE_DIR" \
 		--sbindir="$PREFIX/bin" \
 		--disable-rpath --disable-rpath-hack \
 		$HOST_FLAG \
