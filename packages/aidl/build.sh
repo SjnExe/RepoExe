@@ -16,6 +16,7 @@ PKG_SHA256=(SKIP_CHECKSUM
 PKG_SKIP_SRC_EXTRACT=true
 PKG_BUILD_IN_SRC=true
 PKG_DEPENDS="fmt, libc++, libbase"
+PKG_BUILD_DEPENDS="fmt"
 PKG_BUILD_DEPENDS="fmt, googletest"
 
 step_post_get_source() {
@@ -44,7 +45,7 @@ step_pre_configure() {
 	rm -rf $_TMP_BINDIR
 	mkdir -p $_TMP_BINDIR
 
-	LDFLAGS+=" -llog -landroid-base"
+	LDFLAGS+=" -llog -landroid-base -lfmt"
 }
 
 step_make() {
