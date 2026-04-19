@@ -37,7 +37,7 @@ step_setup_variables() {
 	fi
 
 	if [ "$PACKAGE_LIBRARY" = "glibc" ]; then
-		build_props__set_prefix_dir_and_sub_variables "$_PREFIX_GLIBC"
+		build_props__set_prefix_dir_and_sub_variables "$PREFIX_GLIBC"
 		if ! repoexe_package__is_package_name_have_glibc_prefix "$PKG_NAME"; then
 			PKG_NAME="$(repoexe_package__add_prefix_glibc_to_package_name "${PKG_NAME}")"
 		fi

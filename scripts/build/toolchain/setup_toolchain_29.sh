@@ -83,10 +83,10 @@ setup_toolchain_29() {
 
 	export CXXFLAGS="$CFLAGS"
 	# set the proper header include order - first package includes, then prefix includes
-	# -isystem${_PREFIX__BASE_INCLUDE_DIR}/c++/v1 is needed here for on-device building to work correctly
-	export CPPFLAGS+=" -isystem${_PREFIX__BASE_INCLUDE_DIR}/c++/v1 -isystem${_PREFIX__INCLUDE_DIR}"
+	# -isystem${PREFIX__BASE_INCLUDE_DIR}/c++/v1 is needed here for on-device building to work correctly
+	export CPPFLAGS+=" -isystem${PREFIX__BASE_INCLUDE_DIR}/c++/v1 -isystem${PREFIX__INCLUDE_DIR}"
 	if [ "$ARCH" != "$REAL_ARCH" ]; then
-		export CPPFLAGS+=" -isystem${_PREFIX__BASE_INCLUDE_DIR}"
+		export CPPFLAGS+=" -isystem${PREFIX__BASE_INCLUDE_DIR}"
 	fi
 
 	# If libandroid-support is declared as a dependency, link to it explicitly:
@@ -98,9 +98,9 @@ setup_toolchain_29() {
 	export CGO_ENABLED=1
 	export GO_LDFLAGS="-extldflags=-pie"
 	export CGO_LDFLAGS="${LDFLAGS/ -Wl,-z,relro,-z,now/}"
-	export CGO_CFLAGS="-isystem${_PREFIX__INCLUDE_DIR}"
+	export CGO_CFLAGS="-isystem${PREFIX__INCLUDE_DIR}"
 	if [ "$ARCH" != "$REAL_ARCH" ]; then
-		export CGO_CFLAGS+=" -isystem${_PREFIX__BASE_INCLUDE_DIR}"
+		export CGO_CFLAGS+=" -isystem${PREFIX__BASE_INCLUDE_DIR}"
 	fi
 
 	export CARGO_TARGET_NAME="${ARCH}-linux-android"
@@ -197,7 +197,7 @@ setup_toolchain_29() {
 	chmod +x "$STANDALONE_TOOLCHAIN"/bin/pkg-config
 
 	cd $STANDALONE_TOOLCHAIN/sysroot
-	for f in $SCRIPTDIR/ndk-patches/$NDK_VERSION/*.patch; do
+	for f in $(dirname "$SCRIPTDIR")/ndk-patches/$NDK_VERSION/*.patch; do
 		echo "Applying ndk-patch: $(basename $f)"
 		sed "s%\@PREFIX\@%${PREFIX}%g" "$f" | \
 			sed "s%\@HOME\@%${ANDROID_HOME}%g" | \
@@ -205,7 +205,7 @@ setup_toolchain_29() {
 	done
 	# libintl.h: Inline implementation gettext functions.
 	# langinfo.h: Inline implementation of nl_langinfo().
-	cp "$SCRIPTDIR"/ndk-patches/{libintl.h,langinfo.h} usr/include
+	cp $(dirname "$SCRIPTDIR")/ndk-patches/{libintl.h,langinfo.h} usr/include
 
 	# Remove <sys/capability.h> because it is provided by libcap.
 	# Remove <sys/shm.h> from the NDK in favour of that from the libandroid-shmem.

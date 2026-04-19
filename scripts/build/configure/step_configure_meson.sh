@@ -14,8 +14,8 @@ step_configure_meson() {
 		$PKG_BUILDDIR \
 		--$(test "${PKG_MESON_NATIVE}" = "true" && echo "native-file" || echo "cross-file") $MESON_CROSSFILE \
 		--prefix $PREFIX \
-		--libdir $_PREFIX__LIB_SUBDIR \
-		--includedir $_PREFIX__INCLUDE_SUBDIR \
+		--libdir $PREFIX__LIB_SUBDIR \
+		--includedir $PREFIX__INCLUDE_SUBDIR \
 		--buildtype ${_meson_buildtype} \
 		${_meson_stripflag} \
 		$PKG_EXTRA_CONFIGURE_ARGS \
