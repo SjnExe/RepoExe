@@ -279,6 +279,8 @@ if [[ "${PACKAGES_OFFLINE-false}" == "true" ]]; then
 else
     : "${ANDROID_HOME:="${HOME}/lib/android-sdk-$SDK_REVISION"}"
     : "${NDK:="${HOME}/lib/android-ndk-r${NDK_VERSION}"}"
+    export ANDROID_HOME
+    export NDK
 fi
 
 ###

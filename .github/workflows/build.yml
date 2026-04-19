@@ -180,7 +180,7 @@ jobs:
                 for patch in ndk-patches/29/*.patch; do
                   if [ -f \"\$patch\" ]; then
                     echo \"Applying \$patch\"
-                    sudo patch -p1 -d /home/builder/lib/android-ndk-r29/sysroot < \"\$patch\" || true
+                    sudo patch -p1 -d /home/builder/lib/android-ndk-r29/toolchains/llvm/prebuilt/linux-x86_64/sysroot < \"\$patch\" || true
                   fi
                 done
               fi
