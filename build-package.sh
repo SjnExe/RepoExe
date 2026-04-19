@@ -280,9 +280,6 @@ source "$SCRIPTDIR/scripts/build/step_host_build.sh"
 # shellcheck source=scripts/build/toolchain/setup_toolchain_29.sh
 source "$SCRIPTDIR/scripts/build/toolchain/setup_toolchain_29.sh"
 
-# Setup a standalone Android NDK 23c toolchain. Called from step_setup_toolchain.
-# shellcheck source=scripts/build/toolchain/setup_toolchain_23c.sh
-source "$SCRIPTDIR/scripts/build/toolchain/setup_toolchain_23c.sh"
 
 # Setup a standalone Glibc GNU toolchain. Called from step_setup_toolchain.
 # shellcheck source=scripts/build/toolchain/setup_toolchain_gnu.sh

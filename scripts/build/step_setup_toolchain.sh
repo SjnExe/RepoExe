@@ -9,9 +9,6 @@ step_setup_toolchain() {
 		if [ "${NDK_VERSION}" = "29" ]; then
 			STANDALONE_TOOLCHAIN+="-v4"
 			setup_toolchain_29
-		elif [ "${NDK_VERSION}" = 23c ]; then
-			STANDALONE_TOOLCHAIN+="-v11"
-			setup_toolchain_23c
 		else
 			error_exit "We do not have a setup_toolchain function for NDK version $NDK_VERSION"
 		fi
