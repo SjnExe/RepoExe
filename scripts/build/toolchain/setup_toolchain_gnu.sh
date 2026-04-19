@@ -26,11 +26,11 @@ setup_toolchain_gnu() {
 	if [ ! -f "$PREFIX__LIB_DIR/libgcc_s.so" ] && [ ! -f "$PREFIX__LIB_DIR/libgcc_s.so.1" ]; then
 		error_exit "libgcc not found, there is a risk of incorrect compiler operation"
 	fi
-	if [ ! -d "$_PREFIX__BASE_INCLUDE_DIR/" ]; then
-		error_exit "glibc base header directory was not found ('$_PREFIX__BASE_INCLUDE_DIR/')"
+	if [ ! -d "$PREFIX__BASE_INCLUDE_DIR/" ]; then
+		error_exit "glibc base header directory was not found ('$PREFIX__BASE_INCLUDE_DIR/')"
 	fi
-	if [ "$ARCH" != "$REAL_ARCH" ] && [ ! -d "$_PREFIX__MULTI_INCLUDE_DIR/" ]; then
-		error_exit "glibc multi header directory was not found ('$_PREFIX__MULTI_INCLUDE_DIR/')"
+	if [ "$ARCH" != "$REAL_ARCH" ] && [ ! -d "$PREFIX__MULTI_INCLUDE_DIR/" ]; then
+		error_exit "glibc multi header directory was not found ('$PREFIX__MULTI_INCLUDE_DIR/')"
 	fi
 
 	if [ "$ARCH" = "aarch64" ]; then
@@ -46,7 +46,7 @@ setup_toolchain_gnu() {
 		CFLAGS+=" -march=i686"
 		export DYNAMIC_LINKER="ld-linux.so.2"
 	fi
-	export PATH_DYNAMIC_LINKER="$_PREFIX__BASE_LIB_DIR/$DYNAMIC_LINKER"
+	export PATH_DYNAMIC_LINKER="$PREFIX__BASE_LIB_DIR/$DYNAMIC_LINKER"
 
 	if [ ! -f "$PATH_DYNAMIC_LINKER" ]; then
 		error_exit "glibc dynamic linker was not found ('$PATH_DYNAMIC_LINKER')"

@@ -184,21 +184,21 @@ step_massage() {
 	fi
 
 	# Remove duplicate headers from `include32/` directory
-	if [[ -d ./${ADDING_PREFIX}/${_PREFIX__MULTI_INCLUDE_SUBDIR} && -d ${_PREFIX__BASE_INCLUDE_DIR} ]]; then
+	if [[ -d ./${ADDING_PREFIX}/${PREFIX__MULTI_INCLUDE_SUBDIR} && -d ${PREFIX__BASE_INCLUDE_DIR} ]]; then
 		local hpath
-		for hpath in $(find ./${ADDING_PREFIX}/${_PREFIX__MULTI_INCLUDE_SUBDIR} -type f); do
-			local h=$(sed "s|./${ADDING_PREFIX}/${_PREFIX__MULTI_INCLUDE_SUBDIR}/||g" <<< "$hpath")
-			if [[ -f "${_PREFIX__BASE_INCLUDE_DIR}/${h}" && \
-				"$(md5sum < "${hpath}")" = "$(md5sum < "${_PREFIX__BASE_INCLUDE_DIR}/${h}")" ]]; then
+		for hpath in $(find ./${ADDING_PREFIX}/${PREFIX__MULTI_INCLUDE_SUBDIR} -type f); do
+			local h=$(sed "s|./${ADDING_PREFIX}/${PREFIX__MULTI_INCLUDE_SUBDIR}/||g" <<< "$hpath")
+			if [[ -f "${PREFIX__BASE_INCLUDE_DIR}/${h}" && \
+				"$(md5sum < "${hpath}")" = "$(md5sum < "${PREFIX__BASE_INCLUDE_DIR}/${h}")" ]]; then
 				rm "${hpath}"
 			fi
 		done
 	fi
 
 	# Configure pkgconfig files for proper multilib-compilation
-	if [[ -d ./${ADDING_PREFIX}/${_PREFIX__MULTI_LIB_SUBDIR}/pkgconfig ]]; then
+	if [[ -d ./${ADDING_PREFIX}/${PREFIX__MULTI_LIB_SUBDIR}/pkgconfig ]]; then
 		local pc
-		for pc in $(grep -s -r -l "^includedir=.*/${_PREFIX__MULTI_INCLUDE_SUBDIR}" ./${ADDING_PREFIX}/${_PREFIX__MULTI_LIB_SUBDIR}/pkgconfig); do
+		for pc in $(grep -s -r -l "^includedir=.*/${PREFIX__MULTI_INCLUDE_SUBDIR}" ./${ADDING_PREFIX}/${PREFIX__MULTI_LIB_SUBDIR}/pkgconfig); do
 			local pc_cflags="$(grep '^Cflags:' "${pc}" | awk -F ':' '{printf $2 "\n"}')"
 			if ! grep -q ' -I' <<< "${pc_cflags}"; then
 				continue
@@ -206,11 +206,11 @@ step_massage() {
 			local pc_multilib_path="$(grep '^includedir=' "${pc}" | sed "s|${PREFIX}|\${prefix}|g" | awk -F '{prefix}/include' '{printf $2}')"
 			local pc_edit_cflags="$(sed "s|\${includedir}|\${includedir}${pc_multilib_path}|g" <<< "${pc_cflags}")"
 			local pc_new_cflags="$(tr ' ' '\n' <<< "${pc_edit_cflags}" | sed 's|\({includedir}\)32|\1|gp; s|\(/include\)32|\1|gp; d' | tr '\n' ' ')"
-			sed -i -e "s|\(^includedir=.*/\)${_PREFIX__MULTI_INCLUDE_SUBDIR}\(.*\)|\1include|g" \
+			sed -i -e "s|\(^includedir=.*/\)${PREFIX__MULTI_INCLUDE_SUBDIR}\(.*\)|\1include|g" \
 				-e "s|^Cflags:${pc_cflags}$|Cflags:${pc_edit_cflags} ${pc_new_cflags::-1}|g" \
 				"${pc}"
 			# Apply the modified pkgconfig to the system for proper multilib-compilation work
-			cp -r "${pc}" "${_PREFIX__MULTI_LIB_DIR}/pkgconfig"
+			cp -r "${pc}" "${PREFIX__MULTI_LIB_DIR}/pkgconfig"
 		done
 	fi
 
