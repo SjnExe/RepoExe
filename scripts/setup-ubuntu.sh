@@ -143,7 +143,7 @@ PACKAGES+=" libsqlite3-dev:i386"
 PACKAGES+=" re2c"
 
 # Needed by composer.
-PACKAGES+=" php"
+PACKAGES+=" php-cli"
 PACKAGES+=" php-xml"
 PACKAGES+=" composer"
 
@@ -279,10 +279,10 @@ PACKAGES+=" jq"
 PACKAGES+=" libcurl4-openssl-dev"
 
 # Required by openjdk-17
-PACKAGES+=" openjdk-17-jre openjdk-17-jdk"
+PACKAGES+=" openjdk-17-jre-headless openjdk-17-jdk-headless"
 
 # Required by openjdk-21
-PACKAGES+=" openjdk-21-jre openjdk-21-jdk"
+PACKAGES+=" openjdk-21-jre-headless openjdk-21-jdk-headless"
 
 # Required by qt5-qtwebengine
 PACKAGES+=" libnss3 libnss3:i386 libnss3-dev"
@@ -374,6 +374,9 @@ $SUDO apt-get -yq update
 $SUDO env DEBIAN_FRONTEND=noninteractive \
   eatmydata apt-get install -yq --no-install-recommends $PACKAGES $LLVM_PACKAGES
 
+$SUDO sed -i 's/\\w/\\\\w/g' /usr/lib/python3/dist-packages/recommonmark/transform.py || true
+$SUDO sed -i 's/\\s/\\\\s/g' /usr/share/gtk-doc/python/gtkdoc/scan.py || true
+$SUDO sed -i 's/\\(/\\\\(/g' /usr/share/gtk-doc/python/gtkdoc/scan.py || true
 $SUDO locale-gen --purge en_US.UTF-8
 echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' | $SUDO tee -a /etc/default/locale
 
