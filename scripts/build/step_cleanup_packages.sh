@@ -10,7 +10,7 @@ step_cleanup_packages() {
 	# No need to cleanup if there is enough disk space
 	(( AVAILABLE <= CLEANUP_BUILT_PACKAGES_THRESHOLD )) || return 0
 
-	PACKAGES_DIRECTORIES="$(jq --raw-output '"packages"' "${SCRIPTDIR}"/scripts/repo.json)"
+	PACKAGES_DIRECTORIES="$(jq --raw-output 'del(.pkg_format) | keys | .[]' "${SCRIPTDIR}"/scripts/repo.json | while read -r d; do [[ -d "${SCRIPTDIR}/$d" ]] && echo "$d" || true; done)"
 
 	# Build package name regex to be used with `find`, avoiding loops.
 	PKGS="$(find ${PACKAGES_DIRECTORIES} -mindepth 1 -maxdepth 1 -type d -printf '%f\n')"

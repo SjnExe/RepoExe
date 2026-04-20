@@ -173,6 +173,7 @@ class TermuxPackage(object):
             if dependency_name not in self.pkgs_cache:
                 self.pkgs_cache.append(dependency_name)
                 if dependency_name not in pkgs_map:
+                    result += [ExternalPackage(dependency_name)]
                     continue
                 dependency_package = pkgs_map[dependency_name]
                 if dependency_package.dir != dir_root and dependency_package.only_installing and not self.fast_build_mode:
@@ -181,6 +182,42 @@ class TermuxPackage(object):
                 if dependency_package.accept_dep_scr or dependency_package.dir != dir_root:
                     result += [dependency_package]
         return unique_everseen(result)
+
+
+class ExternalPackage(object):
+    "A dependency that does not exist locally."
+    def __init__(self, name):
+        self.name = name
+        self.dir = "external"
+        self.deps = set()
+        self.subpkgs = []
+        self.needed_by = set()
+        self.only_installing = False
+        self.accept_dep_scr = False
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        if isinstance(other, ExternalPackage):
+            return self.name == other.name
+        return False
+
+    def recursive_dependencies(self, pkgs_map, dir_root=None):
+        return [self]
+    def __repr__(self):
+        return "<{} '{}'>".format(self.__class__.__name__, self.name)
+
+        self.name = name
+        self.dir = "external"
+        self.deps = set()
+        self.subpkgs = []
+        self.needed_by = set()
+        self.only_installing = False
+        self.accept_dep_scr = False
+
+    def recursive_dependencies(self, pkgs_map, dir_root=None):
+        return [self]
 
 class TermuxSubPackage:
     "A sub-package represented by a ${PACKAGE_NAME}.subpackage.sh file."
@@ -216,6 +253,7 @@ class TermuxSubPackage:
             if dependency_name == self.parent.name:
                 self.parent.deps.discard(self.name)
             if dependency_name not in pkgs_map:
+                result += [ExternalPackage(dependency_name)]
                 continue
             dependency_package = pkgs_map[dependency_name]
             if dependency_package not in self.parent.subpkgs:
@@ -272,7 +310,7 @@ def read_packages_from_directories(directories, fast_build_mode, full_buildmode)
         deps_to_remove = set()
         for dependency_name in pkg.deps:
             if dependency_name not in pkgs_map:
-                deps_to_remove.add(dependency_name)
+                # deps_to_remove.add(dependency_name) # Keep external dependencies!
                 continue
             dep_pkg = pkgs_map[dependency_name]
             if fast_build_mode or not isinstance(pkg, TermuxSubPackage):
