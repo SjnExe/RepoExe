@@ -77,7 +77,7 @@ mkdir -p "$PKG_TMPDIR"
 rm -rf "${PKG_TMPDIR}"
 
 # Package sources.
-for repo_path in $(jq --raw-output 'del(.pkg_format) | keys | .[]' $SCRIPTDIR/repo.json); do
+for repo_path in $(jq --raw-output 'del(.pkg_format) | keys | .[]' $SCRIPTDIR/repo.json | while read -r d; do [[ -d "$SCRIPTDIR/$d" ]] && echo "$d"; done); do
 	for p in "$SCRIPTDIR"/$repo_path/*; do
 		(
 			. "$SCRIPTDIR"/scripts/build/get_source/step_get_source.sh

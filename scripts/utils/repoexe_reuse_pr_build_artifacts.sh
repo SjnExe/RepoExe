@@ -87,7 +87,7 @@ readarray -t COMMITS < <(git rev-list --no-merges "$OLD_COMMIT..$HEAD_COMMIT" ||
 	# and make sure buildsystem nor dependencies were changed.
 	# If so we can reuse PR check artifacts and upload them to apt repo to save some CI time
 
-	readarray -t PACKAGE_DIRECTORIES < <(jq --raw-output '"packages"' scripts/repo.json) || :
+	readarray -t PACKAGE_DIRECTORIES < <(jq --raw-output 'del(.pkg_format) | keys | .[]' scripts/repo.json | while read -r d; do [[ -d "$d" ]] && echo "$d"; done) || :
 
 	# We should obtain data about all commits in this push to check that they are from the same PR if any
 	RELATED_PRS_QUERY="

@@ -1385,15 +1385,15 @@ if [[ ! -f "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json" ]]; then
     fi
 else
     export PACKAGES_DIRECTORIES
-    PACKAGES_DIRECTORIES=$(jq --raw-output '"packages"' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json")
+    PACKAGES_DIRECTORIES=$(jq --raw-output 'del(.pkg_format) | keys | .[]' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json" | while read -r d; do [[ -d "$PKGS__BUILD__REPO_ROOT_DIR/$d" ]] && echo "$d"; done)
 
-    for url in $(jq -r '.repo.url' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
+    for url in $(jq -r 'del(.pkg_format) | .[] | .url' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
         REPO_URL+=("$url")
     done
-    for distribution in $(jq -r '.repo.distribution' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
+    for distribution in $(jq -r 'del(.pkg_format) | .[] | .distribution' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
         REPO_DISTRIBUTION+=("$distribution")
     done
-    for component in $(jq -r '.repo.component' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
+    for component in $(jq -r 'del(.pkg_format) | .[] | .component' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
         REPO_COMPONENT+=("$component")
     done
 fi
