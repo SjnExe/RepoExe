@@ -23,7 +23,7 @@ PKG_SHA256=(SKIP_CHECKSUM
 PKG_SKIP_SRC_EXTRACT=true
 PKG_BUILD_IN_SRC=true
 PKG_DEPENDS="fmt, libc++, libexpat, libpng, libprotobuf, libzopfli, zlib, libbase, libandroidfw, libutils, libziparchive, libandroid-pathutils"
-PKG_BUILD_DEPENDS="googletest"
+PKG_BUILD_DEPENDS="fmt, googletest, protobuf"
 
 step_post_get_source() {
 	for i in $(seq 0 $(( ${#PKG_SRCURL[@]}-1 ))); do
@@ -60,7 +60,7 @@ step_pre_configure() {
 	mkdir -p $_TMP_BINDIR
 
 	# The shared libraries are now in the sysroot via libbase, libandroidfw, libutils, libziparchive, libandroid-pathutils
-	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils"
+	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils -lfmt"
 }
 
 step_make() {
