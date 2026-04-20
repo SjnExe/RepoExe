@@ -1385,7 +1385,7 @@ if [[ ! -f "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json" ]]; then
     fi
 else
     export PACKAGES_DIRECTORIES
-    PACKAGES_DIRECTORIES=$(jq --raw-output 'del(.pkg_format) | keys | .[]' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json" | while read -r d; do [[ -d "$PKGS__BUILD__REPO_ROOT_DIR/$d" ]] && echo "$d"; done)
+    PACKAGES_DIRECTORIES=$(jq --raw-output 'del(.pkg_format) | keys | .[]' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json" | while read -r d; do [[ -d "$PKGS__BUILD__REPO_ROOT_DIR/$d" ]] && echo "$d" || true; done)
 
     for url in $(jq -r 'del(.pkg_format) | .[] | .url' "$PKGS__BUILD__REPO_ROOT_DIR/scripts/repo.json"); do
         REPO_URL+=("$url")

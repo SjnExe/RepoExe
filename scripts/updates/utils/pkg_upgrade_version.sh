@@ -116,7 +116,7 @@ termux_pkg_upgrade_version() {
 
 	echo "INFO: Trying to build package."
 
-	for repo_path in $(jq --raw-output 'del(.pkg_format) | keys | .[]' "${SCRIPTDIR}/scripts/repo.json" | while read -r d; do [[ -d "${SCRIPTDIR}/$d" ]] && echo "$d"; done); do
+	for repo_path in $(jq --raw-output 'del(.pkg_format) | keys | .[]' "${SCRIPTDIR}/scripts/repo.json" | while read -r d; do [[ -d "${SCRIPTDIR}/$d" ]] && echo "$d" || true; done); do
 		_buildsh_path="${SCRIPTDIR}/${repo_path}/${PKG_NAME}/build.sh"
 		repo="$(jq --raw-output ".[\"${repo_path}\"].name" "${SCRIPTDIR}/scripts/repo.json")"
 		repo="${repo#"repoexe-"}"

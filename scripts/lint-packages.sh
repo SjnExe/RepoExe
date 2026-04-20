@@ -865,7 +865,7 @@ if (( $# )); then
 	linter_main "$@"
 	unset package_counter
 else
-	for repo_dir in $(jq --raw-output 'del(.pkg_format) | keys | .[]' "$SCRIPTDIR/scripts/repo.json" | while read -r d; do [[ -d "$SCRIPTDIR/$d" ]] && echo "$d"; done); do
+	for repo_dir in $(jq --raw-output 'del(.pkg_format) | keys | .[]' "$SCRIPTDIR/scripts/repo.json" | while read -r d; do [[ -d "$SCRIPTDIR/$d" ]] && echo "$d" || true; done); do
 		linter_main "$repo_dir"/*/build.sh
 	done
 	unset package_counter

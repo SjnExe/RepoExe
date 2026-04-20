@@ -23,7 +23,7 @@ fi
 REPOEXE_PACKAGES_DIR="$(realpath "$(dirname "$(realpath "$0")")/..")"
 OUTPUT_DIR="$1"
 
-readarray -t repo_paths < <(jq --raw-output 'del(.pkg_format) | keys | .[]' "$REPOEXE_PACKAGES_DIR/scripts/repo.json" | while read -r d; do [[ -d "$REPOEXE_PACKAGES_DIR/$d" ]] && echo "$d"; done)
+readarray -t repo_paths < <(jq --raw-output 'del(.pkg_format) | keys | .[]' "$REPOEXE_PACKAGES_DIR/scripts/repo.json" | while read -r d; do [[ -d "$REPOEXE_PACKAGES_DIR/$d" ]] && echo "$d" || true; done)
 
 for arch in "aarch64" "arm" "i686" "x86_64"; do
 	# Note that this is loop for generating the list of packages is being parallelized for each architecture
