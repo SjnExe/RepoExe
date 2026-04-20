@@ -48,7 +48,7 @@ step_get_dependencies() {
 					[[ "$QUIET_BUILD" != "true" ]] && echo "Skipping already built dependency $pkg_versioned"
 					continue
 				fi
-				if ! WITHOUT_DEPVERSION_BINDING="$([[ "${cyclic_dependence}" == "true" ]] && echo "true" || echo "${WITHOUT_DEPVERSION_BINDING_OVERRIDE}")" download_deb_pac $PKG $DEP_ARCH $DEP_VERSION $DEP_VERSION_PAC; then
+				if ! WITHOUT_DEPVERSION_BINDING="$([[ "${cyclic_dependence}" == "true" ]] && echo "true" || echo "${WITHOUT_DEPVERSION_BINDING_OVERRIDE}")" download_deb_pac "$PKG" "$DEP_ARCH" "$DEP_VERSION" "$DEP_VERSION_PAC"; then
 					[[ "$cyclic_dependence" == "true" || ( "$FORCE_BUILD_DEPENDENCIES" == "true" && "$ON_DEVICE_BUILD" == "true" ) ]] \
 						&& error_exit "Download of $PKG$([[ "${WITHOUT_DEPVERSION_BINDING}" == "false" && "${cyclic_dependence}" == "false" ]] && echo "@$DEP_VERSION") from $REPO_URL failed"
 					echo "Download of $pkg_versioned from $REPO_URL failed, building instead"
