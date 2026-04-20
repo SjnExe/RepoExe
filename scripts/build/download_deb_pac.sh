@@ -1,10 +1,10 @@
 #!/usr/bin/bash
 
 download_deb_pac() {
-	local PACKAGE=$1
-	local PACKAGE_ARCH=$2
-	local VERSION=$3
-	local VERSION_PACMAN=$4
+	local PACKAGE=${1:-}
+	local PACKAGE_ARCH=${2:-}
+	local VERSION=${3:-}
+	local VERSION_PACMAN=${4:-}
 
 	local PKG_FILE
 	if [ "$REPO_PKG_FORMAT" = "debian" ]; then
