@@ -49,7 +49,7 @@ step_pre_configure() {
 	rm -rf $_TMP_LIBDIR
 	mkdir -p $_TMP_LIBDIR
 
-	LDFLAGS+=" -llog -L$_TMP_LIBDIR"
+	LDFLAGS+=" -L$PREFIX/lib -llog -L$_TMP_LIBDIR"
 }
 
 step_make() {
@@ -78,7 +78,7 @@ step_make() {
 		$CXX $CXXFLAGS $CPPFLAGS $f -c
 	done
 	$CXX $CXXFLAGS *.o -shared $LDFLAGS \
-		-L$PREFIX__LIB_DIR -lfmt \
+		-lfmt \
 		-o $_TMP_LIBDIR/libandroid-base.so
 
 	# Build libcutils:
