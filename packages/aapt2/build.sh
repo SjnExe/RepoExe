@@ -60,7 +60,7 @@ step_pre_configure() {
 	mkdir -p $_TMP_BINDIR
 
 	# The shared libraries are now in the sysroot via libbase, libandroidfw, libutils, libziparchive, libandroid-pathutils
-	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils -lfmt"
+	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils -L$PREFIX/lib -lfmt"
 }
 
 step_make() {

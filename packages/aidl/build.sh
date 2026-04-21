@@ -45,7 +45,7 @@ step_pre_configure() {
 	rm -rf $_TMP_BINDIR
 	mkdir -p $_TMP_BINDIR
 
-	LDFLAGS+=" -llog -landroid-base -lfmt"
+	LDFLAGS+=" -llog -landroid-base -L$PREFIX/lib -lfmt"
 }
 
 step_make() {
@@ -71,7 +71,7 @@ step_make() {
 		$CXX $CXXFLAGS $CPPFLAGS $f -c
 	done
 	$CXX $CXXFLAGS *.o $LDFLAGS \
-		-lfmt \
+		-L$PREFIX/lib -lfmt \
 		-lgtest \
 		-o $_TMP_BINDIR/aidl
 }
