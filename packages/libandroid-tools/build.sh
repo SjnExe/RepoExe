@@ -49,7 +49,7 @@ step_pre_configure() {
 	rm -rf $_TMP_LIBDIR
 	mkdir -p $_TMP_LIBDIR
 
-	LDFLAGS+=" -llog -L$_TMP_LIBDIR"
+	LDFLAGS+=" -L$PREFIX/lib -llog -L$_TMP_LIBDIR"
 }
 
 step_make() {
