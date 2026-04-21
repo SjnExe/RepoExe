@@ -4,8 +4,8 @@ set -e -u
 
 start_time="$(date +%10s.%3N)"
 
-TERMUX_SCRIPTDIR=$(realpath "$(dirname "$0")/../")
-. "$TERMUX_SCRIPTDIR/scripts/properties.sh"
+SCRIPTDIR=$(realpath "$(dirname "$0")/../")
+. "$SCRIPTDIR/scripts/properties.sh"
 
 check_package_license() {
 	local pkg_licenses license license_ok=true
@@ -160,15 +160,15 @@ check_version() {
 		printf '%s\n' "FAIL" \
 			"Couldn't determine HEAD commit of 'origin/master'." \
 			"This shouldn't be able to happen..."
-		ls -AR "$TERMUX_SCRIPTDIR/.git/refs/remotes/origin"
+		ls -AR "$SCRIPTDIR/.git/refs/remotes/origin"
 		return 1
 	} >&2
 
-	# If TERMUX_PKG_VERSION is an array that changes the formatting.
-	local version i=0 error=0 is_array="${TERMUX_PKG_VERSION@a}"
+	# If PKG_VERSION is an array that changes the formatting.
+	local version i=0 error=0 is_array="${PKG_VERSION@a}"
 	printf '%s' "${is_array:+$'ARRAY\n'}"
 
-	for version in "${TERMUX_PKG_VERSION[@]}"; do
+	for version in "${PKG_VERSION[@]}"; do
 		printf '%s' "${is_array:+$'\t'}"
 
 		# Is this version valid?
@@ -179,21 +179,21 @@ check_version() {
 		}
 
 		local version_new version_old
-		version_new="${version}-${TERMUX_PKG_REVISION:-0}"
+		version_new="${version}-${PKG_REVISION:-0}"
 		version_old=$(
-			unset TERMUX_PKG_VERSION TERMUX_PKG_REVISION
+			unset PKG_VERSION PKG_REVISION
 			# shellcheck source=/dev/null
 			. <(git -P show "${base_commit}:${package_dir}/build.sh" 2> /dev/null)
-			# ${TERMUX_PKG_VERSION[0]} also works fine for non-array versions.
+			# ${PKG_VERSION[0]} also works fine for non-array versions.
 			# Since those resolve in 1 iteration, no higher index is ever attempted to be called.
-			echo "${TERMUX_PKG_VERSION[$i]:-0}-${TERMUX_PKG_REVISION:-0}"
+			echo "${PKG_VERSION[$i]:-0}-${PKG_REVISION:-0}"
 		)
 
 		# Is ${version_old} valid?
 		local version_old_is_bad=""
 		dpkg --validate-version "${version_old}" &> /dev/null || version_old_is_bad="0~invalid"
 
-		# The rest of the checks aren't useful past the first index when $TERMUX_PKG_VERSION is an array
+		# The rest of the checks aren't useful past the first index when $PKG_VERSION is an array
 		# since that is the index that determines the actual version.
 		if (( i++ > 0 )); then
 			echo "PASS - ${version_old%-0}${version_old_is_bad:+" (INVALID)"} -> ${version_new%-0}"
@@ -218,7 +218,7 @@ check_version() {
 				"FAILED ${version_old_is_bad:-$version_old} -> ${version_new}" \
 				"" \
 				"Version of '$package_name' has not been incremented." \
-				"Either 'TERMUX_PKG_VERSION' or 'TERMUX_PKG_REVISION'" \
+				"Either 'PKG_VERSION' or 'PKG_REVISION'" \
 				"need to be modified in the build.sh when changing a package build." \
 				"You can use ./scripts/bin/revbump '$package_name' to do this automatically."
 
@@ -227,7 +227,7 @@ check_version() {
 			printf '%s\n' \
 				"" \
 				"- If you are reverting '$package_name' to an older version use the '+really' suffix" \
-				"e.g. TERMUX_PKG_VERSION=${version_new%-*}+really${version_old%-*}" \
+				"e.g. PKG_VERSION=${version_new%-*}+really${version_old%-*}" \
 				"- If ${package_name}'s version scheme has changed completely an epoch may be needed." \
 				"For more information see:" \
 				"https://www.debian.org/doc/debian-policy/ch-controlfields.html#epochs-should-be-used-sparingly"
@@ -244,21 +244,21 @@ check_version() {
 		if [[ "${version_new%-*}" == "${version_old%-*}" && "$new_revision" != "$((old_revision + 1))" ]]; then
 			(( error++ )) # Not incremented sequentially
 			printf '%s\n' "FAILED " \
-				"TERMUX_PKG_REVISION should be incremented sequentially" \
+				"PKG_REVISION should be incremented sequentially" \
 				"when a package is rebuilt with no new upstream release." \
 				"" \
 				"Got     : ${version_old} -> ${version_new}" \
 				"Expected: ${version_old} -> ${version}-$((old_revision + 1))"
 			continue
-		# If that check passed the TERMUX_PKG_VERSION must have changed,
-		# in which case TERMUX_PKG_REVISION should be reset to 0.
+		# If that check passed the PKG_VERSION must have changed,
+		# in which case PKG_REVISION should be reset to 0.
 		elif [[ "${version_new%-*}" != "${version_old%-*}" && "$new_revision" != "0" ]]; then
 			(( error++ )) # Not reset
 			printf '%s\n' \
 				"FAILED - $version_old -> $version_new" \
 				"" \
-				"TERMUX_PKG_VERSION was bumped but TERMUX_PKG_REVISION wasn't reset." \
-				"Please remove the 'TERMUX_PKG_REVISION=${new_revision}' line." \
+				"PKG_VERSION was bumped but PKG_REVISION wasn't reset." \
+				"Please remove the 'PKG_REVISION=${new_revision}' line." \
 				""
 			continue
 		fi
@@ -290,15 +290,15 @@ lint_package() {
 
 	# Otherwise, it might be a package name or subpackage name, resolve it
 	if [[ -z "$package_script" ]]; then
-		for channel in $TERMUX_PACKAGES_DIRECTORIES; do
+		for channel in $PACKAGES_DIRECTORIES; do
 			# Check if it's a main package
-			if [[ -f "$TERMUX_SCRIPTDIR/$channel/$input/build.sh" ]]; then
-				package_script="$TERMUX_SCRIPTDIR/$channel/$input/build.sh"
+			if [[ -f "$SCRIPTDIR/$channel/$input/build.sh" ]]; then
+				package_script="$SCRIPTDIR/$channel/$input/build.sh"
 				break
 			fi
 			# Check if it's a subpackage
 			local subpkg_match
-			subpkg_match=$(find "$TERMUX_SCRIPTDIR/$channel" -mindepth 2 -maxdepth 2 -name "${input}.subpackage.sh" -print -quit 2>/dev/null || true)
+			subpkg_match=$(find "$SCRIPTDIR/$channel" -mindepth 2 -maxdepth 2 -name "${input}.subpackage.sh" -print -quit 2>/dev/null || true)
 			if [[ -n "$subpkg_match" && -f "$(dirname "$subpkg_match")/build.sh" ]]; then
 				package_script="$(dirname "$subpkg_match")/build.sh"
 				break
@@ -324,9 +324,9 @@ lint_package() {
 
 	echo -n "Layout: "
 	local channel in_dir=''
-	for channel in $TERMUX_PACKAGES_DIRECTORIES; do
-		[[ -d "$TERMUX_SCRIPTDIR/$channel/$package_name" ]] && {
-			in_dir="$TERMUX_SCRIPTDIR/$channel/$package_name"
+	for channel in $PACKAGES_DIRECTORIES; do
+		[[ -d "$SCRIPTDIR/$channel/$package_name" ]] && {
+			in_dir="$SCRIPTDIR/$channel/$package_name"
 			break
 		}
 	done
@@ -408,16 +408,16 @@ lint_package() {
 
 		# Certain fields may be API-specific.
 		# Using API 24 here.
-		TERMUX_PKG_API_LEVEL=24
+		PKG_API_LEVEL=24
 
 		# shellcheck source=/dev/null
 		. "$package_script"
 
 		pkg_lint_error=false
 
-		echo -n "TERMUX_PKG_HOMEPAGE: "
-		if (( ${#TERMUX_PKG_HOMEPAGE} )); then
-			if [[ ! "$TERMUX_PKG_HOMEPAGE" == 'https://'* ]]; then
+		echo -n "PKG_HOMEPAGE: "
+		if (( ${#PKG_HOMEPAGE} )); then
+			if [[ ! "$PKG_HOMEPAGE" == 'https://'* ]]; then
 				echo "NON-HTTPS (acceptable)"
 			else
 				echo "PASS"
@@ -427,10 +427,10 @@ lint_package() {
 			pkg_lint_error=true
 		fi
 
-		echo -n "TERMUX_PKG_DESCRIPTION: "
-		if (( ${#TERMUX_PKG_DESCRIPTION} )); then
+		echo -n "PKG_DESCRIPTION: "
+		if (( ${#PKG_DESCRIPTION} )); then
 
-			if (( ${#TERMUX_PKG_DESCRIPTION} > 100 )); then
+			if (( ${#PKG_DESCRIPTION} > 100 )); then
 				echo "TOO LONG (allowed: 100 characters max)"
 			else
 				echo "PASS"
@@ -441,12 +441,12 @@ lint_package() {
 			pkg_lint_error=true
 		fi
 
-		echo -n "TERMUX_PKG_LICENSE: "
-		if (( ${#TERMUX_PKG_LICENSE} )); then
-			case "$TERMUX_PKG_LICENSE" in
+		echo -n "PKG_LICENSE: "
+		if (( ${#PKG_LICENSE} )); then
+			case "$PKG_LICENSE" in
 				*custom*) echo "CUSTOM" ;;
 				'non-free') echo "NON-FREE";;
-				*) check_package_license "$TERMUX_PKG_LICENSE" || pkg_lint_error=true
+				*) check_package_license "$PKG_LICENSE" || pkg_lint_error=true
 				;;
 			esac
 		else
@@ -454,19 +454,19 @@ lint_package() {
 			pkg_lint_error=true
 		fi
 
-		echo -n "TERMUX_PKG_MAINTAINER: "
-		if (( ${#TERMUX_PKG_MAINTAINER} )); then
+		echo -n "PKG_MAINTAINER: "
+		if (( ${#PKG_MAINTAINER} )); then
 			echo "PASS"
 		else
 			echo "NOT SET"
 			pkg_lint_error=true
 		fi
 
-		if (( ${#TERMUX_PKG_API_LEVEL} )); then
-		echo -n "TERMUX_PKG_API_LEVEL: "
+		if (( ${#PKG_API_LEVEL} )); then
+		echo -n "PKG_API_LEVEL: "
 
-			if [[ "$TERMUX_PKG_API_LEVEL" == [1-9][0-9] ]]; then
-				if (( TERMUX_PKG_API_LEVEL < 24 )); then
+			if [[ "$PKG_API_LEVEL" == [1-9][0-9] ]]; then
+				if (( PKG_API_LEVEL < 24 )); then
 					echo "INVALID (allowed: number in range >= 24)"
 					pkg_lint_error=true
 				else
@@ -478,13 +478,13 @@ lint_package() {
 			fi
 		fi
 
-		echo -n "TERMUX_PKG_VERSION: "
+		echo -n "PKG_VERSION: "
 		check_version "$package_script" || pkg_lint_error=true
 
-		if (( ${#TERMUX_PKG_REVISION} )); then
-		echo -n "TERMUX_PKG_REVISION: "
+		if (( ${#PKG_REVISION} )); then
+		echo -n "PKG_REVISION: "
 
-			if (( TERMUX_PKG_REVISION > 1 || TERMUX_PKG_REVISION < 999999999 )); then
+			if (( PKG_REVISION > 1 || PKG_REVISION < 999999999 )); then
 				echo "PASS"
 			else
 				echo "INVALID (allowed: number in range 1 - 999999999)"
@@ -492,10 +492,10 @@ lint_package() {
 			fi
 		fi
 
-		if (( ${#TERMUX_PKG_SKIP_SRC_EXTRACT} )); then
-		echo -n "TERMUX_PKG_SKIP_SRC_EXTRACT: "
+		if (( ${#PKG_SKIP_SRC_EXTRACT} )); then
+		echo -n "PKG_SKIP_SRC_EXTRACT: "
 
-			case "$TERMUX_PKG_SKIP_SRC_EXTRACT" in
+			case "$PKG_SKIP_SRC_EXTRACT" in
 				'true'|'false')
 					echo "PASS";;
 				*)
@@ -504,12 +504,12 @@ lint_package() {
 			esac
 		fi
 
-		echo -n "TERMUX_PKG_SRCURL: "
-		if (( ${#TERMUX_PKG_SRCURL} )); then
-			for (( i = 0; i < ${#TERMUX_PKG_SRCURL[@]}; i++ )); do
-				url="${TERMUX_PKG_SRCURL[$i]}"
+		echo -n "PKG_SRCURL: "
+		if (( ${#PKG_SRCURL} )); then
+			for (( i = 0; i < ${#PKG_SRCURL[@]}; i++ )); do
+				url="${PKG_SRCURL[$i]}"
 				(( ${#url} )) || {
-					echo "NOT SET (\${TERMUX_PKG_SRCURL[$i]} has no value)"
+					echo "NOT SET (\${PKG_SRCURL[$i]} has no value)"
 					pkg_lint_error=true
 					break
 				}
@@ -609,12 +609,12 @@ lint_package() {
 			done
 			unset i url protocol host user repo ref_path protocol_type tarball_type lint_msg
 
-			echo -n "TERMUX_PKG_SHA256: "
-			if (( ${#TERMUX_PKG_SHA256} )); then
-				if (( ${#TERMUX_PKG_SRCURL[@]} == ${#TERMUX_PKG_SHA256[@]} )); then
+			echo -n "PKG_SHA256: "
+			if (( ${#PKG_SHA256} )); then
+				if (( ${#PKG_SRCURL[@]} == ${#PKG_SHA256[@]} )); then
 					sha256_ok="PASS"
 
-					for sha256 in "${TERMUX_PKG_SHA256[@]}"; do
+					for sha256 in "${PKG_SHA256[@]}"; do
 						if [[ "$sha256" == 'SKIP_CHECKSUM' ]]; then
 							sha256_ok="PASS (SKIP_CHECKSUM)"
 						elif [[ ! "$sha256" =~ [0-9a-f]{64} ]]; then
@@ -627,29 +627,29 @@ lint_package() {
 					echo "$sha256_ok"
 					unset sha256 sha256_ok
 				else
-					echo "LENGTHS OF 'TERMUX_PKG_SRCURL' AND 'TERMUX_PKG_SHA256' ARRAYS ARE NOT EQUAL"
+					echo "LENGTHS OF 'PKG_SRCURL' AND 'PKG_SHA256' ARRAYS ARE NOT EQUAL"
 					pkg_lint_error=true
 				fi
-			elif [[ "${TERMUX_PKG_SRCURL:0:4}" == 'git+' ]]; then
-				echo "NOT SET (acceptable since TERMUX_PKG_SRCURL is git repo)"
+			elif [[ "${PKG_SRCURL:0:4}" == 'git+' ]]; then
+				echo "NOT SET (acceptable since PKG_SRCURL is git repo)"
 			else
 				echo "NOT SET"
 				pkg_lint_error=true
 			fi
 		else
 			echo -n "NOT SET"
-			if [[ "$TERMUX_PKG_SKIP_SRC_EXTRACT" != 'true' ]] && ! declare -F termux_step_extract_package > /dev/null 2>&1; then
-				echo " (set TERMUX_PKG_SKIP_SRC_EXTRACT to 'true' if no sources downloaded)"
+			if [[ "$PKG_SKIP_SRC_EXTRACT" != 'true' ]] && ! declare -F termux_step_extract_package > /dev/null 2>&1; then
+				echo " (set PKG_SKIP_SRC_EXTRACT to 'true' if no sources downloaded)"
 				pkg_lint_error=true
 			else
-				echo " (acceptable since TERMUX_PKG_SKIP_SRC_EXTRACT is true)"
+				echo " (acceptable since PKG_SKIP_SRC_EXTRACT is true)"
 			fi
 		fi
 
-		if (( ${#TERMUX_PKG_METAPACKAGE} )); then
-		echo -n "TERMUX_PKG_METAPACKAGE: "
+		if (( ${#PKG_METAPACKAGE} )); then
+		echo -n "PKG_METAPACKAGE: "
 
-			case "$TERMUX_PKG_METAPACKAGE" in
+			case "$PKG_METAPACKAGE" in
 				'true'|'false')
 					echo "PASS";;
 				*)
@@ -658,10 +658,10 @@ lint_package() {
 			esac
 		fi
 
-		if (( ${#TERMUX_PKG_ESSENTIAL} )); then
-		echo -n "TERMUX_PKG_ESSENTIAL: "
+		if (( ${#PKG_ESSENTIAL} )); then
+		echo -n "PKG_ESSENTIAL: "
 
-			case "$TERMUX_PKG_ESSENTIAL" in
+			case "$PKG_ESSENTIAL" in
 				'true'|'false')
 					echo "PASS";;
 				*)
@@ -670,10 +670,10 @@ lint_package() {
 			esac
 		fi
 
-		if (( ${#TERMUX_PKG_NO_STATICSPLIT} )); then
-		echo -n "TERMUX_PKG_NO_STATICSPLIT: "
+		if (( ${#PKG_NO_STATICSPLIT} )); then
+		echo -n "PKG_NO_STATICSPLIT: "
 
-			case "$TERMUX_PKG_NO_STATICSPLIT" in
+			case "$PKG_NO_STATICSPLIT" in
 				'true'|'false')
 					echo "PASS";;
 				*)
@@ -682,10 +682,10 @@ lint_package() {
 			esac
 		fi
 
-		if (( ${#TERMUX_PKG_BUILD_IN_SRC} )); then
-		echo -n "TERMUX_PKG_BUILD_IN_SRC: "
+		if (( ${#PKG_BUILD_IN_SRC} )); then
+		echo -n "PKG_BUILD_IN_SRC: "
 
-			case "$TERMUX_PKG_BUILD_IN_SRC" in
+			case "$PKG_BUILD_IN_SRC" in
 				'true'|'false')
 					echo "PASS";;
 				*)
@@ -694,10 +694,10 @@ lint_package() {
 			esac
 		fi
 
-		if (( ${#TERMUX_PKG_HAS_DEBUG} )); then
-		echo -n "TERMUX_PKG_HAS_DEBUG: "
+		if (( ${#PKG_HAS_DEBUG} )); then
+		echo -n "PKG_HAS_DEBUG: "
 
-			case "$TERMUX_PKG_HAS_DEBUG" in
+			case "$PKG_HAS_DEBUG" in
 				'true'|'false')
 					echo "PASS";;
 				*)
@@ -706,10 +706,10 @@ lint_package() {
 			esac
 		fi
 
-		if (( ${#TERMUX_PKG_PLATFORM_INDEPENDENT} )); then
-		echo -n "TERMUX_PKG_PLATFORM_INDEPENDENT: "
+		if (( ${#PKG_PLATFORM_INDEPENDENT} )); then
+		echo -n "PKG_PLATFORM_INDEPENDENT: "
 
-			case "$TERMUX_PKG_PLATFORM_INDEPENDENT" in
+			case "$PKG_PLATFORM_INDEPENDENT" in
 				'true'|'false')
 					echo "PASS";;
 				*)
@@ -718,10 +718,10 @@ lint_package() {
 			esac
 		fi
 
-		if (( ${#TERMUX_PKG_HOSTBUILD} )); then
-		echo -n "TERMUX_PKG_HOSTBUILD: "
+		if (( ${#PKG_HOSTBUILD} )); then
+		echo -n "PKG_HOSTBUILD: "
 
-			case "$TERMUX_PKG_HOSTBUILD" in
+			case "$PKG_HOSTBUILD" in
 				'true'|'false')
 					echo "PASS";;
 				*)
@@ -730,10 +730,10 @@ lint_package() {
 			esac
 		fi
 
-		if (( ${#TERMUX_PKG_FORCE_CMAKE} )); then
-		echo -n "TERMUX_PKG_FORCE_CMAKE: "
+		if (( ${#PKG_FORCE_CMAKE} )); then
+		echo -n "PKG_FORCE_CMAKE: "
 
-			case "$TERMUX_PKG_FORCE_CMAKE" in
+			case "$PKG_FORCE_CMAKE" in
 				'true'|'false')
 					echo "PASS";;
 				*)
@@ -742,8 +742,8 @@ lint_package() {
 			esac
 		fi
 
-		if (( ${#TERMUX_PKG_RM_AFTER_INSTALL} )); then
-		echo -n "TERMUX_PKG_RM_AFTER_INSTALL: "
+		if (( ${#PKG_RM_AFTER_INSTALL} )); then
+		echo -n "PKG_RM_AFTER_INSTALL: "
 			file_path_ok=true
 
 			while read -r file_path; do
@@ -755,7 +755,7 @@ lint_package() {
 					break
 					;;
 				esac
-			done <<< "$TERMUX_PKG_RM_AFTER_INSTALL"
+			done <<< "$PKG_RM_AFTER_INSTALL"
 			unset file_path
 
 			if [[ "$file_path_ok"  == 'true' ]]; then
@@ -764,8 +764,8 @@ lint_package() {
 			unset file_path_ok
 		fi
 
-		if (( ${#TERMUX_PKG_CONFFILES} )); then
-		echo -n "TERMUX_PKG_CONFFILES: "
+		if (( ${#PKG_CONFFILES} )); then
+		echo -n "PKG_CONFFILES: "
 			file_path_ok=true
 
 			while read -r file_path; do
@@ -777,7 +777,7 @@ lint_package() {
 						break
 					;;
 				esac
-			done <<< "$TERMUX_PKG_CONFFILES"
+			done <<< "$PKG_CONFFILES"
 			unset file_path
 
 			if [[ "$file_path_ok" == 'true' ]]; then
@@ -786,11 +786,11 @@ lint_package() {
 			unset file_path_ok
 		fi
 
-		if (( ${#TERMUX_PKG_SERVICE_SCRIPT} )); then
-		echo -n "TERMUX_PKG_SERVICE_SCRIPT: "
+		if (( ${#PKG_SERVICE_SCRIPT} )); then
+		echo -n "PKG_SERVICE_SCRIPT: "
 
-			if (( ${#TERMUX_PKG_SERVICE_SCRIPT[@]} % 2 )); then
-				echo "INVALID (TERMUX_PKG_SERVICE_SCRIPT has to be an array of even length)"
+			if (( ${#PKG_SERVICE_SCRIPT[@]} % 2 )); then
+				echo "INVALID (PKG_SERVICE_SCRIPT has to be an array of even length)"
 				pkg_lint_error=true
 			else
 				echo "PASS"
@@ -827,7 +827,7 @@ linter_main() {
 		echo "================================================================"
 		echo
 		if [[ -f "$package_script" ]]; then
-			echo "A problem has been found in '$(realpath --relative-to="$TERMUX_SCRIPTDIR" "$package_script" 2>/dev/null || echo "$package_script")'."
+			echo "A problem has been found in '$(realpath --relative-to="$SCRIPTDIR" "$package_script" 2>/dev/null || echo "$package_script")'."
 		else
 			echo "A problem has been found in '$package_script'."
 		fi
@@ -865,7 +865,7 @@ if (( $# )); then
 	linter_main "$@"
 	unset package_counter
 else
-	for repo_dir in $(jq --raw-output '"packages"' "$TERMUX_SCRIPTDIR/repo.json"); do
+	for repo_dir in $(jq --raw-output 'del(.pkg_format) | keys | .[]' "$SCRIPTDIR/scripts/repo.json" | while read -r d; do [[ -d "$SCRIPTDIR/$d" ]] && echo "$d" || true; done); do
 		linter_main "$repo_dir"/*/build.sh
 	done
 	unset package_counter

@@ -32,7 +32,7 @@ index 9cb4a14..73eb6e4 100644
 +    if api_level is None:
 +        # Python 3.13 was the first version to return platform.system() == "Android",
 +        # and also the first version to define platform.android_ver().
-+        api_level = @@TERMUX_PKG_API_LEVEL@@  # type: ignore[attr-defined]
++        api_level = @@PKG_API_LEVEL@@  # type: ignore[attr-defined]
 +
 +    if abi is None:
 +        abi = sysconfig.get_platform().split("-")[-1]

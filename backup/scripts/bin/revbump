@@ -11,12 +11,12 @@ Usage:
 
 {filename} <package> ...
 
-Add or increment TERMUX_PKG_REVISION of package.
+Add or increment PKG_REVISION of package.
 
 
 {filename} --dependencies  <package>
 
-Add or increment TERMUX_PKG_REVISION of all the packages that have <package> in TERMUX_PKG_DEPENDS or in TERMUX_PKG_BUILD_DEPENDS
+Add or increment PKG_REVISION of all the packages that have <package> in PKG_DEPENDS or in PKG_BUILD_DEPENDS
 """
 
 REPO_PATH = os.path.join("/".join(os.path.realpath(sys.argv[0]).split("/")[:-3]), "repo.json")
@@ -51,8 +51,8 @@ def get_build_dependent_files(folders: list, DEP: str) -> list:
             if os.path.exists(os.path.join(d, folder, "build.sh")):
                 with open(os.path.join(d, folder, "build.sh"), "r") as file:
                     for line in file.read().split("\n"):
-                        if line.startswith("TERMUX_PKG_DEPENDS") or line.startswith(
-                            "TERMUX_PKG_BUILD_DEPENDS"
+                        if line.startswith("PKG_DEPENDS") or line.startswith(
+                            "PKG_BUILD_DEPENDS"
                         ):
                             if is_dep(DEP, line):
                                 build_files.add(os.path.join(d, folder, "build.sh"))
@@ -60,7 +60,7 @@ def get_build_dependent_files(folders: list, DEP: str) -> list:
                     if subfile_name.endswith(".subpackage.sh"):
                         with open(os.path.join(d, folder, subfile_name)) as file:
                             for line in file.read().split("\n"):
-                                if line.startswith("TERMUX_SUBPKG_DEPENDS"):
+                                if line.startswith("SUBPKG_DEPENDS"):
                                     if is_dep(DEP, line):
                                         build_files.add(os.path.join(d, folder, "build.sh"))
     return build_files
@@ -77,9 +77,9 @@ def bump_revision(file: str) -> None:
     version_is_multiline = 0
     count = 0
 
-    if "TERMUX_PKG_REVISION" in "\n".join(file_read):
+    if "PKG_REVISION" in "\n".join(file_read):
         for line in file_read:
-            if line.startswith("TERMUX_PKG_REVISION"):
+            if line.startswith("PKG_REVISION"):
                 revision = line.split("=")[-1]
                 if revision.startswith('"'):
                     revision = revision.split('"')[1]
@@ -90,17 +90,17 @@ def bump_revision(file: str) -> None:
                 break
 
     if revision == 0:
-        if "TERMUX_PKG_VERSION+=(" in "\n".join(file_read):
+        if "PKG_VERSION+=(" in "\n".join(file_read):
             for line in file_read:
-                if line.startswith("TERMUX_PKG_VERSION+=("):
+                if line.startswith("PKG_VERSION+=("):
                     count += 1
                     continue
-                if count != 0 and not line.startswith("TERMUX_PKG_VERSION+=("):
+                if count != 0 and not line.startswith("PKG_VERSION+=("):
                     break
         else:
             offset = 1
             for line in file_read:
-                if line.startswith("TERMUX_PKG_VERSION="):
+                if line.startswith("PKG_VERSION="):
                     if "(" in line and not ")" in line:
                         version_is_multiline = 1
                         continue
@@ -109,7 +109,7 @@ def bump_revision(file: str) -> None:
                 if version_is_multiline and ")" in line:
                     break
 
-        file_read.insert(file_read.index(line) + offset, "TERMUX_PKG_REVISION=1")
+        file_read.insert(file_read.index(line) + offset, "PKG_REVISION=1")
         revision = 1
 
     opened_file.close()

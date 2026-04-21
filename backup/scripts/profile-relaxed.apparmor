@@ -1,7 +1,7 @@
 #include <tunables/global>
 
 
-profile _custom-termux-package-builder-{{CONTAINER_NAME}} flags=(attach_disconnected,mediate_deleted) {
+profile _custom-repoexe-package-builder-{{CONTAINER_NAME}} flags=(attach_disconnected,mediate_deleted) {
 
   #include <abstractions/base>
 
@@ -18,7 +18,7 @@ profile _custom-termux-package-builder-{{CONTAINER_NAME}} flags=(attach_disconne
   # Manager may send signals to container processes.
   signal (receive) peer=unconfined,
   # Container processes may send signals amongst themselves.
-  signal (send,receive) peer=_custom-termux-package-builder-{{CONTAINER_NAME}},
+  signal (send,receive) peer=_custom-repoexe-package-builder-{{CONTAINER_NAME}},
 
   deny @{PROC}/* w,   # deny write for all files directly in /proc (not in a subdir)
   # deny write to files not in /proc/<number>/** or /proc/sys/**
@@ -41,7 +41,7 @@ profile _custom-termux-package-builder-{{CONTAINER_NAME}} flags=(attach_disconne
 
   # allow processes within the container to trace each other,
   # provided all other LSM and yama setting allow it.
-  ptrace (trace,tracedby,read,readby) peer=_custom-termux-package-builder-{{CONTAINER_NAME}},
+  ptrace (trace,tracedby,read,readby) peer=_custom-repoexe-package-builder-{{CONTAINER_NAME}},
 
   # Allow all mount operations
 	mount,

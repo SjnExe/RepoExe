@@ -1,15 +1,13 @@
 #!/bin/bash
 set -e
 
-# RepoExe Advanced Installer for Termux
+# RepoExe Advanced Installer for RepoExe
 REPO_URL="https://SjnExe.github.io/RepoExe"
 REPO_LIST="$PREFIX/etc/apt/sources.list.d/repoexe.list"
 
 echo "[*] Updating existing packages..."
 pkg update -y
 
-echo "[*] Installing apt-transport-https (required for secure repositories)..."
-pkg install -y apt-transport-https
 
 echo "[*] Adding RepoExe to sources.list.d..."
 echo "deb [trusted=yes] $REPO_URL/ stable main" > "$REPO_LIST"

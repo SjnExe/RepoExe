@@ -143,7 +143,7 @@ PACKAGES+=" libsqlite3-dev:i386"
 PACKAGES+=" re2c"
 
 # Needed by composer.
-PACKAGES+=" php"
+PACKAGES+=" php-cli"
 PACKAGES+=" php-xml"
 PACKAGES+=" composer"
 
@@ -279,10 +279,10 @@ PACKAGES+=" jq"
 PACKAGES+=" libcurl4-openssl-dev"
 
 # Required by openjdk-17
-PACKAGES+=" openjdk-17-jre openjdk-17-jdk"
+PACKAGES+=" openjdk-17-jre-headless openjdk-17-jdk-headless"
 
 # Required by openjdk-21
-PACKAGES+=" openjdk-21-jre openjdk-21-jdk"
+PACKAGES+=" openjdk-21-jre-headless openjdk-21-jdk-headless"
 
 # Required by qt5-qtwebengine
 PACKAGES+=" libnss3 libnss3:i386 libnss3-dev"
@@ -323,15 +323,34 @@ PACKAGES+=" glslang-tools"
 # Do not require sudo if already running as root.
 SUDO="sudo"
 if [ "$(id -u)" = "0" ]; then
-	SUDO=""
+  SUDO=""
 fi
 
 # Allow 32-bit packages.
 $SUDO dpkg --add-architecture i386
 
+# Speed up apt by configuring parallel downloads and using eatmydata
+echo 'Acquire::Queue-Mode "host";' | $SUDO tee /etc/apt/apt.conf.d/99parallel
+echo 'Acquire::Retries "3";' | $SUDO tee -a /etc/apt/apt.conf.d/99parallel
+echo 'Acquire::http::Timeout "10";' | $SUDO tee -a /etc/apt/apt.conf.d/99parallel
+
+# Make sure eatmydata and aria2 are installed (aria2 for parallel downloading)
+# Also make sure eatmydata for i386 is installed to prevent LD_PRELOAD warnings when installing 32-bit packages.
+if ! command -v eatmydata > /dev/null || ! command -v aria2c > /dev/null; then
+  $SUDO env DEBIAN_FRONTEND=noninteractive \
+    apt-get update
+  $SUDO env DEBIAN_FRONTEND=noninteractive \
+    apt-get install -yq --no-install-recommends eatmydata aria2 libeatmydata1:i386
+else
+  $SUDO env DEBIAN_FRONTEND=noninteractive \
+    apt-get update
+  $SUDO env DEBIAN_FRONTEND=noninteractive \
+    apt-get install -yq --no-install-recommends libeatmydata1:i386
+fi
+
 # Install jq first, then source properties.sh
 $SUDO env DEBIAN_FRONTEND=noninteractive \
-	apt-get install -yq --no-install-recommends jq
+  eatmydata apt-get install -yq --no-install-recommends jq
 
 . $(dirname "$(realpath "$0")")/properties.sh
 
@@ -339,36 +358,44 @@ $SUDO env DEBIAN_FRONTEND=noninteractive \
 $SUDO cp $(dirname "$(realpath "$0")")/llvm-snapshot.gpg.key /etc/apt/trusted.gpg.d/apt.llvm.org.asc
 $SUDO chmod a+r /etc/apt/trusted.gpg.d/apt.llvm.org.asc
 {
-	echo "deb [arch=amd64] http://apt.llvm.org/noble/ llvm-toolchain-noble-${TERMUX_HOST_LLVM_MAJOR_VERSION} main"
+  echo "deb [arch=amd64] http://apt.llvm.org/noble/ llvm-toolchain-noble-${HOST_LLVM_MAJOR_VERSION} main"
 } | $SUDO tee /etc/apt/sources.list.d/apt-llvm-org.list > /dev/null
 
 LLVM_PACKAGES=""
 
 # Needed by rust and other packages.
-LLVM_PACKAGES+=" llvm-${TERMUX_HOST_LLVM_MAJOR_VERSION}-dev"
-LLVM_PACKAGES+=" llvm-${TERMUX_HOST_LLVM_MAJOR_VERSION}-tools"
-LLVM_PACKAGES+=" clang-${TERMUX_HOST_LLVM_MAJOR_VERSION}"
-LLVM_PACKAGES+=" lld-${TERMUX_HOST_LLVM_MAJOR_VERSION}"
+LLVM_PACKAGES+=" llvm-${HOST_LLVM_MAJOR_VERSION}-dev"
+LLVM_PACKAGES+=" llvm-${HOST_LLVM_MAJOR_VERSION}-tools"
+LLVM_PACKAGES+=" clang-${HOST_LLVM_MAJOR_VERSION}"
+LLVM_PACKAGES+=" lld-${HOST_LLVM_MAJOR_VERSION}"
 
 $SUDO apt-get -yq update
 
 $SUDO env DEBIAN_FRONTEND=noninteractive \
-	apt-get install -yq --no-install-recommends $PACKAGES $LLVM_PACKAGES
+  eatmydata apt-get install -yq --no-install-recommends $PACKAGES $LLVM_PACKAGES
 
+$SUDO sed -i 's/\\w/\\\\w/g' /usr/lib/python3/dist-packages/recommonmark/transform.py || true
+$SUDO sed -i 's/\\s/\\\\s/g' /usr/share/gtk-doc/python/gtkdoc/scan.py || true
+$SUDO sed -i 's/\\(/\\\\(/g' /usr/share/gtk-doc/python/gtkdoc/scan.py || true
 $SUDO locale-gen --purge en_US.UTF-8
 echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' | $SUDO tee -a /etc/default/locale
 
-# Ownership of `TERMUX__PREFIX` must be fixed before `TERMUX_APP__DATA_DIR`
-# if its under it, otherwise `TERMUX__ROOTFS` will not have its ownership fixed.
-$SUDO mkdir -p "$TERMUX__PREFIX"
-$SUDO chown -R "$(whoami)" "$TERMUX__PREFIX"
-$SUDO mkdir -p "$TERMUX_APP__DATA_DIR"
-$SUDO chown -R "$(whoami)" "${TERMUX_APP__DATA_DIR%"${TERMUX_APP__DATA_DIR#/*/}"}" # Get `/path/` from `/path/to/app__data_dir`.
+# Ownership of `PREFIX` must be fixed before `APP__DATA_DIR`
+# if its under it, otherwise `_ROOTFS` will not have its ownership fixed.
+$SUDO mkdir -p "$PREFIX"
+$SUDO chown -R "$(whoami)" "$PREFIX"
+$SUDO mkdir -p "$APP__DATA_DIR"
+$SUDO chown -R "$(whoami)" "${APP__DATA_DIR%"${APP__DATA_DIR#/*/}"}" # Get `/path/` from `/path/to/app__data_dir`.
+$SUDO mkdir -p "$REPO__HOME"
+$SUDO chown -R "$(whoami)" "$REPO__HOME"
+$SUDO mkdir -p "$REPO__HOME/.gnupg"
+$SUDO chown -R "$(whoami)" "$REPO__HOME/.gnupg"
+$SUDO chmod 700 "$REPO__HOME/.gnupg"
 
 # Initial symbolic link in the symbolic link chain for packages
-# that have a build dependency on 'aosp-libs'; see scripts/build/termux_step_override_config_scripts.sh
-# and scripts/build/setup/termux_setup_proot.sh for more information
-$SUDO ln -sf "$TERMUX_APP__DATA_DIR/aosp" /system
+# that have a build dependency on 'aosp-libs'; see scripts/build/step_override_config_scripts.sh
+# and scripts/build/setup/setup_proot.sh for more information
+$SUDO ln -sf "$APP__DATA_DIR/aosp" /system
 
 # Install newer pkg-config then what ubuntu provides, as the stock
 # ubuntu version has performance problems with at least protobuf:
@@ -386,9 +413,9 @@ cd pkgconf-${PKGCONF_VERSION}
 echo "SYSTEM_LIBDIRS: $SYSTEM_LIBDIRS"
 echo "PKG_CONFIG_DIRS: $PKG_CONFIG_DIRS"
 ./configure --prefix=/usr \
-	--with-system-libdir=${SYSTEM_LIBDIRS} \
-	--with-pkg-config-dir=${PKG_CONFIG_DIRS}
-make
+  --with-system-libdir=${SYSTEM_LIBDIRS} \
+  --with-pkg-config-dir=${PKG_CONFIG_DIRS}
+make -j$(nproc)
 $SUDO make install
 cd -
 rm -Rf /tmp/pkgconf-build

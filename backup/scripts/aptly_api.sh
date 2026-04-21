@@ -6,7 +6,7 @@ CURL_COMMON_OPTIONS=(
   --silent
   --retry 2
   --retry-delay 3
-  --user-agent 'Termux-Packages/1.0\ (https://github.com/termux/termux-packages)'
+  --user-agent 'RepoExe-Packages/1.0\ (https://github.com/SjnExe/RepoExe)'
   --user "${APTLY_API_AUTH}"
   --write-out "|%{http_code}"
 )

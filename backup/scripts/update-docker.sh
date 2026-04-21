@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e -u
 
-CONTAINER=termux-package-builder
-IMAGE=ghcr.io/termux/package-builder
+CONTAINER=repoexe-package-builder
+IMAGE=ghcr.io/sjnexe/repoexe-builder
 
 docker pull $IMAGE
 

@@ -2,12 +2,12 @@
 
 # This script is used to check if given package can be auto-updated and optionally enable if it can be.
 # NOTE: You should not trust this script if package uses commit hashes for versioning(eg. 'tsu') or
-# TERMUX_PKG_VERSION is defined by us and not upstream(i.e we use some arbitrary version. For eg. when
+# PKG_VERSION is defined by us and not upstream(i.e we use some arbitrary version. For eg. when
 # getting source files based on commit hash).
 
 # The MIT License (MIT)
 
-# Copyright (c) 2022 Aditya Alok <alok@termux.org>
+# Copyright (c) 2022 Aditya Alok <alok@repoexe.org>
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,7 @@
 
 set -e
 
-TERMUX_SCRIPTDIR="$(realpath "$(dirname "$(readlink -f "$0")")/../..")"
+SCRIPTDIR="$(realpath "$(dirname "$(readlink -f "$0")")/../..")"
 
 _RESET_COLOR="\033[0m"
 _BLUE="\033[1;34m"
@@ -50,13 +50,13 @@ usage() {
 	echo
 	echo -e "${_RED}NOTE: ${_YELLOW}You should not trust this script if\n" \
 		"\t${_BLUE}- ${_YELLOW}package uses commit hashes for versioning (eg. 'tsu') or\n" \
-		"\t${_BLUE}- ${_GREEN}TERMUX_PKG_VERSION ${_YELLOW}is defined by us and not upstream, i.e we use some arbitrary version.\n" \
+		"\t${_BLUE}- ${_GREEN}PKG_VERSION ${_YELLOW}is defined by us and not upstream, i.e we use some arbitrary version.\n" \
 		"\t  For eg. when only getting source files based on commit hash."
 	echo
 	echo -e "${_BLUE}Options:"
 	echo -e "${_GREEN}-h --help${_TEAL} Show this help message."
 	echo -e "${_GREEN}--enable${_TEAL} Enable auto-update for package if check was successful." \
-		"(writes ${_YELLOW}TERMUX_PKG_AUTO_UPDATE=true${_TEAL} to build.sh)"
+		"(writes ${_YELLOW}PKG_AUTO_UPDATE=true${_TEAL} to build.sh)"
 	echo -e "${_GREEN}-s --silent${_TEAL} Do not print anything to stdout."
 	echo
 	echo -e "${_BLUE}Example:${_RESET_COLOR} $(basename "$0") x11-packages/xorg-server"
@@ -110,9 +110,9 @@ _check() {
 	stderr="$(
 		set -euo pipefail
 		# shellcheck source=/dev/null
-		. "${TERMUX_SCRIPTDIR}/scripts/updates/api/termux_${from_where}_api_get_tag.sh"
-		# shellcheck source=scripts/build/termux_error_exit.sh
-		. "${TERMUX_SCRIPTDIR}/scripts/build/termux_error_exit.sh"
+		. "${SCRIPTDIR}/scripts/updates/api/termux_${from_where}_api_get_tag.sh"
+		# shellcheck source=scripts/build/error_exit.sh
+		. "${SCRIPTDIR}/scripts/build/error_exit.sh"
 		termux_"${from_where}"_api_get_tag "$@" 2>&1 >/dev/null
 	)" || _check_stderr "${stderr}"
 }
@@ -131,7 +131,7 @@ check() {
 
 	if [[ "${url:0:4}" != "git+" ]] && [[ "$return_code" == "2" ]]; then
 		warn "No 'latest-release-tag' found. Checking for 'newest-tag'..."
-		return_code=3 # Set return code to 3 to indicate that TERMUX_PKG_UPDATE_TAG_TYPE='newest-tag'
+		return_code=3 # Set return code to 3 to indicate that PKG_UPDATE_TAG_TYPE='newest-tag'
 		# should also be written to build.sh if we find 'newest-tag' in next line.
 		_check "$from_where" "$url" "newest-tag" || return_code="$?"
 	fi
@@ -140,17 +140,17 @@ check() {
 }
 
 declare -a UNIQUE_PACKAGES
-# NOTE: This function ignores Termux own packages like 'termux-api','termux-exec', etc.
+# NOTE: This function ignores RepoExe own packages like 'repoexe-api','repoexe-exec', etc.
 # It should be manually checked.
 repology() {
 	local pkg_name="$1"
 	if [[ -z "${UNIQUE_PACKAGES[*]}" ]]; then
 		# NOTE: mapfile requires bash 4+
 		mapfile -t UNIQUE_PACKAGES < <(
-			curl -A "Termux update checker 1.1 (github.com/termux/termux-packages)" \
+			curl -A "RepoExe update checker 1.1 (github.com/repoexe/repoexe)" \
 				--silent --location --retry 5 \
 				--retry-delay 5 --retry-max-time 60 \
-				"https://repology.org/api/v1/projects/?inrepo=termux&&repos=1" |
+				"https://repology.org/api/v1/projects/?inrepo=repoexe&&repos=1" |
 				jq -r 'keys[]'
 		)
 
@@ -160,7 +160,7 @@ repology() {
 	if [[ ! " ${UNIQUE_PACKAGES[*]} " =~ " ${pkg_name} " ]]; then
 		return 0 # Package is not unique, can be updated.
 	else
-		warn "Package '$pkg_name' is unique to Termux, cannot be auto-updated."
+		warn "Package '$pkg_name' is unique to RepoExe, cannot be auto-updated."
 		return 1 # Package is unique, cannot be updated.
 	fi
 }
@@ -191,8 +191,8 @@ test_pkg() {
 		set +eu
 		# shellcheck source=/dev/null
 		. "$pkg_dir/build.sh" >/dev/null
-		echo "src_url=\"${TERMUX_PKG_SRCURL}\";"
-		echo "auto_update=\"${TERMUX_PKG_AUTO_UPDATE}\";"
+		echo "src_url=\"${PKG_SRCURL}\";"
+		echo "auto_update=\"${PKG_AUTO_UPDATE}\";"
 	)"
 	local src_url=""
 	local auto_update=""
@@ -205,7 +205,7 @@ test_pkg() {
 		warn "Auto-update is already set to ${_BLUE}'${auto_update}'${_YELLOW} in build.sh."
 		return 0
 	elif [[ -z "${src_url}" ]]; then
-		error "Could not find TERMUX_PKG_SRCURL."
+		error "Could not find PKG_SRCURL."
 	fi
 
 	local checks=(
@@ -243,12 +243,12 @@ test_pkg() {
 		info "Package can be auto-updated."
 		if [[ "${ENABLE}" == "--enable" ]]; then
 			info "Enabling auto-update..."
-			write_to_first_empty_line "$pkg_dir/build.sh" "TERMUX_PKG_AUTO_UPDATE=true"
+			write_to_first_empty_line "$pkg_dir/build.sh" "PKG_AUTO_UPDATE=true"
 			if [[ -n "${tag_type}" ]]; then
-				write_to_first_empty_line "$pkg_dir/build.sh" "TERMUX_PKG_UPDATE_TAG_TYPE=\"${tag_type}\""
+				write_to_first_empty_line "$pkg_dir/build.sh" "PKG_UPDATE_TAG_TYPE=\"${tag_type}\""
 			fi
 			if [[ -n "${update_method}" ]]; then
-				write_to_first_empty_line "$pkg_dir/build.sh" "TERMUX_PKG_UPDATE_METHOD=${update_method}"
+				write_to_first_empty_line "$pkg_dir/build.sh" "PKG_UPDATE_METHOD=${update_method}"
 			fi
 			info "Done."
 		fi

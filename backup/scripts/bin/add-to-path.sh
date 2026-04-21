@@ -4,9 +4,9 @@
 if [ -z "${BASH}" ]; then
 	echo "Cannot source because your shell is not Bash!"
 else
-	TERMUX_BINPATH=$(realpath "$(dirname "${BASH_SOURCE}")")
-	PATH="${TERMUX_BINPATH}:${PATH}"
+	BINPATH=$(realpath "$(dirname "${BASH_SOURCE}")")
+	PATH="${BINPATH}:${PATH}"
 	export PATH
-	echo "Scripts from '$TERMUX_BINPATH' are now available in your \$PATH."
-	unset TERMUX_BINPATH
+	echo "Scripts from '$BINPATH' are now available in your \$PATH."
+	unset BINPATH
 fi

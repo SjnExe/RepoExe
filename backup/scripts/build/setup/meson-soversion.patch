@@ -6,7 +6,7 @@ diff -u -r ../meson-1.10.0/mesonbuild/build.py ./mesonbuild/build.py
                  # libfoo.dylib
                  filename_tpl = '{0.prefix}{0.name}.{0.suffix}'
 -        elif self.environment.machines[self.for_machine].is_android():
-+        elif self.environment.machines[self.for_machine].is_android() and not os.environ.get('TERMUX_MESON_ENABLE_SOVERSION'):
++        elif self.environment.machines[self.for_machine].is_android() and not os.environ.get('MESON_ENABLE_SOVERSION'):
              prefix = prefix if prefix is not None else 'lib'
              suffix = suffix if suffix is not None else 'so'
              # Android doesn't support shared_library versioning
@@ -15,7 +15,7 @@ diff -u -r ../meson-1.10.0/mesonbuild/build.py ./mesonbuild/build.py
          super().process_kwargs(kwargs)
 
 -        if not self.environment.machines[self.for_machine].is_android():
-+        if not self.environment.machines[self.for_machine].is_android() or os.environ.get('TERMUX_MESON_ENABLE_SOVERSION'):
++        if not self.environment.machines[self.for_machine].is_android() or os.environ.get('MESON_ENABLE_SOVERSION'):
              # Shared library version
              self.ltversion = kwargs.get('version')
              self.soversion = kwargs.get('soversion')

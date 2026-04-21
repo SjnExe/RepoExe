@@ -2,13 +2,13 @@
 
 set -e -u
 
-# This script is in '$TERMUX_SCRIPTDIR/scripts/bin/'.
-TERMUX_SCRIPTDIR=$(cd "$(realpath "$(dirname "$0")")"; cd ../..; pwd)
+# This script is in '$SCRIPTDIR/scripts/bin/'.
+SCRIPTDIR=$(cd "$(realpath "$(dirname "$0")")"; cd ../..; pwd)
 DRY_RUN_SCRIPT_NAME=$(basename "$0")
 BUILDSCRIPT_NAME="build-package.sh"
-TERMUX_ARCH="aarch64"
-TERMUX_DEBUG_BUILD="false"
-TERMUX_PACKAGES_DIRECTORIES="
+ARCH="aarch64"
+DEBUG_BUILD="false"
+PACKAGES_DIRECTORIES="
 packages
 root-packages
 x11-packages
@@ -29,9 +29,9 @@ while (($# >= 1)); do
 				echo "$DRY_RUN_SCRIPT_NAME: Argument to '-a' should not be empty."
 				exit 1
 			fi
-			TERMUX_ARCH="$1"
+			ARCH="$1"
 			;;
-		-d) TERMUX_DEBUG_BUILD="true" ;;
+		-d) DEBUG_BUILD="true" ;;
 		-*) ;;
 		*) PACKAGE_LIST+=("$1") ;;
 	esac
@@ -40,34 +40,34 @@ done
 
 # Please keep synchronized with the logic of lines 592-656 of 'build-package.sh'.
 for ((i=0; i<${#PACKAGE_LIST[@]}; i++)); do
-	TERMUX_PKG_NAME=$(basename "${PACKAGE_LIST[i]}")
-	TERMUX_PKG_BUILDER_DIR=
-	for package_directory in $TERMUX_PACKAGES_DIRECTORIES; do
-		if [ -d "${TERMUX_SCRIPTDIR}/${package_directory}/${TERMUX_PKG_NAME}" ]; then
-			TERMUX_PKG_BUILDER_DIR="${TERMUX_SCRIPTDIR}/$package_directory/$TERMUX_PKG_NAME"
+	PKG_NAME=$(basename "${PACKAGE_LIST[i]}")
+	PKG_BUILDER_DIR=
+	for package_directory in $PACKAGES_DIRECTORIES; do
+		if [ -d "${SCRIPTDIR}/${package_directory}/${PKG_NAME}" ]; then
+			PKG_BUILDER_DIR="${SCRIPTDIR}/$package_directory/$PKG_NAME"
 			break
 		fi
 	done
-	if [ -z "${TERMUX_PKG_BUILDER_DIR}" ]; then
-		echo "$DRY_RUN_SCRIPT_NAME: No package $TERMUX_PKG_NAME found in any of the enabled repositories. Are you trying to set up a custom repository?"
+	if [ -z "${PKG_BUILDER_DIR}" ]; then
+		echo "$DRY_RUN_SCRIPT_NAME: No package $PKG_NAME found in any of the enabled repositories. Are you trying to set up a custom repository?"
 		exit 1
 	fi
-	TERMUX_PKG_BUILDER_SCRIPT="$TERMUX_PKG_BUILDER_DIR/build.sh"
+	PKG_BUILDER_SCRIPT="$PKG_BUILDER_DIR/build.sh"
 
-	# Please keep synchronized with the logic of lines 2-50 of 'scripts/build/termux_step_start_build.sh'.
-	if [ "${TERMUX_ARCH}" != "all" ] && \
-		grep -qE "^TERMUX_PKG_EXCLUDED_ARCHES=.*${TERMUX_ARCH}" "$TERMUX_PKG_BUILDER_SCRIPT"; then
-		echo "$DRY_RUN_SCRIPT_NAME: Skipping building $TERMUX_PKG_NAME for arch $TERMUX_ARCH"
+	# Please keep synchronized with the logic of lines 2-50 of 'scripts/build/step_start_build.sh'.
+	if [ "${ARCH}" != "all" ] && \
+		grep -qE "^PKG_EXCLUDED_ARCHES=.*${ARCH}" "$PKG_BUILDER_SCRIPT"; then
+		echo "$DRY_RUN_SCRIPT_NAME: Skipping building $PKG_NAME for arch $ARCH"
 		continue
 	fi
 
-	if [ "${TERMUX_DEBUG_BUILD}" = "true" ] && \
-		grep -qE "^TERMUX_PKG_HAS_DEBUG=.*false" "$TERMUX_PKG_BUILDER_SCRIPT"; then
-		echo "$DRY_RUN_SCRIPT_NAME: Skipping building debug build for $TERMUX_PKG_NAME"
+	if [ "${DEBUG_BUILD}" = "true" ] && \
+		grep -qE "^PKG_HAS_DEBUG=.*false" "$PKG_BUILDER_SCRIPT"; then
+		echo "$DRY_RUN_SCRIPT_NAME: Skipping building debug build for $PKG_NAME"
 		continue
 	fi
 
-	echo "$DRY_RUN_SCRIPT_NAME: Ending dry run simulation ($BUILDSCRIPT_NAME would have continued building $TERMUX_PKG_NAME)"
+	echo "$DRY_RUN_SCRIPT_NAME: Ending dry run simulation ($BUILDSCRIPT_NAME would have continued building $PKG_NAME)"
 	exit 0
 done
 

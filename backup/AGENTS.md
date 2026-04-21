@@ -3,21 +3,22 @@
 This file contains instructions for AI agents working on the **RepoExe** repository.
 
 ## Core Directives for Agents
+
 - **NO LOG REPORTS:** Do not generate file-based log reports (e.g., `error_log.txt`) or paste massive logs into the chat. Users view logs directly in their terminal by re-running commands.
 - **Deep Planning:** Always engage in "Deep Planning Mode" before starting a task. Verify requirements through questions until absolute certainty is reached.
 
 ## Project Context
+
 - **Name:** RepoExe
-- **Purpose:** A package repository for Termux providing custom tools and libraries (e.g., Android build tools like aapt2, zipalign, aidl).
+- **Purpose:** A package repository for RepoExe providing custom tools and libraries (e.g., Android build tools like aapt2, zipalign, aidl).
 - **Tech Stack:**
-  - Termux Package Build System (Local standalone scripts)
+  - RepoExe Package Build System (Local standalone scripts)
   - Docker (Custom builder image based on Ubuntu, completely independent)
   - GitHub Actions (CI/CD)
 
 ## Environment Setup
 
-The build process for these packages requires a specialized Termux build environment. The repository provides a custom Docker image (`ghcr.io/sjnexe/repoexe-builder:latest`) to ensure reproducible builds.
-The following environmental setup script uses `fuse-overlayfs` for optimal performance, starts the builder container in the background, applies NDK patches, and mirrors the custom packages. Run this in the root of the cloned repository.
+The build process for these packages requires a specialized RepoExe build environment. The repository provides a custom Docker image (`ghcr.io/sjnexe/repoexe-builder:latest`) to ensure reproducible builds. The following environmental setup script uses `fuse-overlayfs` for optimal performance, starts the builder container in the background, applies NDK patches, and mirrors the custom packages. Run this in the root of the cloned repository.
 
 ```bash
 # Setup fuse-overlayfs and docker daemon config
@@ -49,8 +50,8 @@ sudo docker run -d --name builder -u builder --device /dev/fuse --cap-add SYS_AD
 sudo docker exec builder bash -c "
 shopt -s nullglob
 (
-    sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/
-    echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
+    sudo mkdir -p /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/
+    echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
 ) &
 (
     for p in ndk-patches/29/*.patch; do
@@ -64,6 +65,7 @@ wait
 ## Useful Commands
 
 ### Build a Package
+
 To build a specific package (e.g., `aapt2`) for the `aarch64` architecture using the running Docker container:
 
 ```
@@ -75,15 +77,19 @@ mv output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
 ```
 
 ### Clean Build Directory
+
 To clean up previous build artifacts before starting a fresh build:
+
 ```
 sudo docker exec builder bash -c "
-rm -rf /home/builder/RepoExe/.termux-build/*
+rm -rf /home/builder/RepoExe/.repoexe-build/*
 "
 ```
 
 ### Access Builder Shell
+
 If you need to debug inside the builder container interactively:
+
 ```
 sudo docker exec -it builder bash
 ```

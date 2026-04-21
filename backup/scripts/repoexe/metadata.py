@@ -60,7 +60,7 @@ def generate_packages(deb_dir, base_output_dir, component, prev_packages_content
         pkg_name = pkg_info['Package']
         arch = pkg_info['Architecture']
 
-        # If architecture is 'all', we inject it into every standard Termux architecture
+        # If architecture is 'all', we inject it into every standard RepoExe architecture
         target_arches = ['aarch64', 'arm', 'i686', 'x86_64'] if arch == 'all' else [arch]
 
         for t_arch in target_arches:
@@ -98,7 +98,7 @@ def generate_packages(deb_dir, base_output_dir, component, prev_packages_content
         for t_arch in target_arches:
             arch_data[t_arch]["appstream"].append({
                 "Type": "desktop-application",
-                "ID": f"com.termux.{pkg_name}",
+                "ID": f"com.repoexe.{pkg_name}",
                 "Name": {"C": pkg_info.get("Package", "")},
                 "Summary": {"C": pkg_info.get("Description", "").split('\n')[0]},
                 "Version": pkg_info.get("Version", "")
@@ -220,7 +220,7 @@ Codename: stable
 Date: {date_str}
 Architectures: aarch64 arm i686 x86_64 all
 Components: {comp_str}
-Description: RepoExe Termux Repository
+Description: RepoExe APT Repository
 Acquire-By-Hash: yes
 """
 

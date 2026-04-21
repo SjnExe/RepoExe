@@ -8,9 +8,9 @@ check_package() { # path
 	local path=$1
 	local pkg=$(basename $path)
 	. $path/build.sh
-	echo -n "$pkg - $TERMUX_PKG_VERSION"
+	echo -n "$pkg - $PKG_VERSION"
 	read
-	$OPEN $TERMUX_PKG_HOMEPAGE
+	$OPEN $PKG_HOMEPAGE
 }
 
 # Run each package in separate process since we include their environment variables:

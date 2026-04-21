@@ -135,12 +135,14 @@ jobs:
             -v ~/.ccache:/home/builder/.ccache \
             -w /home/builder/RepoExe \
             -e REPO_ROOT=/home/builder/RepoExe \
+            -e MAKEFLAGS="-j4" \
+            -e NINJA_ARGS="-j4" \
             ghcr.io/$OWNER/repoexe-builder:latest \
             bash -c "set -e
               # Inject live RepoExe URL for concurrent dependency resolution
-              sudo mkdir -p /data/data/com.termux/files/usr/etc/apt/sources.list.d/
-              echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.termux/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
-              sudo chown -R builder:builder /data/data/com.termux/files/usr/etc/apt/sources.list.d/
+              sudo mkdir -p /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/
+              echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
+              sudo chown -R builder:builder /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/
 
               # Fix paths for termux-packages to parse versions during build
               for f in \
@@ -163,25 +165,15 @@ jobs:
                 scripts/build/setup/termux_setup_zig.sh \
                 scripts/build/termux_step_install_license.sh; do
                   if [ -f "\$f" ]; then
-                      sed -i 's|${TERMUX_SCRIPTDIR}/packages|/home/builder/termux-packages/packages|g' "\$f"
-                      sed -i 's|"$TERMUX_SCRIPTDIR"/packages|/home/builder/termux-packages/packages|g' "\$f"
-                      sed -i 's|$TERMUX_SCRIPTDIR/packages|/home/builder/termux-packages/packages|g' "\$f"
-                      sed -i 's|${TERMUX_SCRIPTDIR}/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
-                      sed -i 's|"$TERMUX_SCRIPTDIR"/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
-                      sed -i 's|$TERMUX_SCRIPTDIR/gpkg|/home/builder/termux-packages/gpkg|g' "\$f"
+                      sed -i 's|${REPO_ROOT}/packages|/home/builder/RepoExe/packages|g' "\$f"
+                      sed -i 's|"$REPO_ROOT"/packages|/home/builder/RepoExe/packages|g' "\$f"
+                      sed -i 's|$REPO_ROOT/packages|/home/builder/RepoExe/packages|g' "\$f"
+                      sed -i 's|${REPO_ROOT}/gpkg|/home/builder/RepoExe/gpkg|g' "\$f"
+                      sed -i 's|"$REPO_ROOT"/gpkg|/home/builder/RepoExe/gpkg|g' "\$f"
+                      sed -i 's|$REPO_ROOT/gpkg|/home/builder/RepoExe/gpkg|g' "\$f"
                   fi
               done
 
-              # Apply NDK patches
-              if [ -d \"ndk-patches/29\" ]; then
-                echo 'Applying NDK patches...'
-                for patch in ndk-patches/29/*.patch; do
-                  if [ -f \"\$patch\" ]; then
-                    echo \"Applying \$patch\"
-                    sudo patch -p1 -d /home/builder/lib/android-ndk-r29/sysroot < \"\$patch\" || true
-                  fi
-                done
-              fi
 
               # Phase 2: Build the changed packages.
               for pkg in ${{ steps.pkgs.outputs.packages }}; do
@@ -193,7 +185,7 @@ jobs:
                 echo \"Building \$pkg...\"
 
                 # Universal Packages Optimization
-                if grep -q 'TERMUX_PKG_PLATFORM_INDEPENDENT=true' \"packages/\$pkg/build.sh\"; then
+                if grep -q 'PKG_PLATFORM_INDEPENDENT=true' \"packages/\$pkg/build.sh\"; then
                   if [ \"${{ matrix.arch }}\" != \"aarch64\" ]; then
                     echo \"Skipping \$pkg on ${{ matrix.arch }} because it is architecture independent.\"
                     continue
@@ -220,7 +212,7 @@ jobs:
       # Generate SLSA build provenance (only for non-PR runs)
       - name: Generate build provenance
         if: github.event_name != 'pull_request' && hashFiles('output/*.deb') != ''
-        uses: actions/attest@v4
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: 'output/*.deb'
 
@@ -236,8 +228,8 @@ jobs:
 
             # Extract version from build.sh
             VERSION=""
-            if grep -q '^TERMUX_PKG_VERSION=' "packages/$pkg/build.sh"; then
-              VERSION=$(grep '^TERMUX_PKG_VERSION=' "packages/$pkg/build.sh" | cut -d= -f2 | tr -d \''"')
+            if grep -q '^PKG_VERSION=' "packages/$pkg/build.sh"; then
+              VERSION=$(grep '^PKG_VERSION=' "packages/$pkg/build.sh" | cut -d= -f2 | tr -d \''"')
             fi
 
             TAG="$pkg"

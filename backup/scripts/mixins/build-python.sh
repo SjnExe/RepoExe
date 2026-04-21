@@ -2,12 +2,12 @@
 
 repoexe_setup_python_env() {
     echo "Setting up Python environment..."
-    # Clean string to accurately detect an empty or just whitespace declared TERMUX_PKG_DEPENDS
-    _cleaned_deps=$(echo "$TERMUX_PKG_DEPENDS" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    # Clean string to accurately detect an empty or just whitespace declared PKG_DEPENDS
+    _cleaned_deps=$(echo "$PKG_DEPENDS" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
     if [ -z "$_cleaned_deps" ]; then
-        TERMUX_PKG_DEPENDS="python"
+        PKG_DEPENDS="python"
     else
-        TERMUX_PKG_DEPENDS+=", python"
+        PKG_DEPENDS+=", python"
     fi
 }
 

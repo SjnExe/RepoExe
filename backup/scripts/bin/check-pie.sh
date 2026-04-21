@@ -3,7 +3,7 @@
 
 . $(dirname "$(realpath "$0")")/properties.sh
 
-cd ${TERMUX_PREFIX}/bin
+cd ${PREFIX}/bin
 
 for file in *; do
 	if readelf -h $file 2>/dev/null | grep -q 'Type:[[:space:]]*EXEC'; then

@@ -22,7 +22,7 @@
      bundle.setCompressionMethod(ZipEntry::kCompressDeflated);
 
 +    // Convenience when using aapt in termux.
-+    bundle.addPackageInclude("@TERMUX_PREFIX@/share/aapt/android.jar");
++    bundle.addPackageInclude("@PREFIX@/share/aapt/android.jar");
 +
      if (argc < 2) {
          wantUsage = true;
