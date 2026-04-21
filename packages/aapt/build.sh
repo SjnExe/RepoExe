@@ -42,7 +42,7 @@ step_pre_configure() {
 	_TMP_BINDIR=$PKG_SRCDIR/_bin
 	rm -rf $_TMP_BINDIR
 	mkdir -p $_TMP_BINDIR
-	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils -L$PREFIX/lib -lfmt"
+	LDFLAGS+=" -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils -L$PREFIX__LIB_DIR -lfmt"
 }
 step_make() {
 	local LIBBASE_SRCDIR=$PKG_SRCDIR/libbase

@@ -78,7 +78,7 @@ step_make() {
 		$CXX $CXXFLAGS $CPPFLAGS $f -c
 	done
 	$CXX $CXXFLAGS *.o -shared $LDFLAGS \
-		-L$PREFIX/lib -lfmt \
+		-L$PREFIX__LIB_DIR -lfmt \
 		-o $_TMP_LIBDIR/libandroid-base.so
 
 	# Build libcutils:
