@@ -20,6 +20,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement `docker.py`: Wrap execution commands to run purely inside the `builder` container.
 - [ ] Implement `debian.py`: Handle `.deb` file generation, metadata signing, and APT repo synchronization.
 - [ ] Implement `pacman.py`: Handle `.pkg.tar.xz` file generation and Pacman database (`.db`) generation.
+- [ ] Implement `sysroot.py`: Extract downloaded dependencies into an isolated `$PREFIX` mock directory for compilation sandboxing.
 - [ ] Implement Android Patching: Automatic `config.guess` updates, Linux hardcoded path fixing, and `termux-elf-cleaner`.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning.
 - [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases.
@@ -27,7 +28,8 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 
 ## Phase 3: CI/CD Workflows (`.github/workflows/`)
 - [ ] Write `build.yml`: Dynamic Matrix Sharding (`architectures x shards`), PR Test Mode, and the `!{package}` exclusion syntax.
-- [ ] Write `publish.yml`: Strictly separated from `build.yml`. Downloads artifacts and publishes ONLY if the whole matrix passes.
+- [ ] Write `lint.yml`: Implement Self-Healing CI that auto-runs `ruff` and `prettier` and pushes fix commits.
+- [ ] Write `publish.yml`: Strictly separated from `build.yml`. Downloads artifacts, verifies them, generates SLSA Provenance, and publishes ONLY if the whole matrix passes.
 - [ ] Write `health.yml`: Cron job executing `health.py`.
 - [ ] Write `package_updates.yml`: Auto-PR workflow triggered by `upstream_check.py`.
 - [ ] Implement `free-space.sh` fast-deletion logic at the start of workflows.

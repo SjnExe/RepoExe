@@ -37,7 +37,8 @@ RepoExe/
 │   │   ├── docker.py          # Docker execution wrappers
 │   │   ├── debian.py          # dpkg/deb file generation logic
 │   │   ├── pacman.py          # pacman/.pkg.tar.xz file generation logic
-│   │   └── health.py          # Repository sync validation
+│   │   ├── health.py          # Repository sync validation
+│   │   └── sysroot.py         # Extracts dependencies into $PREFIX for compilation
 │   ├── ndk-patches/           # Global NDK 29 patches baked into Docker
 │   └── requirements.txt       # Python dependencies
 ├── packages/                  # YAML package definitions
@@ -93,6 +94,7 @@ RepoExe/
    - **YAML, JSON, Markdown:** Use **Prettier** as the standard formatter. The `.prettierrc` must be configured strictly (e.g., trailing commas, consistent quoting) to minimize noisy diffs, ensuring the AI only sees meaningful logic changes.
    - **GitHub Actions:** Use `actionlint` in the CI to validate `.github/workflows/*.yml` syntax before execution.
    - **Shell Snippets:** Use `shellcheck` for any inline bash scripts embedded inside the `package.yml` files.
+   - **Self-Healing CI:** The `lint.yml` workflow must auto-execute `ruff format` and `prettier --write`. If it detects unformatted code pushed by a user (or AI), it must automatically commit and push the fix directly to the PR branch, eliminating manual formatting busywork.
 
 4. **Variable Standardization & Branding Removal:**
    - **Generic Variables:** Strip `TERMUX_` branding from variables wherever possible to reduce bloat (e.g., `TERMUX_APP__PACKAGE_NAME` -> `APP_PACKAGE_NAME`, `TERMUX_PKG_*` -> `PKG_*`).
@@ -106,6 +108,7 @@ RepoExe/
 
 6. **Cross-Compilation & Build Lifecycles:**
    - **Cross-Compilation & Toolchains:** The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture (`aarch64`, `arm`, `x86_64`, `i686`). It must also explicitly support the **Flang (Fortran)** compiler toolchain for scientific packages, matching Termux's advanced NDK toolchain capabilities.
+   - **Explicit Sysroot Management:** Prior to compiling a package, the orchestrator (`sysroot.py`) must extract all fetched `.deb`/`.pkg.tar.xz` dependencies into an isolated `$PREFIX` mock directory. This guarantees the cross-compiler has strict, sandboxed access to the exact C/C++ headers and shared libraries required by the dependency graph without polling the live host environment.
    - **Native Build System Integrations:** The Python orchestrator must include native wrappers for standard build systems (CMake, Meson, Autotools, Ninja). This allows `package.yml` files to simply declare `build_system: cmake` without forcing developers (or AI) to manually inject massive NDK cross-compilation shell flags (`-DCMAKE_TOOLCHAIN_FILE`, etc.) into every package.
    - **Full Android Compatibility Patching:** The orchestrator must fully implement all standard Termux mechanisms required to make upstream binaries run on Android devices. This includes dynamically updating `config.guess` and `config.sub` scripts inside package source trees, resolving hardcoded Linux paths (`/bin/sh`, `/usr/bin/env`, `/etc`), and executing `termux-elf-cleaner` on all compiled `.so` and executable files to strip unsupported ELF tags.
    - **Explicit Massaging:** Replace Termux's massive, implicit `step_massage.sh` with explicit exclude configurations in `package.yml` (e.g., `exclude_files: ["var/log/*"]`). Universal cleanup (like stripping debug symbols) will remain hardcoded, but usable files will never be blindly deleted.
@@ -123,7 +126,7 @@ Docker is the **only officially supported environment** for local building to pr
 2. **Multi-Stage Builds & Modularity:** Use multi-stage builds to keep the final image lean. Avoid junks. Ensure the image is built in a way that maximizes Docker layer caching.
 3. **Baked-in NDK Patches & Host Tools:** Apply NDK patches directly within the `Dockerfile` during the `docker build` phase. Baking patches into the image layer is drastically faster than applying them at runtime. Furthermore, the Dockerfile must natively build and include essential Termux host tools (like `termux-elf-cleaner`) within the image.
 4. **Non-Root User:** Run all builds under a non-root `builder` user (with passwordless sudo for specific setup tasks) to avoid host permission conflicts.
-5. **Caching Integration:** Built-in `ccache` integration configured globally to dramatically speed up C/C++ recompilation.
+5. **Caching Integration:** Replace legacy `ccache` with Mozilla's **`sccache`**. Configure it globally inside the container. `sccache` natively integrates with the GitHub Actions Cache API, preventing the need to manually tar and transfer gigabytes of local cache directories between workflow jobs.
 6. **Linting Suite Built-In:** Pre-install modern Python and Shell linters (`ruff`, `mypy`, `shellcheck`, `prettier`) so the container can test itself autonomously.
 7. **Debugging Tools:** Include lightweight commands/tools to check layer sizes and disk usage for debugging purposes, allowing us to easily identify and remove bloat.
 8. **Performance Optimizations:** Ensure `zram` and `swap` setups are configured appropriately for heavy C++ builds within the container constraints.
@@ -148,7 +151,7 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
      - **Test Mode:** Manual dispatches can include a `test_only` flag. When enabled, the workflow builds packages but strictly skips publishing to the repository.
      - **Package Exclusion Syntax:** The workflow package input must support a negative exclusion syntax like `!{package_name}`. This allows building "everything except X". The `prepare` script MUST enforce strict validation: if the syntax is malformed, or if a user attempts to exclude a package that is a strict dependency of another package being built, the workflow must abort immediately before spawning runners.
    - **PR Mode:** Compiles packages purely as a test. Restores caches to speed up builds but strictly DOES NOT save them, preventing cache pollution.
-   - **Strict Release Separation:** The package compilation (`build.yml`) and APT repository publishing (`publish.yml`) must be strictly separated. The publish step (`needs: build`) will only download the `.deb` artifacts and push to the live repository **if and only if** all architectures and shards in the matrix passed successfully. This completely prevents a partially-built matrix from breaking the live repository.
+   - **Strict Release Separation & SLSA Provenance:** The package compilation (`build.yml`) and repository publishing (`publish.yml`) must be strictly separated. The publish step (`needs: build`) will only push to the live repository **if and only if** all shards in the matrix passed successfully. Furthermore, the `publish.yml` step must use GitHub Actions native Sigstore integration to generate cryptographic **SLSA Provenance** for the repository metadata, verifying supply chain security.
 4. **Package Updates (`package_updates.yml`):**
    - Auto-update logic must be disabled by default and explicitly enabled per package via the new YAML definitions. Updates trigger auto-PRs via `gh pr create`.
 5. **Host Space Optimization (`free-space.sh`):**
