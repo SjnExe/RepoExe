@@ -48,7 +48,7 @@ RepoExe/
 │   ├── metapackage.yml
 │   └── multi-architecture.yml
 ├── site/                      # GitHub Pages hosting
-│   └── install                # curl installation script (https://sjnexe.github.io/RepoExe/install)
+│   └── install                # Universal curl installation script (auto-detects APT vs Pacman)
 ├── Dockerfile                 # The multi-stage Ubuntu 24.04 builder image
 ├── AGENTS.md                  # Directives for AI maintainers
 ├── README.md                  # Project documentation
@@ -73,6 +73,7 @@ RepoExe/
    - Traditional `build.sh` package definitions are being deprecated.
    - Packages must be defined using structured **YAML** files (e.g., `package.yml`). This format is vastly easier for an AI to parse, update, and validate. *(Note: All YAML files must use the `.yml` extension).*
    - **Advanced Metadata Schema:** The `parser.py` must support advanced Termux features natively in the YAML schema:
+     - `libc`: Multi-libc support (allowing developers to specify `bionic` vs `glibc` environments).
      - `revision`: To trigger APT repository updates when patches change but upstream versions don't.
      - `conffiles`: To mark configuration files so APT does not overwrite user modifications upon upgrade.
      - `essential`: Boolean to prevent users from accidentally uninstalling critical packages.
@@ -80,8 +81,9 @@ RepoExe/
      - `anti_build_depends`: To explicitly uninstall conflicting dependencies from the Docker builder prior to compilation.
    - **Multi-Format Packaging (APT & Pacman):** RepoExe provides maximum flexibility to users by natively supporting both APT and Pacman package managers simultaneously.
      - The `package.yml` will support cross-format generic fields (e.g., `groups` and `optdepends` for Pacman, mapped alongside Debian standards).
-     - The Python orchestrator will include distinct generator modules: `debian.py` (building `.deb` files) and `pacman.py` (building `.pkg.tar.xz` files).
+     - The Python orchestrator will include distinct generator modules: `debian.py` (building `.deb` files) and `pacman.py` (building `.pkg.tar.xz` files, alongside `.db` and `.files` repository databases).
      - The CI/CD pipelines will generate dual repositories on GitHub Pages (an APT metadata tree and a Pacman `.db` database tree).
+   - **Universal Install Script:** The `site/install` script hosted on GitHub Pages will be a universal entrypoint. When a user runs `curl ... | bash`, the script will automatically probe the host system (checking for the presence of `apt` or `pacman`) and dynamically inject the correct RepoExe repository source list and signing keys for their active package manager.
    - **Strict License Validation:** The `parser.py` module must enforce a strict open-source License allowlist (e.g., `Apache-2.0`, `GPL-3.0`) against the YAML definition, replacing the legacy `lint-packages.sh` script.
    - **Local Source Building:** The orchestrator must support local, bundled source code (e.g., `source: local`). For deprecated or highly modified software (like `aapt`), the source code and pre-applied patches will live directly within the repository structure rather than downloading/patching at runtime.
    - **Sample Folder:** A `sample/` folder must be created containing templates for various package types (standard packages, multi-architecture packages, packages with subpackages, and metapackages using advanced APT features like `Provides`).
@@ -103,7 +105,7 @@ RepoExe/
    - **Package Profiles (Minimal/Headless vs. Full):** Instead of blindly deleting documentation (`man` pages, `info`) like Termux does, RepoExe will split these into distinct `-doc` subpackages. This ensures RepoExe is fully featured while allowing users to execute "headless" or minimal installations (only installing the CLI binary without the doc bloat).
 
 6. **Cross-Compilation & Build Lifecycles:**
-   - **Cross-Compilation:** The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture (`aarch64`, `arm`, `x86_64`, `i686`).
+   - **Cross-Compilation & Toolchains:** The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture (`aarch64`, `arm`, `x86_64`, `i686`). It must also explicitly support the **Flang (Fortran)** compiler toolchain for scientific packages, matching Termux's advanced NDK toolchain capabilities.
    - **Native Build System Integrations:** The Python orchestrator must include native wrappers for standard build systems (CMake, Meson, Autotools, Ninja). This allows `package.yml` files to simply declare `build_system: cmake` without forcing developers (or AI) to manually inject massive NDK cross-compilation shell flags (`-DCMAKE_TOOLCHAIN_FILE`, etc.) into every package.
    - **Full Android Compatibility Patching:** The orchestrator must fully implement all standard Termux mechanisms required to make upstream binaries run on Android devices. This includes dynamically updating `config.guess` and `config.sub` scripts inside package source trees, resolving hardcoded Linux paths (`/bin/sh`, `/usr/bin/env`, `/etc`), and executing `termux-elf-cleaner` on all compiled `.so` and executable files to strip unsupported ELF tags.
    - **Explicit Massaging:** Replace Termux's massive, implicit `step_massage.sh` with explicit exclude configurations in `package.yml` (e.g., `exclude_files: ["var/log/*"]`). Universal cleanup (like stripping debug symbols) will remain hardcoded, but usable files will never be blindly deleted.
@@ -119,7 +121,7 @@ Docker is the **only officially supported environment** for local building to pr
 **Features to Implement:**
 1. **Base Image:** Utilize an optimized `Ubuntu 24.04` base (aligning seamlessly with GitHub Actions environments).
 2. **Multi-Stage Builds & Modularity:** Use multi-stage builds to keep the final image lean. Avoid junks. Ensure the image is built in a way that maximizes Docker layer caching.
-3. **Baked-in NDK Patches:** Apply NDK patches directly within the `Dockerfile` during the `docker build` phase. Baking patches into the image layer is drastically faster than applying them at runtime during CI initialization, and allows Docker to perfectly cache the patched toolchain.
+3. **Baked-in NDK Patches & Host Tools:** Apply NDK patches directly within the `Dockerfile` during the `docker build` phase. Baking patches into the image layer is drastically faster than applying them at runtime. Furthermore, the Dockerfile must natively build and include essential Termux host tools (like `termux-elf-cleaner`) within the image.
 4. **Non-Root User:** Run all builds under a non-root `builder` user (with passwordless sudo for specific setup tasks) to avoid host permission conflicts.
 5. **Caching Integration:** Built-in `ccache` integration configured globally to dramatically speed up C/C++ recompilation.
 6. **Linting Suite Built-In:** Pre-install modern Python and Shell linters (`ruff`, `mypy`, `shellcheck`, `prettier`) so the container can test itself autonomously.
