@@ -77,6 +77,7 @@ RepoExe/
 2. **Structured Package Definitions (YAML over Bash):**
    - Traditional `build.sh` package definitions are being deprecated.
    - Packages must be defined using structured **YAML** files (e.g., `package.yml`). This format is vastly easier for an AI to parse, update, and validate. *(Note: All YAML files must use the `.yml` extension).*
+   - **Pydantic Schema Validation:** The `parser.py` module MUST use **Pydantic** to define strict data models for the `package.yml`. This ensures that field types (e.g. `revision` as integer, `essential` as boolean) are strictly validated before execution, providing precise, AI-friendly error messages if a YAML file is malformed.
    - **Advanced Metadata Schema:** The `parser.py` must support advanced Termux features natively in the YAML schema:
      - `libc`: Multi-libc support (allowing developers to specify `bionic` vs `glibc` environments).
      - `revision`: To trigger APT repository updates when patches change but upstream versions don't.
@@ -90,7 +91,8 @@ RepoExe/
    - **Multi-Format Packaging (APT & Pacman):** RepoExe provides maximum flexibility to users by natively supporting both APT and Pacman package managers simultaneously.
      - The `package.yml` will support cross-format generic fields (e.g., `groups` and `optdepends` for Pacman, mapped alongside Debian standards).
      - The Python orchestrator will include distinct generator modules: `debian.py` (building `.deb` files) and `pacman.py` (building `.pkg.tar.xz` files, alongside `.db` and `.files` repository databases).
-     - The CI/CD pipelines will generate dual repositories on GitHub Pages (an APT metadata tree and a Pacman `.db` database tree).
+     - **Static Generation:** To host entirely on GitHub Pages without a backend, `debian.py` must use static generation tools (`apt-ftparchive` or `termux-apt-repo`) to generate the `Packages`, `Release`, and `InRelease` metadata directly in the CI runner.
+     - The CI/CD pipelines will generate dual repositories on GitHub Pages (a static APT metadata tree and a Pacman `.db` database tree).
    - **Universal Install Script & Hosted UI:** The `site/install` script hosted on GitHub Pages will be a universal entrypoint. When a user runs `curl ... | bash`, the script will automatically probe the host system (checking for the presence of `pkg`, `apt`, or `pacman`). If both `pkg` and `apt` are present, `pkg` MUST be preferred as the primary wrapper. It will dynamically install the `repoexe.pub` GPG key into the correct keystores and inject the correct RepoExe repository source list for their active package manager. The existing `site/index.html` frontend UI must be preserved alongside this script.
    - **Strict License Validation:** The `parser.py` module must enforce a strict open-source License allowlist (e.g., `Apache-2.0`, `GPL-3.0`) against the YAML definition, replacing the legacy `lint-packages.sh` script.
    - **Local Source Building:** The orchestrator must support local, bundled source code (e.g., `source: local`). For deprecated or highly modified software (like `aapt`), the source code and pre-applied patches will live directly within the repository structure rather than downloading/patching at runtime.
@@ -115,6 +117,7 @@ RepoExe/
 
 6. **Cross-Compilation & Build Lifecycles:**
    - **Cross-Compilation & Toolchains:** The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture (`aarch64`, `arm`, `x86_64`, `i686`). It must also explicitly support the **Flang (Fortran)** compiler toolchain for scientific packages, matching Termux's advanced NDK toolchain capabilities. The YAML schema must also support `build_multilib` to compile 32-bit (`arm`/`i686`) packages explicitly for 64-bit target environments.
+   - **Automated Debug Symbol Extraction (`-dbg` packages):** Instead of stripping binaries destructively (or bloating them via `no_strip`), the orchestrator must automatically use `llvm-objcopy` during the `make_install` phase to extract debug symbols into distinct `package-name-dbg` subpackages. This keeps primary installations minimal while offering debug tooling (`gdb`/`lldb` support) when needed.
    - **Specialized Language Toolchains:** Beyond C/C++, `toolchains.py` must support dynamic environment bootstrapping for specific languages:
      - **Rust:** Automate `rustup` fetching and inject `CARGO_TARGET_NAME` for Android architectures.
      - **Golang:** Fetch standard `go-linux-amd64` release binaries and configure `$GOROOT` and `$GOCACHE`.
