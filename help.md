@@ -22,8 +22,8 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement native build wrappers (CMake, Meson, Autotools) in `toolchains.py`.
 - [ ] Implement specialized language environments (Rust/Cargo, Golang, Python/Crossenv) and config wrappers (llvm-config, pg_config) in `toolchains.py`.
 - [ ] Implement `docker.py`: Wrap execution commands to run purely inside the `builder` container, ensuring the custom Seccomp/AppArmor profiles are mounted.
-- [ ] Implement `debian.py`: Handle `.deb` file generation and natively implement custom Python-based static APT metadata generation (`Packages`, `Release`) for GitHub Pages without `apt-ftparchive`.
-- [ ] Implement `pacman.py`: Handle `.pkg.tar.xz` file generation and Pacman database (`.db`) generation.
+- [ ] Implement `debian.py`: Handle `.deb` file generation, automatically merge `sbin` into `bin`, automatically generate `-doc` and `-locale` Smart Subpackages (linked via `Recommends`), and natively implement custom Python-based static APT metadata generation (`Packages`, `Release`) for GitHub Pages without `apt-ftparchive`.
+- [ ] Implement `pacman.py`: Handle `.pkg.tar.xz` file generation and Pacman database (`.db`) generation. Implement the same Smart Subpackaging defaults for documentation/locales as Debian.
 - [ ] Implement `sysroot.py`: Extract downloaded dependencies into an isolated `$PREFIX` mock directory for compilation sandboxing.
 - [ ] Implement Android Patching: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, `-dbg` symbol extraction via `llvm-objcopy`, and strict Bionic Undefined Symbols validation using `readelf`.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning (replacing `check-repository-health.js` and `check-built-packages.py`).
@@ -43,7 +43,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Migrate `libandroid-tools` (split into granular sub-packages).
 - [ ] Migrate `aapt` (Implement "Local Source Building").
 - [ ] Migrate `aapt2`, `aidl`, and `zipalign`.
-- [ ] Ensure `-doc` package profiles are used instead of blinding deleting `man` pages.
+- [ ] Ensure Smart Subpackaging correctly intercepts and isolates `man` pages and `locale` data without requiring manual YAML definitions.
 - [ ] Ensure test phases are converted to declarative YAML testing hooks.
 
 ---

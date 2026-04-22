@@ -86,6 +86,7 @@ RepoExe/
      - `libc`: Multi-libc support (allowing developers to specify `bionic` vs `glibc` environments).
      - `revision`: To trigger APT repository updates when patches change but upstream versions don't.
      - `conffiles`: To mark configuration files so APT does not overwrite user modifications upon upgrade.
+     - `recommends_doc` / `recommends_locale`: Booleans to explicitly disable the automatic generation of `-doc` and `-locale` subpackages for specific packages.
      - `essential`: Boolean to prevent users from accidentally uninstalling critical packages.
      - `pre_depends`: Advanced APT directive to force a dependency to fully install *before* the package unpacks.
      - `service_script`: Arrays to automatically inject daemon logic into `/var/service/daemon/run` for `runit`.
@@ -127,8 +128,9 @@ RepoExe/
 
 5. **Modularity, Profiles & Subpackages:**
    - **Granular Dependency Splitting:** Bundled packages (like `android-tools`) must be split into specific, independent sub-packages (e.g., `libbase`, `libcutils`, `libutils`, `libziparchive`). These will be grouped under a single source directory for maintenance but output granular `.deb` files.
-   - **Explicit Subpackages:** Replace Termux's regex-based automatic subpackage generation (e.g., automatically generating `-dev` or `-static` packages via bash scripts) with **explicit configuration**. The `package.yml` must explicitly declare subpackages and the file patterns they include (e.g., `subpackages: dev: includes: ["include/*", "lib/*.so"]`). Subpackages like `-dev` are shipped in the `main` component.
-   - **Package Profiles (Minimal/Headless vs. Full):** Instead of blindly deleting documentation (`man` pages, `info`) like Termux does, RepoExe will split these into distinct `-doc` subpackages. This ensures RepoExe is fully featured while allowing users to execute "headless" or minimal installations (only installing the CLI binary without the doc bloat).
+   - **Explicit Subpackages:** Replace Termux's regex-based automatic subpackage generation (e.g., automatically generating `-dev` or `-static` packages via bash scripts) with **explicit configuration**. The `package.yml` must explicitly declare core subpackages and the file patterns they include (e.g., `subpackages: dev: includes: ["include/*", "lib/*.so"]`).
+   - **Smart Subpackaging & Headless Profiles:** Instead of blindly deleting documentation (`man` pages, `info`) or translations like Termux does, RepoExe will natively support Headless/CLI configuration preferences. The Python packagers (`debian.py` / `pacman.py`) will automatically intercept documentation directories (e.g., `share/man`, `share/info`) and localization directories (e.g., `share/locale`) and dynamically split them into `-doc` and `-locale` subpackages without the developer having to explicitly define them in the YAML.
+   - **Recommends Linking:** These auto-generated subpackages will be linked to the main package via APT's `Recommends` field rather than `Depends`. This allows users to control exactly what they download: a standard `apt install <pkg>` will include the docs, while `apt install --no-install-recommends <pkg>` will execute a pure, headless CLI installation, preventing unnecessary bloat.
 
 6. **Cross-Compilation & Build Lifecycles:**
    - **Cross-Compilation & Toolchains:** The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture (`aarch64`, `arm`, `x86_64`, `i686`). It must also explicitly support the **Flang (Fortran)** compiler toolchain for scientific packages, matching Termux's advanced NDK toolchain capabilities. The YAML schema must also support `build_multilib` to compile 32-bit (`arm`/`i686`) packages explicitly for 64-bit target environments.
