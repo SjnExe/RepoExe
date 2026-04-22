@@ -37,13 +37,14 @@ The ultimate aim is to rip out the convoluted, legacy Bash-based build infrastru
    - **Internal vs. External Paths:** In CI/CD workflows and local build scripts, standard Linux paths should be used. However, **inside the compiled `.deb` package**, standard Termux paths (e.g., `/data/data/com.termux/files/usr`) MUST be preserved perfectly so the package functions flawlessly when installed on the user's device alongside standard Termux apps.
    - Do not blindly replace "termux" with "RepoExe" in text. Use "RepoExe" (or "repoexe", "REPOEXE") for repo naming, but retain "termux" where contextually necessary for device compatibility.
 
-4. **Modularity & Independent Packages:**
+4. **Modularity, Profiles & Subpackages:**
    - **Granular Dependency Splitting:** Bundled packages (like `android-tools`) must be split into specific, independent sub-packages (e.g., `libbase`, `libcutils`, `libutils`, `libziparchive`). These will be grouped under a single source directory for maintenance but output granular `.deb` files.
    - **Explicit Subpackages:** Replace Termux's regex-based automatic subpackage generation (e.g., automatically generating `-dev` or `-static` packages via bash scripts) with **explicit configuration**. The `package.yaml` must explicitly declare subpackages and the file patterns they include (e.g., `subpackages: dev: includes: ["include/*", "lib/*.so"]`). Subpackages like `-dev` are shipped in the `main` component.
+   - **Package Profiles (Minimal/Headless vs. Full):** Instead of blindly deleting documentation (`man` pages, `info`) like Termux does, RepoExe will split these into distinct `-doc` subpackages. This ensures RepoExe is fully featured while allowing users to execute "headless" or minimal installations (only installing the CLI binary without the doc bloat).
 
 5. **Cross-Compilation & Build Lifecycles:**
-   - **Matrix Builds:** Cross-compilation for different architectures (`aarch64`, `arm`, `x86_64`, `i686`) will be handled cleanly via GitHub Actions matrix jobs. The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture.
-   - **Explicit Massaging:** Replace Termux's massive, implicit `step_massage.sh` (which blindly deletes files like `pacman.log` or `.la` files from the final package) with **explicit exclude configurations** in `package.yaml` (e.g., `exclude_files: ["var/log/*"]`). Only universal cleanup (like stripping symbols) should be hardcoded in the orchestrator.
+   - **Cross-Compilation:** The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture (`aarch64`, `arm`, `x86_64`, `i686`).
+   - **Explicit Massaging:** Replace Termux's massive, implicit `step_massage.sh` with explicit exclude configurations in `package.yaml` (e.g., `exclude_files: ["var/log/*"]`). Universal cleanup (like stripping debug symbols) will remain hardcoded, but usable files will never be blindly deleted.
 
 ---
 
@@ -65,24 +66,25 @@ Docker is the **only officially supported environment** for local building to pr
 
 ## 4. CI/CD Workflows (GitHub Actions)
 
-The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 16GB RAM).
+The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 16GB RAM) and aggressively leverage parallelization to minimize workflow runtime.
 
 1. **Dependency Management (`dependabot.yml`):**
    - Replace any existing `renovate.json` with native GitHub Dependabot.
    - Configure Dependabot to keep GitHub Actions workflows updated using major version tags (e.g., `@v4`) rather than pinned SHAs.
-2. **Dual-Mode Build Workflow (`build.yml`):**
-   - **PR Mode:** Compiles packages purely as a test. Restores caches to speed up builds but strictly DOES NOT save them, preventing cache pollution.
-   - **Release Mode:** Runs on `main` branch pushes. Compiles, saves caches globally, and pushes artifacts to GitHub Releases.
-   - **Manual Dispatch (Test Mode):** Add an input for manual workflow dispatch (e.g., `dry_run` or `test_only`). When enabled, the workflow will run linters, build packages, and run tests, but will **skip** publishing the artifacts to the repository.
-3. **Optimized Build Order:** Implement a custom build order algorithm (in Python) to handle building packages with complex dependencies efficiently, maximizing resource usage and reducing overall workflow runtime.
-4. **Publish & Signing (`publish.yml`):**
-   - Retain the metadata generation and secure GPG signing logic from the `backup` directory's `metadata.py`.
-5. **Package Updates (`package_updates.yml`):**
+2. **Advanced CI Parallelization (Dynamic Matrix Sharding):**
+   - Instead of looping through all packages on a single runner (which hits the 6-hour timeout) or using primitive sequential chaining, RepoExe will use a `prepare` job to analyze the Python dependency tree.
+   - The `prepare` script will group independent packages into "Shards".
+   - The `build` job will use a **Dynamic Matrix** (`[architectures] × [shards]`). This allows spawning dozens of concurrent runners instantly (e.g., 4 architectures × 10 shards = 40 parallel jobs) to build packages as fast as possible.
+   - **Massive Packages:** Massive dependencies (like Chromium or heavy Rust binaries) that require intense resources and extended time will be detected by the `prepare` script and assigned to their **own isolated shard**. This gives them a dedicated 16GB runner and prevents them from crashing alongside other builds.
+3. **Dual-Mode Workflow with Strict Release Boundaries (`build.yml` & `publish.yml`):**
+   - **PR / Manual Test Mode:** Workflows compile packages and save them as GitHub Artifacts. Manual dispatches can include a `test_only` flag. Caches are strictly restored, not saved, to prevent cache pollution.
+   - **Strict Release Separation:** The package compilation (`build.yml`) and APT repository publishing (`publish.yml`) must be strictly separated. The publish step (`needs: build`) will only download the `.deb` artifacts and push to the live repository **if and only if** all architectures and shards in the matrix passed successfully. This completely prevents a partially-built matrix from breaking the live repository.
+4. **Package Updates (`package_updates.yml`):**
    - Auto-update logic must be disabled by default and explicitly enabled per package via the new YAML definitions. Updates trigger auto-PRs via `gh pr create`.
-6. **Host Space Optimization (`free-space.sh`):**
+5. **Host Space Optimization (`free-space.sh`):**
    - Integrate hyper-fast `rm -rf` logic for massive unused toolchains on the GitHub Host VM before build steps to free up disk space.
-7. **Parallelization Enforcement:** Globally standardize `MAKEFLAGS="-j4"` / `ninja -j4` across the build system to maximize the 4-core runners.
-8. **Security Analysis (`codeql.yml`):** Integrate CodeQL for static analysis.
+6. **Parallelization Enforcement:** Globally standardize `MAKEFLAGS="-j4"` / `ninja -j4` across the build system to maximize the 4-core runners.
+7. **Security Analysis (`codeql.yml`):** Integrate CodeQL for static analysis.
 
 ---
 
