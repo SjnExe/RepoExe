@@ -15,7 +15,9 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Establish the `scripts/requirements.txt` (must include `pydantic`).
 - [ ] Implement `parser.py`: Parse `package.yml` using strict Pydantic data models, validate Licenses against allowlist. Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `alternatives`, `revision`, `anti_build_depends`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `auto_update`, `platform_independent`, `inherits`, `cmake_args`, `groups`, `optdepends`). Strip all "on-device" build logic.
 - [ ] Implement `properties.py`: Define explicit internal `PREFIX` bounds for the device layout.
-- [ ] Implement `dag.py`: Resolve dependencies, handle massive isolated packages (Chromium), generate matrix shards.
+- [ ] Implement `dag.py`: Resolve dependencies, handle massive isolated packages (Chromium), generate matrix shards, and output lightweight Dependency Graphs (JSON/Mermaid) for debugging.
+- [ ] Implement Smart Hashing Engine: Incorporate strict SHA256 "state hash" evaluation across package inputs (YAML, patches, source, downstream deps) to aggressively skip redundant builds.
+- [ ] Implement Auto-Revision Management: Enable the orchestrator to automatically calculate revision bumps down the DAG when upstream dependencies trigger rebuilds.
 - [ ] Implement `toolchains.py`: Select NDK 29 compilers based on architecture. Inject `PREFIX` dynamically into `CFLAGS`, `CPPFLAGS`, and `LDFLAGS`.
 - [ ] Implement native build wrappers (CMake, Meson, Autotools) in `toolchains.py`.
 - [ ] Implement specialized language environments (Rust/Cargo, Golang, Python/Crossenv) and config wrappers (llvm-config, pg_config) in `toolchains.py`.
@@ -49,5 +51,5 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 ## Current Session Notes / Handover
 *Write a short summary below when ending a session so the next AI agent knows exactly where to pick up.*
 
-**Status:** Ready to begin Phase 1. `plan.md` has been fully written and approved.
+**Status:** Ready to begin Phase 1. The validation session has been completed, and `plan.md` has been updated with Smart Rebuilds, Dependency Graph Visualizers, and automated revisions.
 **Next Action:** Begin creating the foundational repository structure, dotfiles, and GitHub templates.
