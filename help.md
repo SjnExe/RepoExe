@@ -46,8 +46,8 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Ensure test phases are converted to declarative YAML testing hooks.
 
 ## Phase 5: Documentation & Final Handover
-- [ ] Create the `sample/` folder with templates (`standard.yml`, `metapackage.yml`, `multi-architecture.yml`).
-- [ ] Write a comprehensive `sample/SCHEMA.md` documenting every YAML field, flag, and lifecycle hook to prevent user confusion.
+- [ ] Create the `docs/` folder with templates (`standard.yml`, `metapackage.yml`, `multi-architecture.yml`).
+- [ ] Write a comprehensive `docs/SCHEMA.md` documenting every YAML field, flag, and lifecycle hook to prevent user confusion.
 
 ---
 

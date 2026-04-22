@@ -52,8 +52,9 @@ RepoExe/
 ├── packages/                  # YAML package definitions
 │   ├── libandroid-tools/      # Contains package.yml and any custom patches
 │   └── aapt2/
-├── sample/                    # Templates/Examples for different package profiles
-│   ├── standard.yml
+├── docs/                      # Documentation and sample templates
+│   ├── SCHEMA.md              # Comprehensive YAML schema documentation
+│   ├── standard.yml           # Sample templates
 │   ├── metapackage.yml
 │   └── multi-architecture.yml
 ├── site/                      # GitHub Pages hosting
@@ -114,7 +115,7 @@ RepoExe/
    - **Universal Install Script & Hosted UI:** The `site/install` script hosted on GitHub Pages will be a universal entrypoint. When a user runs `curl ... | bash`, the script will automatically probe the host system (checking for the presence of `pkg`, `apt`, or `pacman`). If both `pkg` and `apt` are present, `pkg` MUST be preferred as the primary wrapper. It will dynamically install the `repoexe.pub` GPG key into the correct keystores and inject the correct RepoExe repository source list for their active package manager. The existing `site/index.html` frontend UI must be preserved alongside this script.
    - **Strict License Validation:** The `parser.py` module must use Pydantic to enforce a strict open-source License allowlist (e.g., `Apache-2.0`, `GPL-3.0`, `MIT`, `ISC`) against the YAML definition, entirely replacing the legacy `lint-packages.sh` bash regex logic. If an unknown license is provided, the YAML parsing must instantly fail the build.
    - **Local Source Building:** The orchestrator must support local, bundled source code (e.g., `source: local`). For deprecated or highly modified software (like `aapt`), the source code and pre-applied patches will live directly within the repository structure rather than downloading/patching at runtime.
-   - **Sample Folder & Documentation:** A `sample/` folder must be created at the very end of the refactoring process. It will contain explicit, well-commented templates for various package types (standard, multi-architecture, subpackages, metapackages). Crucially, this folder MUST also contain a comprehensive `SCHEMA.md` documentation file that details every single supported YAML field, macro, and lifecycle hook so future developers (and AI agents) have zero confusion when using advanced features.
+   - **Documentation & Sample Folder:** A `docs/` folder must be created at the very end of the refactoring process. It will contain explicit, well-commented sample templates for various package types (standard, multi-architecture, subpackages, metapackages). Crucially, this folder MUST also contain a comprehensive `SCHEMA.md` documentation file that details every single supported YAML field, macro, and lifecycle hook so future developers (and AI agents) have zero confusion when using advanced features.
 
 3. **Strict Linting & Formatting Stack (AI-Optimized):**
    - **Python:** Use **Ruff** exclusively for both linting and formatting the Python orchestrator. It is extremely fast and replaces multiple legacy tools (flake8, black, isort). Use `mypy` for strict type hinting to catch AI hallucinations early.
@@ -236,4 +237,4 @@ RepoExe will leverage the full capabilities of Debian's APT package manager to e
    - **Phase 2 (Orchestrator):** Write the core Python orchestrator (e.g., `build.py`, YAML parsers) and define the `package.yml` schema.
    - **Phase 3 (Workflows):** Implement the Dynamic Matrix Sharding CI workflows (`build.yml`, `publish.yml`) that hook into the Python orchestrator.
    - **Phase 4 (Package Migration):** Migrate individual packages from bash to the new YAML schema. Group migrations logically (e.g., migrate all `libandroid-tools` components in one session).
-   - **Phase 5 (Documentation & Handover):** Once all foundational code and migrations are complete, create the `sample/` folder and write the comprehensive `SCHEMA.md` user documentation.
+   - **Phase 5 (Documentation & Handover):** Once all foundational code and migrations are complete, create the `docs/` folder, generate the sample templates, and write the comprehensive `SCHEMA.md` user documentation.
