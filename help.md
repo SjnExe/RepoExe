@@ -7,7 +7,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Initialize repository structure (dotfiles, `.github/` folder, `site/install`).
 - [ ] Create `SECURITY.md`, `CONTRIBUTING.md`, `FUNDING.yml`, `stale.yml`, and `dependabot.yml`.
 - [ ] Set up the `.prettierrc` (strict format for AI) and `.prettierignore`.
-- [ ] Write the `Dockerfile` (Ubuntu 24.04, non-root `builder`, built-in ccache).
+- [ ] Write the `Dockerfile` (Ubuntu 24.04, non-root `builder`, built-in `sccache`).
 - [ ] Download NDK 29 and bake standard NDK patches directly into a Docker layer.
 - [ ] Install formatting/linting stack inside Docker (`ruff`, `mypy`, `shellcheck`, `actionlint`).
 
@@ -20,7 +20,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement Auto-Revision Management: Enable the orchestrator to automatically calculate revision bumps down the DAG when upstream dependencies trigger rebuilds.
 - [ ] Implement `toolchains.py`: Select NDK 29 compilers based on architecture. Inject `PREFIX` dynamically into `CFLAGS`, `CPPFLAGS`, and `LDFLAGS`.
 - [ ] Implement native build wrappers (CMake, Meson, Autotools) in `toolchains.py`.
-- [ ] Implement specialized language environments (Rust/Cargo, Golang, Python/Crossenv) and config wrappers (llvm-config, pg_config) in `toolchains.py`.
+- [ ] Implement specialized language environments (Rust/Cargo, Golang, Python/Crossenv, Zig, Swift) and config wrappers (llvm-config, pg_config) in `toolchains.py`.
 - [ ] Implement `docker.py`: Wrap execution commands to run purely inside the `builder` container, ensuring the custom Seccomp/AppArmor profiles are mounted.
 - [ ] Implement `debian.py`: Handle `.deb` file generation, automatically merge `sbin` into `bin`, automatically generate `-doc` and `-locale` Smart Subpackages (linked via `Recommends`), and natively implement custom Python-based static APT metadata generation (`Packages`, `Release`) for GitHub Pages without `apt-ftparchive`.
 - [ ] Implement `pacman.py`: Handle `.pkg.tar.xz` file generation and Pacman database (`.db`) generation. Implement the same Smart Subpackaging defaults for documentation/locales as Debian.
