@@ -23,7 +23,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement `debian.py`: Handle `.deb` file generation and natively implement custom Python-based static APT metadata generation (`Packages`, `Release`) for GitHub Pages without `apt-ftparchive`.
 - [ ] Implement `pacman.py`: Handle `.pkg.tar.xz` file generation and Pacman database (`.db`) generation.
 - [ ] Implement `sysroot.py`: Extract downloaded dependencies into an isolated `$PREFIX` mock directory for compilation sandboxing.
-- [ ] Implement Android Patching: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, and `-dbg` symbol extraction via `llvm-objcopy`.
+- [ ] Implement Android Patching: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, `-dbg` symbol extraction via `llvm-objcopy`, and strict Bionic Undefined Symbols validation using `readelf`.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning.
 - [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases.
 - [ ] Wire everything together in the CLI entrypoint `scripts/build.py`.
