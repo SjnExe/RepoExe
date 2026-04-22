@@ -36,6 +36,7 @@ RepoExe/
 │   ├── core/                  # Broken down, independent core logic modules
 │   │   ├── dag.py             # Dependency graph resolver
 │   │   ├── parser.py          # YAML package definition parser
+│   │   ├── properties.py      # Core PREFIX boundaries and device layout
 │   │   ├── toolchains.py      # NDK environment and compiler setups
 │   │   ├── docker.py          # Docker execution wrappers
 │   │   ├── debian.py          # dpkg/deb file generation logic
@@ -112,6 +113,7 @@ RepoExe/
 
 6. **Cross-Compilation & Build Lifecycles:**
    - **Cross-Compilation & Toolchains:** The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture (`aarch64`, `arm`, `x86_64`, `i686`). It must also explicitly support the **Flang (Fortran)** compiler toolchain for scientific packages, matching Termux's advanced NDK toolchain capabilities. The YAML schema must also support `build_multilib` to compile 32-bit (`arm`/`i686`) packages explicitly for 64-bit target environments.
+   - **PREFIX Boundary Injection (`properties.py`):** The orchestrator must globally define the internal device layout (e.g., `PREFIX=/data/data/com.repoexe/files/usr`). The `toolchains.py` module MUST actively inject this `PREFIX` into `CFLAGS`, `CPPFLAGS`, and `LDFLAGS` during the build lifecycle. This ensures compiled C/C++ binaries search for configs and libraries in the Android data directory, rather than breaking by looking in standard Linux paths like `/usr/bin`.
    - **Explicit Sysroot Management:** Prior to compiling a package, the orchestrator (`sysroot.py`) must extract all fetched `.deb`/`.pkg.tar.xz` dependencies into an isolated `$PREFIX` mock directory. This guarantees the cross-compiler has strict, sandboxed access to the exact C/C++ headers and shared libraries required by the dependency graph without polling the live host environment.
    - **Native Build System Integrations:** The Python orchestrator must include native wrappers for standard build systems (CMake, Meson, Autotools, Ninja). This allows `package.yml` files to simply declare `build_system: cmake` without forcing developers (or AI) to manually inject massive NDK cross-compilation shell flags (`-DCMAKE_TOOLCHAIN_FILE`, etc.) into every package.
    - **Full Android Compatibility Patching:** The orchestrator must fully implement all standard Termux mechanisms required to make upstream binaries run on Android devices. This includes dynamically updating `config.guess` and `config.sub` scripts inside package source trees, resolving hardcoded Linux paths (`/bin/sh`, `/usr/bin/env`, `/etc`), and executing `termux-elf-cleaner` on all compiled `.so` and executable files to strip unsupported ELF tags. The orchestrator must provide YAML escape hatches (`no_elf_cleaner`, `no_shebang_fix`, `no_strip`) for edge-case packages that break under these automated mechanisms.

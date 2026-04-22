@@ -14,8 +14,9 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 ## Phase 2: Python Orchestrator (`scripts/core/`)
 - [ ] Establish the `scripts/requirements.txt`.
 - [ ] Implement `parser.py`: Parse `package.yml`, validate strict generic fields, validate Licenses against allowlist. Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `revision`, `anti_build_depends`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `groups`, `optdepends`).
+- [ ] Implement `properties.py`: Define explicit internal `PREFIX` bounds for the device layout.
 - [ ] Implement `dag.py`: Resolve dependencies, handle massive isolated packages (Chromium), generate matrix shards.
-- [ ] Implement `toolchains.py`: Select NDK 29 compilers based on architecture, set `CFLAGS`/`LDFLAGS`.
+- [ ] Implement `toolchains.py`: Select NDK 29 compilers based on architecture. Inject `PREFIX` dynamically into `CFLAGS`, `CPPFLAGS`, and `LDFLAGS`.
 - [ ] Implement native build wrappers (CMake, Meson, Autotools) in `toolchains.py`.
 - [ ] Implement `docker.py`: Wrap execution commands to run purely inside the `builder` container, ensuring the custom Seccomp/AppArmor profiles are mounted.
 - [ ] Implement `debian.py`: Handle `.deb` file generation, metadata signing, and APT repo synchronization.
