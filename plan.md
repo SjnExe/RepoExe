@@ -30,6 +30,7 @@ The ultimate aim is to rip out the convoluted, legacy Bash-based build infrastru
    - Traditional `build.sh` package definitions are being deprecated.
    - Packages must be defined using structured **YAML** files (e.g., `package.yaml`). This format is vastly easier for an AI to parse, update, and validate.
    - YAML files will include: metadata, version, source URL, SHA256 sums, dependencies (using Debian apt standards), and build/install scripts (which can be embedded or linked).
+   - **Sample Folder:** A `sample/` folder must be created containing templates for various package types (standard packages, multi-architecture packages, packages with subpackages, and metapackages using advanced APT features like `Provides`).
 
 3. **Variable Standardization & Branding Removal:**
    - **Generic Variables:** Strip `TERMUX_` branding from variables wherever possible to reduce bloat (e.g., `TERMUX_APP__PACKAGE_NAME` -> `APP_PACKAGE_NAME`, `TERMUX_PKG_*` -> `PKG_*`).
@@ -37,21 +38,28 @@ The ultimate aim is to rip out the convoluted, legacy Bash-based build infrastru
    - Do not blindly replace "termux" with "RepoExe" in text. Use "RepoExe" (or "repoexe", "REPOEXE") for repo naming, but retain "termux" where contextually necessary for device compatibility.
 
 4. **Modularity & Independent Packages:**
-   - Granular Dependency Splitting: Bundled packages (like `android-tools`) must be split into specific, independent sub-packages (e.g., `libbase`, `libcutils`, `libutils`, `libziparchive`). These will be grouped under a single source directory for maintenance but output granular `.deb` files.
+   - **Granular Dependency Splitting:** Bundled packages (like `android-tools`) must be split into specific, independent sub-packages (e.g., `libbase`, `libcutils`, `libutils`, `libziparchive`). These will be grouped under a single source directory for maintenance but output granular `.deb` files.
+   - **Explicit Subpackages:** Replace Termux's regex-based automatic subpackage generation (e.g., automatically generating `-dev` or `-static` packages via bash scripts) with **explicit configuration**. The `package.yaml` must explicitly declare subpackages and the file patterns they include (e.g., `subpackages: dev: includes: ["include/*", "lib/*.so"]`). Subpackages like `-dev` are shipped in the `main` component.
+
+5. **Cross-Compilation & Build Lifecycles:**
+   - **Matrix Builds:** Cross-compilation for different architectures (`aarch64`, `arm`, `x86_64`, `i686`) will be handled cleanly via GitHub Actions matrix jobs. The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture.
+   - **Explicit Massaging:** Replace Termux's massive, implicit `step_massage.sh` (which blindly deletes files like `pacman.log` or `.la` files from the final package) with **explicit exclude configurations** in `package.yaml` (e.g., `exclude_files: ["var/log/*"]`). Only universal cleanup (like stripping symbols) should be hardcoded in the orchestrator.
 
 ---
 
 ## 3. Docker Environment (`docker.yml` & `Dockerfile`)
 
-Docker is the **only officially supported environment** for local building to prevent host pollution.
+Docker is the **only officially supported environment** for local building to prevent host pollution. It must be highly modular to ensure layers cache correctly and speed up CI init times.
 
 **Features to Implement:**
 1. **Base Image:** Utilize an optimized `Ubuntu 24.04` base (aligning seamlessly with GitHub Actions environments).
-2. **Multi-Stage Builds:** Keep the final image size manageable while installing massive NDKs and toolchains.
-3. **Non-Root User:** Run all builds under a non-root `builder` user (with passwordless sudo for specific setup tasks) to avoid host permission conflicts.
-4. **Caching Integration:** Built-in `ccache` integration configured globally to dramatically speed up C/C++ recompilation.
-5. **Linting Suite Built-In:** Pre-install modern Python and Shell linters (`ruff`, `mypy`, `shellcheck`, `prettier`) so the container can test itself autonomously.
-6. **Performance Optimizations:** Ensure `zram` and `swap` setups are configured appropriately for heavy C++ builds within the container constraints.
+2. **Multi-Stage Builds & Modularity:** Use multi-stage builds to keep the final image lean. Avoid junks. Ensure the image is built in a way that maximizes Docker layer caching.
+3. **Baked-in NDK Patches:** Apply NDK patches directly within the `Dockerfile` during the `docker build` phase. Baking patches into the image layer is drastically faster than applying them at runtime during CI initialization, and allows Docker to perfectly cache the patched toolchain.
+4. **Non-Root User:** Run all builds under a non-root `builder` user (with passwordless sudo for specific setup tasks) to avoid host permission conflicts.
+5. **Caching Integration:** Built-in `ccache` integration configured globally to dramatically speed up C/C++ recompilation.
+6. **Linting Suite Built-In:** Pre-install modern Python and Shell linters (`ruff`, `mypy`, `shellcheck`, `prettier`) so the container can test itself autonomously.
+7. **Debugging Tools:** Include lightweight commands/tools to check layer sizes and disk usage for debugging purposes, allowing us to easily identify and remove bloat.
+8. **Performance Optimizations:** Ensure `zram` and `swap` setups are configured appropriately for heavy C++ builds within the container constraints.
 
 ---
 
@@ -65,28 +73,33 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
 2. **Dual-Mode Build Workflow (`build.yml`):**
    - **PR Mode:** Compiles packages purely as a test. Restores caches to speed up builds but strictly DOES NOT save them, preventing cache pollution.
    - **Release Mode:** Runs on `main` branch pushes. Compiles, saves caches globally, and pushes artifacts to GitHub Releases.
-3. **Publish & Signing (`publish.yml`):**
+   - **Manual Dispatch (Test Mode):** Add an input for manual workflow dispatch (e.g., `dry_run` or `test_only`). When enabled, the workflow will run linters, build packages, and run tests, but will **skip** publishing the artifacts to the repository.
+3. **Optimized Build Order:** Implement a custom build order algorithm (in Python) to handle building packages with complex dependencies efficiently, maximizing resource usage and reducing overall workflow runtime.
+4. **Publish & Signing (`publish.yml`):**
    - Retain the metadata generation and secure GPG signing logic from the `backup` directory's `metadata.py`.
-4. **Package Updates (`package_updates.yml`):**
+5. **Package Updates (`package_updates.yml`):**
    - Auto-update logic must be disabled by default and explicitly enabled per package via the new YAML definitions. Updates trigger auto-PRs via `gh pr create`.
-5. **Host Space Optimization (`free-space.sh`):**
+6. **Host Space Optimization (`free-space.sh`):**
    - Integrate hyper-fast `rm -rf` logic for massive unused toolchains on the GitHub Host VM before build steps to free up disk space.
-6. **Parallelization Enforcement:** Globally standardize `MAKEFLAGS="-j4"` / `ninja -j4` across the build system to maximize the 4-core runners.
-7. **Security Analysis (`codeql.yml`):** Integrate CodeQL for static analysis.
+7. **Parallelization Enforcement:** Globally standardize `MAKEFLAGS="-j4"` / `ninja -j4` across the build system to maximize the 4-core runners.
+8. **Security Analysis (`codeql.yml`):** Integrate CodeQL for static analysis.
 
 ---
 
-## 5. Advanced APT Feature Support
+## 5. Dependency Management & Advanced APT Features
 
-RepoExe will leverage the full capabilities of Debian's APT package manager to ensure fast, intelligent dependency resolution.
+RepoExe will leverage the full capabilities of Debian's APT package manager to ensure fast, intelligent dependency resolution, while securely managing cross-repository dependencies.
 
 1. **Strict Dependency Fields:**
-   - **Depends:** Absolutely required dependencies for the package to function.
-   - **Recommends:** Packages that would be found together with this one in all but unusual installations (installed by default but can be skipped).
+   - **Depends:** Absolutely required dependencies.
+   - **Recommends:** Installed by default but can be opted-out.
    - **Suggests:** Optional enhancements.
+   - **Provides & OR Dependencies:** Utilize logical OR dependencies to prevent bloat. For example, if a package requires Java 17+, it should declare `Depends: openjdk-17 | java-runtime-headless`. If a user already has Java 21 installed, APT will correctly satisfy the dependency without pulling down Java 17 unnecessarily.
    - **Breaks / Replaces:** Vital for seamless upgrades when we split legacy monolithic packages into granular sub-packages.
-2. **Validation Enforcement:**
-   - The new Python build orchestrator MUST validate these fields in the `package.yaml` before building the `.deb` to ensure strict compliance with Debian standards.
+2. **Hybrid Dependency Resolution Strategy:**
+   - **Local Resolution First:** The build system must prioritize downloading compiled `.deb` dependencies directly from the active RepoExe repository if they are built and up to date.
+   - **Upstream Fallback:** For dependencies that are out of scope or not yet built in RepoExe, the build system MUST cleanly fallback and download them directly from the official Termux upstream repository via standard APT sources configured inside the Docker container.
+   - **No Fragile `curl` Scrapes:** Unlike Termux, which scrapes its own GitHub repo via `curl` to find toolchain versions (e.g., host Python), RepoExe will strictly define external toolchain versions in its own configuration files (e.g., `toolchains.yaml`) to prevent breaking if upstream Termux pushes an unexpected change.
 
 ---
 
