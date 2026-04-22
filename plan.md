@@ -1,3 +1,7 @@
+### **Validation & Future Handover:** Before beginning Phase 1, the next AI agent session MUST perform a comprehensive audit of this `plan.md` blueprint. The agent must:
+   - Check the blueprint for any AI hallucinations or logical inconsistencies (e.g., conflicting dependency resolution strategies).
+   - Review any unexplored files in the `termux-packages` or `backup` directories to discover if any other obscure features or improvements should be integrated into this plan.
+   - Propose any final DevOps modernization strategies before committing to the implementation phase.
 # Refactoring Plan for RepoExe
 
 ## 1. Project Context & Goals
@@ -223,7 +227,3 @@ RepoExe will leverage the full capabilities of Debian's APT package manager to e
    - **Phase 2 (Orchestrator):** Write the core Python orchestrator (e.g., `build.py`, YAML parsers) and define the `package.yml` schema.
    - **Phase 3 (Workflows):** Implement the Dynamic Matrix Sharding CI workflows (`build.yml`, `publish.yml`) that hook into the Python orchestrator.
    - **Phase 4 (Package Migration):** Migrate individual packages from bash to the new YAML schema. Group migrations logically (e.g., migrate all `libandroid-tools` components in one session).
-7. **Validation & Future Handover:** Before beginning Phase 1, the next AI agent session MUST perform a comprehensive audit of this `plan.md` blueprint. The agent must:
-   - Check the blueprint for any AI hallucinations or logical inconsistencies (e.g., conflicting dependency resolution strategies).
-   - Review any unexplored files in the `termux-packages` or `backup` directories to discover if any other obscure features or improvements should be integrated into this plan.
-   - Propose any final DevOps modernization strategies before committing to the implementation phase.
