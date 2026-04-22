@@ -13,12 +13,13 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 
 ## Phase 2: Python Orchestrator (`scripts/core/`)
 - [ ] Establish the `scripts/requirements.txt`.
-- [ ] Implement `parser.py`: Parse `package.yml`, validate strict APT fields, validate Licenses against allowlist. Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `revision`, `anti_build_depends`). Drop all Pacman support.
+- [ ] Implement `parser.py`: Parse `package.yml`, validate strict generic fields, validate Licenses against allowlist. Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `revision`, `anti_build_depends`, `groups`, `optdepends`).
 - [ ] Implement `dag.py`: Resolve dependencies, handle massive isolated packages (Chromium), generate matrix shards.
 - [ ] Implement `toolchains.py`: Select NDK 29 compilers based on architecture, set `CFLAGS`/`LDFLAGS`.
 - [ ] Implement native build wrappers (CMake, Meson, Autotools) in `toolchains.py`.
 - [ ] Implement `docker.py`: Wrap execution commands to run purely inside the `builder` container.
-- [ ] Implement `debian.py`: Handle `.deb` file generation, metadata signing, and `aptly` repo synchronization.
+- [ ] Implement `debian.py`: Handle `.deb` file generation, metadata signing, and APT repo synchronization.
+- [ ] Implement `pacman.py`: Handle `.pkg.tar.xz` file generation and Pacman database (`.db`) generation.
 - [ ] Implement Android Patching: Automatic `config.guess` updates, Linux hardcoded path fixing, and `termux-elf-cleaner`.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning.
 - [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases.

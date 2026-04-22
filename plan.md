@@ -36,7 +36,8 @@ RepoExe/
 │   │   ├── toolchains.py      # NDK environment and compiler setups
 │   │   ├── docker.py          # Docker execution wrappers
 │   │   ├── debian.py          # dpkg/deb file generation logic
-│   │   └── health.py          # APT Repository sync validation
+│   │   ├── pacman.py          # pacman/.pkg.tar.xz file generation logic
+│   │   └── health.py          # Repository sync validation
 │   ├── ndk-patches/           # Global NDK 29 patches baked into Docker
 │   └── requirements.txt       # Python dependencies
 ├── packages/                  # YAML package definitions
@@ -77,7 +78,10 @@ RepoExe/
      - `essential`: Boolean to prevent users from accidentally uninstalling critical packages.
      - `service_script`: Arrays to automatically inject daemon logic into `/var/service/daemon/run` for `runit`.
      - `anti_build_depends`: To explicitly uninstall conflicting dependencies from the Docker builder prior to compilation.
-   - **APT/dpkg Exclusivity:** Termux contains bloated logic for Pacman support (`groups`, `optdepends`). RepoExe strictly targets Debian APT (`.deb`). All pacman-specific metadata fields and build script hooks must be stripped and ignored.
+   - **Multi-Format Packaging (APT & Pacman):** RepoExe provides maximum flexibility to users by natively supporting both APT and Pacman package managers simultaneously.
+     - The `package.yml` will support cross-format generic fields (e.g., `groups` and `optdepends` for Pacman, mapped alongside Debian standards).
+     - The Python orchestrator will include distinct generator modules: `debian.py` (building `.deb` files) and `pacman.py` (building `.pkg.tar.xz` files).
+     - The CI/CD pipelines will generate dual repositories on GitHub Pages (an APT metadata tree and a Pacman `.db` database tree).
    - **Strict License Validation:** The `parser.py` module must enforce a strict open-source License allowlist (e.g., `Apache-2.0`, `GPL-3.0`) against the YAML definition, replacing the legacy `lint-packages.sh` script.
    - **Local Source Building:** The orchestrator must support local, bundled source code (e.g., `source: local`). For deprecated or highly modified software (like `aapt`), the source code and pre-applied patches will live directly within the repository structure rather than downloading/patching at runtime.
    - **Sample Folder:** A `sample/` folder must be created containing templates for various package types (standard packages, multi-architecture packages, packages with subpackages, and metapackages using advanced APT features like `Provides`).
@@ -168,8 +172,8 @@ RepoExe will leverage the full capabilities of Debian's APT package manager to e
    - **No Fragile `curl` Scrapes:** Unlike Termux, which scrapes its own GitHub repo via `curl` to find toolchain versions (e.g., host Python), RepoExe will strictly define external toolchain versions in its own configuration files (e.g., `toolchains.yml`) to prevent breaking if upstream Termux pushes an unexpected change.
 3. **Repository Health Validation (`health.yml`):**
    - The orchestrator must include a `health.py` module replacing legacy JS/Python scripts (`check-repository-health.js`).
-   - It will run on a scheduled cron job to validate the sync between the `packages/` YAML definitions and the live `sjnexe.github.io/RepoExe` APT repository.
-   - It must ensure versions match perfectly, alert if missing `.deb` artifacts exist, and flag "zombie packages" (e.g., orphaned `-static` subpackages or deleted packages) for automated pruning.
+   - It will run on a scheduled cron job to validate the sync between the `packages/` YAML definitions and the live `sjnexe.github.io/RepoExe` repositories (both APT and Pacman formats).
+   - It must ensure versions match perfectly, alert if missing `.deb` or `.pkg.tar.xz` artifacts exist, and flag "zombie packages" (e.g., orphaned `-static` subpackages or deleted packages) for automated pruning.
 4. **Upstream Version Checking:**
    - The orchestrator must include an `upstream_check.py` module replacing the manual bash script (`check-versions.sh`).
    - It will automate pinging upstream APIs (like GitHub releases or Repology) to detect if a newer version of a package is available, streamlining the Dependabot/package-update PRs.
