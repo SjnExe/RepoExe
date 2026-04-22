@@ -95,6 +95,7 @@ RepoExe/
      - `anti_build_depends`: To explicitly uninstall conflicting dependencies from the Docker builder prior to compilation.
      - `no_shebang_fix` / `no_shebang_fix_files`: Boolean to skip all shebang fixing, or an array of regex patterns to exclude specific files from the automated `/bin/sh` -> `$PREFIX/bin/sh` replacements.
      - `no_staticsplit`: Boolean to disable automatic splitting of static `.a` libraries into separate subpackages.
+     - `excluded_arches`: Array of architectures (e.g. `['i686', 'x86_64']`) to skip building. The `dag.py` shard resolver will parse this to prune jobs dynamically from the CI matrix.
      - `build_in_src`: Boolean to force CMake/Meson/Autotools to execute inside the downloaded source tree instead of an isolated build directory (required for complex packages).
      - `host_build`: Boolean to trigger a native Linux compilation phase *before* cross-compiling the Android target (required for code generators in packages like Python or LLVM).
      - `auto_update`: Boolean to explicitly opt-in to `upstream_check.py` automated PR updates. This strictly defaults to `false` (to protect heavily patched AOSP packages like `aapt2`), and must be explicitly set to `true` inside `package.yml` to enable cron updates.
