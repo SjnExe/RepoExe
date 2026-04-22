@@ -15,6 +15,27 @@ The ultimate aim is to rip out the convoluted, legacy Bash-based build infrastru
 - **Main Component:** `main` (Default component for stable, public packages)
 - **Dev Component:** `dev` (Enabled by installing the `repoexe-dev` package. Hosted in the `main` branch under a distinct folder structure.)
 
+**Target Repository Structure:**
+```text
+RepoExe/
+├── .github/
+│   ├── workflows/        # CI/CD: build.yml, publish.yml, dependabot.yml, lint.yml, codeql.yml
+│   └── actions/          # Reusable local actions (e.g., zram action)
+├── scripts/              # The new Python orchestrator
+│   ├── build.py          # Entrypoint for building
+│   ├── core/             # Core logic (DAG resolver, NDK toolchain selector, Docker interactions)
+│   └── requirements.txt  # Python dependencies for the orchestrator
+├── packages/             # YAML package definitions
+│   ├── libandroid-tools/ # Contains package.yaml and any custom patches
+│   └── aapt2/
+├── sample/               # Templates/Examples for different package profiles
+│   ├── standard.yaml
+│   └── metapackage.yaml
+├── Dockerfile            # The multi-stage Ubuntu 24.04 builder image
+├── LICENSE
+└── plan.md               # This architectural blueprint
+```
+
 ---
 
 ## 2. Architectural Guidelines & AI Friendliness
