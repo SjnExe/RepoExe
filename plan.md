@@ -45,6 +45,7 @@ The ultimate aim is to rip out the convoluted, legacy Bash-based build infrastru
 5. **Cross-Compilation & Build Lifecycles:**
    - **Cross-Compilation:** The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture (`aarch64`, `arm`, `x86_64`, `i686`).
    - **Explicit Massaging:** Replace Termux's massive, implicit `step_massage.sh` with explicit exclude configurations in `package.yaml` (e.g., `exclude_files: ["var/log/*"]`). Universal cleanup (like stripping debug symbols) will remain hardcoded, but usable files will never be blindly deleted.
+   - **Lifecycle Hook Migration:** Termux relies on ~34 implicit bash function overrides (e.g., `termux_step_pre_configure`, `termux_step_post_massage`). RepoExe will migrate these into structured, declarative lifecycle hooks inside the `package.yaml` (e.g., `phases: [pre_configure, configure, make, install, post_install]`). The Python orchestrator will execute the shell snippets defined in these YAML blocks in a strict, predictable order.
 
 ---
 
@@ -76,6 +77,7 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
    - The `prepare` script will group independent packages into "Shards".
    - The `build` job will use a **Dynamic Matrix** (`[architectures] × [shards]`). This allows spawning dozens of concurrent runners instantly (e.g., 4 architectures × 10 shards = 40 parallel jobs) to build packages as fast as possible.
    - **Massive Packages:** Massive packages (like Chromium or heavy Rust binaries) that require intense resources will be assigned to their **own isolated shard** to give them a dedicated 16GB runner. The `prepare` script's dependency DAG (Directed Acyclic Graph) will guarantee that all prerequisites for these massive packages are built in earlier shards before the isolated shard is executed.
+   - **State Tarball Deprecation:** The legacy Termux/TUR workaround of pausing builds, zstd-tarballing the entire `~/.termux-build` directory, and resuming the build on a new runner is officially deprecated. The isolated DAG Sharding strategy completely replaces the need for transferring gigabytes of raw build state between runners.
 3. **Dual-Mode Workflow with Strict Release Boundaries (`build.yml` & `publish.yml`):**
    - **Manual Dispatch Features:**
      - **Test Mode:** Manual dispatches can include a `test_only` flag. When enabled, the workflow builds packages but strictly skips publishing to the repository.
