@@ -71,7 +71,13 @@ RepoExe/
 2. **Structured Package Definitions (YAML over Bash):**
    - Traditional `build.sh` package definitions are being deprecated.
    - Packages must be defined using structured **YAML** files (e.g., `package.yml`). This format is vastly easier for an AI to parse, update, and validate. *(Note: All YAML files must use the `.yml` extension).*
-   - YAML files will include: metadata, version, source URL, SHA256 sums, dependencies (using Debian apt standards), and build/install scripts (which can be embedded or linked).
+   - **Advanced Metadata Schema:** The `parser.py` must support advanced Termux features natively in the YAML schema:
+     - `revision`: To trigger APT repository updates when patches change but upstream versions don't.
+     - `conffiles`: To mark configuration files so APT does not overwrite user modifications upon upgrade.
+     - `essential`: Boolean to prevent users from accidentally uninstalling critical packages.
+     - `service_script`: Arrays to automatically inject daemon logic into `/var/service/daemon/run` for `runit`.
+     - `anti_build_depends`: To explicitly uninstall conflicting dependencies from the Docker builder prior to compilation.
+   - **APT/dpkg Exclusivity:** Termux contains bloated logic for Pacman support (`groups`, `optdepends`). RepoExe strictly targets Debian APT (`.deb`). All pacman-specific metadata fields and build script hooks must be stripped and ignored.
    - **Strict License Validation:** The `parser.py` module must enforce a strict open-source License allowlist (e.g., `Apache-2.0`, `GPL-3.0`) against the YAML definition, replacing the legacy `lint-packages.sh` script.
    - **Local Source Building:** The orchestrator must support local, bundled source code (e.g., `source: local`). For deprecated or highly modified software (like `aapt`), the source code and pre-applied patches will live directly within the repository structure rather than downloading/patching at runtime.
    - **Sample Folder:** A `sample/` folder must be created containing templates for various package types (standard packages, multi-architecture packages, packages with subpackages, and metapackages using advanced APT features like `Provides`).
