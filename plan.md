@@ -19,32 +19,40 @@ The ultimate aim is to rip out the convoluted, legacy Bash-based build infrastru
 ```text
 RepoExe/
 ├── .github/
-│   ├── workflows/          # CI/CD: build.yml, publish.yml, lint.yml, codeql.yml, etc.
-│   ├── actions/            # Reusable local actions (e.g., zram action)
-│   ├── ISSUE_TEMPLATE/     # Templates for bug reports, package requests
-│   ├── dependabot.yml      # Native GitHub Dependency updates
-│   └── SECURITY.md         # Security policy
-├── scripts/                # The strictly micro-modular Python orchestrator
-│   ├── build.py            # CLI Entrypoint for building
-│   ├── core/               # Broken down, independent core logic modules
-│   │   ├── dag.py          # Dependency graph resolver
-│   │   ├── parser.py       # YAML package definition parser
-│   │   ├── toolchains.py   # NDK environment and compiler setups
-│   │   ├── docker.py       # Docker execution wrappers
-│   │   └── debian.py       # dpkg/deb file generation logic
-│   └── requirements.txt    # Python dependencies
-├── packages/               # YAML package definitions
-│   ├── libandroid-tools/   # Contains package.yaml and any custom patches
+│   ├── workflows/             # CI/CD: build.yml, publish.yml, lint.yml, codeql.yml, etc.
+│   ├── actions/               # Reusable local actions (e.g., zram action)
+│   ├── ISSUE_TEMPLATE/        # Templates for bug reports, package requests
+│   ├── pull_request_template.md # Clean, minimal PR template
+│   ├── dependabot.yml         # Native GitHub Dependency updates
+│   ├── stale.yml              # Auto-close stale issues
+│   ├── FUNDING.yml            # Sponsorship links
+│   ├── CONTRIBUTING.md        # Contribution guidelines
+│   └── SECURITY.md            # Security policy
+├── scripts/                   # The strictly micro-modular Python orchestrator
+│   ├── build.py               # CLI Entrypoint for building
+│   ├── core/                  # Broken down, independent core logic modules
+│   │   ├── dag.py             # Dependency graph resolver
+│   │   ├── parser.py          # YAML package definition parser
+│   │   ├── toolchains.py      # NDK environment and compiler setups
+│   │   ├── docker.py          # Docker execution wrappers
+│   │   └── debian.py          # dpkg/deb file generation logic
+│   ├── ndk-patches/           # Global NDK 29 patches baked into Docker
+│   └── requirements.txt       # Python dependencies
+├── packages/                  # YAML package definitions
+│   ├── libandroid-tools/      # Contains package.yml and any custom patches
 │   └── aapt2/
-├── sample/                 # Templates/Examples for different package profiles
-│   ├── standard.yaml
-│   ├── metapackage.yaml
-│   └── multi-architecture.yaml
-├── Dockerfile              # The multi-stage Ubuntu 24.04 builder image
-├── AGENTS.md               # Directives for AI maintainers
-├── README.md               # Project documentation
+├── sample/                    # Templates/Examples for different package profiles
+│   ├── standard.yml
+│   ├── metapackage.yml
+│   └── multi-architecture.yml
+├── site/                      # GitHub Pages hosting
+│   └── install                # curl installation script (https://sjnexe.github.io/RepoExe/install)
+├── Dockerfile                 # The multi-stage Ubuntu 24.04 builder image
+├── AGENTS.md                  # Directives for AI maintainers
+├── README.md                  # Project documentation
 ├── LICENSE
-└── plan.md                 # This architectural blueprint
+├── plan.md                    # This architectural blueprint
+└── .gitignore, .dockerignore, .editorconfig, .gitattributes, .prettierrc, .prettierignore
 ```
 
 ---
@@ -61,24 +69,30 @@ RepoExe/
 
 2. **Structured Package Definitions (YAML over Bash):**
    - Traditional `build.sh` package definitions are being deprecated.
-   - Packages must be defined using structured **YAML** files (e.g., `package.yaml`). This format is vastly easier for an AI to parse, update, and validate.
+   - Packages must be defined using structured **YAML** files (e.g., `package.yml`). This format is vastly easier for an AI to parse, update, and validate. *(Note: All YAML files must use the `.yml` extension).*
    - YAML files will include: metadata, version, source URL, SHA256 sums, dependencies (using Debian apt standards), and build/install scripts (which can be embedded or linked).
    - **Sample Folder:** A `sample/` folder must be created containing templates for various package types (standard packages, multi-architecture packages, packages with subpackages, and metapackages using advanced APT features like `Provides`).
 
-3. **Variable Standardization & Branding Removal:**
+3. **Strict Linting & Formatting Stack (AI-Optimized):**
+   - **Python:** Use **Ruff** exclusively for both linting and formatting the Python orchestrator. It is extremely fast and replaces multiple legacy tools (flake8, black, isort). Use `mypy` for strict type hinting to catch AI hallucinations early.
+   - **YAML, JSON, Markdown:** Use **Prettier** as the standard formatter. The `.prettierrc` must be configured strictly (e.g., trailing commas, consistent quoting) to minimize noisy diffs, ensuring the AI only sees meaningful logic changes.
+   - **GitHub Actions:** Use `actionlint` in the CI to validate `.github/workflows/*.yml` syntax before execution.
+   - **Shell Snippets:** Use `shellcheck` for any inline bash scripts embedded inside the `package.yml` files.
+
+4. **Variable Standardization & Branding Removal:**
    - **Generic Variables:** Strip `TERMUX_` branding from variables wherever possible to reduce bloat (e.g., `TERMUX_APP__PACKAGE_NAME` -> `APP_PACKAGE_NAME`, `TERMUX_PKG_*` -> `PKG_*`).
    - **Internal vs. External Paths:** In CI/CD workflows and local build scripts, standard Linux paths should be used. However, **inside the compiled `.deb` package**, standard Termux paths (e.g., `/data/data/com.termux/files/usr`) MUST be preserved perfectly so the package functions flawlessly when installed on the user's device alongside standard Termux apps.
    - Do not blindly replace "termux" with "RepoExe" in text. Use "RepoExe" (or "repoexe", "REPOEXE") for repo naming, but retain "termux" where contextually necessary for device compatibility.
 
-4. **Modularity, Profiles & Subpackages:**
+5. **Modularity, Profiles & Subpackages:**
    - **Granular Dependency Splitting:** Bundled packages (like `android-tools`) must be split into specific, independent sub-packages (e.g., `libbase`, `libcutils`, `libutils`, `libziparchive`). These will be grouped under a single source directory for maintenance but output granular `.deb` files.
-   - **Explicit Subpackages:** Replace Termux's regex-based automatic subpackage generation (e.g., automatically generating `-dev` or `-static` packages via bash scripts) with **explicit configuration**. The `package.yaml` must explicitly declare subpackages and the file patterns they include (e.g., `subpackages: dev: includes: ["include/*", "lib/*.so"]`). Subpackages like `-dev` are shipped in the `main` component.
+   - **Explicit Subpackages:** Replace Termux's regex-based automatic subpackage generation (e.g., automatically generating `-dev` or `-static` packages via bash scripts) with **explicit configuration**. The `package.yml` must explicitly declare subpackages and the file patterns they include (e.g., `subpackages: dev: includes: ["include/*", "lib/*.so"]`). Subpackages like `-dev` are shipped in the `main` component.
    - **Package Profiles (Minimal/Headless vs. Full):** Instead of blindly deleting documentation (`man` pages, `info`) like Termux does, RepoExe will split these into distinct `-doc` subpackages. This ensures RepoExe is fully featured while allowing users to execute "headless" or minimal installations (only installing the CLI binary without the doc bloat).
 
-5. **Cross-Compilation & Build Lifecycles:**
+6. **Cross-Compilation & Build Lifecycles:**
    - **Cross-Compilation:** The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture (`aarch64`, `arm`, `x86_64`, `i686`).
-   - **Explicit Massaging:** Replace Termux's massive, implicit `step_massage.sh` with explicit exclude configurations in `package.yaml` (e.g., `exclude_files: ["var/log/*"]`). Universal cleanup (like stripping debug symbols) will remain hardcoded, but usable files will never be blindly deleted.
-   - **Lifecycle Hook Migration:** Termux relies on ~34 implicit bash function overrides (e.g., `termux_step_pre_configure`, `termux_step_post_massage`). RepoExe will migrate these into structured, declarative lifecycle hooks inside the `package.yaml` (e.g., `phases: [pre_configure, configure, make, install, post_install]`). The Python orchestrator will execute the shell snippets defined in these YAML blocks in a strict, predictable order.
+   - **Explicit Massaging:** Replace Termux's massive, implicit `step_massage.sh` with explicit exclude configurations in `package.yml` (e.g., `exclude_files: ["var/log/*"]`). Universal cleanup (like stripping debug symbols) will remain hardcoded, but usable files will never be blindly deleted.
+   - **Lifecycle Hook Migration:** Termux relies on ~34 implicit bash function overrides (e.g., `termux_step_pre_configure`, `termux_step_post_massage`). RepoExe will migrate these into structured, declarative lifecycle hooks inside the `package.yml` (e.g., `phases: [pre_configure, configure, make, install, post_install]`). The Python orchestrator will execute the shell snippets defined in these YAML blocks in a strict, predictable order.
 
 ---
 
@@ -139,7 +153,7 @@ RepoExe will leverage the full capabilities of Debian's APT package manager to e
 2. **Hybrid Dependency Resolution Strategy:**
    - **Local Resolution First:** The build system must prioritize downloading compiled `.deb` dependencies directly from the active RepoExe repository if they are built and up to date.
    - **Upstream Fallback:** For dependencies that are out of scope or not yet built in RepoExe, the build system MUST cleanly fallback and download them directly from the official Termux upstream repository via standard APT sources configured inside the Docker container.
-   - **No Fragile `curl` Scrapes:** Unlike Termux, which scrapes its own GitHub repo via `curl` to find toolchain versions (e.g., host Python), RepoExe will strictly define external toolchain versions in its own configuration files (e.g., `toolchains.yaml`) to prevent breaking if upstream Termux pushes an unexpected change.
+   - **No Fragile `curl` Scrapes:** Unlike Termux, which scrapes its own GitHub repo via `curl` to find toolchain versions (e.g., host Python), RepoExe will strictly define external toolchain versions in its own configuration files (e.g., `toolchains.yml`) to prevent breaking if upstream Termux pushes an unexpected change.
 
 ---
 
@@ -151,6 +165,6 @@ RepoExe will leverage the full capabilities of Debian's APT package manager to e
 4. **Scope Limiting:** We will only maintain standard packages. Root packages (`root-packages`) and X11 packages (`x11-packages`) are entirely removed and out of scope.
 5. **Task Batching & Independent Sessions:** To prevent AI context overload, tasks MUST be batched logically. Independent sections should not affect each other.
    - **Phase 1 (Environment):** Implement the `Dockerfile` and foundational GitHub Actions (e.g. `dependabot.yml`, `codeql.yml`, `lint.yml`).
-   - **Phase 2 (Orchestrator):** Write the core Python orchestrator (e.g., `build.py`, YAML parsers) and define the `package.yaml` schema.
+   - **Phase 2 (Orchestrator):** Write the core Python orchestrator (e.g., `build.py`, YAML parsers) and define the `package.yml` schema.
    - **Phase 3 (Workflows):** Implement the Dynamic Matrix Sharding CI workflows (`build.yml`, `publish.yml`) that hook into the Python orchestrator.
    - **Phase 4 (Package Migration):** Migrate individual packages from bash to the new YAML schema. Group migrations logically (e.g., migrate all `libandroid-tools` components in one session).
