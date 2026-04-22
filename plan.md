@@ -28,6 +28,9 @@ RepoExe/
 │   ├── FUNDING.yml            # Sponsorship links
 │   ├── CONTRIBUTING.md        # Contribution guidelines
 │   └── SECURITY.md            # Security policy
+├── docker/                    # Docker security profiles and configurations
+│   ├── profile.json           # Custom Seccomp profile (enables required syscalls)
+│   └── profile-relaxed.apparmor # Relaxed AppArmor profile
 ├── scripts/                   # The strictly micro-modular Python orchestrator
 │   ├── build.py               # CLI Entrypoint for building
 │   ├── core/                  # Broken down, independent core logic modules
@@ -126,10 +129,11 @@ Docker is the **only officially supported environment** for local building to pr
 2. **Multi-Stage Builds & Modularity:** Use multi-stage builds to keep the final image lean. Avoid junks. Ensure the image is built in a way that maximizes Docker layer caching.
 3. **Baked-in NDK Patches & Host Tools:** Apply NDK patches directly within the `Dockerfile` during the `docker build` phase. Baking patches into the image layer is drastically faster than applying them at runtime. Furthermore, the Dockerfile must natively build and include essential Termux host tools (like `termux-elf-cleaner`) within the image.
 4. **Non-Root User:** Run all builds under a non-root `builder` user (with passwordless sudo for specific setup tasks) to avoid host permission conflicts.
-5. **Caching Integration:** Replace legacy `ccache` with Mozilla's **`sccache`**. Configure it globally inside the container. `sccache` natively integrates with the GitHub Actions Cache API, preventing the need to manually tar and transfer gigabytes of local cache directories between workflow jobs.
-6. **Linting Suite Built-In:** Pre-install modern Python and Shell linters (`ruff`, `mypy`, `shellcheck`, `prettier`) so the container can test itself autonomously.
-7. **Debugging Tools:** Include lightweight commands/tools to check layer sizes and disk usage for debugging purposes, allowing us to easily identify and remove bloat.
-8. **Performance Optimizations:** Ensure `zram` and `swap` setups are configured appropriately for heavy C++ builds within the container constraints.
+5. **Security Profiles (Seccomp & AppArmor):** The orchestrator (`docker.py`) must launch the container using the custom `docker/profile.json` (Seccomp) and `profile-relaxed.apparmor` profiles. These are critical to allow system calls (like `personality`, `mount`, `umount2`) required by complex compilers (e.g., Rust, QEMU) which would otherwise crash under default Docker constraints.
+6. **Caching Integration:** Replace legacy `ccache` with Mozilla's **`sccache`**. Configure it globally inside the container. `sccache` natively integrates with the GitHub Actions Cache API, preventing the need to manually tar and transfer gigabytes of local cache directories between workflow jobs.
+7. **Linting Suite Built-In:** Pre-install modern Python and Shell linters (`ruff`, `mypy`, `shellcheck`, `prettier`) so the container can test itself autonomously.
+8. **Debugging Tools:** Include lightweight commands/tools to check layer sizes and disk usage for debugging purposes, allowing us to easily identify and remove bloat.
+9. **Performance Optimizations:** Ensure `zram` and `swap` setups are configured appropriately for heavy C++ builds within the container constraints.
 
 ---
 
