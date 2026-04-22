@@ -19,21 +19,32 @@ The ultimate aim is to rip out the convoluted, legacy Bash-based build infrastru
 ```text
 RepoExe/
 ├── .github/
-│   ├── workflows/        # CI/CD: build.yml, publish.yml, dependabot.yml, lint.yml, codeql.yml
-│   └── actions/          # Reusable local actions (e.g., zram action)
-├── scripts/              # The new Python orchestrator
-│   ├── build.py          # Entrypoint for building
-│   ├── core/             # Core logic (DAG resolver, NDK toolchain selector, Docker interactions)
-│   └── requirements.txt  # Python dependencies for the orchestrator
-├── packages/             # YAML package definitions
-│   ├── libandroid-tools/ # Contains package.yaml and any custom patches
+│   ├── workflows/          # CI/CD: build.yml, publish.yml, lint.yml, codeql.yml, etc.
+│   ├── actions/            # Reusable local actions (e.g., zram action)
+│   ├── ISSUE_TEMPLATE/     # Templates for bug reports, package requests
+│   ├── dependabot.yml      # Native GitHub Dependency updates
+│   └── SECURITY.md         # Security policy
+├── scripts/                # The strictly micro-modular Python orchestrator
+│   ├── build.py            # CLI Entrypoint for building
+│   ├── core/               # Broken down, independent core logic modules
+│   │   ├── dag.py          # Dependency graph resolver
+│   │   ├── parser.py       # YAML package definition parser
+│   │   ├── toolchains.py   # NDK environment and compiler setups
+│   │   ├── docker.py       # Docker execution wrappers
+│   │   └── debian.py       # dpkg/deb file generation logic
+│   └── requirements.txt    # Python dependencies
+├── packages/               # YAML package definitions
+│   ├── libandroid-tools/   # Contains package.yaml and any custom patches
 │   └── aapt2/
-├── sample/               # Templates/Examples for different package profiles
+├── sample/                 # Templates/Examples for different package profiles
 │   ├── standard.yaml
-│   └── metapackage.yaml
-├── Dockerfile            # The multi-stage Ubuntu 24.04 builder image
+│   ├── metapackage.yaml
+│   └── multi-architecture.yaml
+├── Dockerfile              # The multi-stage Ubuntu 24.04 builder image
+├── AGENTS.md               # Directives for AI maintainers
+├── README.md               # Project documentation
 ├── LICENSE
-└── plan.md               # This architectural blueprint
+└── plan.md                 # This architectural blueprint
 ```
 
 ---
@@ -42,9 +53,10 @@ RepoExe/
 
 **Our repository is being built strictly for AI agents (Jules) to maintain.**
 
-1. **Language Migration (Bash to Python):**
-   - The core build logic (currently housed in hundreds of Bash scripts under `scripts/build/`) must be entirely rewritten into a modular **Python-based build system**.
-   - Python enables superior linting (Ruff/Flake8), type hinting (MyPy), centralized error handling, and logical flow control that AI can easily parse and modify.
+1. **Language Migration (Bash to Micro-Modular Python):**
+   - The core build logic (currently housed in hundreds of Bash scripts under `scripts/build/`) must be entirely rewritten into a **strictly micro-modular** Python build system.
+   - **No Massive Monoliths:** There must be NO single massive script. The orchestrator must be split into logical, focused modules (e.g. `parser.py`, `dag.py`, `debian.py`) to prevent context window overload and maintainability issues for the AI.
+   - Python enables superior linting (Ruff/Flake8), type hinting (MyPy), centralized error handling, and logical flow control.
    - Shell commands required for compilation (e.g., `make`, `configure`, `patch`) will be executed safely via Python's `subprocess` or a wrapper library.
 
 2. **Structured Package Definitions (YAML over Bash):**
