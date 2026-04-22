@@ -71,6 +71,7 @@ RepoExe/
    - Traditional `build.sh` package definitions are being deprecated.
    - Packages must be defined using structured **YAML** files (e.g., `package.yml`). This format is vastly easier for an AI to parse, update, and validate. *(Note: All YAML files must use the `.yml` extension).*
    - YAML files will include: metadata, version, source URL, SHA256 sums, dependencies (using Debian apt standards), and build/install scripts (which can be embedded or linked).
+   - **Local Source Building:** The orchestrator must support local, bundled source code (e.g., `source: local`). For deprecated or highly modified software (like `aapt`), the source code and pre-applied patches will live directly within the repository structure rather than downloading/patching at runtime.
    - **Sample Folder:** A `sample/` folder must be created containing templates for various package types (standard packages, multi-architecture packages, packages with subpackages, and metapackages using advanced APT features like `Provides`).
 
 3. **Strict Linting & Formatting Stack (AI-Optimized):**
@@ -91,6 +92,8 @@ RepoExe/
 
 6. **Cross-Compilation & Build Lifecycles:**
    - **Cross-Compilation:** The Python orchestrator will dynamically select the correct NDK toolchain based on the target architecture (`aarch64`, `arm`, `x86_64`, `i686`).
+   - **Native Build System Integrations:** The Python orchestrator must include native wrappers for standard build systems (CMake, Meson, Autotools, Ninja). This allows `package.yml` files to simply declare `build_system: cmake` without forcing developers (or AI) to manually inject massive NDK cross-compilation shell flags (`-DCMAKE_TOOLCHAIN_FILE`, etc.) into every package.
+   - **Full Android Compatibility Patching:** The orchestrator must fully implement all standard Termux mechanisms required to make upstream binaries run on Android devices. This includes dynamically updating `config.guess` and `config.sub` scripts inside package source trees, resolving hardcoded Linux paths (`/bin/sh`, `/usr/bin/env`, `/etc`), and executing `termux-elf-cleaner` on all compiled `.so` and executable files to strip unsupported ELF tags.
    - **Explicit Massaging:** Replace Termux's massive, implicit `step_massage.sh` with explicit exclude configurations in `package.yml` (e.g., `exclude_files: ["var/log/*"]`). Universal cleanup (like stripping debug symbols) will remain hardcoded, but usable files will never be blindly deleted.
    - **Lifecycle Hook Migration:** Termux relies on ~34 implicit bash function overrides (e.g., `termux_step_pre_configure`, `termux_step_post_massage`). RepoExe will migrate these into structured, declarative lifecycle hooks inside the `package.yml` (e.g., `phases: [pre_configure, configure, make, install, post_install]`). The Python orchestrator will execute the shell snippets defined in these YAML blocks in a strict, predictable order.
 
