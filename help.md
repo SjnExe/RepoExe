@@ -39,12 +39,15 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement `free-space.sh` fast-deletion logic at the start of workflows.
 
 ## Phase 4: Package Migration
-- [ ] Create the `sample/` folder with templates (`standard.yml`, `metapackage.yml`, `multi-architecture.yml`).
 - [ ] Migrate `libandroid-tools` (split into granular sub-packages).
 - [ ] Migrate `aapt` (Implement "Local Source Building").
 - [ ] Migrate `aapt2`, `aidl`, and `zipalign`.
 - [ ] Ensure Smart Subpackaging correctly intercepts and isolates `man` pages and `locale` data without requiring manual YAML definitions.
 - [ ] Ensure test phases are converted to declarative YAML testing hooks.
+
+## Phase 5: Documentation & Final Handover
+- [ ] Create the `sample/` folder with templates (`standard.yml`, `metapackage.yml`, `multi-architecture.yml`).
+- [ ] Write a comprehensive `sample/SCHEMA.md` documenting every YAML field, flag, and lifecycle hook to prevent user confusion.
 
 ---
 
