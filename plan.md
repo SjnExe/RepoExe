@@ -89,6 +89,8 @@ RepoExe/
      - `host_build`: Boolean to trigger a native Linux compilation phase *before* cross-compiling the Android target (required for code generators in packages like Python or LLVM).
      - `auto_update`: Boolean to explicitly opt-in to `upstream_check.py` automated PR updates. This strictly defaults to `false` (to protect heavily patched AOSP packages like `aapt2`), and must be explicitly set to `true` inside `package.yml` to enable cron updates.
      - `platform_independent`: Boolean indicating the package contains no compiled binaries (e.g., pure Python scripts or fonts). This sets the `.deb` Architecture to `all` and completely bypasses multi-architecture matrix redundancies.
+     - `inherits`: String/List to support YAML "Mixins". This replaces `mixins/build-python.sh`, allowing a package to inherit default dependencies and lifecycle hooks from a master template (e.g., `inherits: python-module`) to drastically reduce boilerplate.
+     - `cmake_args` / `meson_args` / `make_args`: Arrays to allow package-specific compiler configurations to be safely injected *through* the orchestrator's generic NDK wrappers.
    - **Multi-Format Packaging (APT & Pacman):** RepoExe provides maximum flexibility to users by natively supporting both APT and Pacman package managers simultaneously.
      - The `package.yml` will support cross-format generic fields (e.g., `groups` and `optdepends` for Pacman, mapped alongside Debian standards).
      - The Python orchestrator will include distinct generator modules: `debian.py` (building `.deb` files) and `pacman.py` (building `.pkg.tar.xz` files, alongside `.db` and `.files` repository databases).
