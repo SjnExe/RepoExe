@@ -72,6 +72,7 @@ RepoExe/
    - Traditional `build.sh` package definitions are being deprecated.
    - Packages must be defined using structured **YAML** files (e.g., `package.yml`). This format is vastly easier for an AI to parse, update, and validate. *(Note: All YAML files must use the `.yml` extension).*
    - YAML files will include: metadata, version, source URL, SHA256 sums, dependencies (using Debian apt standards), and build/install scripts (which can be embedded or linked).
+   - **Strict License Validation:** The `parser.py` module must enforce a strict open-source License allowlist (e.g., `Apache-2.0`, `GPL-3.0`) against the YAML definition, replacing the legacy `lint-packages.sh` script.
    - **Local Source Building:** The orchestrator must support local, bundled source code (e.g., `source: local`). For deprecated or highly modified software (like `aapt`), the source code and pre-applied patches will live directly within the repository structure rather than downloading/patching at runtime.
    - **Sample Folder:** A `sample/` folder must be created containing templates for various package types (standard packages, multi-architecture packages, packages with subpackages, and metapackages using advanced APT features like `Provides`).
 
@@ -96,7 +97,8 @@ RepoExe/
    - **Native Build System Integrations:** The Python orchestrator must include native wrappers for standard build systems (CMake, Meson, Autotools, Ninja). This allows `package.yml` files to simply declare `build_system: cmake` without forcing developers (or AI) to manually inject massive NDK cross-compilation shell flags (`-DCMAKE_TOOLCHAIN_FILE`, etc.) into every package.
    - **Full Android Compatibility Patching:** The orchestrator must fully implement all standard Termux mechanisms required to make upstream binaries run on Android devices. This includes dynamically updating `config.guess` and `config.sub` scripts inside package source trees, resolving hardcoded Linux paths (`/bin/sh`, `/usr/bin/env`, `/etc`), and executing `termux-elf-cleaner` on all compiled `.so` and executable files to strip unsupported ELF tags.
    - **Explicit Massaging:** Replace Termux's massive, implicit `step_massage.sh` with explicit exclude configurations in `package.yml` (e.g., `exclude_files: ["var/log/*"]`). Universal cleanup (like stripping debug symbols) will remain hardcoded, but usable files will never be blindly deleted.
-   - **Lifecycle Hook Migration:** Termux relies on ~34 implicit bash function overrides (e.g., `termux_step_pre_configure`, `termux_step_post_massage`). RepoExe will migrate these into structured, declarative lifecycle hooks inside the `package.yml` (e.g., `phases: [pre_configure, configure, make, install, post_install]`). The Python orchestrator will execute the shell snippets defined in these YAML blocks in a strict, predictable order.
+   - **Lifecycle Hook Migration:** Termux relies on ~34 implicit bash function overrides (e.g., `termux_step_pre_configure`, `termux_step_post_massage`). RepoExe will migrate these into structured, declarative lifecycle hooks inside the `package.yml` (e.g., `phases: [pre_configure, configure, make, install, post_install, test]`). The Python orchestrator will execute the shell snippets defined in these YAML blocks in a strict, predictable order.
+   - **Declarative Testing Hooks:** The old `test-runner.sh` script is deprecated. Packages can optionally define a `test` phase inside the YAML lifecycle hooks to run integration assertions post-compilation.
 
 ---
 
@@ -162,6 +164,9 @@ RepoExe will leverage the full capabilities of Debian's APT package manager to e
    - The orchestrator must include a `health.py` module replacing legacy JS/Python scripts (`check-repository-health.js`).
    - It will run on a scheduled cron job to validate the sync between the `packages/` YAML definitions and the live `sjnexe.github.io/RepoExe` APT repository.
    - It must ensure versions match perfectly, alert if missing `.deb` artifacts exist, and flag "zombie packages" (e.g., orphaned `-static` subpackages or deleted packages) for automated pruning.
+4. **Upstream Version Checking:**
+   - The orchestrator must include an `upstream_check.py` module replacing the manual bash script (`check-versions.sh`).
+   - It will automate pinging upstream APIs (like GitHub releases or Repology) to detect if a newer version of a package is available, streamlining the Dependabot/package-update PRs.
 
 ---
 
