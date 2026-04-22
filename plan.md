@@ -19,7 +19,7 @@ The ultimate aim is to rip out the convoluted, legacy Bash-based build infrastru
 ```text
 RepoExe/
 ├── .github/
-│   ├── workflows/             # CI/CD: build.yml, publish.yml, lint.yml, codeql.yml, etc.
+│   ├── workflows/             # CI/CD: build.yml, publish.yml, lint.yml, health.yml, codeql.yml, etc.
 │   ├── actions/               # Reusable local actions (e.g., zram action)
 │   ├── ISSUE_TEMPLATE/        # Templates for bug reports, package requests
 │   ├── pull_request_template.md # Clean, minimal PR template
@@ -35,7 +35,8 @@ RepoExe/
 │   │   ├── parser.py          # YAML package definition parser
 │   │   ├── toolchains.py      # NDK environment and compiler setups
 │   │   ├── docker.py          # Docker execution wrappers
-│   │   └── debian.py          # dpkg/deb file generation logic
+│   │   ├── debian.py          # dpkg/deb file generation logic
+│   │   └── health.py          # APT Repository sync validation
 │   ├── ndk-patches/           # Global NDK 29 patches baked into Docker
 │   └── requirements.txt       # Python dependencies
 ├── packages/                  # YAML package definitions
@@ -157,6 +158,10 @@ RepoExe will leverage the full capabilities of Debian's APT package manager to e
    - **Local Resolution First:** The build system must prioritize downloading compiled `.deb` dependencies directly from the active RepoExe repository if they are built and up to date.
    - **Upstream Fallback:** For dependencies that are out of scope or not yet built in RepoExe, the build system MUST cleanly fallback and download them directly from the official Termux upstream repository via standard APT sources configured inside the Docker container.
    - **No Fragile `curl` Scrapes:** Unlike Termux, which scrapes its own GitHub repo via `curl` to find toolchain versions (e.g., host Python), RepoExe will strictly define external toolchain versions in its own configuration files (e.g., `toolchains.yml`) to prevent breaking if upstream Termux pushes an unexpected change.
+3. **Repository Health Validation (`health.yml`):**
+   - The orchestrator must include a `health.py` module replacing legacy JS/Python scripts (`check-repository-health.js`).
+   - It will run on a scheduled cron job to validate the sync between the `packages/` YAML definitions and the live `sjnexe.github.io/RepoExe` APT repository.
+   - It must ensure versions match perfectly, alert if missing `.deb` artifacts exist, and flag "zombie packages" (e.g., orphaned `-static` subpackages or deleted packages) for automated pruning.
 
 ---
 
