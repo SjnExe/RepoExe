@@ -18,6 +18,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement `dag.py`: Resolve dependencies, handle massive isolated packages (Chromium), generate matrix shards.
 - [ ] Implement `toolchains.py`: Select NDK 29 compilers based on architecture. Inject `PREFIX` dynamically into `CFLAGS`, `CPPFLAGS`, and `LDFLAGS`.
 - [ ] Implement native build wrappers (CMake, Meson, Autotools) in `toolchains.py`.
+- [ ] Implement specialized language environments (Rust/Cargo, Golang, Python/Crossenv) in `toolchains.py`.
 - [ ] Implement `docker.py`: Wrap execution commands to run purely inside the `builder` container, ensuring the custom Seccomp/AppArmor profiles are mounted.
 - [ ] Implement `debian.py`: Handle `.deb` file generation, metadata signing, and APT repo synchronization.
 - [ ] Implement `pacman.py`: Handle `.pkg.tar.xz` file generation and Pacman database (`.db`) generation.
