@@ -13,7 +13,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 
 ## Phase 2: Python Orchestrator (`scripts/core/`)
 - [ ] Establish the `scripts/requirements.txt` (must include `pydantic`).
-- [ ] Implement `parser.py`: Parse `package.yml` using strict Pydantic data models, validate Licenses against allowlist. Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `alternatives`, `revision`, `anti_build_depends`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `auto_update`, `platform_independent`, `inherits`, `cmake_args`, `groups`, `optdepends`). Strip all "on-device" build logic.
+- [ ] Implement `parser.py`: Parse `package.yml` using strict Pydantic data models, validate Licenses against allowlist (replacing `lint-packages.sh`). Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `alternatives`, `revision`, `anti_build_depends`, `no_shebang_fix_files`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `auto_update`, `platform_independent`, `inherits`, `cmake_args`, `groups`, `optdepends`). Strip all "on-device" build logic.
 - [ ] Implement `properties.py`: Define explicit internal `PREFIX` bounds for the device layout.
 - [ ] Implement `dag.py`: Resolve dependencies, handle massive isolated packages (Chromium), generate matrix shards, and output lightweight Dependency Graphs (JSON/Mermaid) for debugging.
 - [ ] Implement Smart Hashing Engine: Incorporate strict SHA256 "state hash" evaluation across package inputs (YAML, patches, source, downstream deps) to aggressively skip redundant builds.
@@ -26,7 +26,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement `pacman.py`: Handle `.pkg.tar.xz` file generation and Pacman database (`.db`) generation.
 - [ ] Implement `sysroot.py`: Extract downloaded dependencies into an isolated `$PREFIX` mock directory for compilation sandboxing.
 - [ ] Implement Android Patching: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, `-dbg` symbol extraction via `llvm-objcopy`, and strict Bionic Undefined Symbols validation using `readelf`.
-- [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning.
+- [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning (replacing `check-repository-health.js` and `check-built-packages.py`).
 - [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases.
 - [ ] Wire everything together in the CLI entrypoint `scripts/build.py`.
 
