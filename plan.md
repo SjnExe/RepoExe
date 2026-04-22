@@ -94,6 +94,9 @@ RepoExe/
      - The Python orchestrator will include distinct generator modules: `debian.py` (building `.deb` files) and `pacman.py` (building `.pkg.tar.xz` files, alongside `.db` and `.files` repository databases).
      - **Custom Static Metadata Generation:** To host entirely on GitHub Pages without a backend, the orchestrator must natively implement a custom Python-based APT metadata generator. It must statically build the Debian `Packages`, `Release`, and signed `InRelease` index files directly within `debian.py`, completely avoiding dependency on external bash binaries like `apt-ftparchive` or `termux-apt-repo`.
      - The CI/CD pipelines will deploy the dual repositories directly to GitHub Pages using the native Actions integration (`actions/deploy-pages`), entirely avoiding legacy `gh-pages` branch tracking.
+   - **CLI Developer Experience (DX) Tools:** The `build.py` orchestrator entrypoint must feature a robust CLI (e.g., using `argparse` or `click`) with subcommands to replace legacy Termux DX bash scripts:
+     - `revbump <pkg> [--dependencies]`: Automatically increments the `revision` integer in a package's YAML. If `--dependencies` is passed, it uses the DAG to cascade the bump to all packages that depend on the target (crucial for core library updates like `openssl`).
+     - `update-checksum <pkg>`: Automatically fetches the `source_url` and replaces the `sha256` field in the YAML definition with the new hash.
    - **Universal Install Script & Hosted UI:** The `site/install` script hosted on GitHub Pages will be a universal entrypoint. When a user runs `curl ... | bash`, the script will automatically probe the host system (checking for the presence of `pkg`, `apt`, or `pacman`). If both `pkg` and `apt` are present, `pkg` MUST be preferred as the primary wrapper. It will dynamically install the `repoexe.pub` GPG key into the correct keystores and inject the correct RepoExe repository source list for their active package manager. The existing `site/index.html` frontend UI must be preserved alongside this script.
    - **Strict License Validation:** The `parser.py` module must enforce a strict open-source License allowlist (e.g., `Apache-2.0`, `GPL-3.0`) against the YAML definition, replacing the legacy `lint-packages.sh` script.
    - **Local Source Building:** The orchestrator must support local, bundled source code (e.g., `source: local`). For deprecated or highly modified software (like `aapt`), the source code and pre-applied patches will live directly within the repository structure rather than downloading/patching at runtime.
@@ -199,7 +202,7 @@ RepoExe will leverage the full capabilities of Debian's APT package manager to e
    - It must ensure versions match perfectly, alert if missing `.deb` or `.pkg.tar.xz` artifacts exist, and flag "zombie packages" (e.g., orphaned `-static` subpackages or deleted packages) for automated pruning.
 4. **Upstream Version Checking:**
    - The orchestrator must include an `upstream_check.py` module replacing the manual bash script (`check-versions.sh`).
-   - It will automate pinging upstream APIs (like GitHub releases or Repology) to detect if a newer version of a package is available, streamlining the Dependabot/package-update PRs.
+   - It will automate pinging upstream APIs (explicitly scraping GitHub and GitLab release tags) to detect if a newer version of a package is available, streamlining the cron-based auto-update PRs.
 
 ---
 
