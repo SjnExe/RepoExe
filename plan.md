@@ -82,7 +82,8 @@ RepoExe/
 2. **Structured Package Definitions (YAML over Bash):**
    - Traditional `build.sh` package definitions are being deprecated.
    - Packages must be defined using structured **YAML** files (e.g., `package.yml`). This format is vastly easier for an AI to parse, update, and validate. *(Note: All YAML files must use the `.yml` extension).*
-   - **Pydantic Schema Validation:** The `parser.py` module MUST use **Pydantic** to define strict data models for the `package.yml`. This ensures that field types (e.g. `revision` as integer, `essential` as boolean) are strictly validated before execution, providing precise, AI-friendly error messages if a YAML file is malformed.
+   - **Pydantic Schema Validation:** The `parser.py` module MUST use **Pydantic** to define strict data models for the `package.yml`. This ensures that field types (e.g. `revision` as integer, `essential` as boolean) are strictly validated before execution, providing precise, AI-friendly error messages if a YAML file is malformed. Furthermore, Pydantic validators must enforce URL standardization (e.g. ensuring GitHub `source_url` paths use standard release archives), porting logic from the deprecated `lint-packages.sh`.
+   - **Strict Version Continuity:** `parser.py` must replicate Termux's strict version validation. When a developer modifies a `package.yml` in a PR, the parser must actively query the Git history (`git show origin/main...`) to evaluate the previous YAML state and verify that either the `version` or `revision` field was strictly incremented. If the version is not bumped, the parser must instantly fail the build.
    - **Advanced Metadata Schema:** The `parser.py` must support advanced Termux features natively in the YAML schema:
      - `libc`: Multi-libc support (allowing developers to specify `bionic` vs `glibc` environments).
      - `revision`: To trigger APT repository updates when patches change but upstream versions don't.
