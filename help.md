@@ -15,7 +15,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Establish the `scripts/requirements.txt` (must include `pydantic`).
 - [ ] Implement `parser.py`: Parse `package.yml` using strict Pydantic data models, validate Licenses against allowlist (replacing `lint-packages.sh`). Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `alternatives`, `revision`, `anti_build_depends`, `no_shebang_fix_files`, `no_staticsplit`, `excluded_arches`, `build_in_src`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `auto_update`, `platform_independent`, `inherits`, `cmake_args`, `groups`, `optdepends`). Strip all "on-device" build logic.
 - [ ] Implement `properties.py`: Define explicit internal `PREFIX` bounds for the device layout.
-- [ ] Implement `dag.py`: Resolve dependencies, handle massive isolated packages (Chromium), generate matrix shards, and output lightweight Dependency Graphs (JSON/Mermaid) for debugging.
+- [ ] Implement `dag.py`: Resolve dependencies, handle massive isolated packages (Chromium), generate matrix shards, and output lightweight Dependency Graphs (JSON/Mermaid) for debugging. (Reference `backup/scripts/buildorder.py` for legacy logic, but heavily adapt for hybrid upstream/local resolution).
 - [ ] Implement Smart Hashing Engine: Incorporate strict SHA256 "state hash" evaluation across package inputs (YAML, patches, source, downstream deps) to aggressively skip redundant builds.
 - [ ] Implement Auto-Revision Management: Enable the orchestrator to automatically calculate revision bumps down the DAG when upstream dependencies trigger rebuilds.
 - [ ] Implement `toolchains.py`: Select NDK 29 compilers based on architecture. Inject `PREFIX` dynamically into `CFLAGS`, `CPPFLAGS`, and `LDFLAGS`.
@@ -26,9 +26,10 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement `pacman.py`: Handle `.pkg.tar.zst` file generation using `zstd` and Pacman database (`.db`) generation. Implement the same Smart Subpackaging defaults for documentation/locales as Debian.
 - [ ] Implement `sysroot.py`: Extract downloaded dependencies into an isolated `$PREFIX` mock directory for compilation sandboxing.
 - [ ] Implement Android Patching: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, `-dbg` symbol extraction via `llvm-objcopy`, and strict Bionic Undefined Symbols validation using `readelf`.
+- [ ] Implement `test.py`: Parse and execute assertions inside the Docker environment for packages defining a `test` phase.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning (replacing `check-repository-health.js` and `check-built-packages.py`).
 - [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases.
-- [ ] Wire everything together in the CLI entrypoint `scripts/build.py`.
+- [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, and `clean`).
 
 ## Phase 3: CI/CD Workflows (`.github/workflows/`)
 - [ ] Write `build.yml`: Dynamic Matrix Sharding (`architectures x shards`), PR Test Mode, and the `!{package}` exclusion syntax.
