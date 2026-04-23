@@ -29,7 +29,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement `test.py`: Parse and execute assertions inside the Docker environment for packages defining a `test` phase.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning (replacing `check-repository-health.js` and `check-built-packages.py`).
 - [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases, including fallback mechanisms for strict GitLab HTTP 403 blocks.
-- [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, and `clean`).
+- [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, `clean`, and `--dry-run` flag).
 
 ## Phase 3: CI/CD Workflows (`.github/workflows/`)
 - [ ] Write `build.yml`: Dynamic Matrix Sharding (`architectures x shards`), PR Test Mode, and the `!{package}` exclusion syntax.
