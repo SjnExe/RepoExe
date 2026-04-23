@@ -22,13 +22,13 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement native build wrappers (CMake, Meson, Autotools) in `toolchains.py`.
 - [ ] Implement specialized language environments (Rust/Cargo, Golang, Python/Crossenv, Zig, Swift) and config wrappers (llvm-config, pg_config) in `toolchains.py`.
 - [ ] Implement `docker.py`: Wrap execution commands to run purely inside the `builder` container, ensuring the custom Seccomp/AppArmor profiles are mounted.
-- [ ] Implement `debian.py`: Handle `.deb` file generation using `zstd` compression, automatically merge `sbin` into `bin`, automatically generate `-doc` and `-locale` Smart Subpackages (linked via `Recommends`), and natively implement custom Python-based static APT metadata generation (`Packages`, `Release`) for GitHub Pages to replace `aptly_api.sh` / `apt-ftparchive`.
-- [ ] Implement `pacman.py`: Handle `.pkg.tar.zst` file generation using `zstd` and Pacman database (`.db`) generation. Implement the same Smart Subpackaging defaults for documentation/locales as Debian.
+- [ ] Implement `debian.py`: Handle `.deb` file generation using `zstd` compression, automatically merge `sbin` into `bin`, dynamically apply `-glibc` suffixes based on `libc` environment, automatically generate `-doc` and `-locale` Smart Subpackages (linked via `Recommends`), and natively implement custom Python-based static APT metadata generation (`Packages`, `Release`) for GitHub Pages to replace `aptly_api.sh` / `apt-ftparchive`.
+- [ ] Implement `pacman.py`: Handle `.pkg.tar.zst` file generation using `zstd` and Pacman database (`.db`) generation. Implement the same Smart Subpackaging and dynamic `-glibc` suffixing defaults as Debian.
 - [ ] Implement `sysroot.py`: Extract downloaded dependencies into an isolated `$PREFIX` mock directory for compilation sandboxing.
 - [ ] Implement Android Patching: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, `-dbg` symbol extraction via `llvm-objcopy`, and strict Bionic Undefined Symbols validation using `readelf`.
 - [ ] Implement `test.py`: Parse and execute assertions inside the Docker environment for packages defining a `test` phase.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning (replacing `check-repository-health.js` and `check-built-packages.py`).
-- [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases.
+- [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases, including fallback mechanisms for strict GitLab HTTP 403 blocks.
 - [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, and `clean`).
 
 ## Phase 3: CI/CD Workflows (`.github/workflows/`)
