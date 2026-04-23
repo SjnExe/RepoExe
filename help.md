@@ -24,7 +24,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement `docker.py`: Wrap execution commands to run purely inside the `builder` container, ensuring the custom Seccomp/AppArmor profiles are mounted.
 - [ ] Implement `debian.py`: Handle `.deb` file generation using `zstd` compression, automatically merge `sbin` into `bin`, dynamically apply `-glibc` suffixes based on `libc` environment, automatically generate `-doc` and `-locale` Smart Subpackages (linked via `Recommends`), and natively implement custom Python-based static APT metadata generation (`Packages`, `Release`) for GitHub Pages to replace `aptly_api.sh` / `apt-ftparchive`.
 - [ ] Implement `pacman.py`: Handle `.pkg.tar.zst` file generation using `zstd` and Pacman database (`.db`) generation. Implement the same Smart Subpackaging and dynamic `-glibc` suffixing defaults as Debian.
-- [ ] Implement `sysroot.py`: Extract downloaded dependencies into an isolated `$PREFIX` mock directory for compilation sandboxing.
+- [ ] Implement `sysroot.py`: Extract downloaded dependencies into an isolated `$PREFIX` mock directory for compilation sandboxing, ensuring Termux upstream GPG keys are imported to securely verify fallback downloads.
 - [ ] Implement Android Patching: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, `-dbg` symbol extraction via `llvm-objcopy`, and strict Bionic Undefined Symbols validation using `readelf`.
 - [ ] Implement `test.py`: Parse and execute assertions inside the Docker environment for packages defining a `test` phase.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning (replacing `check-repository-health.js` and `check-built-packages.py`).
@@ -40,6 +40,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement `free-space.sh` fast-deletion logic at the start of workflows.
 
 ## Phase 4: Package Migration
+- [ ] Migrate `repoexe-keyring` and `repoexe-dev` (foundational metadata and component opt-in packages).
 - [ ] Migrate `libandroid-tools` (split into granular sub-packages).
 - [ ] Migrate `aapt` (Implement "Local Source Building").
 - [ ] Migrate `aapt2`, `aidl`, and `zipalign`.
