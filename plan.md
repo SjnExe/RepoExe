@@ -233,16 +233,14 @@ RepoExe will leverage the full capabilities of Debian's APT package manager to e
 2. **Reference Retention:** The `backup/` and `termux-packages/` directories MUST be preserved throughout the refactoring process for reference. They will only be deleted at the very end. If any legacy mechanisms need investigation, the agent can reference them directly.
 3. **Strict NDK Versioning:** Standardize all build scripts and patches strictly for **NDK 29**. All legacy NDK 23c infrastructure must be removed. If a new NDK version is released by Google, the orchestrator and `Dockerfile` must be updated to explicitly target the new version.
 4. **Scope Limiting:** We will only maintain standard packages. Root packages (`root-packages`), X11 packages (`x11-packages`), and the `disabled-packages/` directory are entirely removed and out of scope.
-5. **Reference Bloat & End-of-Life Deletion:** The following legacy scripts are retained *strictly for reference* during the refactoring process and must NOT be migrated. They will be deleted at the end of Phase 5:
+5. **Pruning Legacy Bloat:** The following legacy tools and scripts have been completely deleted as they are fully obsoleted by the new architecture and hold zero reference value for Python migration:
    - `scripts/updates/api/` & `scripts/updates/internal/`: Obsoleted by the modern Python REST APIs in `upstream_check.py`.
-   - `scripts/check-repository-health.js` & `check-built-packages.py`: Obsoleted by `health.py`.
-   - `disabled-packages/`: We will not migrate broken or deprecated packages.
-6. **Pruning Legacy Bloat:** The following tools have been completely deleted as they hold no reference value:
+   - `scripts/check-repository-health.js` & `check-built-packages.py`: Bash-centric data extraction logic obsoleted by structured Pydantic YAML parsing in `health.py`.
    - `scripts/utils/repoexe_reuse_pr_build_artifacts.sh`: The massive GraphQL hack to transfer tarballs between CI runners is obsoleted by the `dag.py` Matrix Sharding.
    - PowerShell Wrappers (`run-docker.ps1`): Obsoleted by strict Linux/GitHub Actions environment enforcement.
    - Alternative OS Bootstrappers (`setup-archlinux.sh`, `setup-offline-bundle.sh`): Obsoleted by the deterministic Ubuntu 24.04 Dockerfile.
-7. **On-Device Build Deprecation:** Termux's legacy `$TERMUX_ON_DEVICE_BUILD` variables and complex bash workarounds for compiling directly on Android devices are officially deprecated. RepoExe relies strictly on Docker and GitHub Actions. All on-device compilation logic must be stripped from the new Python orchestrator to reduce bloat.
-8. **Task Batching & Independent Sessions:** To prevent AI context overload, tasks MUST be batched logically. Independent sections should not affect each other. **Agents must use the `help.md` file to track checklist progress and write session handovers.**
+6. **On-Device Build Deprecation:** Termux's legacy `$TERMUX_ON_DEVICE_BUILD` variables and complex bash workarounds for compiling directly on Android devices are officially deprecated. RepoExe relies strictly on Docker and GitHub Actions. All on-device compilation logic must be stripped from the new Python orchestrator to reduce bloat.
+7. **Task Batching & Independent Sessions:** To prevent AI context overload, tasks MUST be batched logically. Independent sections should not affect each other. **Agents must use the `help.md` file to track checklist progress and write session handovers.**
    - **Phase 1 (Environment):** Implement the `Dockerfile` and foundational GitHub Actions (e.g. `dependabot.yml`, `codeql.yml`, `lint.yml`).
    - **Phase 2 (Orchestrator):** Write the core Python orchestrator (e.g., `build.py`, YAML parsers) and define the `package.yml` schema.
    - **Phase 3 (Workflows):** Implement the Dynamic Matrix Sharding CI workflows (`build.yml`, `publish.yml`) that hook into the Python orchestrator.
