@@ -13,18 +13,19 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 
 ## Phase 2: Python Orchestrator (`scripts/core/`)
 - [ ] Establish the `scripts/requirements.txt` (must include `pydantic`).
-- [ ] Implement `parser.py`: Parse `build.yml` using strict Pydantic data models. Replicate legacy `lint-packages.sh` checks by validating Licenses against an allowlist, standardizing `source_url` formatting, and enforcing Version Continuity via Git history lookups. Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `alternatives`, `revision`, `anti_build_depends`, `no_shebang_fix_files`, `no_staticsplit`, `excluded_arches`, `build_in_src`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `auto_update`, `platform_independent`, `inherits`, `isolated_shard`, `cmake_args`, `groups`, `optdepends`). Strip all "on-device" build logic. Validate GPG signatures of source tarballs where applicable.
+- [ ] Implement `parser.py`: Parse `build.yml` using strict Pydantic data models. Replicate legacy `lint-packages.sh` checks by validating Licenses against an allowlist, standardizing `source_url` formatting, and enforcing Version Continuity via Git history lookups. Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `alternatives`, `revision`, `anti_build_depends`, `no_shebang_fix_files`, `no_staticsplit`, `excluded_arches`, `build_in_src`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `lto`, `pgo`, `auto_update`, `platform_independent`, `inherits`, `isolated_shard`, `cmake_args`, `groups`, `optdepends`). Strip all "on-device" build logic. Validate GPG signatures of source tarballs where applicable.
 - [ ] Implement `properties.py`: Define explicit internal `PREFIX` bounds for the device layout (enforcing `/data/data/com.termux/files/usr`).
 - [ ] Implement `dag.py`: Resolve dependencies, read `isolated_shard` boolean tags, generate matrix shards, and output lightweight Dependency Graphs (JSON/Mermaid) for debugging.
 - [ ] Implement Content-Addressable Hashing Engine: Incorporate strict SHA256 "state hash" evaluation across package inputs (YAML, patches, source, downstream deps) to aggressively skip redundant builds.
 - [ ] Implement Auto-Revision Management: Enable the orchestrator to automatically calculate revision bumps down the DAG when upstream dependencies trigger rebuilds.
 - [ ] Implement `toolchains` submodules (`toolchains/rust.py`, `toolchains/python.py`, etc.): Handle language-specific environment logic and legacy Termux patches natively in Python.
 - [ ] Implement `toolchains/native.py`: Select NDK 29 compilers based on architecture. Inject `PREFIX` dynamically into `CFLAGS`, `CPPFLAGS`, and `LDFLAGS`. Includes native build wrappers (CMake, Meson, Autotools).
-- [ ] Implement `docker.py`: Wrap execution commands to run purely inside the `builder` container, ensure Hermetic Sandboxing by disabling network access during compilation, handle mapped volume permissions deterministically, and securely propagate cancellation signals.
+- [ ] Implement `docker.py`: Wrap execution commands to run purely inside the `builder` container. Ensure Hermetic Sandboxing by disabling network access during compilation. Natively mount `binfmt_misc` and `qemu-user-static` for transparent emulation of compiled Android binaries. Handle mapped volume permissions deterministically, and securely propagate cancellation signals.
 - [ ] Implement `debian.py`: Handle `.deb` file generation using `zstd` compression, automatically merge `sbin` into `bin`, dynamically apply `-glibc` suffixes based on `libc` environment, automatically generate `-doc` and `-locale` Smart Subpackages (linked via `Recommends`), natively implement custom Python-based static APT metadata generation (`Packages`, `Release`), and automate SBOM (SPDX/CycloneDX) generation.
 - [ ] Implement `pacman.py`: Handle `.pkg.tar.zst` file generation using `zstd` and Pacman database (`.db`) generation. Implement the same Smart Subpackaging, dynamic `-glibc` suffixing, and SBOM generation as Debian.
 - [ ] Implement `sysroot.py`: Implement a **Symlink Farm Sysroot** to rapidly generate links into the `$PREFIX` from a read-only cache, avoiding slow I/O. Integrate upstream GPG signature validation for downloads.
-- [ ] Implement Android Patching: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, `-dbg` symbol extraction via `llvm-objcopy`, and strict Bionic Undefined Symbols validation using `readelf`.
+- [ ] Implement Android Patching & Validation: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, `-dbg` symbol extraction via `llvm-objcopy`, and strict Bionic Undefined Symbols validation using `readelf`.
+- [ ] Implement Ghost Dependency Detection: Cross-reference `dpkg-shlibdeps` output against the YAML `Depends` array after `make_install` and throw strict linting errors for unused dependencies.
 - [ ] Implement Hybrid Build execution in `build.py`: Support both strict declarative targets and wrapper-based executions. Include the `crash_report.json` generation handler for optimized debugging.
 - [ ] Implement `test.py`: Parse and execute assertions inside an isolated, nested **PRoot container** to strictly simulate a fresh Android device environment.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning (replacing `check-repository-health.js` and `check-built-packages.py`).
@@ -37,6 +38,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Write `publish.yml`: Strictly separated from `build.yml`. Downloads artifacts, verifies them, generates SLSA Provenance, and publishes ONLY if the whole matrix passes.
 - [ ] Write `health.yml`: Cron job executing `health.py`.
 - [ ] Write `package_updates.yml`: Auto-PR workflow triggered by `upstream_check.py`.
+- [ ] Write `reproducible.yml`: Manual workflow leveraging `diffoscope` to verify bit-for-bit build determinism.
 - [ ] Implement `free-space.sh` fast-deletion logic at the start of workflows.
 
 ## Phase 4: Package Migration
