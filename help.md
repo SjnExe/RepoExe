@@ -23,14 +23,15 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement `docker.py`: Wrap execution commands to run purely inside the `builder` container. Ensure Hermetic Sandboxing by disabling network access during compilation. Natively mount `binfmt_misc` and `qemu-user-static` for transparent emulation of compiled Android binaries. Handle mapped volume permissions deterministically, and securely propagate cancellation signals.
 - [ ] Implement `debian.py`: Handle `.deb` file generation using `zstd` compression, automatically merge `sbin` into `bin`, dynamically apply `-glibc` suffixes based on `libc` environment, automatically generate `-doc` and `-locale` Smart Subpackages (linked via `Recommends`), natively implement custom Python-based static APT metadata generation (`Packages`, `Release`), and automate SBOM (SPDX/CycloneDX) generation.
 - [ ] Implement `pacman.py`: Handle `.pkg.tar.zst` file generation using `zstd` and Pacman database (`.db`) generation. Implement the same Smart Subpackaging, dynamic `-glibc` suffixing, and SBOM generation as Debian.
+- [ ] Implement `apk.py`: Handle `.apk` file generation and Alpine index (`APKINDEX.tar.gz`) generation. Implement the same Smart Subpackaging, dynamic `-glibc` suffixing, and SBOM generation as Debian.
 - [ ] Implement `sysroot.py`: Implement a **Symlink Farm Sysroot** to rapidly generate links into the `$PREFIX` from a read-only cache, avoiding slow I/O. Integrate upstream GPG signature validation for downloads.
 - [ ] Implement Android Patching & Validation: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, `-dbg` symbol extraction via `llvm-objcopy`, and strict Bionic Undefined Symbols validation using `readelf`.
 - [ ] Implement Ghost Dependency Detection: Cross-reference `dpkg-shlibdeps` output against the YAML `Depends` array after `make_install` and throw strict linting errors for unused dependencies.
-- [ ] Implement Hybrid Build execution in `build.py`: Support both strict declarative targets and wrapper-based executions. Include the `crash_report.json` generation handler for optimized debugging.
+- [ ] Implement Hybrid Build execution in `build.py`: Support both strict declarative targets and wrapper-based executions. Ensure the `pre_fetch` lifecycle hook runs *before* the network is disabled for Hermetic Sandboxing. Include the `crash_report.json` generation handler for optimized debugging. Implement generation of the `telemetry.json` file for performance profiling.
 - [ ] Implement `test.py`: Parse and execute assertions inside an isolated, nested **PRoot container** to strictly simulate a fresh Android device environment.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning (replacing `check-repository-health.js` and `check-built-packages.py`).
 - [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases, including fallback mechanisms for strict GitLab HTTP 403 blocks.
-- [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, `clean`, and `--dry-run` flag).
+- [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag). Include individual binary signing capabilities prior to packaging.
 
 ## Phase 3: CI/CD Workflows (`.github/workflows/`)
 - [ ] Write `build.yml`: Dynamic Matrix Sharding (`architectures x shards`), PR Test Mode, and the `!{package}` exclusion syntax.
@@ -58,5 +59,5 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 ## Current Session Notes / Handover
 *Write a short summary below when ending a session so the next AI agent knows exactly where to pick up.*
 
-**Status:** Ready to begin Phase 1. The validation session has been completed, and `plan.md` has been updated with Smart Rebuilds, Dependency Graph Visualizers, and automated revisions.
+**Status:** Ready to begin Phase 1. The validation session has been completed, and `plan.md` has been updated with Smart Rebuilds, Dependency Graph Visualizers, automated revisions, `apk` format support, Hermetic `pre_fetch` phases, telemetry generation, binary signing, and interactive scaffolding.
 **Next Action:** Begin creating the foundational repository structure, dotfiles, and GitHub templates.
