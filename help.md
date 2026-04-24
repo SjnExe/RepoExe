@@ -8,6 +8,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Create `SECURITY.md`, `CONTRIBUTING.md`, `FUNDING.yml`, `stale.yml`, and `dependabot.yml`.
 - [ ] Set up the `.prettierrc` (strict format for AI) and `.prettierignore`.
 - [ ] Write the `Dockerfile` (Ubuntu 24.04, non-root `builder`, built-in `sccache`).
+- [ ] Implement DevContainers (`.devcontainer/devcontainer.json`) for web-based IDEs with pre-configured linters.
 - [ ] Download NDK 29 and bake standard NDK patches directly into a Docker layer.
 - [ ] Install formatting/linting stack inside Docker (`uv`, `ruff`, `mypy`, `shellcheck`, `actionlint`). Configure `--ai-mode` JSON formatting support.
 
@@ -31,14 +32,17 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement Hybrid Build execution in `build.py`: Support both strict declarative targets and wrapper-based executions. Ensure the `pre_fetch` lifecycle hook runs *before* the network is disabled for Hermetic Sandboxing. Include the `crash_report.json` generation handler for optimized debugging. Implement generation of the `telemetry.json` file for performance profiling.
 - [ ] Implement `test.py`: Execute tests inside a Dual-Environment setup (native Android Termux simulation and PRoot Distro simulation) to catch edge-case bugs.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning (replacing `check-repository-health.js` and `check-built-packages.py`).
+- [ ] Setup `pytest` test suite (`scripts/tests/`) to unit test the Python orchestrator.
+- [ ] Configure Pydantic to export JSON Schema for `build.yml` and integrate with `.vscode/settings.json` for YAML IDE Intellisense.
 - [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases, including fallback mechanisms for strict GitLab HTTP 403 blocks.
 - [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag). Include Sigstore/Cosign keyless binary and metadata signing capabilities.
 
 ## Phase 3: CI/CD Workflows (`.github/workflows/`)
 - [ ] Write `build.yml`: Dynamic Matrix Sharding (`architectures x shards`), PR Test Mode, and the `!{package}` exclusion syntax.
+- [ ] Write `python-tests.yml`: CI workflow executing the `pytest` test suite for the orchestrator.
 - [ ] Write `cache-prune.yml`: Strict GitHub Actions and GHCR cache eviction workflow leveraging LRU logic.
 - [ ] Write `lint.yml`: Implement Self-Healing CI that auto-runs `ruff` and `prettier` and pushes fix commits.
-- [ ] Write `publish.yml`: Strictly separated from `build.yml`. Downloads artifacts, verifies them, generates SLSA Provenance, and publishes ONLY if the whole matrix passes.
+- [ ] Write `publish.yml`: Strictly separated from `build.yml`. Downloads artifacts, verifies them, generates SLSA Provenance using GitHub Actions native `actions/attest-build-provenance`, and publishes ONLY if the whole matrix passes.
 - [ ] Write `health.yml`: Cron job executing `health.py`.
 - [ ] Write `package_updates.yml`: Auto-PR workflow triggered by `upstream_check.py`.
 - [ ] Write `reproducible.yml`: Manual workflow leveraging `diffoscope` to verify bit-for-bit build determinism.
@@ -55,6 +59,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 ## Phase 5: Documentation & Final Handover
 - [ ] Create the `docs/` folder with sample `build.yml` templates for standard packages, metapackages, and multi-architecture setups.
 - [ ] Write a comprehensive `docs/SCHEMA.md` documenting every YAML field, flag, and lifecycle hook to prevent user confusion.
+- [ ] Setup `mkdocs-material` to generate a searchable documentation site hosted under the `/docs` subpath on GitHub Pages.
 
 ---
 
