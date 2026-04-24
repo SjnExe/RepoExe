@@ -144,7 +144,8 @@ RepoExe/
    - **GitHub Actions:** Use `actionlint` in the CI to validate `.github/workflows/*.yml` syntax before execution.
    - **Shell Snippets:** Use `shellcheck` for any inline bash scripts embedded inside the `build.yml` files.
    - **Self-Healing CI:** The `lint.yml` workflow must auto-execute `ruff format` and `prettier --write`. If it detects unformatted code pushed by a user (or AI), it must automatically commit and push the fix directly to the PR branch, eliminating manual formatting busywork.
-   - **Orchestrator Unit Testing (`pytest`):** A comprehensive `pytest` test suite (`scripts/tests/`) must be written for the Python build system itself to prevent regressions, with a dedicated `python-tests.yml` CI workflow.
+   - **Local Pre-commit Hooks:** The repository must include a `.pre-commit-config.yaml` to enforce that all `ruff`, `prettier`, and `shellcheck` validations run locally before a developer can commit, preventing noisy automated formatting commits in PRs.
+   - **Orchestrator Unit Testing (`pytest`):** A comprehensive `pytest` test suite (`scripts/tests/`) must be written for the Python build system itself to prevent regressions, with a dedicated `python-tests.yml` CI workflow. It must enforce code coverage tracking via `pytest-cov`, rendering coverage reports directly into GitHub Actions Step Summaries.
    - **DevContainers & IDE Integrations:** The repository must include a `.devcontainer/devcontainer.json` for web-based IDEs and a `.vscode/settings.json` that hooks into a Pydantic-exported JSON Schema for `build.yml` to provide real-time YAML Intellisense.
 
 4. **Variable Standardization & Branding Removal:**
@@ -215,7 +216,7 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
    - Configure Dependabot to keep GitHub Actions workflows updated using major version tags (e.g., `@v4`) rather than pinned SHAs.
 2. **Advanced CI Parallelization (Dynamic Matrix Sharding):**
    - Instead of looping through all packages on a single runner (which hits the 6-hour timeout) or using primitive sequential chaining, RepoExe will use a `prepare` job to analyze the Python dependency tree.
-   - The `prepare` script will group independent packages into "Shards".
+   - The `prepare` script will group independent packages into "Shards". **Telemetry-Driven Dynamic Sharding:** The `dag.py` must consume historical `telemetry.json` execution times to balance shards dynamically, ensuring all parallel runners finish at roughly the same time to absolutely minimize total CI duration.
      - **Dependency Graph Output:** The `dag.py` script must support generating a lightweight visual output (like a JSON map or a Mermaid graph) of the dependency tree. This will act as a critical debugging feature to trace why a package is being built in a specific shard without slowing down the CI pipeline. While implementing `dag.py`, logic from the legacy `backup/scripts/buildorder.py` should be analyzed, but it must be heavily adapted to handle our hybrid resolution strategy.
    - The `build` job will use a **Dynamic Matrix** (`[architectures] × [shards]`). This allows spawning dozens of concurrent runners instantly (e.g., 4 architectures × 10 shards = 40 parallel jobs) to build packages as fast as possible.
      - **Massive Packages:** Massive packages that require intense resources (as tagged by `isolated_shard: true` in their `build.yml`) will be automatically routed to their **own isolated shard** on a dedicated 16GB runner. The DAG will guarantee prerequisites are built beforehand.
@@ -238,6 +239,7 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
    - Integrate hyper-fast `rm -rf` logic for massive unused toolchains on the GitHub Host VM before build steps to free up disk space.
 6. **Parallelization Enforcement:** Globally standardize `MAKEFLAGS="-j4"` / `ninja -j4` across the build system to maximize the 4-core runners.
 7. **Security Analysis (`codeql.yml`):** Integrate CodeQL for static analysis.
+8. **`uv` CI Caching:** All Python-based workflows must explicitly implement `uv` cache restoration to ensure the orchestrator environment initializes near-instantaneously on GitHub runners.
 
 ---
 

@@ -5,6 +5,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 
 ## Phase 1: Environment & Foundation Setup
 - [ ] Initialize repository structure (dotfiles, `.github/` folder, `site/install`).
+- [ ] Configure Local Pre-commit Hooks (`.pre-commit-config.yaml`) for automated formatting checks.
 - [ ] Create `SECURITY.md`, `CONTRIBUTING.md`, `FUNDING.yml`, `stale.yml`, and `dependabot.yml`.
 - [ ] Set up the `.prettierrc` (strict format for AI) and `.prettierignore`.
 - [ ] Write the `Dockerfile` (Ubuntu 24.04, non-root `builder`, built-in `sccache`).
@@ -16,7 +17,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Establish the `scripts/pyproject.toml` and lock dependencies via `uv` (must include `pydantic`). Set up the local mock server for `upstream_check.py` to facilitate AI testing.
 - [ ] Implement `parser.py`: Parse `build.yml` using strict Pydantic data models. Replicate legacy `lint-packages.sh` checks by validating Licenses against an allowlist, standardizing `source_url` formatting, and enforcing Version Continuity via Git history lookups. Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `alternatives`, `revision`, `anti_build_depends`, `no_shebang_fix_files`, `no_staticsplit`, `excluded_arches`, `build_in_src`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `lto`, `pgo`, `auto_update`, `platform_independent`, `inherits`, `isolated_shard`, `cmake_args`, `groups`, `optdepends`). Strip all "on-device" build logic. Validate GPG signatures of source tarballs where applicable.
 - [ ] Implement `properties.py`: Define explicit internal `PREFIX` bounds for the device layout (enforcing `/data/data/com.termux/files/usr`).
-- [ ] Implement `dag.py`: Resolve dependencies, read `isolated_shard` boolean tags, generate matrix shards, and output lightweight Dependency Graphs (JSON/Mermaid) for debugging.
+- [ ] Implement `dag.py`: Resolve dependencies, read `isolated_shard` boolean tags, generate matrix shards, and output lightweight Dependency Graphs (JSON/Mermaid) for debugging. Implement Telemetry-Driven Dynamic Sharding to balance execution times.
 - [ ] Implement Content-Addressable Hashing Engine: Incorporate strict SHA256 "state hash" evaluation across package inputs (YAML, patches, source, downstream deps) to aggressively skip redundant builds.
 - [ ] Implement Auto-Revision Management: Enable the orchestrator to automatically calculate revision bumps down the DAG when upstream dependencies trigger rebuilds.
 - [ ] Implement `toolchains` submodules (`toolchains/rust.py`, `toolchains/python.py`, etc.): Handle language-specific environment logic and legacy Termux patches natively in Python.
@@ -38,8 +39,9 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag). Include Sigstore/Cosign keyless binary and metadata signing capabilities.
 
 ## Phase 3: CI/CD Workflows (`.github/workflows/`)
+- [ ] Implement strict `uv` caching across all Python CI/CD workflows.
 - [ ] Write `build.yml`: Dynamic Matrix Sharding (`architectures x shards`), PR Test Mode, and the `!{package}` exclusion syntax.
-- [ ] Write `python-tests.yml`: CI workflow executing the `pytest` test suite for the orchestrator.
+- [ ] Write `python-tests.yml`: CI workflow executing the `pytest` test suite for the orchestrator, integrating `pytest-cov` and rendering GitHub Step Summaries.
 - [ ] Write `cache-prune.yml`: Strict GitHub Actions and GHCR cache eviction workflow leveraging LRU logic.
 - [ ] Write `lint.yml`: Implement Self-Healing CI that auto-runs `ruff` and `prettier` and pushes fix commits.
 - [ ] Write `publish.yml`: Strictly separated from `build.yml`. Downloads artifacts, verifies them, generates SLSA Provenance using GitHub Actions native `actions/attest-build-provenance`, and publishes ONLY if the whole matrix passes.
