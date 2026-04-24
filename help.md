@@ -9,10 +9,10 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Set up the `.prettierrc` (strict format for AI) and `.prettierignore`.
 - [ ] Write the `Dockerfile` (Ubuntu 24.04, non-root `builder`, built-in `sccache`).
 - [ ] Download NDK 29 and bake standard NDK patches directly into a Docker layer.
-- [ ] Install formatting/linting stack inside Docker (`ruff`, `mypy`, `shellcheck`, `actionlint`).
+- [ ] Install formatting/linting stack inside Docker (`uv`, `ruff`, `mypy`, `shellcheck`, `actionlint`). Configure `--ai-mode` JSON formatting support.
 
 ## Phase 2: Python Orchestrator (`scripts/core/`)
-- [ ] Establish the `scripts/requirements.txt` (must include `pydantic`).
+- [ ] Establish the `scripts/pyproject.toml` and lock dependencies via `uv` (must include `pydantic`). Set up the local mock server for `upstream_check.py` to facilitate AI testing.
 - [ ] Implement `parser.py`: Parse `build.yml` using strict Pydantic data models. Replicate legacy `lint-packages.sh` checks by validating Licenses against an allowlist, standardizing `source_url` formatting, and enforcing Version Continuity via Git history lookups. Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `alternatives`, `revision`, `anti_build_depends`, `no_shebang_fix_files`, `no_staticsplit`, `excluded_arches`, `build_in_src`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `lto`, `pgo`, `auto_update`, `platform_independent`, `inherits`, `isolated_shard`, `cmake_args`, `groups`, `optdepends`). Strip all "on-device" build logic. Validate GPG signatures of source tarballs where applicable.
 - [ ] Implement `properties.py`: Define explicit internal `PREFIX` bounds for the device layout (enforcing `/data/data/com.termux/files/usr`).
 - [ ] Implement `dag.py`: Resolve dependencies, read `isolated_shard` boolean tags, generate matrix shards, and output lightweight Dependency Graphs (JSON/Mermaid) for debugging.
@@ -27,14 +27,16 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement `sysroot.py`: Implement a **Symlink Farm Sysroot** to rapidly generate links into the `$PREFIX` from a read-only cache, avoiding slow I/O. Integrate upstream GPG signature validation for downloads.
 - [ ] Implement Android Patching & Validation: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, `-dbg` symbol extraction via `llvm-objcopy`, and strict Bionic Undefined Symbols validation using `readelf`.
 - [ ] Implement Ghost Dependency Detection: Cross-reference `dpkg-shlibdeps` output against the YAML `Depends` array after `make_install` and throw strict linting errors for unused dependencies.
+- [ ] Implement Automated ABI Breakage Detection: Integrate `libabigail` validation to automatically trigger DAG revision bumps when library interfaces change.
 - [ ] Implement Hybrid Build execution in `build.py`: Support both strict declarative targets and wrapper-based executions. Ensure the `pre_fetch` lifecycle hook runs *before* the network is disabled for Hermetic Sandboxing. Include the `crash_report.json` generation handler for optimized debugging. Implement generation of the `telemetry.json` file for performance profiling.
-- [ ] Implement `test.py`: Parse and execute assertions inside an isolated, nested **PRoot container** to strictly simulate a fresh Android device environment.
+- [ ] Implement `test.py`: Execute tests inside a Dual-Environment setup (native Android Termux simulation and PRoot Distro simulation) to catch edge-case bugs.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning (replacing `check-repository-health.js` and `check-built-packages.py`).
 - [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases, including fallback mechanisms for strict GitLab HTTP 403 blocks.
-- [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag). Include individual binary signing capabilities prior to packaging.
+- [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag). Include Sigstore/Cosign keyless binary and metadata signing capabilities.
 
 ## Phase 3: CI/CD Workflows (`.github/workflows/`)
 - [ ] Write `build.yml`: Dynamic Matrix Sharding (`architectures x shards`), PR Test Mode, and the `!{package}` exclusion syntax.
+- [ ] Write `cache-prune.yml`: Strict GitHub Actions and GHCR cache eviction workflow leveraging LRU logic.
 - [ ] Write `lint.yml`: Implement Self-Healing CI that auto-runs `ruff` and `prettier` and pushes fix commits.
 - [ ] Write `publish.yml`: Strictly separated from `build.yml`. Downloads artifacts, verifies them, generates SLSA Provenance, and publishes ONLY if the whole matrix passes.
 - [ ] Write `health.yml`: Cron job executing `health.py`.
