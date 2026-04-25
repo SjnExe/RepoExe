@@ -248,7 +248,7 @@ Docker is the **only officially supported environment** for local building to pr
 
 ## 4. CI/CD Workflows (GitHub Actions)
 
-The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 16GB RAM) and aggressively leverage parallelization to minimize workflow runtime. **Agent Directive:** Any GitHub Action that can be replaced by the `gh` CLI command or standard shell commands should be preferred over using third-party actions to minimize dependency bloat and security risks.
+The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 16GB RAM) and aggressively leverage parallelization to minimize workflow runtime. **Agent Directive:** Any GitHub Action that can be replaced by the `gh` CLI command or standard shell commands should be preferred over using third-party actions to minimize dependency bloat and security risks. Furthermore, all workflows MUST utilize `runs-on: ubuntu-latest` rather than pinning to a specific Ubuntu version (e.g., `ubuntu-24.04`).
 
 1. **Dependency Management (`dependabot.yml`):**
    - Replace any existing `renovate.json` with native GitHub Dependabot.

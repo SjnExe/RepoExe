@@ -5,7 +5,6 @@ import sys
 import glob
 import hashlib
 import json
-import tarfile
 import gzip
 import bz2
 import lzma
@@ -13,7 +12,6 @@ import subprocess
 import requests
 import yaml
 from datetime import datetime, timezone
-from pathlib import Path
 
 # Config
 BASE_URL = "https://SjnExe.github.io/RepoExe"

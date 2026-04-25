@@ -1,4 +1,3 @@
-import pytest
 from core.properties import PREFIX
 
 def test_prefix_constant():

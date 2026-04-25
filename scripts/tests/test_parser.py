@@ -1,5 +1,5 @@
 import pytest
-from core.parser import BuildYml, parse_build_yml
+from core.parser import BuildYml
 from pydantic import ValidationError
 
 def test_valid_build_yml():

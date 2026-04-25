@@ -7,7 +7,7 @@ on:
 
 jobs:
   lint-and-format:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
 
@@ -34,10 +34,10 @@ jobs:
         run: npm install -g prettier
 
       - name: Run Ruff (Fix)
-        run: uv run ruff check --fix .
+        run: uv run ruff check --fix scripts/
 
       - name: Run Ruff (Format)
-        run: uv run ruff format .
+        run: uv run ruff format scripts/
 
       - name: Run Prettier
         run: prettier --write .

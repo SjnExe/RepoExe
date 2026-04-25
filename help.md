@@ -1,7 +1,7 @@
 # RepoExe Refactoring Checklist & Session Handover
 
 This file tracks the execution of the massive refactoring effort outlined in `plan.md`.
-**Agent Directive:** At the start of a session, review this checklist. At the end of a session, check off the completed items and write a brief summary of what to do next for the following agent. Furthermore, when implementing CI/CD workflows, any GitHub Action that can be replaced by the `gh` CLI command or standard shell commands should be preferred over using third-party actions.
+**Agent Directive:** At the start of a session, review this checklist. At the end of a session, check off the completed items and write a brief summary of what to do next for the following agent. Furthermore, when implementing CI/CD workflows, any GitHub Action that can be replaced by the `gh` CLI command or standard shell commands should be preferred over using third-party actions. All CI workflows MUST utilize `runs-on: ubuntu-latest`.
 
 ## Execution Order
 
