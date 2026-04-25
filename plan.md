@@ -92,27 +92,33 @@ RepoExe/
    - Packages must be defined using structured **YAML** files named `build.yml` (e.g., `packages/rust/build.yml`). This format is vastly easier for an AI to parse, update, and validate. *(Note: All YAML files must use the standard `build.yml` nomenclature).*
    - **Pydantic Schema Validation:** The `parser.py` module MUST use **Pydantic** to define strict data models for the `build.yml`. This ensures that field types (e.g. `revision` as integer, `essential` as boolean) are strictly validated before execution, providing precise, AI-friendly error messages if a YAML file is malformed. Furthermore, Pydantic validators must enforce URL standardization (e.g. ensuring GitHub `source_url` paths use standard release archives), porting logic from the deprecated `lint-packages.sh`.
    - **Strict Version Continuity:** `parser.py` must replicate Termux's strict version validation. When a developer modifies a `build.yml` in a PR, the parser must actively query the Git history (`git show origin/main...`) to evaluate the previous YAML state and verify that either the `version` or `revision` field was strictly incremented. If the version is not bumped, the parser must instantly fail the build.
-   - **Advanced Metadata Schema:** The `parser.py` must support advanced Termux features natively in the YAML schema:
-     - `libc`: Multi-libc support (allowing developers to specify `bionic` vs `glibc` environments).
-     - `revision`: To trigger APT repository updates when patches change but upstream versions don't.
-     - `conffiles`: To mark configuration files so APT does not overwrite user modifications upon upgrade.
-     - `recommends_doc` / `recommends_locale`: Booleans to explicitly disable the automatic generation of `-doc` and `-locale` subpackages for specific packages.
-     - `essential`: Boolean to prevent users from accidentally uninstalling critical packages.
-     - `pre_depends`: Advanced APT directive to force a dependency to fully install *before* the package unpacks.
-     - `service_script`: Arrays to automatically inject daemon logic into `/var/service/daemon/run` for `runit`.
-     - `alternatives`: Mapping array replacing legacy `.alternatives` text files. The orchestrator (`debian.py` / `pacman.py`) must parse this and automatically generate the necessary `postinst`/`prerm` hook scripts for priority-based command symlinking (e.g. `neovim` claiming the `vi` command).
-     - `anti_build_depends`: To explicitly uninstall conflicting dependencies from the Docker builder prior to compilation.
-     - `no_shebang_fix` / `no_shebang_fix_files`: Boolean to skip all shebang fixing, or an array of regex patterns to exclude specific files from the automated `/bin/sh` -> `$PREFIX/bin/sh` replacements.
-     - `no_staticsplit`: Boolean to disable automatic splitting of static `.a` libraries into separate subpackages.
-     - `excluded_arches`: Array of architectures (e.g. `['i686', 'x86_64']`) to skip building. The `dag.py` shard resolver will parse this to prune jobs dynamically from the CI matrix.
-     - `build_in_src`: Boolean to force CMake/Meson/Autotools to execute inside the downloaded source tree instead of an isolated build directory (required for complex packages).
-     - `host_build`: Boolean to trigger a native Linux compilation phase *before* cross-compiling the Android target (strictly reserved for massive code generators like Python or LLVM).
-     - `lto` / `pgo`: Booleans to declaratively enable Link-Time Optimization (`-flto` with `lld`) or Profile-Guided Optimization to automatically maximize battery efficiency for mobile users. For `pgo`, the orchestrator will automatically handle the 3-stage instrumented build: compiling with profiling flags, running the package's test suite via QEMU/PRoot to generate real-world profiling data, and feeding that data back into the final compiler pass.
-     - `auto_update`: Boolean to explicitly opt-in to `upstream_check.py` automated PR updates. This strictly defaults to `false` (to protect heavily patched AOSP packages like `aapt2`), and must be explicitly set to `true` inside `build.yml` to enable cron updates.
-     - `platform_independent`: Boolean indicating the package contains no compiled binaries (e.g., pure Python scripts or fonts). This sets the `.deb` Architecture to `all` and completely bypasses multi-architecture matrix redundancies.
-     - `inherits`: String/List to support Advanced YAML Mixins. This explicitly replaces the legacy shell mixins (like `mixins/build-python.sh`). When a package inherits a template (e.g., `inherits: python-module`), `parser.py` will automatically inject entire lifecycle blocks (such as overriding `make install` with `pip install --no-deps`) directly into the package's execution plan at runtime. This keeps definitions purely declarative.
-     - `isolated_shard`: Boolean (defaults to `false`). Deprecates the legacy `big-pkgs.list`. Used to tag massive packages (like Chromium) directly within their `build.yml`. The `dag.py` dynamic matrix will parse this to route the package to a dedicated, high-resource runner, decentralizing metadata.
-     - `cmake_args` / `meson_args` / `make_args`: Arrays to allow package-specific compiler configurations to be safely injected *through* the orchestrator's generic NDK wrappers.
+   - **Advanced Metadata Schema:** The `parser.py` must support advanced Termux features natively in the YAML schema. The schema format should be standardized, clean, and typed via Pydantic:
+     - **Core & Compatibility:**
+       - `libc` *(string)*: `bionic` (default) vs `glibc`. Requires parallel dependency trees for `glibc`.
+       - `excluded_arches` *(list[str])*: Arches to skip building (e.g., `['i686', 'x86_64']`).
+       - `platform_independent` *(bool)*: Bypasses multi-arch matrix, sets `.deb` to `all` architecture.
+       - `essential` *(bool)*: Prevents users from uninstalling critical packages.
+     - **Versioning & Updates:**
+       - `revision` *(int)*: Bumps APT repository versions without upstream version changes.
+       - `auto_update` *(bool)*: Opt-in to `upstream_check.py` (defaults to `false`).
+     - **Build Environment & Execution:**
+       - `build_in_src` *(bool)*: Forces CMake/Meson/Autotools to execute inside the source tree.
+       - `host_build` *(bool)*: Triggers native Linux compilation before cross-compilation.
+       - `isolated_shard` *(bool)*: Routes massive packages to dedicated, high-resource CI runners.
+       - `inherits` *(str | list[str])*: Advanced YAML Mixins to inject lifecycle blocks (e.g., `python-module`).
+       - `cmake_args` / `meson_args` / `make_args` *(list[str])*: Injects package-specific compiler flags.
+       - `anti_build_depends` *(list[str])*: Uninstalls conflicting dependencies from the Docker builder.
+     - **Optimizations:**
+       - `optimize` *(str)*: `size` (default `-Oz`), `speed` (`-O3`), or `none` (`-O0`).
+       - `lto` *(bool)* / `pgo` *(bool)*: Enable Link-Time or Profile-Guided Optimization (both default `false`).
+     - **Packaging Output & Modifiers:**
+       - `pre_depends` *(list[str])*: APT directive to force dependency installation before unpacking.
+       - `conffiles` *(list[str])*: Marks config files to prevent APT from overwriting user modifications.
+       - `recommends_doc` / `recommends_locale` *(bool)*: Disables automatic generation of `-doc`/`-locale` subpackages.
+       - `no_staticsplit` *(bool)*: Disables automatic splitting of static `.a` libraries.
+       - `no_shebang_fix` *(bool)* / `no_shebang_fix_files` *(list[str])*: Controls automated `/bin/sh` replacements.
+       - `service_script` *(list[str])*: Automatically injects daemon logic for `runit`.
+       - `alternatives` *(dict[str, str])*: Generates priority-based command symlinking (e.g., `vi` to `neovim`).
    - **Multi-Format Packaging (APT, Pacman & Alpine):** RepoExe provides maximum flexibility to users by natively supporting APT, Pacman, and Alpine package managers simultaneously.
      - The `build.yml` will support cross-format generic fields (e.g., `groups` and `optdepends` for Pacman/Alpine, mapped alongside Debian standards).
      - The Python orchestrator will include distinct generator modules: `debian.py` (building `.deb` files), `pacman.py` (building `.pkg.tar.zst` files alongside `.db` databases), and `apk.py` (building `.apk` files alongside `APKINDEX.tar.gz` indexes).
@@ -189,12 +195,16 @@ RepoExe/
      - **Ghost Directory Pruning:** Automatically deleting all empty directories right before compression.
      - **sbin Merging:** The forced moving of all `/sbin` and `/usr/sbin` binaries into `/bin` (since Android does not differentiate them).
      - **Post-Processing Determinism:** Automatically run `strip-nondeterminism` across all generated archives (`.a`, `.zip`, `.jar`) before packaging to scrub leaked metadata that `SOURCE_DATE_EPOCH` misses.
+     - **Strict PIE Enforcement:** Android strictly requires executables to be compiled as Position Independent Executables (PIE). The cleanup phase must run `readelf` on all executables and immediately fail the build if they are not PIE-compliant to prevent runtime crashes.
+     - **Documentation Compression:** Automatically find all documentation (`share/man`, `share/info`) and compress them using `gzip` to drastically reduce package size.
+     - **Strict Stripping:** After extracting debug symbols into `-dbg` subpackages, the orchestrator must enforce running `llvm-strip` against the main `.so` files and executables to reduce package bloat.
+     - **Libtool `.la` File Removal:** Automatically delete `*.la` libtool files, which often contain hardcoded host paths that break cross-compilation for downstream packages.
    - **Lifecycle Hook Migration & Hermetic Pre-fetch:** Termux relies on ~34 implicit bash function overrides (e.g., `termux_step_pre_configure`, `termux_step_post_massage`). RepoExe will migrate these into structured, declarative lifecycle hooks inside the `build.yml` (e.g., `phases: [host_build, pre_fetch, pre_configure, configure, make, install, post_install, test]`). The Python orchestrator will execute the shell snippets defined in these YAML blocks in a strict, predictable order. The `pre_fetch` phase is explicitly introduced to execute *before* the Docker container's network is disabled, allowing modern language tools (like `cargo`, `npm`, or `go`) to dynamically download dependencies before entering the strict Hermetic Sandbox compilation phases.
      - **Recursive Git Submodule Support:** If a package defines a Git repository as its source instead of a tarball, the orchestrator's fetcher (`sysroot.py`) must seamlessly and natively support deep, recursive Git submodule initialization, resolving inconsistencies found in legacy Bash scripts.
    - **Strict Test Environment Sandboxing:** The old `test-runner.sh` script is deprecated. The Python orchestrator will include a robust `test.py` module to execute integration assertions (defined in the `test` phase of the YAML). To prevent "it works on my machine" false positives, `test.py` MUST execute these tests inside isolated environments:
      1. A nested **PRoot container** to strictly simulate a standard Android Termux app environment (no root access, strict `$PREFIX` paths, no access to the builder's source tree).
      2. A simulated **PRoot Distro** environment to catch edge-case filesystem bugs that occur when Termux users run packages inside Linux chroots.
-     3. A nightly/release **Real Android Emulator** environment via CI workflows (e.g., using `reactivecircus/android-emulator-runner`). The CI will boot an Android emulator, securely install the Termux APK via `adb`, push the compiled packages, and execute `pkg install` inside the Termux shell via `adb shell` to natively verify behavior.
+     3. A nightly/release **Real Android Emulator** environment via CI workflows (e.g., using `reactivecircus/android-emulator-runner`). The CI will boot an Android emulator on a Linux runner with KVM support, securely install the Termux APK via `adb`, push the compiled packages, and execute `pkg install` inside the Termux shell via `adb shell` to natively verify behavior.
 
 ---
 
@@ -268,7 +278,7 @@ RepoExe will leverage the full capabilities of Debian's APT package manager to e
    - **Breaks / Replaces:** Vital for seamless upgrades when we split legacy monolithic packages into granular sub-packages.
 2. **Hybrid Dependency Resolution Strategy:**
    - **Local Resolution First:** The build system must prioritize downloading compiled `.deb` dependencies directly from the active RepoExe repository if they are built and up to date.
-   - **Upstream Fallback:** For dependencies that are out of scope or not yet built in RepoExe, the build system MUST cleanly fallback and download them directly from the official Termux upstream repository via standard APT sources configured inside the Docker container. Crucially, the Docker builder environment must explicitly import and trust Termux's official upstream GPG keys to securely verify these downloaded fallback dependencies during the build process.
+   - **Upstream Fallback:** For dependencies that are out of scope or not yet built in RepoExe, the build system MUST cleanly fallback and download them directly from the official Termux upstream repository via standard APT sources configured inside the Docker container. Crucially, the Docker builder environment must explicitly import and trust Termux's official upstream GPG keys to securely verify these downloaded fallback dependencies during the build process. The dependency resolution must strictly adhere to the defined `libc` context in `build.yml` (e.g., pulling bionic packages vs explicitly falling back to TUR's glibc packages when `glibc` is required).
    - **No Fragile `curl` Scrapes:** Unlike Termux, which scrapes its own GitHub repo via `curl` to find toolchain versions (e.g., host Python), RepoExe will strictly define external toolchain versions in its own configuration files (e.g., `toolchains.yml`) to prevent breaking if upstream Termux pushes an unexpected change.
 3. **Repository Health Validation (`health.yml`):**
    - The orchestrator must include a `health.py` module replacing legacy JS/Python scripts (`check-repository-health.js` and `check-built-packages.py`).
