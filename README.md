@@ -1,29 +1,30 @@
 # RepoExe
 
-RepoExe is a modern, modular, Python-based package orchestrator designed to compile and distribute software across diverse environments.
+A scalable, multi-format package repository providing custom tools and standalone packages (like aapt2, zipalign, and aidl) built with modern continuous integration pipelines.
 
-It replaces legacy bash-based build infrastructures with a structured, AI-friendly CI/CD pipeline, natively supporting **APT (Debian)**, **Pacman**, and **Alpine (apk)** package formats.
+## Quick Install
 
-## Architecture
+To automatically install this custom repository on your device, run:
 
-* **Micro-Modular Python:** The core logic is built strictly with isolated Python modules utilizing `pydantic` for schema validation and `uv` for lightning-fast dependency management.
-* **YAML Package Definitions:** Packages are defined using explicit, typed `build.yml` files, abandoning fragile shell scripts.
-* **Hermetic Sandboxing:** Builds execute within strictly controlled, isolated environments (e.g., Docker, Bubblewrap) to guarantee reproducible artifacts and prevent host pollution.
-* **Dynamic Dependency Resolution:** Implements hybrid dependency resolution, natively querying configured external repositories (Termux, TUR, Alpine) or resolving components locally.
-* **CI Optimized:** Leverages GitHub Actions for Dynamic Matrix Sharding, routing jobs efficiently, caching securely via `sccache` and GitHub Container Registry, and deploying metadata entirely statically using TUF principles.
-
-## Getting Started
-
-This repository provides an automated Docker environment configured with all required toolchains and patches.
-
-```bash
-# Pull the latest builder image
-docker pull ghcr.io/sjnexe/repoexe-builder:latest
-
-# Start the builder container
-# See AGENTS.md for full execution and patching commands
+```shell
+curl -sL https://SjnExe.github.io/RepoExe/install | sh
 ```
 
-## AI Directives
+This universal script will automatically detect your active package manager (APT, Pacman, or Alpine apk), securely download the required keys, and inject the RepoExe repository into your system.
 
-This repository is maintained and refactored heavily by AI agents. If you are an AI agent, refer strictly to `AGENTS.md` and `plan.md` before making any modifications to the core architecture.
+## Features
+
+- **Multi-Format Support:** Natively distributes `.deb` (APT), `.pkg.tar.zst` (Pacman), and `.apk` (Alpine) packages.
+- **Standalone Build System**: Packages are defined declaratively via `build.yml` using a custom Python orchestrator.
+- **Independent CI/CD Pipelines**: Automated dependency tracking, dynamic CI matrix sharding, and static Pages deployments.
+- **Hermetic Docker Environments**: Reproducible artifact generation through strictly sandboxed custom Docker builder images.
+
+## Contributing
+
+Please read `CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests to us.
+
+If you are an AI agent or maintainer looking to modify the build infrastructure, please refer to `AGENTS.md` and `plan.md` first.
+
+## Security
+
+If you discover a security vulnerability within RepoExe, please refer to our Security Policy in `SECURITY.md`.
