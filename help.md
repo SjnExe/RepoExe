@@ -1,9 +1,9 @@
 # RepoExe Refactoring Checklist & Session Handover
 
-This file tracks the execution of the massive refactoring effort outlined in `plan.md`.
-**Agent Directive:** At the start of a session, review this checklist. At the end of a session, check off the completed items and write a brief summary of what to do next for the following agent.
+This file tracks the execution of the massive refactoring effort outlined in `plan.md`. **Agent Directive:** At the start of a session, review this checklist. At the end of a session, check off the completed items and write a brief summary of what to do next for the following agent.
 
 ## Phase 1: Environment & Foundation Setup
+
 - [x] **Dual-Key Architecture Setup**: GPG (for APT/Pacman) and RSA (for Alpine) keys have been generated. `GPG_PRIVATE_KEY` and `ALPINE_PRIVATE_KEY` are configured in GitHub Secrets. Public keys will be added to the `site/` folder.
 - [ ] Initialize repository structure (dotfiles, `.github/` folder, `site/install`).
 - [ ] Configure Local Pre-commit Hooks (`.pre-commit-config.yaml`) for automated formatting checks.
@@ -15,6 +15,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Install formatting/linting stack inside Docker (`uv`, `ruff`, `mypy`, `shellcheck`, `actionlint`). Configure `--ai-mode` JSON formatting support.
 
 ## Phase 2: Python Orchestrator (`scripts/core/`)
+
 - [ ] Establish the `scripts/pyproject.toml` and lock dependencies via `uv` (must include `pydantic`). Set up the local mock server for `upstream_check.py` to facilitate AI testing.
 - [ ] Implement `parser.py`: Parse `build.yml` using strict Pydantic data models. Replicate legacy `lint-packages.sh` checks by validating Licenses against an allowlist, standardizing `source_url` formatting, and enforcing Version Continuity via Git history lookups. Enforce Advanced Metadata Schema (`conffiles`, `essential`, `service_script`, `alternatives`, `revision`, `anti_build_depends`, `no_shebang_fix_files`, `no_staticsplit`, `excluded_arches`, `build_in_src`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `lto`, `pgo`, `auto_update`, `platform_independent`, `inherits`, `isolated_shard`, `cmake_args`, `groups`, `optdepends`). Strip all "on-device" build logic. Validate GPG signatures of source tarballs where applicable. Implement Version Normalization: strictly strip `v` prefixes, and translate upstream revisions (e.g., `-r4`) into PM-specific dialects (`+r4` for Debian, `.r4` for Pacman, `_p4` for Alpine).
 - [ ] Implement `properties.py`: Define explicit internal `PREFIX` bounds for the device layout (enforcing `/data/data/com.termux/files/usr`).
@@ -31,7 +32,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Implement Android Patching & Validation: Automatic `config.guess` updates, Linux hardcoded path fixing, `termux-elf-cleaner`, `-dbg` symbol extraction via `llvm-objcopy`, strict Bionic Undefined Symbols validation, strict SONAME enforcement using `readelf`, and strict Patch Application enforcement (no fuzzy matching).
 - [ ] Implement Ghost Dependency Detection: Cross-reference `dpkg-shlibdeps` output against the YAML `Depends` array after `make_install` and throw strict linting errors for unused dependencies.
 - [ ] Implement Automated ABI Breakage Detection: Integrate `libabigail` validation to automatically trigger DAG revision bumps when library interfaces change.
-- [ ] Implement Hybrid Build execution in `build.py`: Support both strict declarative targets and wrapper-based executions. Ensure the `pre_fetch` lifecycle hook runs *before* the network is disabled for Hermetic Sandboxing. Include the `crash_report.json` generation handler for optimized debugging. Instrument **OpenTelemetry (OTel)** tracing to stream build phase execution durations to an observability backend. Handle the 3-stage PGO instrumentation automatically.
+- [ ] Implement Hybrid Build execution in `build.py`: Support both strict declarative targets and wrapper-based executions. Ensure the `pre_fetch` lifecycle hook runs _before_ the network is disabled for Hermetic Sandboxing. Include the `crash_report.json` generation handler for optimized debugging. Instrument **OpenTelemetry (OTel)** tracing to stream build phase execution durations to an observability backend. Handle the 3-stage PGO instrumentation automatically.
 - [ ] Implement `test.py`: Execute tests inside a Multi-Environment setup (native Android Termux simulation via nested PRoot, PRoot Distro simulation, and explicit support for running tests over `adb` on a real Android emulator). Implement Flaky Test Isolation with retry-and-quarantine logic to prevent CI stalling.
 - [ ] Implement `health.py`: Cron job logic for version matching, missing artifacts, and zombie pruning (replacing `check-repository-health.js` and `check-built-packages.py`). Implement Release Asset Pruning to parse GitHub asset metadata labels and delete older than 5th versions. Continuously aggregate and render the Reproducibility Dashboard on GitHub Pages.
 - [ ] Setup `pytest` test suite (`scripts/tests/`) to unit test the Python orchestrator.
@@ -40,6 +41,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, `tui` for interactive terminal UI, and `--dry-run` flag). Include Sigstore/Cosign keyless binary and metadata signing capabilities.
 
 ## Phase 3: CI/CD Workflows (`.github/workflows/`)
+
 - [ ] Implement strict `uv` caching across all Python CI/CD workflows.
 - [ ] Write `yank.yml`: Manual workflow to automate rollback of broken deployments by deleting assets from the GitHub Release tag and updating the static repository indexes.
 - [ ] Write `build.yml`: Dynamic Matrix Sharding (`architectures x shards`), PR Test Mode, and the `!{package}` exclusion syntax.
@@ -58,6 +60,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Write `security-scan.yml`: Integrate `osv-scanner` or `pip-audit` to proactively scan dependencies for known vulnerabilities.
 
 ## Phase 4: Package Migration
+
 - [ ] Migrate `repoexe-keyring` and `repoexe-dev` (foundational metadata and component opt-in packages).
 - [ ] Migrate `libandroid-tools` (split into granular sub-packages).
 - [ ] Migrate `aapt` (Implement "Local Source Building").
@@ -66,6 +69,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Ensure test phases are converted to declarative YAML testing hooks.
 
 ## Phase 5: Documentation & Final Handover
+
 - [ ] Create the `docs/` folder with sample `build.yml` templates for standard packages, metapackages, and multi-architecture setups.
 - [ ] Write a comprehensive `docs/SCHEMA.md` documenting every YAML field, flag, and lifecycle hook to prevent user confusion.
 - [ ] Setup `mkdocs-material` to generate a searchable documentation site hosted under the `/docs` subpath on GitHub Pages.
@@ -73,7 +77,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 ---
 
 ## Current Session Notes / Handover
-*Write a short summary below when ending a session so the next AI agent knows exactly where to pick up.*
 
-**Status:** Ready to begin Phase 1. The validation session has been completed, and `plan.md` has been updated with Smart Rebuilds, Dependency Graph Visualizers, automated revisions, `apk` format support, Hermetic `pre_fetch` phases, telemetry generation, binary signing, interactive scaffolding, strict `bwrap` sandboxing, GitHub Releases source mirroring, and Multi-Runner Consensus.
-**Next Action:** Begin creating the foundational repository structure, dotfiles, and GitHub templates.
+_Write a short summary below when ending a session so the next AI agent knows exactly where to pick up._
+
+**Status:** Ready to begin Phase 1. The validation session has been completed, and `plan.md` has been updated with Smart Rebuilds, Dependency Graph Visualizers, automated revisions, `apk` format support, Hermetic `pre_fetch` phases, telemetry generation, binary signing, interactive scaffolding, strict `bwrap` sandboxing, GitHub Releases source mirroring, and Multi-Runner Consensus. **Next Action:** Begin creating the foundational repository structure, dotfiles, and GitHub templates.

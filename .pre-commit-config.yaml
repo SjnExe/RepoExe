@@ -3,14 +3,18 @@ repos:
     rev: v0.3.5
     hooks:
       - id: ruff
-        args: [ --fix ]
+        args: [--fix]
+        exclude: ^(backup|termux-packages)/
       - id: ruff-format
+        exclude: ^(backup|termux-packages)/
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v3.1.0
     hooks:
       - id: prettier
         types_or: [yaml, json, markdown]
+        exclude: ^(backup|termux-packages)/
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.10.0.1
     hooks:
       - id: shellcheck
+        exclude: ^(backup|termux-packages)/

@@ -6,12 +6,7 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "charliermarsh.ruff",
-        "esbenp.prettier-vscode",
-        "timonwong.shellcheck",
-        "redhat.vscode-yaml"
-      ],
+      "extensions": ["charliermarsh.ruff", "esbenp.prettier-vscode", "timonwong.shellcheck", "redhat.vscode-yaml"],
       "settings": {
         "python.formatting.provider": "none",
         "editor.defaultFormatter": "esbenp.prettier-vscode",

@@ -12,3 +12,15 @@ dependencies = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.ruff]
+exclude = [
+    "backup",
+    "termux-packages"
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov=scripts/core --cov-report=xml"
+testpaths = [
+    "scripts/tests"
+]
