@@ -6,6 +6,8 @@ readme = "../README.md"
 requires-python = ">=3.13"
 dependencies = [
     "pydantic>=2.0.0",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
     "PyYAML>=6.0",
 ]
 

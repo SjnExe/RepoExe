@@ -1,0 +1,30 @@
+# scripts/repo.yml
+# Defines external repository endpoints, their formats, and their component layouts
+# for dynamic fallback dependency resolution when building RepoExe packages.
+
+repositories:
+  termux-main:
+    format: apt
+    name: "termux-main"
+    distribution: "stable"
+    components: ["main"]
+    url: "https://packages-cf.termux.dev/apt/termux-main"
+    description: "Official Termux main repository (Debian format)"
+
+  tur:
+    format: apt
+    name: "tur"
+    distribution: "tur-packages"
+    components: ["tur", "tur-on-device", "tur-hacking", "tur-continuous", "tur-multilib"]
+    url: "https://tur.kcubeterm.com"
+    description: "Termux User Repository (Debian format)"
+
+  termux-pacman:
+    format: pacman
+    name: "termux-main-pacman"
+    distribution: "main"
+    components: ["main"]
+    url: "https://sync.termux-pacman.dev/main"
+    description: "Official Termux Pacman repository"
+
+  # We can add Alpine edge/main repositories here if needed later
