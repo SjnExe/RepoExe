@@ -69,3 +69,21 @@ repositories:
     gpg_key: "packages/termux-keyring/termux-pacman.gpg"
 
   # We can add Alpine edge/main repositories here if needed later
+
+  alpine-edge-main:
+    format: apk
+    name: "alpine-edge-main"
+    distribution: "edge"
+    components: ["main"]
+    url: "https://dl-cdn.alpinelinux.org/alpine/edge/main"
+    description: "Official Alpine Linux Edge repository (Main)"
+    gpg_key: ""
+
+  alpine-edge-community:
+    format: apk
+    name: "alpine-edge-community"
+    distribution: "edge"
+    components: ["community"]
+    url: "https://dl-cdn.alpinelinux.org/alpine/edge/community"
+    description: "Official Alpine Linux Edge repository (Community)"
+    gpg_key: ""

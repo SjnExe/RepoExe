@@ -275,10 +275,10 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pytest", specifier = ">=9.0.3" },
-    { name = "pytest-cov", specifier = ">=7.1.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "pydantic" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pyyaml" },
 ]
 
 [[package]]
