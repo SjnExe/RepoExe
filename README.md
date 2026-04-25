@@ -23,7 +23,7 @@ This universal script will automatically detect your active package manager (APT
 
 Please read `CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests to us.
 
-If you are an AI agent or maintainer looking to modify the build infrastructure, please refer to `AGENTS.md` and `plan.md` first.
+If you are an AI agent or maintainer looking to modify the build infrastructure, please refer to `AGENTS.md` first.
 
 ## Security
 
