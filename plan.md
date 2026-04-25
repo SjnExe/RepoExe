@@ -67,7 +67,7 @@ RepoExe/
 ├── README.md                  # Project documentation
 ├── LICENSE
 ├── plan.md                    # This architectural blueprint
-└── .gitignore, .dockerignore, .editorconfig, .gitattributes, .prettierrc, .prettierignore
+└── .gitignore, .dockerignore, .editorconfig, .gitattributes, .prettierrc, .prettierignore # Carefully crafted to match the new RepoExe structure (not legacy termux-packages)
 ```
 
 ---
@@ -253,7 +253,14 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
      - **Massive Packages:** Massive packages that require intense resources (as tagged by `isolated_shard: true` in their `build.yml`) will be automatically routed to their **own isolated shard** on a dedicated 16GB runner. The DAG will guarantee prerequisites are built beforehand.
    - **State Tarball Deprecation:** The legacy Termux/TUR workaround of pausing builds, zstd-tarballing the entire `~/.termux-build` directory, and resuming the build on a new runner is officially deprecated. The isolated DAG Sharding strategy completely replaces the need for transferring gigabytes of raw build state between runners.
    - **Local CI Emulation:** The orchestrator and repository must explicitly document and support running these complex Matrix Sharding workflows locally using `nektos/act`. This allows developers to test artifact generation and dynamic CI routing without pushing commits to GitHub.
-3. **Dual-Mode Workflow with Strict Release Boundaries (`build.yml` & `publish.yml`):**
+3. **Explicit Workflow Triggers & Execution Rules:**
+   - Workflows must be carefully configured to prevent duplicate runs and unnecessary executions.
+   - **`build.yml`:** Triggered on `push` and `pull_request` **strictly to the `main` branch** (there is no `dev` branch; staging happens via the `dev` APT component). It should only trigger if files in `packages/**` or `scripts/**` are modified.
+   - **`publish.yml`:** Triggered strictly on `workflow_run` (after `build.yml` successfully completes) or manual `workflow_dispatch`.
+   - **`package_updates.yml`:** Triggered on a `schedule` (e.g., `cron: '0 */6 * * *'`) and manual `workflow_dispatch`.
+   - **`promote.yml`:** Triggered on a daily `schedule` (e.g., `cron: '0 0 * * *'`) and manual `workflow_dispatch`.
+   - **`health.yml`:** Triggered on a daily `schedule` and manual `workflow_dispatch`.
+4. **Dual-Mode Workflow with Strict Release Boundaries (`build.yml` & `publish.yml`):**
    - **Semantic Release Integration:** Implement automated release note generation and version bumping (e.g., using `Release Please` or `Semantic Release`) based on Conventional Commits for the Python orchestrator and core releases.
    - **Manual Dispatch Features:**
      - **Test Mode:** Manual dispatches can include a `test_only` flag. When enabled, the workflow builds packages but strictly skips publishing to the repository.
@@ -269,7 +276,7 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
 4. **Package Updates & Dev Component Promotion (`package_updates.yml` & `promote.yml`):**
    - Auto-update logic must be disabled by default and explicitly enabled per package via the new YAML definitions. Updates trigger auto-PRs via `gh pr create`.
    - **Dev Component Staging:** To protect users from upstream regressions, all standard package updates (including auto-updates) are strictly deployed to the `dev` repository component first.
-   - **Automated Promotion:** A `promote.yml` cron job will run daily to scan the `dev` component. If a package has resided in `dev` for 3 days without a matching regression issue being opened on GitHub, the workflow automatically promotes the package to the `main` component.
+   - **Automated Promotion:** A `promote.yml` cron job will run daily to scan the `dev` component. If a package has resided in `dev` for its designated promotion period (defaults to 3 days, configurable via `promote_days` in its `build.yml`) without a matching regression issue being opened on GitHub, the workflow automatically promotes the package to the `main` component.
    - Packages explicitly configured with `bypass_dev: true` in their `build.yml` are exempt from staging and deploy directly to `main`.
 5. **Reproducible Builds Verification & Multi-Runner Consensus:**
    - **`reproducible.yml`:** Implement a manual `workflow_dispatch` workflow that accepts a package name as input. It will explicitly build the package twice (manipulating timestamps, runner paths, and environments) and use `diffoscope` to compare the resulting `.deb` files. If they are not bit-for-bit identical, the workflow fails, identifying non-deterministic metadata leaks within the Hermetic Sandbox.
