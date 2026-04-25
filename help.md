@@ -8,13 +8,13 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 
 ### Checklist
 - [x] [Complexity: 0/100] **Dual-Key Architecture Setup**: GPG (for APT/Pacman) and RSA (for Alpine) keys have been generated. `GPG_PRIVATE_KEY` and `ALPINE_PRIVATE_KEY` are configured in GitHub Secrets. Public keys are already inside `site/` folder.
-- [ ] [Complexity: 5/100] **Initialize Repository Structure**: Create dotfiles, initialize the `.github/` folder structure (by creating initial workflow files), and create the actual `site/install` file.
-- [ ] [Complexity: 5/100] **Create GitHub Community Files**: Create `SECURITY.md`, `CONTRIBUTING.md`, `FUNDING.yml`, `stale.yml`, and `dependabot.yml`.
-- [ ] [Complexity: 10/100] **Configure Ignore Files**: Create initial `.gitignore` and `.dockerignore` crafted explicitly for the RepoExe structure, and note that these files may need iterative updates as new components are added.
-- [ ] [Complexity: 10/100] **Configure Prettier**: Set up `.prettierrc` (strict format for AI) and `.prettierignore`.
-- [ ] [Complexity: 10/100] **Setup Python Project**: Establish `scripts/pyproject.toml` and lock dependencies via `uv` (must include `pydantic`).
-- [ ] [Complexity: 10/100] **Configure IDE Integration**: Implement DevContainers (`.devcontainer/devcontainer.json`) and `.vscode/settings.json` for YAML IDE Intellisense.
-- [ ] [Complexity: 15/100] **Configure Local Pre-commit Hooks**: Create `.pre-commit-config.yaml` for automated formatting checks (`ruff`, `prettier`, `shellcheck`).
+- [x] [Complexity: 5/100] **Initialize Repository Structure**: Create dotfiles, initialize the `.github/` folder structure (by creating initial workflow files), and create the actual `site/install` file.
+- [x] [Complexity: 5/100] **Create GitHub Community Files**: Create `SECURITY.md`, `CONTRIBUTING.md`, `FUNDING.yml`, `stale.yml`, and `dependabot.yml`.
+- [x] [Complexity: 10/100] **Configure Ignore Files**: Create initial `.gitignore` and `.dockerignore` crafted explicitly for the RepoExe structure, and note that these files may need iterative updates as new components are added.
+- [x] [Complexity: 10/100] **Configure Prettier**: Set up `.prettierrc` (strict format for AI) and `.prettierignore`.
+- [x] [Complexity: 10/100] **Setup Python Project**: Establish `scripts/pyproject.toml` and lock dependencies via `uv` (must include `pydantic`).
+- [x] [Complexity: 10/100] **Configure IDE Integration**: Implement DevContainers (`.devcontainer/devcontainer.json`) and `.vscode/settings.json` for YAML IDE Intellisense.
+- [x] [Complexity: 15/100] **Configure Local Pre-commit Hooks**: Create `.pre-commit-config.yaml` for automated formatting checks (`ruff`, `prettier`, `shellcheck`).
 - [ ] [Complexity: 20/100] **Docker Base Image**: Write the base `Dockerfile` (Ubuntu 24.04, non-root `builder`, integrate `uv`, `ruff`, `mypy`, `shellcheck`).
 - [ ] [Complexity: 20/100] **Migrate: repoexe-keyring & repoexe-dev**: Base component opt-in packages.
 - [ ] [Complexity: 25/100] **Docker NDK & Caching**: Download NDK 29, bake standard NDK patches directly into a Docker layer, and configure `sccache` with GitHub Actions Cache API chunking.

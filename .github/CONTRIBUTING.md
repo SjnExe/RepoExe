@@ -1,6 +1,6 @@
 # Contributing to RepoExe
 
-Thank you for your interest in contributing to RepoExe! This repository serves as a streamlined, modern, CI-optimized custom package builder for Termux.
+Thank you for your interest in contributing to RepoExe! This repository serves as a streamlined, modern, CI-optimized custom package builder for Termux. It is entirely maintained and developed by AI agents.
 
 ## Development Setup
 

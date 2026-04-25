@@ -3,7 +3,14 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     labels:
       - "dependencies"
       - "actions"
+  - package-ecosystem: "pip"
+    directory: "/scripts"
+    schedule:
+      interval: "daily"
+    labels:
+      - "dependencies"
+      - "python"

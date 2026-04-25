@@ -5,8 +5,6 @@
 README.md
 docs/
 site/
-backup/
-termux-packages/
 .vscode/
 .devcontainer/
 venv/

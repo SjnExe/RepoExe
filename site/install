@@ -1,25 +1,35 @@
 #!/bin/bash
 # Universal RepoExe Installation Script
-# Auto-detects APT vs Pacman vs APK
+# Auto-detects APT, Pacman, APK
 
 set -e
 
 echo "Starting RepoExe Installation..."
 
-if command -v pkg >/dev/null 2>&1; then
-    PM="pkg"
-elif command -v apt >/dev/null 2>&1; then
-    PM="apt"
-elif command -v pacman >/dev/null 2>&1; then
-    PM="pacman"
-elif command -v apk >/dev/null 2>&1; then
-    PM="apk"
-else
-    echo "Error: No supported package manager found."
-    exit 1
+FOUND_PM=0
+
+if command -v apt >/dev/null 2>&1; then
+    echo "Detected package manager: apt"
+    FOUND_PM=1
+    # TODO: Implement secure key downloading and repository configuration for apt
 fi
 
-echo "Detected package manager: $PM"
-# TODO: Implement secure key downloading and repository configuration
+if command -v pacman >/dev/null 2>&1; then
+    echo "Detected package manager: pacman"
+    FOUND_PM=1
+    # TODO: Implement secure key downloading and repository configuration for pacman
+fi
+
+if command -v apk >/dev/null 2>&1; then
+    echo "Detected package manager: apk"
+    FOUND_PM=1
+    # TODO: Implement secure key downloading and repository configuration for apk
+fi
+
+if [ $FOUND_PM -eq 0 ]; then
+    echo "Error: No supported package manager found (apt, pacman, or apk)."
+    # exiting the script on error
+    exit 1
+fi
 
 echo "RepoExe repository configured successfully."
