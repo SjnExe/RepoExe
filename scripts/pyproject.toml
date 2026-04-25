@@ -5,8 +5,10 @@ description = "Micro-modular Python orchestrator for RepoExe"
 readme = "../README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "pydantic>=2.0.0",
-    "PyYAML>=6.0",
+    "pydantic",
+    "pytest",
+    "pytest-cov",
+    "PyYAML",
 ]
 
 [project.scripts]
