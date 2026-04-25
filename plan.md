@@ -14,7 +14,7 @@ The ultimate aim is to rip out the convoluted, legacy Bash-based build infrastru
 - **Repository Name:** RepoExe
 - **GitHub Repository:** https://github.com/SjnExe/RepoExe
 - **GitHub Pages:** https://sjnexe.github.io/RepoExe/ (Hosts APT repository metadata)
-- **GitHub Releases:** Stores the compiled `.deb` package files.
+- **GitHub Releases:** Stores the compiled `.deb`, `.pkg.tar.zst`, and `.apk` package files. **Architecture:** Every source package (e.g., `libandroid-tools`) gets exactly *one* GitHub Release tag. All compiled architectures, formats, and auto-generated subpackages for every version are uploaded to this single tag.
 - **Architectures Supported:** `aarch64`, `arm`, `i686`, `x86_64`, `riscv64`, `wasm32-wasi`, `all`
 - **Package Formats Supported:** `APT` (.deb), `Pacman` (.pkg.tar.zst), `Alpine` (.apk)
 - **Main Component:** `main` (Default component for stable, public packages)
@@ -92,6 +92,7 @@ RepoExe/
    - Packages must be defined using structured **YAML** files named `build.yml` (e.g., `packages/rust/build.yml`). This format is vastly easier for an AI to parse, update, and validate. *(Note: All YAML files must use the standard `build.yml` nomenclature).*
    - **Pydantic Schema Validation:** The `parser.py` module MUST use **Pydantic** to define strict data models for the `build.yml`. This ensures that field types (e.g. `revision` as integer, `essential` as boolean) are strictly validated before execution, providing precise, AI-friendly error messages if a YAML file is malformed. Furthermore, Pydantic validators must enforce URL standardization (e.g. ensuring GitHub `source_url` paths use standard release archives), porting logic from the deprecated `lint-packages.sh`.
    - **Strict Version Continuity:** `parser.py` must replicate Termux's strict version validation. When a developer modifies a `build.yml` in a PR, the parser must actively query the Git history (`git show origin/main...`) to evaluate the previous YAML state and verify that either the `version` or `revision` field was strictly incremented. If the version is not bumped, the parser must instantly fail the build.
+   - **Version Normalization & Dialect Translation:** The `version` field in `build.yml` must strictly reflect the true upstream version (e.g., `16.0.0-r4`) and **MUST NOT** contain a `v` prefix. If an upstream tarball requires a `v` prefix, developers must use string interpolation in the `source_url` (e.g., `v${version}`). To ensure cross-compatibility without breaking package manager sorting algorithms, `parser.py` will automatically translate upstream revisions (like `-r4`) into PM-specific "dialects" before packaging: `+r4` for Debian (`16.0.0+r4-2`), `.r4` for Pacman (`16.0.0.r4-2`), and `_p4` for Alpine (`16.0.0_p4-r2`).
    - **Advanced Metadata Schema:** The `parser.py` must support advanced Termux features natively in the YAML schema. The schema format should be standardized, clean, and typed via Pydantic:
      - **Core & Compatibility:**
        - `libc` *(string)*: `bionic` (default) vs `glibc`. Requires parallel dependency trees for `glibc`.
@@ -209,6 +210,7 @@ RepoExe/
      1. A nested **PRoot container** to strictly simulate a standard Android Termux app environment (no root access, strict `$PREFIX` paths, no access to the builder's source tree).
      2. A simulated **PRoot Distro** environment to catch edge-case filesystem bugs that occur when Termux users run packages inside Linux chroots.
      3. A nightly/release **Real Android Emulator** environment via CI workflows (e.g., using `reactivecircus/android-emulator-runner`). The CI will boot an Android emulator on a Linux runner with KVM support, securely install the Termux APK via `adb`, push the compiled packages, and execute `pkg install` inside the Termux shell via `adb shell` to natively verify behavior.
+     4. **Flaky Test Isolation:** To prevent CI stalling due to transient emulator/PRoot quirks, `test.py` must integrate an automatic retry mechanism. Tests that fail initially but pass on retry are quarantined as "flaky", generating warnings without hard-blocking the release pipeline.
 
 ---
 
@@ -252,6 +254,7 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
    - **Manual Dispatch Features:**
      - **Test Mode:** Manual dispatches can include a `test_only` flag. When enabled, the workflow builds packages but strictly skips publishing to the repository.
      - **Package Exclusion Syntax:** The workflow package input must support a negative exclusion syntax like `!{package_name}`. This allows building "everything except X". The `prepare` script MUST enforce strict validation: if the syntax is malformed, or if a user attempts to exclude a package that is a strict dependency of another package being built, the workflow must abort immediately before spawning runners.
+   - **Automated Rollback (`yank.yml`):** If a deployed package is broken, developers can trigger this manual workflow. It will automatically delete the broken version's assets from the GitHub Release tag and update the static APT/Pacman/Alpine index to point back to the previous stable version still stored in the release.
    - **PR Mode:** Compiles packages purely as a test. Restores caches to speed up builds but strictly DOES NOT save them, preventing cache pollution.
    - **Strict Release Separation & SLSA Provenance:** The package compilation (`build.yml`) and repository publishing (`publish.yml`) must be strictly separated. The publish step (`needs: build`) will only push to the live repository **if and only if** all shards in the matrix passed successfully. The static repository hosting (APT/Pacman/Alpine) must implement **TUF (The Update Framework)** principles for metadata signing to protect against rollback attacks.
      - **Dual-Key Injection:** The `publish.yml` workflow must securely inject the `GPG_PRIVATE_KEY` and `ALPINE_PRIVATE_KEY` GitHub Secrets to allow the orchestrator to sign metadata and `.apk` files natively.
@@ -288,8 +291,10 @@ RepoExe will leverage the full capabilities of Debian's APT package manager to e
    - **No Fragile `curl` Scrapes:** Unlike Termux, which scrapes its own GitHub repo via `curl` to find toolchain versions (e.g., host Python), RepoExe will strictly define external toolchain versions in its own configuration files (e.g., `toolchains.yml`) to prevent breaking if upstream Termux pushes an unexpected change.
 3. **Repository Health Validation (`health.yml`):**
    - The orchestrator must include a `health.py` module replacing legacy JS/Python scripts (`check-repository-health.js` and `check-built-packages.py`).
-   - It will run on a scheduled cron job to validate the sync between the `packages/` YAML definitions and the live `sjnexe.github.io/RepoExe` repositories (both APT and Pacman formats).
-   - It must ensure versions match perfectly, alert if missing `.deb` or `.pkg.tar.xz` artifacts exist, and flag "zombie packages" (e.g., orphaned `-static` subpackages or deleted packages) for automated pruning.
+   - It will run on a scheduled cron job to validate the sync between the `packages/` YAML definitions and the live `sjnexe.github.io/RepoExe` repositories (both APT, Pacman, and Alpine formats).
+   - It must ensure versions match perfectly, alert if missing artifacts exist, and flag "zombie packages" (e.g., orphaned subpackages or deleted packages) for automated pruning.
+   - **Release Asset Pruning:** To prevent infinite storage growth, `health.py` will automatically prune old assets from GitHub Releases. Because all subpackages and variants share a single release tag, the CI `publish.yml` will attach a GitHub Release Asset metadata label (e.g., `version: 33.0.3-1`) to every uploaded file. The pruning script uses these labels to group assets by version and safely deletes any files belonging to the 6th oldest version and beyond.
+   - **Reproducibility Dashboard:** `health.py` will continuously aggregate reproducibility verification states and dynamically render a "Reproducibility Status" dashboard on the GitHub Pages site. This dashboard provides a per-version, public track record of which packages have achieved bit-for-bit deterministic builds.
 4. **Upstream Version Checking:**
    - The orchestrator must include an `upstream_check.py` module replacing the manual bash script (`check-versions.sh`) and the legacy auto-update scripts.
    - It will automate pinging upstream APIs (explicitly scraping GitHub and GitLab release tags) to detect if a newer version of a package is available, streamlining the cron-based auto-update PRs. Crucially, the module must gracefully handle HTTP 403 blocks from strict GitLab instances (e.g., `gitlab.gnome.org` blocking GitHub Actions runners) by implementing fallback mechanisms like Repology API lookups or direct HTML scraping.
