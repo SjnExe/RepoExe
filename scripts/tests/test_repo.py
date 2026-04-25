@@ -1,6 +1,7 @@
 import yaml
 from pathlib import Path
 
+
 def test_repo_yml_exists_and_valid():
     repo_path = Path("repo.yml")
     assert repo_path.exists(), "repo.yml should exist in scripts/"
