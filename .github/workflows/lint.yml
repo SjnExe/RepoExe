@@ -1,0 +1,54 @@
+name: Lint and Format
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint-and-format:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "scripts/uv.lock"
+
+      - name: Setup Node.js (for Prettier)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Prettier
+        run: npm install -g prettier
+
+      - name: Run Ruff (Fix)
+        run: uv run ruff check --fix .
+
+      - name: Run Ruff (Format)
+        run: uv run ruff format .
+
+      - name: Run Prettier
+        run: prettier --write .
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "RepoExe"
+          git config --global user.email "repoexe@users.noreply.github.com"
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git commit -am "chore: auto-format with ruff and prettier"
+            git push
+          else
+            echo "No formatting changes needed."
+          fi
