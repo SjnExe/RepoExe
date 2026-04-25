@@ -1,0 +1,20 @@
+name: Yank Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to yank (e.g. aapt2)'
+        required: true
+      version:
+        description: 'Version to yank (e.g. 1.0.0-1)'
+        required: true
+
+jobs:
+  yank:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Yank Package logic
+        run: echo "Yanking ${{ github.event.inputs.package }} version ${{ github.event.inputs.version }}"

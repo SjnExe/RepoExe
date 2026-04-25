@@ -1,0 +1,29 @@
+name: Lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv pip install --system ruff mypy pre-commit actionlint shellcheck-py
+      - name: Run actionlint
+        run: actionlint
+      - name: Run Pre-commit Hooks (Ruff, Prettier, Shellcheck)
+        run: pre-commit run --all-files
+      - name: Commit fixes (Self-Healing)
+        if: failure() && github.event_name == 'pull_request'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m "style: auto format with ruff and prettier" || echo "No changes to commit"
+          # Intentionally omitting push command here

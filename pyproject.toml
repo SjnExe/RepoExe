@@ -1,0 +1,14 @@
+[project]
+name = "repoexe-build"
+version = "0.1.0"
+description = "RepoExe Package Build System"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.0.0",
+    "requests",
+    "pyyaml"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

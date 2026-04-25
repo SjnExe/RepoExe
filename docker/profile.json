@@ -1,0 +1,24 @@
+{
+  "defaultAction": "SCMP_ACT_ERRNO",
+  "architectures": [
+    "SCMP_ARCH_X86_64",
+    "SCMP_ARCH_X86",
+    "SCMP_ARCH_X32"
+  ],
+  "syscalls": [
+    {
+      "names": [
+        "personality",
+        "mount",
+        "umount2",
+        "clone",
+        "unshare"
+      ],
+      "action": "SCMP_ACT_ALLOW",
+      "args": [],
+      "comment": "Allow syscalls needed by bwrap and emulation",
+      "includes": {},
+      "excludes": {}
+    }
+  ]
+}

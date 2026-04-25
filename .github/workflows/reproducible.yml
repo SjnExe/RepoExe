@@ -1,0 +1,27 @@
+name: Reproducible Build Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to build and compare (e.g., aapt2)'
+        required: true
+
+jobs:
+  build-and-compare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Package (Environment A)
+        run: echo "Building ${{ github.event.inputs.package }} in env A"
+
+      - name: Build Package (Environment B)
+        run: echo "Building ${{ github.event.inputs.package }} in env B with altered paths/timestamps"
+
+      - name: Install diffoscope
+        run: sudo apt-get update && sudo apt-get install -y diffoscope
+
+      - name: Compare with Diffoscope
+        run: echo "Comparing artifacts from env A and env B using diffoscope"

@@ -1,0 +1,23 @@
+name: Build Docker Image
+
+on:
+  push:
+    paths:
+      - 'Dockerfile'
+      - 'ndk-patches/**'
+      - 'docker/**'
+      - '.github/workflows/docker.yml'
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'ndk-patches/**'
+      - 'docker/**'
+      - '.github/workflows/docker.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test Docker image
+        run: docker build -t ghcr.io/sjnexe/repoexe-builder:latest .
