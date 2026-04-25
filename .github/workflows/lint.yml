@@ -34,10 +34,10 @@ jobs:
         run: npm install -g prettier
 
       - name: Run Ruff (Fix)
-        run: uv run --directory scripts ruff check --fix .
+        run: uvx ruff check --fix scripts/
 
       - name: Run Ruff (Format)
-        run: uv run --directory scripts ruff format .
+        run: uvx ruff format scripts/
 
       - name: Run Prettier
         run: prettier --write .
