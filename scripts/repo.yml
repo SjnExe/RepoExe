@@ -10,6 +10,26 @@ repositories:
     components: ["main"]
     url: "https://packages-cf.termux.dev/apt/termux-main"
     description: "Official Termux main repository (Debian format)"
+    # We use the known Termux Autobuilds key for verification (CC72CF8BA7DBFA0182877D045A897D96E57CF20C)
+    gpg_key: "packages/termux-keyring/termux-autobuilds.gpg"
+
+  termux-root:
+    format: apt
+    name: "termux-root"
+    distribution: "root"
+    components: ["stable"]
+    url: "https://packages-cf.termux.dev/apt/termux-root"
+    description: "Official Termux root repository (Debian format)"
+    gpg_key: "packages/termux-keyring/termux-autobuilds.gpg"
+
+  termux-x11:
+    format: apt
+    name: "termux-x11"
+    distribution: "x11"
+    components: ["main"]
+    url: "https://packages-cf.termux.dev/apt/termux-x11"
+    description: "Official Termux X11 repository (Debian format)"
+    gpg_key: "packages/termux-keyring/termux-autobuilds.gpg"
 
   tur:
     format: apt
@@ -18,13 +38,34 @@ repositories:
     components: ["tur", "tur-on-device", "tur-hacking", "tur-continuous", "tur-multilib"]
     url: "https://tur.kcubeterm.com"
     description: "Termux User Repository (Debian format)"
+    # Note: TUR generally distributes its own keyring pkg
+    gpg_key: ""
 
-  termux-pacman:
+  termux-pacman-main:
     format: pacman
     name: "termux-main-pacman"
     distribution: "main"
     components: ["main"]
     url: "https://sync.termux-pacman.dev/main"
-    description: "Official Termux Pacman repository"
+    description: "Official Termux Pacman repository (Main)"
+    gpg_key: "packages/termux-keyring/termux-pacman.gpg"
+
+  termux-pacman-root:
+    format: pacman
+    name: "termux-root-pacman"
+    distribution: "root"
+    components: ["root"]
+    url: "https://sync.termux-pacman.dev/root"
+    description: "Official Termux Pacman repository (Root)"
+    gpg_key: "packages/termux-keyring/termux-pacman.gpg"
+
+  termux-pacman-x11:
+    format: pacman
+    name: "termux-x11-pacman"
+    distribution: "x11"
+    components: ["x11"]
+    url: "https://sync.termux-pacman.dev/x11"
+    description: "Official Termux Pacman repository (X11)"
+    gpg_key: "packages/termux-keyring/termux-pacman.gpg"
 
   # We can add Alpine edge/main repositories here if needed later

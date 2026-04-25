@@ -1,4 +1,5 @@
 """YAML Pydantic Parser for RepoExe."""
+
 import yaml
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
@@ -19,6 +20,7 @@ ALLOWED_LICENSES = {
     "CC0-1.0",
     "MPL-2.0",
 }
+
 
 class BuildYml(BaseModel):
     """Pydantic model representing a RepoExe build.yml definition."""
@@ -45,6 +47,12 @@ class BuildYml(BaseModel):
 
     # Versioning & Updates
     auto_update: bool = Field(False, description="Opt-in to upstream_check.py")
+
+    # Dependencies & Repositories
+    repositories: List[str] = Field(
+        default_factory=list,
+        description="External repositories from repo.yml allowed to resolve dependencies for this package",
+    )
     bypass_dev: bool = Field(False, description="Bypass the dev component staging area")
 
     # Build Environment & Execution
@@ -76,38 +84,40 @@ class BuildYml(BaseModel):
     service_script: List[str] = Field(default_factory=list, description="Service daemon logic for runit")
     alternatives: Dict[str, str] = Field(default_factory=dict, description="Priority-based command symlinking")
 
-    @field_validator('version')
+    @field_validator("version")
     @classmethod
     def version_must_not_start_with_v(cls, v: str) -> str:
-        if v.startswith('v'):
+        if v.startswith("v"):
             raise ValueError("Version must strictly reflect upstream and MUST NOT contain a 'v' prefix.")
         return v
 
-    @field_validator('license')
+    @field_validator("license")
     @classmethod
     def license_must_be_allowed(cls, v: str) -> str:
         allowed_upper = {lic.upper(): lic for lic in ALLOWED_LICENSES}
         v_upper = v.upper()
         if v_upper not in allowed_upper:
-            if not v.lower().startswith('custom:'):
-                raise ValueError(f"License '{v}' is not in the allowlist. Use a standard SPDX identifier or 'custom:<name>'.")
+            if not v.lower().startswith("custom:"):
+                raise ValueError(
+                    f"License '{v}' is not in the allowlist. Use a standard SPDX identifier or 'custom:<name>'."
+                )
         return v
 
-    @field_validator('source_url')
+    @field_validator("source_url")
     @classmethod
     def validate_github_url(cls, v: Optional[str]) -> Optional[str]:
-        if v and 'github.com' in v:
-            if '/archive/' in v and '/archive/refs/tags/' not in v:
+        if v and "github.com" in v:
+            if "/archive/" in v and "/archive/refs/tags/" not in v:
                 raise ValueError(
                     "GitHub '/archive/' URLs are highly volatile. Use official release assets "
                     "(/releases/download/) or strict tag archives (/archive/refs/tags/) to ensure SHA256 stability."
                 )
         return v
 
-    @field_validator('optimize')
+    @field_validator("optimize")
     @classmethod
     def validate_optimization(cls, v: str) -> str:
-        if v not in ['size', 'speed', 'none']:
+        if v not in ["size", "speed", "none"]:
             raise ValueError("optimize must be one of: 'size', 'speed', 'none'")
         return v
 

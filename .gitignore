@@ -61,3 +61,7 @@ APKINDEX.tar.gz
 Packages*
 Release*
 InRelease
+
+# pytest
+.coverage
+.pytest_cache/

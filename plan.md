@@ -103,6 +103,7 @@ RepoExe/
        - `excluded_arches` _(list[str])_: Arches to skip building (e.g., `['i686', 'x86_64']`).
        - `platform_independent` _(bool)_: Bypasses multi-arch matrix, sets `.deb` to `all` architecture.
        - `essential` _(bool)_: Prevents users from uninstalling critical packages.
+       - `repositories` _(list[str])_: Explicitly defines which external endpoints (defined in `repo.yml`, like `termux-main` or `tur`) this package is allowed to query to resolve fallback dependencies.
      - **Versioning & Updates:**
        - `revision` _(int)_: Bumps APT repository versions without upstream version changes.
        - `auto_update` _(bool)_: Opt-in to `upstream_check.py` (defaults to `false`).
