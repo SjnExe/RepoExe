@@ -8,8 +8,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 
 ### Checklist
 - [x] [Complexity: 0/100] **Phase 1 Audit**: Perform a comprehensive audit of `plan.md` to identify logical inconsistencies, review obscure features in `backup/`, and propose final DevOps modernization strategies.
-- [x] [Complexity: 0/100] **Dual-Key Architecture Setup**: GPG (for APT/Pacman) and RSA (for Alpine) keys have been generated. `GPG_PRIVATE_KEY` and `ALPINE_PRIVATE_KEY` are configured in GitHub Secrets. Public keys are already inside `scripts/site/` folder.
-- [x] [Complexity: 5/100] **Initialize Repository Structure**: Create dotfiles, initialize the `.github/` folder structure (by creating initial workflow files), and create the actual `scripts/site/install` file.
+- [x] [Complexity: 0/100] **Dual-Key Architecture Setup**: GPG (for APT/Pacman) and RSA (for Alpine) keys have been generated. `GPG_PRIVATE_KEY` and `ALPINE_PRIVATE_KEY` are configured in GitHub Secrets. Public keys are already inside `scripts/` folder.
+- [x] [Complexity: 5/100] **Initialize Repository Structure**: Create dotfiles, initialize the `.github/` folder structure (by creating initial workflow files), and create the actual `scripts/install` file.
 - [x] [Complexity: 5/100] **Create GitHub Community Files**: Create `SECURITY.md`, `CONTRIBUTING.md`, `FUNDING.yml`, `stale.yml`, and `dependabot.yml`.
 - [x] [Complexity: 10/100] **Configure Ignore Files**: Create initial `.gitignore` and `.dockerignore` crafted explicitly for the RepoExe structure, and note that these files may need iterative updates as new components are added.
 - [x] [Complexity: 10/100] **Configure Prettier**: Set up `.prettierrc` (strict format for AI) and `.prettierignore`.
@@ -77,7 +77,7 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 *   Completed tasks 0-15/100 (Initialize Repository Structure, Create GitHub Community Files, Configure Ignore Files, Configure Prettier, Setup Python Project, Configure IDE Integration, Configure Local Pre-commit Hooks).
 *   Configured python tools (Ruff, Mypy, UV) to target absolute latest Python 3.13.
 *   Setup Dependabot for GitHub Actions and pip packages, configured to run daily.
-*   Created `scripts/site/install` to support concurrent Apt, Pacman, and Apk installations without `pkg`.
+*   Created `scripts/install` to support concurrent Apt, Pacman, and Apk installations without `pkg`.
 *   All line lengths tuned to `120` to aid AI agents.
 
 **Session 2 Handover (Completed)**

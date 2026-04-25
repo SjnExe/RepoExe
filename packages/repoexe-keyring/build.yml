@@ -10,4 +10,4 @@ essential: true
 
 phases:
   install: |
-    install -Dm600 ../../scripts/site/repoexe.gpg $DESTDIR$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg
+    install -Dm600 ../../scripts/repoexe.gpg $DESTDIR$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg
