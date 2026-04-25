@@ -9,14 +9,22 @@ ENV LANG=en_US.UTF-8
 RUN rm -f /etc/apt/apt.conf.d/docker-clean \
   && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 
+# Optimize apt sources, create dummy groups to avoid warnings, and install dependencies
 RUN \
   --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache \
   --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib \
-  apt-get update \
-  && apt-get install -yq --no-install-recommends \
-    locales apt-utils eatmydata sudo curl git ca-certificates \
+  groupadd -r systemd-journal \
+  && useradd -r -s /bin/false systemd-network \
+  && useradd -r -s /bin/false systemd-resolve \
+  && apt-get update \
+  && apt-get install -yq --no-install-recommends locales apt-utils \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \
+  && sed -i 's@http://archive.ubuntu.com/ubuntu/@mirror://mirrors.ubuntu.com/mirrors.txt@g' /etc/apt/sources.list.d/ubuntu.sources \
+  && sed -i 's@http://security.ubuntu.com/ubuntu/@mirror://mirrors.ubuntu.com/mirrors.txt@g' /etc/apt/sources.list.d/ubuntu.sources \
+  && apt-get update \
+  && apt-get install -yq --no-install-recommends \
+    eatmydata sudo curl git ca-certificates aria2 fuse-overlayfs \
   && eatmydata apt-get -yq upgrade
 
 # Remove the default ubuntu user and create 'builder' with UID 1000
