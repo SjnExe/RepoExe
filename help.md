@@ -18,7 +18,7 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 15/100] **Configure Local Pre-commit Hooks**: Create `.pre-commit-config.yaml` for automated formatting checks (`ruff`, `prettier`, `shellcheck`).
 - [x] [Complexity: 20/100] **Docker Base Image**: Write the base `Dockerfile` (Ubuntu 24.04, non-root `builder`, integrate `uv`, `ruff`, `mypy`, `shellcheck`).
 - [x] [Complexity: 20/100] **Migrate: repoexe-keyring & repoexe-dev**: Base component opt-in packages.
-- [x] [Complexity: 25/100] **Docker NDK - [ ] [Complexity: 25/100] **Docker NDK & Caching** Caching**: Download NDK 29, bake standard NDK patches directly into a Docker layer, and configure `sccache` with GitHub Actions Cache API chunking.
+- [x] [Complexity: 25/100] **Docker NDK & Caching**: Download NDK 29, bake standard NDK patches directly into a Docker layer, and configure `sccache` with GitHub Actions Cache API chunking.
 - [x] [Complexity: 25/100] **Properties Module (`properties.py`)**: Define explicit internal `PREFIX` bounds for the device layout (`/data/data/com.termux/files/usr`).
 - [ ] [Complexity: 25/100] **Repository Configurations (`repo.yml`)**: Implement `scripts/repo.yml` to define external repository endpoints (Termux/TUR), their GPG keys, and their component layouts for dynamic fallback dependency resolution.
 - [ ] [Complexity: 30/100] **YAML Pydantic Parser (`parser.py` - Core)**: Implement basic Pydantic parsing of `build.yml` schema, License allowlist validation, and standardized `source_url` formatting.
