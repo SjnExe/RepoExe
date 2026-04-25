@@ -4,9 +4,11 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 **Agent Directive:** At the start of a session, review this checklist. At the end of a session, check off the completed items and write a brief summary of what to do next for the following agent.
 
 ## Execution Order
+
 The tasks are sorted below strictly by their complexity score (easiest to hardest). Execute them in order. Focus on low-complexity infrastructure tasks first, then move on to core Python modules, and finally the most complex logic.
 
 ### Checklist
+
 - [x] [Complexity: 0/100] **Phase 1 Audit**: Perform a comprehensive audit of `plan.md` to identify logical inconsistencies, review obscure features in `backup/`, and propose final DevOps modernization strategies.
 - [x] [Complexity: 0/100] **Dual-Key Architecture Setup**: GPG (for APT/Pacman) and RSA (for Alpine) keys have been generated. `GPG_PRIVATE_KEY` and `ALPINE_PRIVATE_KEY` are configured in GitHub Secrets. Public keys are already inside `scripts/` folder.
 - [x] [Complexity: 5/100] **Initialize Repository Structure**: Create dotfiles, initialize the `.github/` folder structure (by creating initial workflow files), and create the actual `scripts/site/install` file.
@@ -54,7 +56,7 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [ ] [Complexity: 70/100] **Source Mirroring & Git Submodules (`sysroot.py` - Advanced)**: Validate GPG signatures, auto-mirror fetched tarballs to GitHub Releases, natively clone upstream Git branches, and handle recursive submodules.
 - [ ] [Complexity: 70/100] **Repository Health Core (`health.py`)**: Cron job logic validating sync between YAML and Pages, flagging zombie packages, and Release Asset Pruning (keep last 5 versions).
 - [ ] [Complexity: 75/100] **Hermetic Docker Sandbox (`docker.py` - Strict)**: Disable network access during compilation. Integrate strict Bubblewrap (`bwrap`) jail boundaries, natively mount `binfmt_misc` / `qemu-user-static` for transparent emulation.
-- [ ] [Complexity: 75/100] **Hybrid Build Engine (`build.py` - Runner)**: Execute structured declarative targets vs wrappers. Ensure `pre_fetch` hook runs *before* Hermetic sandboxing. Instrument OpenTelemetry and generate `crash_report.json`.
+- [ ] [Complexity: 75/100] **Hybrid Build Engine (`build.py` - Runner)**: Execute structured declarative targets vs wrappers. Ensure `pre_fetch` hook runs _before_ Hermetic sandboxing. Instrument OpenTelemetry and generate `crash_report.json`.
 - [ ] [Complexity: 80/100] **DAG Telemetry & Anti-Deps (`dag.py` - Advanced)**: Telemetry-driven dynamic sharding to balance execution times. Natively handle `anti_build_depends` to strictly uninstall conflicting dependencies on runners. Output Dependency Graphs.
 - [ ] [Complexity: 80/100] **Ghost Dependency & ABI Detection**: Run `dpkg-shlibdeps` against `Depends` array to lint unused dependencies. Integrate `libabigail` validation for ABI breakage.
 - [ ] [Complexity: 85/100] **Static APT Generator (`debian.py` - APT)**: Natively implement Python-based custom static APT metadata generation (`Packages`, `Release`, `InRelease`) entirely replacing `aptly`.
@@ -68,29 +70,33 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 ---
 
 ## Current Session Notes / Handover
-*Write a short summary below when ending a session so the next AI agent knows exactly where to pick up.*
+
+_Write a short summary below when ending a session so the next AI agent knows exactly where to pick up._
 
 **Status:** Phase 1 scaffolding complete. Ready for Docker environment implementation.
 
-
 **Session 1 Handover (Completed)**
-*   Completed tasks 0-15/100 (Initialize Repository Structure, Create GitHub Community Files, Configure Ignore Files, Configure Prettier, Setup Python Project, Configure IDE Integration, Configure Local Pre-commit Hooks).
-*   Configured python tools (Ruff, Mypy, UV) to target absolute latest Python 3.13.
-*   Setup Dependabot for GitHub Actions and pip packages, configured to run daily.
-*   Created `scripts/site/install` to support concurrent Apt, Pacman, and Apk installations without `pkg`.
-*   All line lengths tuned to `120` to aid AI agents.
+
+- Completed tasks 0-15/100 (Initialize Repository Structure, Create GitHub Community Files, Configure Ignore Files, Configure Prettier, Setup Python Project, Configure IDE Integration, Configure Local Pre-commit Hooks).
+- Configured python tools (Ruff, Mypy, UV) to target absolute latest Python 3.13.
+- Setup Dependabot for GitHub Actions and pip packages, configured to run daily.
+- Created `scripts/site/install` to support concurrent Apt, Pacman, and Apk installations without `pkg`.
+- All line lengths tuned to `120` to aid AI agents.
 
 **Session 2 Handover (Completed)**
-*   Performed a comprehensive Phase 1 Audit on the `plan.md` architectural blueprint.
-*   Integrated modernization strategies such as Bubblewrap `DESTDIR` tmpfs fallbacks, `scripts/repo.yml` external repository routing, dynamic `libc` suffixing logic for internal dependency trees, Repology API lookups, and PM-specific override blocks in the YAML schema.
+
+- Performed a comprehensive Phase 1 Audit on the `plan.md` architectural blueprint.
+- Integrated modernization strategies such as Bubblewrap `DESTDIR` tmpfs fallbacks, `scripts/repo.yml` external repository routing, dynamic `libc` suffixing logic for internal dependency trees, Repology API lookups, and PM-specific override blocks in the YAML schema.
 
 **Session 3 Handover (Completed)**
-*   Created the modern `Dockerfile` utilizing Ubuntu 24.04, non-root builder user, caching overlays, and astral-sh/uv for python tools.
-*   Migrated `repoexe-keyring` and `repoexe-dev` to the new Pydantic YAML schema under `packages/`.
-*   **Next Action (Session 4):** Start with **Docker NDK & Caching** (Complexity 25/100), bake standard NDK patches directly into a Docker layer, and configure `sccache`. Then move on to the **Properties Module (`properties.py`)**.
+
+- Created the modern `Dockerfile` utilizing Ubuntu 24.04, non-root builder user, caching overlays, and astral-sh/uv for python tools.
+- Migrated `repoexe-keyring` and `repoexe-dev` to the new Pydantic YAML schema under `packages/`.
+- **Next Action (Session 4):** Start with **Docker NDK & Caching** (Complexity 25/100), bake standard NDK patches directly into a Docker layer, and configure `sccache`. Then move on to the **Properties Module (`properties.py`)**.
 
 **Session 4 Handover (Completed)**
-*   Downloaded Android NDK 29 and baked standard NDK patches directly into a Docker layer.
-*   Configured `sccache` with GitHub Actions Cache API support.
-*   Created `scripts/core/properties.py` to define explicit internal `PREFIX` bounds for the device layout.
-*   **Next Action (Session 5):** Start with **Repository Configurations (`repo.yml`)** (Complexity 25/100) and **YAML Pydantic Parser (`parser.py` - Core)** (Complexity 30/100).
+
+- Downloaded Android NDK 29 and baked standard NDK patches directly into a Docker layer.
+- Configured `sccache` with GitHub Actions Cache API support.
+- Created `scripts/core/properties.py` to define explicit internal `PREFIX` bounds for the device layout.
+- **Next Action (Session 5):** Start with **Repository Configurations (`repo.yml`)** (Complexity 25/100) and **YAML Pydantic Parser (`parser.py` - Core)** (Complexity 30/100).

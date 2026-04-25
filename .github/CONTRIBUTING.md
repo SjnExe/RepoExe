@@ -9,10 +9,12 @@ The primary way to test and build packages locally is using our standard Docker 
 The Docker image matches the exact CI environment to prevent host pollution.
 
 **Prerequisites:**
+
 - Docker
 - `uv` (Python package manager)
 
 To set up your local environment:
+
 1. Clone the repository.
 2. We recommend using DevContainers or the provided Docker image for a seamless, AI-friendly workspace pre-configured with linters and tools.
 3. If developing the Python orchestrator locally, run `uv sync` to install dependencies.
