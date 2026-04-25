@@ -2,15 +2,26 @@
 
 import yaml
 from typing import Dict, List, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-# Standard set of open-source licenses
+# Standard set of open-source licenses based on legacy Termux standards
 ALLOWED_LICENSES = {
     "Apache-2.0",
     "GPL-2.0",
+    "GPL-2.0-only",
+    "GPL-2.0-or-later",
     "GPL-3.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "LGPL-2.0",
+    "LGPL-2.0-only",
+    "LGPL-2.0-or-later",
     "LGPL-2.1",
+    "LGPL-2.1-only",
+    "LGPL-2.1-or-later",
     "LGPL-3.0",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later",
     "MIT",
     "ISC",
     "BSD-2-Clause",
@@ -19,6 +30,9 @@ ALLOWED_LICENSES = {
     "Unlicense",
     "CC0-1.0",
     "MPL-2.0",
+    "OFL-1.1",
+    "Public Domain",
+    "WTFPL",
 }
 
 
@@ -121,8 +135,7 @@ class BuildYml(BaseModel):
             raise ValueError("optimize must be one of: 'size', 'speed', 'none'")
         return v
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra='forbid')
 
 
 def parse_build_yml(filepath: str) -> BuildYml:
