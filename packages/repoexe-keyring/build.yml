@@ -1,0 +1,13 @@
+name: repoexe-keyring
+version: "3.9"
+description: RepoExe keyring
+homepage: https://repoexe.dev/
+license: Apache-2.0
+maintainer: "@repoexe"
+source: local
+platform_independent: true
+essential: true
+
+phases:
+  install: |
+    install -Dm600 repoexe.gpg $DESTDIR$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg

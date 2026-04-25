@@ -16,8 +16,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 10/100] **Setup Python Project**: Establish `scripts/pyproject.toml` and lock dependencies via `uv` (must include `pydantic`).
 - [x] [Complexity: 10/100] **Configure IDE Integration**: Implement DevContainers (`.devcontainer/devcontainer.json`) and `.vscode/settings.json` for YAML IDE Intellisense.
 - [x] [Complexity: 15/100] **Configure Local Pre-commit Hooks**: Create `.pre-commit-config.yaml` for automated formatting checks (`ruff`, `prettier`, `shellcheck`).
-- [ ] [Complexity: 20/100] **Docker Base Image**: Write the base `Dockerfile` (Ubuntu 24.04, non-root `builder`, integrate `uv`, `ruff`, `mypy`, `shellcheck`).
-- [ ] [Complexity: 20/100] **Migrate: repoexe-keyring & repoexe-dev**: Base component opt-in packages.
+- [x] [Complexity: 20/100] **Docker Base Image**: Write the base `Dockerfile` (Ubuntu 24.04, non-root `builder`, integrate `uv`, `ruff`, `mypy`, `shellcheck`).
+- [x] [Complexity: 20/100] **Migrate: repoexe-keyring & repoexe-dev**: Base component opt-in packages.
 - [ ] [Complexity: 25/100] **Docker NDK & Caching**: Download NDK 29, bake standard NDK patches directly into a Docker layer, and configure `sccache` with GitHub Actions Cache API chunking.
 - [ ] [Complexity: 25/100] **Properties Module (`properties.py`)**: Define explicit internal `PREFIX` bounds for the device layout (`/data/data/com.termux/files/usr`).
 - [ ] [Complexity: 25/100] **Repository Configurations (`repo.yml`)**: Implement `scripts/repo.yml` to define external repository endpoints (Termux/TUR), their GPG keys, and their component layouts for dynamic fallback dependency resolution.
@@ -83,4 +83,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 **Session 2 Handover (Completed)**
 *   Performed a comprehensive Phase 1 Audit on the `plan.md` architectural blueprint.
 *   Integrated modernization strategies such as Bubblewrap `DESTDIR` tmpfs fallbacks, `scripts/repo.yml` external repository routing, dynamic `libc` suffixing logic for internal dependency trees, Repology API lookups, and PM-specific override blocks in the YAML schema.
-*   **Next Action (Session 3):** Start with **Docker Base Image** (Complexity 20/100), write the `Dockerfile` with Ubuntu 24.04, non-root builder, and pre-installed `uv`/linters. Then migrate `repoexe-keyring` & `repoexe-dev`.
+
+**Session 3 Handover (Completed)**
+*   Created the modern `Dockerfile` utilizing Ubuntu 24.04, non-root builder user, caching overlays, and astral-sh/uv for python tools.
+*   Migrated `repoexe-keyring` and `repoexe-dev` to the new Pydantic YAML schema under `packages/`.
+*   **Next Action (Session 4):** Start with **Docker NDK & Caching** (Complexity 25/100), bake standard NDK patches directly into a Docker layer, and configure `sccache`. Then move on to the **Properties Module (`properties.py`)**.
