@@ -7,8 +7,8 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 The tasks are sorted below strictly by their complexity score (easiest to hardest). Execute them in order. Focus on low-complexity infrastructure tasks first, then move on to core Python modules, and finally the most complex logic.
 
 ### Checklist
-- [x] [Complexity: 0/100] **Dual-Key Architecture Setup**: GPG (for APT/Pacman) and RSA (for Alpine) keys have been generated. `GPG_PRIVATE_KEY` and `ALPINE_PRIVATE_KEY` are configured in GitHub Secrets. Public keys will be added to the `site/` folder.
-- [ ] [Complexity: 5/100] **Initialize Repository Structure**: Create dotfiles, `.github/` folder structure, and `site/install` placeholders.
+- [x] [Complexity: 0/100] **Dual-Key Architecture Setup**: GPG (for APT/Pacman) and RSA (for Alpine) keys have been generated. `GPG_PRIVATE_KEY` and `ALPINE_PRIVATE_KEY` are configured in GitHub Secrets. Public keys are already inside `site/` folder.
+- [ ] [Complexity: 5/100] **Initialize Repository Structure**: Create dotfiles, initialize the `.github/` folder structure (by creating initial workflow files), and create the actual `site/install` file.
 - [ ] [Complexity: 5/100] **Create GitHub Community Files**: Create `SECURITY.md`, `CONTRIBUTING.md`, `FUNDING.yml`, `stale.yml`, and `dependabot.yml`.
 - [ ] [Complexity: 10/100] **Configure Ignore Files**: Create `.gitignore` and `.dockerignore` crafted explicitly for the RepoExe structure.
 - [ ] [Complexity: 10/100] **Configure Prettier**: Set up `.prettierrc` (strict format for AI) and `.prettierignore`.
