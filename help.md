@@ -37,7 +37,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Setup `pytest` test suite (`scripts/tests/`) to unit test the Python orchestrator.
 - [ ] Configure Pydantic to export JSON Schema for `build.yml` and integrate with `.vscode/settings.json` for YAML IDE Intellisense.
 - [ ] Implement `upstream_check.py`: Automated pinging for new upstream releases, including fallback mechanisms for strict GitLab HTTP 403 blocks.
-- [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag). Include Sigstore/Cosign keyless binary and metadata signing capabilities.
+- [ ] Wire everything together in the CLI entrypoint `scripts/build.py` (include subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, `tui` for interactive terminal UI, and `--dry-run` flag). Include Sigstore/Cosign keyless binary and metadata signing capabilities.
 
 ## Phase 3: CI/CD Workflows (`.github/workflows/`)
 - [ ] Implement strict `uv` caching across all Python CI/CD workflows.
@@ -49,6 +49,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 - [ ] Write `publish.yml`: Strictly separated from `build.yml`. Downloads artifacts, verifies them, securely injects `GPG_PRIVATE_KEY` and `ALPINE_PRIVATE_KEY` for artifact/metadata signing, generates SLSA Provenance using GitHub Actions native `actions/attest-build-provenance`, and publishes ONLY if the whole matrix passes. Ensure the static APT/Pacman/Alpine metadata hosting enforces **TUF (The Update Framework)** principles.
 - [ ] Write `health.yml`: Cron job executing `health.py`.
 - [ ] Write `package_updates.yml`: Auto-PR workflow triggered by `upstream_check.py`.
+- [ ] Write `promote.yml`: Automated cron job to promote staged updates from the `dev` repository component to the `main` component after 3 days.
 - [ ] Setup `release-please` or `semantic-release`: Implement automated changelog generation and version bumping based on Conventional Commits.
 - [ ] Write `reproducible.yml`: Manual workflow leveraging `diffoscope` to verify bit-for-bit build determinism.
 - [ ] Implement Multi-Runner Consensus: Update CI workflows so that "essential" or cryptographic packages dynamically spawn two independent runners and require bit-for-bit identical hashes before publishing.

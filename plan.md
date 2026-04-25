@@ -18,7 +18,7 @@ The ultimate aim is to rip out the convoluted, legacy Bash-based build infrastru
 - **Architectures Supported:** `aarch64`, `arm`, `i686`, `x86_64`, `riscv64`, `wasm32-wasi`, `all`
 - **Package Formats Supported:** `APT` (.deb), `Pacman` (.pkg.tar.zst), `Alpine` (.apk)
 - **Main Component:** `main` (Default component for stable, public packages)
-- **Dev Component:** `dev` (Enabled by installing the `repoexe-dev` package. Hosted in the `main` branch under a distinct folder structure.)
+- **Dev Component:** `dev` (Acts as a staging/canary component. Enabled by installing the `repoexe-dev` package. Hosted in the `main` branch under a distinct folder structure.)
 
 **Target Repository Structure:**
 ```text
@@ -102,6 +102,7 @@ RepoExe/
      - **Versioning & Updates:**
        - `revision` *(int)*: Bumps APT repository versions without upstream version changes.
        - `auto_update` *(bool)*: Opt-in to `upstream_check.py` (defaults to `false`).
+       - `bypass_dev` *(bool)*: Bypasses the 3-day `dev` component staging area, deploying updates instantly to `main` (defaults to `false`).
      - **Build Environment & Execution:**
        - `build_in_src` *(bool)*: Forces CMake/Meson/Autotools to execute inside the source tree.
        - `host_build` *(bool)*: Triggers native Linux compilation before cross-compilation.
@@ -142,6 +143,7 @@ RepoExe/
      - `clean`: Subcommand to clean up the Docker environment, removing dangling images, containers, and cached artifacts, replacing the legacy `clean.sh`.
      - `build <pkg> [--dry-run]`: The core build command must support a `--dry-run` flag. This flag uses `parser.py` and `dag.py` to evaluate exclusions (`excluded_arches`) and package state hashes to quickly determine if a build is necessary, returning a success code without actually invoking the Docker environment. This replaces `build-package-dry-run-simulation.sh` and is crucial for CI optimization.
      - `init <pkg>`: Subcommand to launch an interactive scaffolding wizard. It will ask developers questions about the new package (e.g., language, PREFIX requirements) and instantly generate a standardized, lint-free `build.yml` template.
+     - `tui`: An advanced local development command utilizing libraries like `Textual` or `Rich`. It launches a live Terminal User Interface displaying a visual DAG, dynamic progress bars for parallel package builds, and scrollable compilation logs in isolated panes, drastically improving the human Developer Experience without breaking the `--ai-mode` JSON handlers.
    - **AI-Optimized Crash Reporting:** To drastically improve the ability for AI agents to debug failing builds without grepping through gigabytes of raw logs, the orchestrator MUST implement a crash handler. If a compilation fails, the orchestrator will intercept the failure and dump a condensed, AI-readable `crash_report.json` file. This file will contain the exact environment variables, the final 50 lines of the compiler `stderr`, and a snapshot of the container's disk space and memory usage at the time of failure.
    - **Universal Install Script & Hosted UI:** The `site/install` script hosted on GitHub Pages will be a universal entrypoint. When a user runs `curl ... | bash`, the script will automatically probe the host system (checking for the presence of `pkg`, `apt`, `pacman`, or `apk`). The script logic must be highly robust, properly resolving the primary package manager. If both `pkg` and `apt` are present, `pkg` MUST be preferred as the primary wrapper. It will securely download the required keys (e.g., `repoexe.gpg` into `/etc/apt/trusted.gpg.d/` or the equivalent paths for pacman/apk) and inject the RepoExe repository source list using strict repository-level signature validation, explicitly removing legacy insecure `[trusted=yes]` flags. The `repoexe-dev` package will remain the standard method for users to subsequently opt-in to the `dev` repository component. The existing `site/index.html` frontend UI must be preserved alongside this script.
    - **Strict License Validation:** The `parser.py` module must use Pydantic to enforce a strict open-source License allowlist (e.g., `Apache-2.0`, `GPL-3.0`, `MIT`, `ISC`) against the YAML definition, entirely replacing the legacy `lint-packages.sh` bash regex logic. If an unknown license is provided, the YAML parsing must instantly fail the build.
@@ -262,8 +264,11 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
    - **Individual Binary Signing:** Beyond repository-level metadata signing, the Python orchestrator must optionally support cryptographically signing individual binaries (`.so` files and executables) using a secure key before they are packaged into the `.deb`, `.pkg.tar.zst`, or `.apk` files, preventing runtime tampering.
 
    - **Build-Time Telemetry & Profiling:** The Python orchestrator (`build.py`) must instrument **OpenTelemetry (OTel)** tracing. It will stream phase execution durations (e.g., `configure`, `make`, `install`), layer sizes, and peak memory usage directly to an observability backend, replacing static JSON telemetry and allowing real-time visualization of CI bottlenecks.
-4. **Package Updates (`package_updates.yml`):**
+4. **Package Updates & Dev Component Promotion (`package_updates.yml` & `promote.yml`):**
    - Auto-update logic must be disabled by default and explicitly enabled per package via the new YAML definitions. Updates trigger auto-PRs via `gh pr create`.
+   - **Dev Component Staging:** To protect users from upstream regressions, all standard package updates (including auto-updates) are strictly deployed to the `dev` repository component first.
+   - **Automated Promotion:** A `promote.yml` cron job will run daily to scan the `dev` component. If a package has resided in `dev` for 3 days without a matching regression issue being opened on GitHub, the workflow automatically promotes the package to the `main` component.
+   - Packages explicitly configured with `bypass_dev: true` in their `build.yml` are exempt from staging and deploy directly to `main`.
 5. **Reproducible Builds Verification & Multi-Runner Consensus:**
    - **`reproducible.yml`:** Implement a manual `workflow_dispatch` workflow that accepts a package name as input. It will explicitly build the package twice (manipulating timestamps, runner paths, and environments) and use `diffoscope` to compare the resulting `.deb` files. If they are not bit-for-bit identical, the workflow fails, identifying non-deterministic metadata leaks within the Hermetic Sandbox.
    - **Multi-Runner Consensus:** For "essential" or core cryptographic packages (e.g., `openssl`, `apt`), the CI must dynamically spawn two independent runners. Both runners build the package concurrently, and the publish step only succeeds if both runners produce bit-for-bit identical artifact hashes. This defends against compromised GitHub runners, localized hardware memory flips, or cache poisoning.
