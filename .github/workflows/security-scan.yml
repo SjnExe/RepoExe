@@ -18,6 +18,6 @@ jobs:
         with:
           enable-cache: true
       - name: Install dependencies
-        run: uv pip install --system --break-system-packages pip-audit
+        run: sudo uv pip install --system --break-system-packages pip-audit
       - name: Run pip-audit
         run: pip-audit -r uv.lock

@@ -24,7 +24,7 @@ jobs:
         with:
           enable-cache: true
       - name: Install dependencies
-        run: uv pip install --system --break-system-packages pytest pytest-cov
+        run: sudo uv pip install --system --break-system-packages pytest pytest-cov
       - name: Run Pytest
         run: pytest scripts/tests/ --cov=scripts/core --cov-report=xml
       - name: Code Coverage Summary Report
