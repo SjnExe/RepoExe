@@ -4,7 +4,7 @@ This file tracks the execution of the massive refactoring effort outlined in `pl
 **Agent Directive:** At the start of a session, review this checklist. At the end of a session, check off the completed items and write a brief summary of what to do next for the following agent.
 
 ## Phase 1: Environment & Foundation Setup
-- [ ] **Dual-Key Architecture Setup**: Provide the repository owner with clear Termux terminal commands to generate fresh GPG (for APT/Pacman) and RSA (for Alpine) keys. Explicitly instruct them which private keys to upload as GitHub Secrets (`GPG_PRIVATE_KEY`, `ALPINE_PRIVATE_KEY`), which public keys to commit to the repository, and advise them to securely backup their private keys before deleting local `.key` files, as GitHub Secrets are write-only.
+- [x] **Dual-Key Architecture Setup**: GPG (for APT/Pacman) and RSA (for Alpine) keys have been generated. `GPG_PRIVATE_KEY` and `ALPINE_PRIVATE_KEY` are configured in GitHub Secrets. Public keys will be added to the `site/` folder.
 - [ ] Initialize repository structure (dotfiles, `.github/` folder, `site/install`).
 - [ ] Configure Local Pre-commit Hooks (`.pre-commit-config.yaml`) for automated formatting checks.
 - [ ] Create `SECURITY.md`, `CONTRIBUTING.md`, `FUNDING.yml`, `stale.yml`, and `dependabot.yml`.
