@@ -24,8 +24,47 @@ RUN \
   && sed -i 's@http://security.ubuntu.com/ubuntu/@mirror://mirrors.ubuntu.com/mirrors.txt@g' /etc/apt/sources.list.d/ubuntu.sources \
   && apt-get update \
   && apt-get install -yq --no-install-recommends \
-    eatmydata sudo curl git ca-certificates aria2 fuse-overlayfs \
+    eatmydata sudo curl git ca-certificates aria2 fuse-overlayfs unzip patch \
   && eatmydata apt-get -yq upgrade
+
+# Install sccache for distributed compiler caching
+ENV SCCACHE_VERSION=v0.8.2
+RUN curl -L -sS "https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" | tar xz -C /tmp \
+  && mv /tmp/sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl/sccache /usr/local/bin/ \
+  && chmod +x /usr/local/bin/sccache \
+  && rm -rf /tmp/sccache*
+
+# Configure sccache to natively utilize the GitHub Actions Cache API
+ENV SCCACHE_GHA_ENABLED=true
+ENV SCCACHE_DIR=/home/builder/.cache/sccache
+
+# Download and Setup Android NDK 29
+ENV TERMUX_NDK_VERSION=29
+ENV ANDROID_NDK_FILE=android-ndk-r${TERMUX_NDK_VERSION}-linux.zip
+ENV ANDROID_NDK_SHA256=4abbbcdc842f3d4879206e9695d52709603e52dd68d3c1fff04b3b5e7a308ecf
+ENV NDK=/opt/android-ndk
+
+RUN mkdir -p /opt \
+  && curl -L -sS -o /tmp/ndk.zip "https://dl.google.com/android/repository/${ANDROID_NDK_FILE}" \
+  && echo "${ANDROID_NDK_SHA256}  /tmp/ndk.zip" | sha256sum -c - \
+  && unzip -q /tmp/ndk.zip -d /opt \
+  && mv /opt/android-ndk-r${TERMUX_NDK_VERSION} ${NDK} \
+  && rm -f /tmp/ndk.zip \
+  && rm -Rf ${NDK}/sources/cxx-stl/system
+
+# Apply NDK Patches
+COPY scripts/ndk-patches/29 /tmp/ndk-patches/29
+COPY scripts/ndk-patches/langinfo.h /tmp/ndk-patches/langinfo.h
+COPY scripts/ndk-patches/libintl.h /tmp/ndk-patches/libintl.h
+RUN cd ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot \
+  && for patch in /tmp/ndk-patches/29/*.patch; do \
+       sed -i "s|@TERMUX_PREFIX@|/data/data/com.termux/files/usr|g" "$patch"; \
+       sed -i "s|@TERMUX_HOME@|/data/data/com.termux/files/home|g" "$patch"; \
+       patch --no-backup-if-mismatch -p1 < "$patch"; \
+     done \
+  && cp /tmp/ndk-patches/langinfo.h ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/ \
+  && cp /tmp/ndk-patches/libintl.h ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/ \
+  && rm -rf /tmp/ndk-patches
 
 # Remove the default ubuntu user and create 'builder' with UID 1000
 RUN userdel -r ubuntu || true \

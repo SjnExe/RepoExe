@@ -2,9 +2,7 @@
   "yaml.schemas": {
     "docs/SCHEMA.json": ["packages/**/build.yml", "docs/standard/build.yml"]
   },
-  "yaml.customTags": [
-    "!include scalar"
-  ],
+  "yaml.customTags": ["!include scalar"],
   "editor.formatOnSave": true,
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",

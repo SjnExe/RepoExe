@@ -9,9 +9,7 @@
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "charliermarsh.ruff",
         "python.linting.mypyEnabled": true,
-        "python.linting.mypyArgs": [
-          "--strict"
-        ],
+        "python.linting.mypyArgs": ["--strict"],
         "[yaml]": {
           "editor.defaultFormatter": "esbenp.prettier-vscode"
         },
