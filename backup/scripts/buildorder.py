@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 "Script to generate a build order respecting package dependencies."
 
-import json, os, re, sys
+import json
+import os
+import re
+import sys
 
 from itertools import filterfalse
 
@@ -437,7 +440,7 @@ def main():
             package = package[:-1]
         if not os.path.isdir(package):
             die('Not a directory: ' + package)
-        if os.path.dirname(package) and not os.path.relpath(os.path.dirname(package), ".") in packages_directories:
+        if os.path.dirname(package) and os.path.relpath(os.path.dirname(package), ".") not in packages_directories:
             packages_directories.insert(0, os.path.dirname(package))
     pkgs_map = read_packages_from_directories(packages_directories, fast_build_mode, full_buildorder)
 

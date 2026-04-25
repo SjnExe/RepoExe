@@ -135,7 +135,7 @@ class BuildYml(BaseModel):
             raise ValueError("optimize must be one of: 'size', 'speed', 'none'")
         return v
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
 
 def parse_build_yml(filepath: str) -> BuildYml:
