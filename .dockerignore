@@ -1,0 +1,17 @@
+.git
+.github
+.gitignore
+.dockerignore
+README.md
+docs/
+site/
+backup/
+termux-packages/
+.vscode/
+.devcontainer/
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/

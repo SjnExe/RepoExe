@@ -1,0 +1,31 @@
+[project]
+name = "repoexe"
+version = "0.1.0"
+description = "Micro-modular Python orchestrator for RepoExe"
+readme = "../README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.0.0",
+    "PyYAML>=6.0",
+]
+
+[project.scripts]
+repoexe = "core.build:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+addopts = "--cov=core --cov-report=term-missing"
+testpaths = ["tests"]
