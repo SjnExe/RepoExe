@@ -42,8 +42,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 50/100] **Alpine Packager (`apk.py`)**: Handle `.apk` and `APKINDEX.tar.gz` generation.
 - [x] [Complexity: 55/100] **Advanced Metadata Schema (`parser.py` - Metadata)**: Enforce advanced flags (`conffiles`, `essential`, `anti_build_depends`, `no_shebang_fix_files`, `no_staticsplit`, `excluded_arches`, `build_in_src`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `lto`, `pgo`).
 - [x] [Complexity: 55/100] **CI Workflow: build.yml (Base)**: Dynamic Matrix Sharding (`architectures x shards`), strictly triggered on `push`/`PR` to `main`.
-- [ ] [Complexity: 55/100] **CI Workflow: publish.yml**: Publish workflow separated from `build.yml`. Verify artifacts, inject signing keys, publish metadata to Pages.
-- [ ] [Complexity: 60/100] **Git History Version Validation (`parser.py` - Continuity)**: Implement Git history lookups (`git show origin/main...`) to strictly enforce version/revision incrementation.
+- [x] [Complexity: 55/100] **CI Workflow: publish.yml**: Publish workflow separated from `build.yml`. Verify artifacts, inject signing keys, publish metadata to Pages.
+- [x] [Complexity: 60/100] **Git History Version Validation (`parser.py` - Continuity)**: Implement Git history lookups (`git show origin/main...`) to strictly enforce version/revision incrementation.
 - [ ] [Complexity: 60/100] **DAG Core Resolver (`dag.py` - Core)**: Resolve dependencies, read `isolated_shard` boolean tags, and generate matrix shards.
 - [ ] [Complexity: 60/100] **Implicit Cleanup Standards (`debian.py` - Cleanup)**: Auto-cache trimming, permissions normalization, ghost directory pruning, `-glibc` dynamic suffixing, and auto `-doc`/`-locale` Smart Subpackages.
 - [ ] [Complexity: 60/100] **Migrate: aapt, aapt2, zipalign, aidl**: Implement "Local Source Building" for deprecated `aapt` (in `packages/aapt/src/`) applying standard bloat-free patches directly. Use upstream sources and native `build.yml` hooks for actively maintained `aapt2`, `zipalign`, and `aidl`.
@@ -183,3 +183,11 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Implemented Pydantic validators in `scripts/core/parser.py` to enforce strict architecture naming for `excluded_arches` and relative paths for `conffiles` and `no_shebang_fix_files`.
 - Updated `test_repo.py` to accurately resolve the `repo.yml` location independent of execution context.
 - **Next Action (Session 15):** Start with **CI Workflow: publish.yml** (Complexity 55/100) and **Git History Version Validation (`parser.py` - Continuity)** (Complexity 60/100).
+
+**Session 15 Handover (Completed)**
+
+- Implemented `.github/workflows/publish.yml` to download all generated artifacts from GitHub Releases, inject dual keys (`GPG_PRIVATE_KEY` and `ALPINE_PRIVATE_KEY`) into `scripts/keys/`, attest build provenance via `actions/attest-build-provenance`, and deploy metadata to GitHub Pages.
+- Addressed `scripts/site/install` TODOs, adding complete functional configuration code to add RepoExe repositories, fetch keys, and run updates for APT, Pacman, and APK.
+- Updated `parser.py` to enforce version bumps by validating via `git ls-remote` if the specific release tag already exists upstream, failing the build if it does.
+- Cleaned up temp scripts and formatted with Ruff and Prettier.
+- **Next Action (Session 16):** Start with **DAG Core Resolver (`dag.py` - Core)** (Complexity 60/100) and **Implicit Cleanup Standards (`debian.py` - Cleanup)** (Complexity 60/100).
