@@ -187,6 +187,7 @@ class BuildYml(BaseModel):
     def validate_github_url(cls, v: Optional[str]) -> Optional[str]:
         if v:
             from urllib.parse import urlparse
+
             parsed = urlparse(v)
             if parsed.hostname and ('github.com' == parsed.hostname or parsed.hostname.endswith('.github.com')):
                 if '/archive/' in parsed.path and '/archive/refs/tags/' not in parsed.path:
