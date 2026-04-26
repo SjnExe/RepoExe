@@ -294,11 +294,17 @@ def validate_version_bump_from_git(filepath: str, current_yml: BuildYml) -> None
         rel_path = f'packages/{pkg_name}/build.yml'
 
         # We query the file content from origin/main
-        result = subprocess.run(
-            ['git', 'show', f'origin/main:{rel_path}'], capture_output=True, text=True
-        )
+        result = subprocess.run(['git', 'show', f'origin/main:{rel_path}'], capture_output=True, text=True)
 
         if result.returncode == 0 and result.stdout.strip():
+            # Check if the file content is exactly the same
+            with open(filepath, 'r') as f:
+                current_content = f.read()
+
+            if current_content.strip() == result.stdout.strip():
+                # The file hasn't changed, so no bump is required
+                return
+
             # Parse the previous YAML
             try:
                 prev_data = yaml.safe_load(result.stdout)
@@ -313,7 +319,7 @@ def validate_version_bump_from_git(filepath: str, current_yml: BuildYml) -> None
                         f"You must increment the 'version' or 'revision' in build.yml."
                     )
             except yaml.YAMLError:
-                pass # If it's malformed upstream, skip
+                pass  # If it's malformed upstream, skip
     except FileNotFoundError:
         # Git is not installed, silently skip validation
         pass
