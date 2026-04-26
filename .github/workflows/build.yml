@@ -145,7 +145,7 @@ jobs:
               -e REPO_ROOT=/home/builder/RepoExe \
               -e MAKEFLAGS="-j4" \
               -e NINJA_ARGS="-j4" \
-              ghcr.io/$OWNER/repoexe-builder:latest sleep infinity
+              "ghcr.io/$OWNER/repoexe-builder:latest" sleep infinity
 
             # We rely on the orchestrator logic natively now, not shell scripts
             docker exec repoexe-daemon bash -c '

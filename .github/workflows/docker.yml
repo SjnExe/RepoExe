@@ -109,5 +109,5 @@ jobs:
           for ID in $VERSION_IDS; do
             echo "Deleting version ID: $ID"
             gh api --method DELETE -H "Accept: application/vnd.github+json" \
-              /users/${{ env.OWNER }}/packages/container/repoexe-builder/versions/$ID || true
+              "/users/${{ env.OWNER }}/packages/container/repoexe-builder/versions/$ID" || true
           done
