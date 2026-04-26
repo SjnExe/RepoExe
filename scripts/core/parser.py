@@ -92,8 +92,7 @@ class BuildYml(BaseModel):
 
     # Subpackages
     subpackages: Dict[str, Dict[str, List[str]]] = Field(
-        default_factory=dict,
-        description="Definitions for subpackages, e.g., {'dev': {'includes': ['include/*']}}"
+        default_factory=dict, description="Definitions for subpackages, e.g., {'dev': {'includes': ['include/*']}}"
     )
 
     # Packaging Output & Modifiers
