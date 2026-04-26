@@ -116,6 +116,7 @@ RepoExe/
        - `auto_update` _(bool)_: Opt-in to `upstream_check.py` (defaults to `false`).
        - `bypass_dev` _(bool)_: Bypasses the 3-day `dev` component staging area, deploying updates instantly to `main` (defaults to `false`).
        - **Native "Nightly" (Git Master) Support:** While static `source_url` tarballs are standard, `parser.py` natively supports building from live upstream repositories. Developers can specify `source: git` and `git_branch: main` (or any target branch) instead of a tarball. During the build, the orchestrator will pull the latest commit and automatically generate a dynamic, rolling version string (e.g., `20241025.1a2b3c4-1`) for the packaging metadata.
+       - **Dynamic Variable Substitution:** The `build.yml` schema natively supports string interpolation via the `vars` dict. Variables like `{version}` and `{name}` are implicitly populated and can be used across fields (like `git_branch: android-{version}` or in `phases`). For complex versions (like `aapt2`), developers can explicitly declare `tag_version: 16.0.0_r4` in `vars`, set `version: 1:2.20-{tag_version}`, and reuse `{tag_version}` freely.
      - **Build Environment & Execution:**
        - `build_in_src` _(bool)_: Forces CMake/Meson/Autotools to execute inside the source tree.
        - `host_build` _(bool)_: Triggers native Linux compilation before cross-compilation.
@@ -310,7 +311,7 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
 RepoExe will leverage the full capabilities of Debian's APT package manager to ensure fast, intelligent dependency resolution, while securely managing cross-repository dependencies.
 
 1. **Strict Dependency Fields:**
-   - **Depends:** Absolutely required dependencies.
+   - **Depends:** Absolutely required dependencies. Must be defined as a dictionary mapping repository names to lists of packages to guarantee exact sourcing (e.g., `termux-main: [fmt, zlib]` or `local: [repoexe-pkg]`).
    - **Recommends:** Installed by default but can be opted-out.
    - **Suggests:** Optional enhancements.
    - **Provides & OR Dependencies:** Utilize logical OR dependencies to prevent bloat. For example, if a package requires Java 17+, it should declare `Depends: openjdk-17 | java-runtime-headless`. If a user already has Java 21 installed, APT will correctly satisfy the dependency without pulling down Java 17 unnecessarily.

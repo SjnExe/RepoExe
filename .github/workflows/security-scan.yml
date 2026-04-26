@@ -2,11 +2,11 @@ name: Security Scan
 
 on:
   push:
-    branches: ["main"]
+    branches: ['main']
   pull_request:
-    branches: ["main"]
+    branches: ['main']
   schedule:
-    - cron: "30 1 * * 0" # Every Sunday at 01:30
+    - cron: '30 1 * * 0' # Every Sunday at 01:30
 
 jobs:
   codeql:
@@ -33,7 +33,7 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:python"
+          category: '/language:python'
 
   osv-scanner:
     name: OSV Scanner Dependencies

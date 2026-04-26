@@ -53,11 +53,11 @@ RUN mkdir -p /opt \
   && rm -Rf ${NDK}/sources/cxx-stl/system
 
 # Apply NDK Patches
-COPY scripts/ndk-patches/29 /tmp/ndk-patches/29
+COPY scripts/ndk-patches /tmp/ndk-patches
 COPY scripts/ndk-patches/langinfo.h /tmp/ndk-patches/langinfo.h
 COPY scripts/ndk-patches/libintl.h /tmp/ndk-patches/libintl.h
 RUN cd ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot \
-  && for patch in /tmp/ndk-patches/29/*.patch; do \
+  && for patch in /tmp/ndk-patches/${TERMUX_NDK_VERSION}/*.patch; do \
        sed -i "s|@TERMUX_PREFIX@|/data/data/com.termux/files/usr|g" "$patch"; \
        sed -i "s|@TERMUX_HOME@|/data/data/com.termux/files/home|g" "$patch"; \
        patch --no-backup-if-mismatch -p1 < "$patch"; \

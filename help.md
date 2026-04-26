@@ -140,3 +140,13 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Implemented `scripts/core/test.py` with the `ProotTestRunner` to execute test commands safely inside PRoot with Flaky Test Isolation retries. Added unit tests for the runner.
 - Migrated `libandroid-tools` to the new Pydantic YAML schema under `packages/libandroid-tools/build.yml`. Embedded the legacy `sources.sh` logic completely into the `make` hook, and brought over required patches and `include/` directory.
 - **Next Action (Session 10):** Start with **Native Toolchains (`toolchains/native.py`)** (Complexity 45/100) and **Docker Wrapper (`docker.py`)** (Complexity 45/100).
+
+**Session 10 Handover (Completed)**
+
+- Updated `Dockerfile` to allow `TERMUX_NDK_VERSION` and `ANDROID_NDK_SHA256` to be dynamic variables, instead of hardcoded strings. NDK patch looping correctly references `${TERMUX_NDK_VERSION}`.
+- Refactored `parser.py` schema for strict dependency resolution. The `depends` and `pre_depends` arrays are now dictionaries explicitly mapping target repositories (e.g., `termux-main` or `local`) to dependencies. Removed generic `repositories` field.
+- Implemented `vars` dictionary dynamic string interpolation in `build.yml` parsing. Properties like `name` and `version` can be used as `{version}`, or complex values like `{tag_version}` can be defined and reused across `git_branch` and `phases`.
+- Migrated `packages/libandroid-tools/build.yml` to utilize the `{version}` substitution and the strict `depends` dictionary.
+- Standardized python linting and formatting configuration to single quotes via `prettier` and `ruff`.
+
+- **Next Action (Session 11):** Start with **Native Toolchains (`toolchains/native.py`)** (Complexity 45/100) and **Docker Wrapper (`docker.py`)** (Complexity 45/100).
