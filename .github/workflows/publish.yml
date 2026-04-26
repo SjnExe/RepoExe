@@ -71,11 +71,27 @@ jobs:
         run: |
           cd scripts
           uv sync
-          # TODO: Integrate metadata generation with python orchestrator
-          # For now, this is a placeholder step for generating Packages, Release, InRelease, Pacman databases, and Alpine APKINDEX.
+
           mkdir -p ../site/apt/dists/stable/main
           mkdir -p ../site/pacman
           mkdir -p ../site/alpine
+
+          # We downloaded artifacts from multiple tags into ../artifacts
+          # Let's move them to the corresponding site directories
+          echo "Processing downloaded artifacts..."
+
+          if ls ../artifacts/*.deb 1> /dev/null 2>&1; then
+            cp ../artifacts/*.deb ../site/apt/dists/stable/main/
+          fi
+          if ls ../artifacts/*.pkg.tar.zst 1> /dev/null 2>&1; then
+            cp ../artifacts/*.pkg.tar.zst ../site/pacman/
+          fi
+          if ls ../artifacts/*.apk 1> /dev/null 2>&1; then
+            cp ../artifacts/*.apk ../site/alpine/
+          fi
+
+          # TODO: Integrate metadata generation with python orchestrator
+          # For now, this is a placeholder step for generating Packages, Release, InRelease, Pacman databases, and Alpine APKINDEX.
           echo "Metadata generation executed."
 
       - name: Generate Build Provenance (SLSA)

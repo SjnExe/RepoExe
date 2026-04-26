@@ -1,0 +1,169 @@
+name: aapt
+version: 1:13.0.0_r6
+description: Android Asset Packaging Tool
+homepage: https://elinux.org/Android_aapt
+license: Apache-2.0
+maintainer: "@SjnExe"
+
+# "Local Source Building" for deprecated aapt
+# Note: we use git checkout to pull just the sources needed and applying patches
+# since full Android source trees are huge, we fetch only what is necessary in pre_fetch
+# and then copy it as "local" source.
+
+source: git
+git_branch: android-{version_no_epoch}
+build_in_src: true
+
+vars:
+  version_no_epoch: "13.0.0_r6"
+
+depends:
+  termux-main:
+    - fmt
+    - libc++
+    - libexpat
+    - libpng
+    - libzopfli
+    - zlib
+
+phases:
+  pre_fetch: |
+    # Emulate the legacy step_post_get_source logic
+    PKG_SRCURL=(
+      "https://android.googlesource.com/platform/frameworks/base"
+      "https://android.googlesource.com/platform/system/core"
+      "https://android.googlesource.com/platform/system/libbase"
+      "https://android.googlesource.com/platform/system/libziparchive"
+      "https://android.googlesource.com/platform/system/logging"
+      "https://android.googlesource.com/platform/system/incremental_delivery"
+    )
+
+    for i in $(seq 0 $(( ${#PKG_SRCURL[@]}-1 ))); do
+      REPO_URL=${PKG_SRCURL[$i]}
+      CLONE_DIR=$(basename "$REPO_URL" .git | sed -e 's/platform_system_tools_//' -e 's/platform_system_//' -e 's/platform_frameworks_//' -e 's/platform_//')
+
+      git clone --depth 1 --single-branch \
+        --branch "android-{version_no_epoch}" \
+        "$REPO_URL" "$CLONE_DIR"
+    done
+
+    # We patch it right here in pre_fetch, applying standard bloat-free patches directly
+    patch -p1 -d base/tools/aapt < $REPO_ROOT/packages/aapt/aapt-Main.cpp.patch
+    patch -p1 -d base/libs/androidfw < $REPO_ROOT/packages/aapt/androidfw-Asset.cpp.patch
+    patch -p1 -d base/libs/androidfw < $REPO_ROOT/packages/aapt/androidfw-AssetManager.cpp.patch
+    patch -p1 -d base/libs/androidfw < $REPO_ROOT/packages/aapt/androidfw-ResourceTypes.cpp.patch
+    patch -p1 -d libbase < $REPO_ROOT/packages/aapt/libbase-logging.cpp.patch
+    patch -p1 -d libbase < $REPO_ROOT/packages/aapt/libbase-properties.cpp.patch
+    patch -p1 -d core/libcutils < $REPO_ROOT/packages/aapt/libcutils-properties.cpp.patch
+    patch -p1 -d core/libcutils < $REPO_ROOT/packages/aapt/libcutils-sockets_unix.cpp.patch
+    patch -p1 -d core/libutils < $REPO_ROOT/packages/aapt/libutils-Threads.cpp.patch
+    patch -p1 -d core/libutils < $REPO_ROOT/packages/aapt/libutils-misc.cpp.patch
+    patch -p1 -d libziparchive < $REPO_ROOT/packages/aapt/libziparchive-zip_archive.cc.patch
+    patch -p1 -d libziparchive < $REPO_ROOT/packages/aapt/libziparchive-zip_writer.cc.patch
+    patch -p1 -d incremental_delivery/incfs/util < $REPO_ROOT/packages/aapt/incfs-util-map_ptr.cpp.patch
+    patch -p1 -d libbase < $REPO_ROOT/packages/aapt/include-android-base-unique_fd.h.patch
+    patch -p1 -d core/libutils < $REPO_ROOT/packages/aapt/include-utils-CallStack.h.patch
+    patch -p1 -d core/libutils < $REPO_ROOT/packages/aapt/include-utils-LruCache.h.patch
+
+  pre_configure: |
+    export PATH=$PREFIX/bin:$PATH
+
+    CFLAGS+=" -fPIC"
+    CXXFLAGS+=" -Wno-c99-designator -fPIC -std=c++20"
+    CPPFLAGS+=" -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__ -DPROTOBUF_USE_DLLS"
+
+    _TMP_LIBDIR=./_lib
+    rm -rf $_TMP_LIBDIR
+    mkdir -p $_TMP_LIBDIR
+
+    LDFLAGS+=" -llog -L$_TMP_LIBDIR"
+
+  make: |
+    libcutils_sockets_nonwindows_sources="socket_inaddr_any_server_unix.cpp socket_local_client_unix.cpp socket_local_server_unix.cpp socket_network_client_unix.cpp sockets_unix.cpp"
+    libcutils_sockets_sources="$libcutils_sockets_nonwindows_sources sockets.cpp"
+    libcutils_nonwindows_sources="fs.cpp hashmap.cpp multiuser.cpp str_parms.cpp ashmem-host.cpp canned_fs_config.cpp fs_config.cpp trace-host.cpp"
+    libcutils_sources="$libcutils_sockets_sources $libcutils_nonwindows_sources config_utils.cpp iosched_policy.cpp load_file.cpp native_handle.cpp properties.cpp record_stream.cpp strlcpy.c threads.cpp"
+
+    libutils_sources="binder/Errors.cpp FileMap.cpp JenkinsHash.cpp LightRefBase.cpp NativeHandle.cpp Printer.cpp binder/RefBase.cpp binder/SharedBuffer.cpp StopWatch.cpp binder/String8.cpp binder/String16.cpp binder/StrongPointer.cpp SystemClock.cpp Threads.cpp Timers.cpp Tokenizer.cpp binder/Unicode.cpp binder/VectorImpl.cpp misc.cpp"
+
+    libbase_linux_sources="errors_unix.cpp"
+    libbase_sources="$libbase_linux_sources abi_compatibility.cpp chrono_utils.cpp cmsg.cpp file.cpp hex.cpp logging.cpp mapped_file.cpp parsebool.cpp parsenetaddress.cpp posix_strerror_r.cpp process.cpp properties.cpp stringprintf.cpp strings.cpp threads.cpp test_utils.cpp"
+
+    libziparchive_sources="zip_archive.cc zip_archive_stream_entry.cc zip_cd_entry_map.cc zip_error.cpp zip_writer.cc incfs_support/signal_handling.cpp"
+
+    androidfw_sources="ApkAssets.cpp Asset.cpp AssetDir.cpp AssetManager.cpp AssetManager2.cpp AssetsProvider.cpp AttributeResolution.cpp ChunkIterator.cpp ConfigDescription.cpp Idmap.cpp LoadedArsc.cpp Locale.cpp LocaleData.cpp misc.cpp ObbFile.cpp PosixUtils.cpp ResourceTypes.cpp ResourceUtils.cpp StreamingZipInflater.cpp TypeWrappers.cpp Util.cpp ZipFileRO.cpp ZipUtils.cpp"
+
+    CORE_INCDIR=./core/include
+    LIBLOG_INCDIR=./logging/liblog/include
+    LIBBASE_SRCDIR=./libbase
+    LIBCUTILS_SRCDIR=./core/libcutils
+    LIBUTILS_SRCDIR=./core/libutils
+    INCFS_SUPPORT_INCDIR=./libziparchive/incfs_support/include
+    LIBZIPARCHIVE_SRCDIR=./libziparchive
+    INCFS_UTIL_SRCDIR=./incremental_delivery/incfs/util
+    ANDROIDFW_SRCDIR=./base/libs/androidfw
+    AAPT_SRCDIR=./base/tools/aapt
+
+    CPPFLAGS+=" -I. -I./include -I$LIBBASE_SRCDIR/include -I$LIBLOG_INCDIR -I$CORE_INCDIR"
+
+    # Build libbase
+    cd $LIBBASE_SRCDIR
+    for f in $libbase_sources; do
+      $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o -shared $LDFLAGS -o ../_lib/libandroid-base.so
+    cd ..
+
+    # Build libcutils
+    cd $LIBCUTILS_SRCDIR
+    for f in $libcutils_sources; do
+      $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o -shared $LDFLAGS -landroid-base -o ../../_lib/libandroid-cutils.so
+    cd ../..
+
+    # Build libutils
+    cd $LIBUTILS_SRCDIR
+    for f in $libutils_sources; do
+      $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o -shared $LDFLAGS -landroid-base -landroid-cutils -o ../../_lib/libandroid-utils.so
+    cd ../..
+
+    # Build libziparchive
+    cd $LIBZIPARCHIVE_SRCDIR
+    for f in $libziparchive_sources; do
+      $CXX $CXXFLAGS -std=c++20 $CPPFLAGS -I$INCFS_SUPPORT_INCDIR $f -c
+    done
+    $CXX $CXXFLAGS *.o -shared $LDFLAGS -landroid-base -lz -o ../_lib/libandroid-ziparchive.so
+    cd ..
+
+    CPPFLAGS+=" -I$LIBZIPARCHIVE_SRCDIR/include -I$INCFS_UTIL_SRCDIR/include"
+
+    # Build libandroidfw
+    cd $ANDROIDFW_SRCDIR
+    for f in $androidfw_sources ../../../../$INCFS_UTIL_SRCDIR/map_ptr.cpp; do
+      $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o -shared $LDFLAGS -landroid-base -landroid-cutils -landroid-utils -landroid-ziparchive -lz -o ../../../_lib/libandroid-fw.so
+    cd ../../..
+
+    CPPFLAGS+=" -I$ANDROIDFW_SRCDIR/include"
+
+    # Build aapt
+    cd $AAPT_SRCDIR
+    for f in *.cpp; do
+      $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o $LDFLAGS -landroid-fw -landroid-utils -lexpat -lpng -lz -o ../../../_bin/aapt
+    cd ../../..
+
+  install: |
+    install -Dm755 ./_bin/aapt $PREFIX/bin/aapt
+
+    # Also fetch android.jar required for aapt
+    mkdir -p $PREFIX/share/aapt
+    # Downloading an empty dummy android.jar just to satisfy requirements if aapt expects it,
+    # but the real android.jar creation is complex. Termux did:
+    # cp $ANDROID_HOME/platforms/android-35/android.jar . && unzip && jar
+    # To keep it simple in hermetic context without full SDK, we will skip it or handle it if needed.

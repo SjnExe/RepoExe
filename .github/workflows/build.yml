@@ -165,6 +165,12 @@ jobs:
                 # This triggers the core orchestrator. We use dry run first to see if it is excluded.
                 python build.py build ../packages/$pkg --arch ${{ matrix.arch }} || continue
 
+                # build.py writes to RepoExe/output
+                # the container maps github.workspace to /home/builder/RepoExe
+                # output is created at /home/builder/RepoExe/output
+                # so we don't need to move it, it's already there! (unless build.py uses ../output)
+                # Just in case, try moving from scripts/output to RepoExe/output
+                mv output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
                 mv ../output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
               done
             '
@@ -184,21 +190,28 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # ensure yaml is available for parsing python
+          uv pip install --system pyyaml || pip install pyyaml || true
           for pkg in ${{ matrix.shard.packages }}; do
             if [ ! -d "packages/$pkg" ]; then
               continue
             fi
 
+            PKG_VERSION=$(python -c "import yaml; data=yaml.safe_load(open('packages/$pkg/build.yml')); print(data.get('version', ''))" || echo "")
+            PKG_REVISION=$(python -c "import yaml; data=yaml.safe_load(open('packages/$pkg/build.yml')); print(data.get('revision', '0'))" || echo "")
+
             TAG="$pkg"
-            TITLE="$pkg"
+            TITLE="$pkg $PKG_VERSION-$PKG_REVISION"
+
             if [ "${{ github.ref }}" == "refs/heads/dev" ] || [ "${{ github.base_ref }}" == "dev" ]; then
               TAG="$pkg-dev"
-              TITLE="$pkg (dev)"
+              TITLE="$pkg $PKG_VERSION-$PKG_REVISION (dev)"
             fi
 
             NOTES="Automated build for $pkg"$'\n'"- **Commit:** ${{ github.sha }}"
 
-            gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
+            # Update release if it exists, or create it
+            gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || gh release edit "$TAG" --title "$TITLE" --notes "$NOTES"
 
             echo "Pruning old assets for $TAG (${{ matrix.arch }})..."
             OLD_ASSETS=$(gh release view "$TAG" --json assets --jq ".assets[].name | select(endswith(\"_${{ matrix.arch }}.deb\") or endswith(\"_all.deb\"))" || true)

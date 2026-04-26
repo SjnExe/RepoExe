@@ -279,36 +279,41 @@ def parse_build_yml(filepath: str) -> BuildYml:
 def validate_version_bump_from_git(filepath: str, current_yml: BuildYml) -> None:
     """
     Validates that the version or revision was properly incremented by checking
-    if a GitHub release tag already exists for the current version string.
-    Since we store artifacts in a single GitHub release tag per version,
-    if the tag already exists, the version MUST be bumped.
+    the previous state of the build.yml file in the origin/main branch.
     """
     import subprocess
+    import yaml
 
     current_version = current_yml.version
     current_revision = current_yml.revision
 
-    # Standardize tag format to match release tags (e.g., package_name-version-revision)
-    # The actual tag format depends on repository conventions. We will check if any tag
-    # matching the current package name and version+revision exists.
-    # Termux doesn't use package-specific tags in the main repo usually, but let's check
-    # if the artifact/tag for this exact version exists upstream via gh CLI or git tags.
-    tag_name = f'{current_yml.name}-{current_version}-{current_revision}'
-
     try:
-        # We only run this check if gh CLI is available and we are in a context where it works
-        # or we check git tags locally.
-        result = subprocess.run(
-            ['git', 'ls-remote', '--tags', 'origin', f'refs/tags/{tag_name}'], capture_output=True, text=True
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            # Tag already exists upstream, meaning this version was already published.
-            # We must fail the build.
-            raise ValueError(
-                f"Version validation failed: Release tag '{tag_name}' already exists upstream. "
-                f"You must increment the 'version' or 'revision' in build.yml."
-            )
+        # Get the relative path of the file to query git
+        # If we can't determine it easily, just use the basename and assume packages/{name}/build.yml
+        pkg_name = current_yml.name
+        rel_path = f'packages/{pkg_name}/build.yml'
 
+        # We query the file content from origin/main
+        result = subprocess.run(
+            ['git', 'show', f'origin/main:{rel_path}'], capture_output=True, text=True
+        )
+
+        if result.returncode == 0 and result.stdout.strip():
+            # Parse the previous YAML
+            try:
+                prev_data = yaml.safe_load(result.stdout)
+                prev_version = prev_data.get('version', '')
+                prev_revision = prev_data.get('revision', 0)
+
+                # Check if bumped
+                if current_version == prev_version and current_revision <= prev_revision:
+                    raise ValueError(
+                        f"Version validation failed: Version '{current_version}' and revision '{current_revision}' "
+                        f"have not been incremented compared to origin/main (version: '{prev_version}', revision: '{prev_revision}'). "
+                        f"You must increment the 'version' or 'revision' in build.yml."
+                    )
+            except yaml.YAMLError:
+                pass # If it's malformed upstream, skip
     except FileNotFoundError:
         # Git is not installed, silently skip validation
         pass

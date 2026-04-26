@@ -1,0 +1,45 @@
+name: zipalign
+version: 16.0.0_r4
+description: Zip alignment tool for Android application packages
+homepage: https://android.googlesource.com/platform/build/+/master/tools/zipalign
+license: Apache-2.0
+maintainer: "@SjnExe"
+
+source: git
+git_branch: android-{version}
+build_in_src: true
+
+depends:
+  termux-main:
+    - libandroid-tools
+    - libzopfli
+    - zlib
+
+phases:
+  pre_fetch: |
+    git clone --depth 1 --single-branch \
+      --branch "android-{version}" \
+      "https://android.googlesource.com/platform/build" build
+
+  pre_configure: |
+    export PATH=$PREFIX/bin:$PATH
+    CFLAGS+=" -fPIC"
+    CXXFLAGS+=" -fPIC -std=c++20"
+    CPPFLAGS+=" -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__"
+    LDFLAGS+=" -L$PREFIX/lib -llog -landroid-utils -landroid-ziparchive -lzopfli -lz"
+
+  make: |
+    ZIPALIGN_SRCDIR=./build/tools/zipalign
+
+    cd $ZIPALIGN_SRCDIR
+
+    CPPFLAGS+=" -I$PREFIX/include/android-tools -I$PREFIX/include/zopfli"
+
+    for f in *.cpp; do
+      $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+
+    $CXX $CXXFLAGS *.o $LDFLAGS -o zipalign
+
+  install: |
+    install -Dm755 ./build/tools/zipalign/zipalign $PREFIX/bin/zipalign

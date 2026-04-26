@@ -1,0 +1,68 @@
+name: aapt2
+version: 1:2.20-16.0.0_r4
+description: AAPT2 (Android Asset Packaging Tool)
+homepage: https://android.googlesource.com/platform/frameworks/base/+/master/tools/aapt2
+license: Apache-2.0
+maintainer: "@SjnExe"
+
+vars:
+  tag_version: "16.0.0_r4"
+
+source: git
+git_branch: android-{tag_version}
+build_in_src: true
+
+depends:
+  termux-main:
+    - libandroid-tools
+    - libexpat
+    - libpng
+    - libprotobuf
+
+phases:
+  pre_fetch: |
+    git clone --depth 1 --single-branch \
+      --branch "android-{tag_version}" \
+      "https://android.googlesource.com/platform/frameworks/base" base
+
+  pre_configure: |
+    export PATH=$PREFIX/bin:$PATH
+    CFLAGS+=" -fPIC"
+    CXXFLAGS+=" -Wno-c99-designator -fPIC -std=c++20"
+    CPPFLAGS+=" -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__ -DPROTOBUF_USE_DLLS"
+    LDFLAGS+=" -L$PREFIX/lib -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -lexpat -lpng -lprotobuf -lz"
+
+  make: |
+    AAPT2_SRCDIR=./base/tools/aapt2
+    LIBIDMAP2_POLICIES_INCDIR=./base/cmds/idmap2/libidmap2_policies/include
+
+    cd $AAPT2_SRCDIR
+
+    # We remove proto compilation from here because Termux uses proto files, we just run the same logic
+    libaapt2_proto="Configuration.proto Resources.proto ResourcesInternal.proto"
+    for f in $libaapt2_proto; do
+      protoc --cpp_out=. $f
+    done
+
+    # Need to remove the incorrect directory prefix from proto imports
+    for f in *.proto; do
+      sed -i 's:frameworks/base/tools/aapt2/::' $f || true
+    done
+
+    libaapt2_sources="${libaapt2_proto//.proto/.pb.cc} compile/IdAssigner.cpp compile/InlineXmlFormatParser.cpp compile/NinePatch.cpp compile/Png.cpp compile/PngChunkFilter.cpp compile/PngCrunch.cpp compile/PseudolocaleGenerator.cpp compile/Pseudolocalizer.cpp compile/XmlIdCollector.cpp configuration/ConfigurationParser.cpp dump/DumpManifest.cpp filter/AbiFilter.cpp filter/ConfigFilter.cpp format/Archive.cpp format/Container.cpp format/binary/BinaryResourceParser.cpp format/binary/ResChunkPullParser.cpp format/binary/TableFlattener.cpp format/binary/XmlFlattener.cpp format/proto/ProtoDeserialize.cpp format/proto/ProtoSerialize.cpp io/BigBufferStream.cpp io/File.cpp io/FileStream.cpp io/FileSystem.cpp io/StringStream.cpp io/Util.cpp io/ZipArchive.cpp link/AutoVersioner.cpp link/ManifestFixer.cpp link/NoDefaultResourceRemover.cpp link/ProductFilter.cpp link/PrivateAttributeMover.cpp link/ReferenceLinker.cpp link/ResourceExcluder.cpp link/TableMerger.cpp link/XmlCompatVersioner.cpp link/XmlNamespaceRemover.cpp link/XmlReferenceLinker.cpp optimize/MultiApkGenerator.cpp optimize/ResourceDeduper.cpp optimize/ResourceFilter.cpp optimize/ResourcePathShortener.cpp optimize/VersionCollapser.cpp process/SymbolTable.cpp split/TableSplitter.cpp text/Printer.cpp text/Unicode.cpp text/Utf8Iterator.cpp util/BigBuffer.cpp util/Files.cpp util/Util.cpp Debug.cpp DominatorTree.cpp java/AnnotationProcessor.cpp java/ClassDefinition.cpp java/JavaClassGenerator.cpp java/ManifestClassGenerator.cpp java/ProguardRules.cpp LoadedApk.cpp Resource.cpp ResourceParser.cpp ResourceTable.cpp ResourceUtils.cpp ResourceValues.cpp SdkConstants.cpp StringPool.cpp trace/TraceBuffer.cpp xml/XmlActionExecutor.cpp xml/XmlDom.cpp xml/XmlPullParser.cpp xml/XmlUtil.cpp ValueTransformer.cpp"
+    aapt2_tool_sources="cmd/Command.cpp cmd/Compile.cpp cmd/Convert.cpp cmd/Diff.cpp cmd/Dump.cpp cmd/Link.cpp cmd/Optimize.cpp cmd/Util.cpp"
+    aapt2_sources="$libaapt2_sources $aapt2_tool_sources Main.cpp"
+
+    CPPFLAGS+=" -I. -I$PREFIX/include/android-tools -I../$LIBIDMAP2_POLICIES_INCDIR"
+
+    for f in $aapt2_sources; do
+      $CXX $CXXFLAGS $CPPFLAGS $f -c -o ${f%.*}.o
+    done
+
+    # We link using protobuf
+    PROTOBUF_LIBS=$($PREFIX/bin/pkg-config --libs protobuf || echo "-lprotobuf")
+
+    $CXX $CXXFLAGS $(find . -name '*.o') $LDFLAGS $PROTOBUF_LIBS -o aapt2
+
+  install: |
+    install -Dm755 ./base/tools/aapt2/aapt2 $PREFIX/bin/aapt2
