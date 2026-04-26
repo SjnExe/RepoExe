@@ -6,6 +6,7 @@ import sys
 import tempfile
 import textwrap
 import time
+from typing import Dict
 
 from core.properties import PREFIX
 
@@ -59,35 +60,30 @@ def execute_test(pkg_name: str, test_script: str, max_retries: int = 3, retry_de
         with tempfile.TemporaryDirectory() as strict_rootfs:
             proot_cmd = [
                 "proot",
-                "-r",
-                strict_rootfs,  # Strict isolated empty root
-                "-0",  # Simulate root privileges locally for standard files
-                "-b",
-                "/bin:/bin",  # Bind essential host bins for testing commands
-                "-b",
-                "/usr:/usr",  # Bind /usr for dynamic linker and libs
-                "-b",
-                "/lib:/lib",  # Bind /lib for libs
-                "-b",
-                "/lib64:/lib64",  # Bind /lib64 for x86_64 libs
-                "-b",
-                "/dev:/dev",  # Bind /dev for /dev/null
-                "-b",
-                "/proc:/proc",  # Bind /proc for bash process substitution
-                "-b",
-                f"{PREFIX}:{PREFIX}",  # Only map the isolated prefix
-                "-b",
-                f"{temp_root}:/tmp_test",
-                "-w",
-                "/tmp_test",
-                "/tmp_test/run_test.sh",
+                "-r", strict_rootfs,        # Strict isolated empty root
+                "-0",                       # Simulate root privileges locally for standard files
+                "-b", "/bin:/bin",          # Bind essential host bins for testing commands
+                "-b", "/usr:/usr",          # Bind /usr for dynamic linker and libs
+                "-b", "/lib:/lib",          # Bind /lib for libs
+                "-b", "/lib64:/lib64",      # Bind /lib64 for x86_64 libs
+                "-b", "/dev:/dev",          # Bind /dev for /dev/null
+                "-b", "/proc:/proc",        # Bind /proc for bash process substitution
+                "-b", f"{PREFIX}:{PREFIX}", # Only map the isolated prefix
+                "-b", f"{temp_root}:/tmp_test",
+                "-w", "/tmp_test",
+                "/tmp_test/run_test.sh"
             ]
 
             attempt = 1
             while attempt <= max_retries:
                 try:
                     # We execute it inside PRoot
-                    subprocess.run(proot_cmd, check=True, stdout=sys.stdout, stderr=sys.stderr)
+                    subprocess.run(
+                        proot_cmd,
+                        check=True,
+                        stdout=sys.stdout,
+                        stderr=sys.stderr
+                    )
 
                     # If we succeeded on a retry, mark it as flaky but successful
                     if attempt > 1:
@@ -97,10 +93,7 @@ def execute_test(pkg_name: str, test_script: str, max_retries: int = 3, retry_de
                     return
 
                 except subprocess.CalledProcessError as e:
-                    print(
-                        f"[{pkg_name}] Test execution attempt {attempt} failed (exit code {e.returncode})",
-                        file=sys.stderr,
-                    )
+                    print(f"[{pkg_name}] Test execution attempt {attempt} failed (exit code {e.returncode})", file=sys.stderr)
                     if attempt < max_retries:
                         print(f"[{pkg_name}] Retrying in {retry_delay} seconds...", file=sys.stderr)
                         time.sleep(retry_delay)

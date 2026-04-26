@@ -1,0 +1,61 @@
+name: aidl
+version: 16.0.0_r4
+revision: 0
+description: Android Interface Definition Language (AIDL)
+homepage: https://developer.android.com/guide/components/aidl
+license: Apache-2.0
+maintainer: "@SjnExe"
+
+repositories:
+  - termux-main
+
+depends:
+  - fmt
+  - libc++
+  - libbase
+
+build_in_src: true
+
+phases:
+  pre_fetch: |
+    PKG_GIT_BRANCH="android-${version//_r/_r}"
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/tools/aidl aidl
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/core core
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/libbase libbase
+
+  make: |
+    export PATH="$PKG_HOSTBUILD_DIR/_prefix/bin:$PATH"
+
+    CFLAGS="$CFLAGS -fPIC"
+    CXXFLAGS="$CXXFLAGS -fPIC -std=c++17"
+    CPPFLAGS="$CPPFLAGS -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__ -D__REPOEXE__=1"
+
+    _TMP_BINDIR="$PKG_SRCDIR/_bin"
+    rm -rf "$_TMP_BINDIR"
+    mkdir -p "$_TMP_BINDIR"
+
+    LDFLAGS="$LDFLAGS -L$PREFIX/lib -llog -landroid-base -lfmt"
+
+    . $PKG_BUILDER_DIR/sources.sh
+
+    LIBBASE_SRCDIR=$PKG_SRCDIR/libbase
+    CORE_INCDIR=$PKG_SRCDIR/core/include
+    AIDL_SRCDIR=$PKG_SRCDIR/aidl
+
+    CPPFLAGS="$CPPFLAGS -I. -I./include -I$LIBBASE_SRCDIR/include -I$CORE_INCDIR"
+
+    cd $AIDL_SRCDIR
+    flex aidl_language_l.ll
+    bison --header=aidl_language_y.h aidl_language_y.yy
+    cat >> aidl_language_y.h <<-EOL
+		typedef union yy::parser::value_type YYSTYPE;
+		typedef yy::parser::location_type YYLTYPE;
+	EOL
+
+    for f in $aidl_sources; do
+        $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o $LDFLAGS -lfmt -lgtest -o $_TMP_BINDIR/aidl
+
+  install: |
+    install -Dm700 -t $PREFIX/bin $_TMP_BINDIR/aidl

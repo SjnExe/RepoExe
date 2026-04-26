@@ -46,7 +46,7 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [ ] [Complexity: 60/100] **Git History Version Validation (`parser.py` - Continuity)**: Implement Git history lookups (`git show origin/main...`) to strictly enforce version/revision incrementation.
 - [ ] [Complexity: 60/100] **DAG Core Resolver (`dag.py` - Core)**: Resolve dependencies, read `isolated_shard` boolean tags, and generate matrix shards.
 - [ ] [Complexity: 60/100] **Implicit Cleanup Standards (`debian.py` - Cleanup)**: Auto-cache trimming, permissions normalization, ghost directory pruning, `-glibc` dynamic suffixing, and auto `-doc`/`-locale` Smart Subpackages.
-- [x] [Complexity: 60/100] **Migrate: aapt & aapt2**: Implement "Local Source Building".
+- [x] [Complexity: 60/100] **Migrate: aapt, aapt2, aidl, zipalign**: Implement "Local Source Building".
 - [ ] [Complexity: 65/100] **Android Patching & Validation**: Auto `config.guess` updates, Linux hardcoded path fixes, `termux-elf-cleaner`, `-dbg` symbol extraction, strict Bionic Undefined Symbols validation, strict SONAME enforcement.
 - [ ] [Complexity: 65/100] **CI Workflow: package_updates.yml**: Auto-PR workflow triggered by scheduled `upstream_check.py`.
 - [ ] [Complexity: 65/100] **CI Workflow: promote.yml**: Automated cron job to promote staged updates from `dev` component to `main` component based on dynamic `promote_days`.
@@ -142,3 +142,8 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Migrated `libandroid-tools` to the new Pydantic schema structure (`packages/libandroid-tools/build.yml`). Replaced multiple custom git checkouts with a script in `phases: pre_fetch`. Preserved all compilation custom flags and patches in the declarative `make` phases.
 - Updated `scripts/core/parser.py` schema with a `subpackages` property that expects a dictionary of includes (e.g. `libbase: { includes: ["lib/*"] }`) to support the libandroid-tools migration.
 - **Next Action (Session 10):** Start with **Native Toolchains (`toolchains/native.py`)** (Complexity 45/100) and **Docker Wrapper (`docker.py`)** (Complexity 45/100).
+
+**Session 10 Handover (Completed)**
+
+- Fixed `version` format to `16.0.0_r4` for `libandroid-tools` and `aapt2` to ensure proper parser translation.
+- Migrated `aapt`, `aidl`, and `zipalign` to the new Pydantic schema structure (`build.yml`). Preserved local source building strategies.

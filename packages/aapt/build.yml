@@ -1,0 +1,76 @@
+name: aapt
+version: 0.2
+revision: 0
+description: Android Asset Packaging Tool
+homepage: https://elinux.org/Android_aapt
+license: Apache-2.0
+maintainer: "@SjnExe"
+
+repositories:
+  - termux-main
+
+depends:
+  - fmt
+  - libc++
+  - libexpat
+  - libpng
+  - zlib
+  - libbase
+  - libandroidfw
+  - libutils
+  - libziparchive
+  - libandroid-pathutils
+
+build_in_src: true
+
+phases:
+  pre_fetch: |
+    PKG_GIT_BRANCH="main"
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/frameworks/base base
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/core core
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/libbase libbase
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/libziparchive libziparchive
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/logging logging
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/incremental_delivery incremental_delivery
+
+    curl -sL https://dl.google.com/android/repository/platform-36_r02.zip -o platform.zip
+    unzip -q platform.zip "android-*/android.jar"
+    mv android-*/android.jar .
+    unzip -q android.jar -d android-jar-contents
+
+  make: |
+    export PATH="$PKG_HOSTBUILD_DIR/_prefix/bin:$PATH"
+
+    CFLAGS="$CFLAGS -fPIC"
+    CXXFLAGS="$CXXFLAGS -fPIC -std=c++17 -Wno-nontrivial-memcall -Wno-vla-cxx-extension -Wno-deprecated-anon-enum-enum-conversion -Wno-reorder-init-list"
+    CPPFLAGS="$CPPFLAGS -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__ -D__REPOEXE__=1"
+    CPPFLAGS="$CPPFLAGS -I$PREFIX/include/android-tools"
+
+    _TMP_BINDIR="$PKG_SRCDIR/_bin"
+    rm -rf "$_TMP_BINDIR"
+    mkdir -p "$_TMP_BINDIR"
+
+    LDFLAGS="$LDFLAGS -L$PREFIX/lib -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils -lfmt"
+
+    LIBBASE_SRCDIR=$PKG_SRCDIR/libbase
+    CORE_INCDIR=$PKG_SRCDIR/core/include
+    LIBLOG_INCDIR=$PKG_SRCDIR/logging/liblog/include
+    LIBZIPARCHIVE_SRCDIR=$PKG_SRCDIR/libziparchive
+    INCFS_UTIL_SRCDIR=$PKG_SRCDIR/incremental_delivery/incfs/util
+    ANDROIDFW_SRCDIR=$PKG_SRCDIR/base/libs/androidfw
+    AAPT_SRCDIR=$PKG_SRCDIR/base/tools/aapt
+
+    CPPFLAGS="$CPPFLAGS -I. -I./include -I$LIBBASE_SRCDIR/include -I$LIBLOG_INCDIR -I$CORE_INCDIR -I$LIBZIPARCHIVE_SRCDIR/include -I$INCFS_UTIL_SRCDIR/include -I$ANDROIDFW_SRCDIR/include -I$ANDROIDFW_SRCDIR/include_pathutils"
+
+    cd $AAPT_SRCDIR
+    for f in *.cpp; do
+        $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o $LDFLAGS -lexpat -lpng -lz -o $_TMP_BINDIR/aapt
+
+  install: |
+    install -Dm700 -t $PREFIX/bin $_TMP_BINDIR/aapt
+
+    mkdir -p $PREFIX/share/aapt
+    cd $PKG_SRCDIR/android-jar-contents
+    fastjar cfM $PREFIX/share/aapt/android.jar AndroidManifest.xml resources.arsc

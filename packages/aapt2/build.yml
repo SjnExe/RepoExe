@@ -1,6 +1,6 @@
 name: aapt2
-version: 16.0.0
-revision: 4
+version: 16.0.0_r4
+revision: 0
 description: Android Asset Packaging Tool 2
 homepage: https://elinux.org/Android_aapt
 license: Apache-2.0
@@ -29,7 +29,7 @@ build_in_src: true
 phases:
   pre_fetch: |
     # Using git clone since we need multiple repos
-    PKG_GIT_BRANCH="android-${version}_r${revision}"
+    PKG_GIT_BRANCH="android-${version}"
 
     git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/frameworks/base base
     git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/core core
