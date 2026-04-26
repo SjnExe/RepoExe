@@ -70,7 +70,7 @@ class BuildYml(BaseModel):
     build_in_src: bool = Field(False, description='Force build inside the source tree')
     host_build: bool = Field(False, description='Trigger native Linux compilation before cross-compilation')
     isolated_shard: bool = Field(False, description='Route to a dedicated CI runner shard')
-    inherits: Optional[str] = Field(None, description='Inherit lifecycle blocks from a mixin')
+    inherits: Optional[str | List[str]] = Field(None, description='Inherit lifecycle blocks from a mixin')
     build_multilib: bool = Field(False, description='Compile 32-bit packages explicitly for 64-bit targets')
     cmake_args: List[str] = Field(default_factory=list, description='Additional CMake arguments')
     meson_args: List[str] = Field(default_factory=list, description='Additional Meson arguments')
@@ -201,6 +201,23 @@ class BuildYml(BaseModel):
                         "GitHub '/archive/' URLs are highly volatile. Use official release assets "
                         '(/releases/download/) or strict tag archives (/archive/refs/tags/) to ensure SHA256 stability.'
                     )
+        return v
+
+    @field_validator('excluded_arches')
+    @classmethod
+    def validate_excluded_arches(cls, v: List[str]) -> List[str]:
+        valid_arches = {'aarch64', 'arm', 'i686', 'x86_64', 'riscv64', 'wasm32-wasi', 'all'}
+        for arch in v:
+            if arch not in valid_arches:
+                raise ValueError(f"Invalid architecture '{arch}' in excluded_arches. Must be one of: {valid_arches}")
+        return v
+
+    @field_validator('conffiles', 'no_shebang_fix_files')
+    @classmethod
+    def validate_relative_paths(cls, v: List[str]) -> List[str]:
+        for path in v:
+            if path.startswith('/'):
+                raise ValueError(f"Path '{path}' must be relative (cannot start with '/')")
         return v
 
     @field_validator('optimize')
