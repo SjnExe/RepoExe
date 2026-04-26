@@ -34,3 +34,6 @@ jobs:
 
       - name: Run Prettier
         run: prettier --check .
+
+      - name: Run actionlint
+        uses: raven-actions/actionlint@v2

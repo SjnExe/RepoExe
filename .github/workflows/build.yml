@@ -164,7 +164,7 @@ jobs:
                 fi
 
                 echo "Building $pkg..."
-                # This triggers the core orchestrator. We use dry run first to see if it's excluded.
+                # This triggers the core orchestrator. We use dry run first to see if it is excluded.
                 python build.py build ../packages/$pkg --arch ${{ matrix.arch }} || continue
 
                 mv ../output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
