@@ -178,9 +178,24 @@ class DAG:
                 comp_sorted = [p for p in ordered_pkgs if p in comp]
                 components.append(comp_sorted)
 
-        # Distribute components across shards
+        # Split components into isolated and regular components
+        isolated_components = []
+        regular_components = []
+        for comp in components:
+            # If any package in the component requires an isolated shard,
+            # the whole connected component must be placed in its own shard
+            if any(self.nodes[p].pkg.isolated_shard for p in comp):
+                isolated_components.append(comp)
+            else:
+                regular_components.append(comp)
+
+        # Distribute regular components across regular shards
         shards = [[] for _ in range(num_shards)]
-        for i, comp in enumerate(components):
+        for i, comp in enumerate(regular_components):
             shards[i % num_shards].extend(comp)
+
+        # Append isolated components as dedicated shards
+        for comp in isolated_components:
+            shards.append(comp)
 
         return shards
