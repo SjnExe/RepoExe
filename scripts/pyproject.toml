@@ -29,7 +29,6 @@ warn_return_any = true
 warn_unused_configs = true
 
 [tool.pytest.ini_options]
-addopts = "--cov=core --cov-report=term-missing"
 testpaths = ["tests"]
 
 [tool.hatch.build.targets.wheel]

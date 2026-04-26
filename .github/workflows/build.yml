@@ -1,0 +1,233 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'packages/**'
+      - 'scripts/**'
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'packages/**'
+      - 'scripts/**'
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Space separated list of packages to build (use @all to build everything)'
+        required: true
+        default: '@all'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.sharding.outputs.shards }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'scripts/uv.lock'
+
+      - name: Determine changed packages
+        id: pkgs
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.packages }}" == "@all" ]; then
+              echo "packages=$(ls packages | tr '\n' ' ')" >> $GITHUB_OUTPUT
+            else
+              echo "packages=${{ github.event.inputs.packages }}" >> $GITHUB_OUTPUT
+            fi
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            BASE_COMMIT=${{ github.event.pull_request.base.sha }}
+            HEAD_COMMIT=${{ github.event.pull_request.head.sha }}
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r $BASE_COMMIT $HEAD_COMMIT | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
+            echo "packages=${CHANGED}" >> $GITHUB_OUTPUT
+          else
+            BEFORE="${{ github.event.before }}"
+            AFTER="${{ github.event.after }}"
+
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+               BEFORE="HEAD^1"
+               AFTER="HEAD"
+            fi
+
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r $BEFORE $AFTER | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
+            echo "packages=${CHANGED}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate Shards
+        id: sharding
+        run: |
+          # The orchestrator will parse changes and generate a JSON array of shards
+          cd scripts
+          # We use a python script snippet to dynamically call the dag
+          cat << 'PY_EOF' > sharding_script.py
+import json
+import sys
+import os
+from core.dag import DAG
+
+arch = "aarch64" # default for universal processing
+dag = DAG("../packages", arch)
+
+# Parse inputs
+changed_pkgs_str = sys.argv[1]
+target_packages = None
+if changed_pkgs_str.strip():
+    target_packages = changed_pkgs_str.split()
+
+try:
+    shards = dag.get_shards(target_packages=target_packages, num_shards=4)
+except Exception as e:
+    print(f"Failed to generate shards: {e}", file=sys.stderr)
+    shards = []
+
+print(json.dumps([{"shard": i, "packages": " ".join(shard)} for i, shard in enumerate(shards) if shard]))
+PY_EOF
+          # Execute Python with the changed packages from the previous step
+          SHARDS_JSON=$(uv run python sharding_script.py "${{ steps.pkgs.outputs.packages }}")
+          echo "shards=${SHARDS_JSON}" >> $GITHUB_OUTPUT
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    if: ${{ needs.prepare.outputs.shards != '[]' && needs.prepare.outputs.shards != '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [aarch64, arm, x86_64, i686]
+        shard: ${{ fromJson(needs.prepare.outputs.shards) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free Disk Space
+        uses: ./.github/actions/free-space
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Packages
+        run: |
+          echo "Building packages for ${{ matrix.arch }} (Shard ${{ matrix.shard.shard }}): ${{ matrix.shard.packages }}"
+          mkdir -p output ~/.ccache
+
+          if [ -z "${{ matrix.shard.packages }}" ] || [ "${{ matrix.shard.packages }}" = " " ]; then
+            echo "No packages found in this shard. Skipping."
+            # We don't exit to prevent erroring out, we just let it finish.
+          else
+            OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+
+            # Start daemon
+            docker run -d --name repoexe-daemon \
+              -v ${{ github.workspace }}:/home/builder/RepoExe \
+              -v ~/.ccache:/home/builder/.ccache \
+              -w /home/builder/RepoExe \
+              -e REPO_ROOT=/home/builder/RepoExe \
+              -e MAKEFLAGS="-j4" \
+              -e NINJA_ARGS="-j4" \
+              ghcr.io/$OWNER/repoexe-builder:latest sleep infinity
+
+            # We rely on the orchestrator logic natively now, not shell scripts
+            docker exec repoexe-daemon bash -c "
+              # Set up fake repo for dependency resolution
+              sudo mkdir -p /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/
+              echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
+              sudo chown -R builder:builder /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/
+
+              cd /home/builder/RepoExe/scripts
+              uv pip install --system pydantic pyyaml
+
+              for pkg in ${{ matrix.shard.packages }}; do
+                if [ ! -d \"../packages/\$pkg\" ]; then
+                  echo \"Skipping \$pkg because it no longer exists.\"
+                  continue
+                fi
+
+                echo \"Building \$pkg...\"
+                # This triggers the core orchestrator. We use dry run first to see if it's excluded.
+                python build.py build ../packages/\$pkg --arch ${{ matrix.arch }} || continue
+
+                mv ../output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
+              done
+            "
+
+            docker rm -f repoexe-daemon
+          fi
+
+      # Generate SLSA build provenance (only for non-PR runs)
+      - name: Generate build provenance
+        if: github.event_name != 'pull_request' && hashFiles('output/*.deb') != ''
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'output/*.deb'
+
+      - name: Upload to GitHub Releases
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for pkg in ${{ matrix.shard.packages }}; do
+            if [ ! -d "packages/$pkg" ]; then
+              continue
+            fi
+
+            TAG="$pkg"
+            TITLE="$pkg"
+            if [ "${{ github.ref }}" == "refs/heads/dev" ] || [ "${{ github.base_ref }}" == "dev" ]; then
+              TAG="$pkg-dev"
+              TITLE="$pkg (dev)"
+            fi
+
+            NOTES="Automated build for $pkg"$'\n'"- **Commit:** ${{ github.sha }}"
+
+            gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
+
+            echo "Pruning old assets for $TAG (${{ matrix.arch }})..."
+            OLD_ASSETS=$(gh release view "$TAG" --json assets --jq ".assets[].name | select(endswith(\"_${{ matrix.arch }}.deb\") or endswith(\"_all.deb\"))" || true)
+
+            for asset in $OLD_ASSETS; do
+              gh release delete-asset "$TAG" "$asset" -y || true
+            done
+
+            echo "Uploading new assets for $TAG..."
+            UPLOAD_FILES=""
+            if ls output/*_${{ matrix.arch }}.deb 1> /dev/null 2>&1; then
+              UPLOAD_FILES="$UPLOAD_FILES output/*_${{ matrix.arch }}.deb"
+            fi
+
+            if [ "${{ matrix.arch }}" = "aarch64" ]; then
+              if ls output/*_all.deb 1> /dev/null 2>&1; then
+                UPLOAD_FILES="$UPLOAD_FILES output/*_all.deb"
+              fi
+            fi
+
+            if [ -n "$UPLOAD_FILES" ]; then
+              gh release upload "$TAG" $UPLOAD_FILES
+            else
+              echo "No .deb files found to upload for $pkg"
+            fi
+          done

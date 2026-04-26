@@ -1,7 +1,7 @@
 """YAML Pydantic Parser for RepoExe."""
 
 import yaml
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Standard set of open-source licenses based on legacy Termux standards
@@ -86,6 +86,12 @@ class BuildYml(BaseModel):
     phases: Dict[str, str] = Field(default_factory=dict, description='Shell snippets for build phases')
 
     maintainer: Optional[str] = Field(None, description='The maintainer of the package')
+
+    # Package-Manager Specific Overrides
+    alpine: Dict[str, Any] = Field(
+        default_factory=dict, description='Alpine Linux specific overrides (hooks, triggers)'
+    )
+    pacman: Dict[str, Any] = Field(default_factory=dict, description='Pacman specific overrides (hooks, groups)')
 
     # Subpackages
     subpackages: Dict[str, Dict[str, str | List[str]]] = Field(
