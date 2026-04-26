@@ -185,12 +185,15 @@ class BuildYml(BaseModel):
     @field_validator('source_url')
     @classmethod
     def validate_github_url(cls, v: Optional[str]) -> Optional[str]:
-        if v and 'github.com' in v:
-            if '/archive/' in v and '/archive/refs/tags/' not in v:
-                raise ValueError(
-                    "GitHub '/archive/' URLs are highly volatile. Use official release assets "
-                    '(/releases/download/) or strict tag archives (/archive/refs/tags/) to ensure SHA256 stability.'
-                )
+        if v:
+            from urllib.parse import urlparse
+            parsed = urlparse(v)
+            if parsed.hostname and ('github.com' == parsed.hostname or parsed.hostname.endswith('.github.com')):
+                if '/archive/' in parsed.path and '/archive/refs/tags/' not in parsed.path:
+                    raise ValueError(
+                        "GitHub '/archive/' URLs are highly volatile. Use official release assets "
+                        '(/releases/download/) or strict tag archives (/archive/refs/tags/) to ensure SHA256 stability.'
+                    )
         return v
 
     @field_validator('optimize')
