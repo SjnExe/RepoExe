@@ -90,6 +90,11 @@ class BuildYml(BaseModel):
 
     maintainer: Optional[str] = Field(None, description="The maintainer of the package")
 
+    # Subpackages
+    subpackages: Dict[str, Dict[str, str | List[str]]] = Field(
+        default_factory=dict, description="Granular sub-package definitions (e.g. dev, static, etc.)"
+    )
+
     # Packaging Output & Modifiers
     depends: List[str] = Field(default_factory=list, description="Required dependencies")
     pre_depends: List[str] = Field(default_factory=list, description="Force dependency installation before unpacking")
