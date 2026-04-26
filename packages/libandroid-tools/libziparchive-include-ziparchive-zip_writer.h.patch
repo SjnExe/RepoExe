@@ -1,0 +1,18 @@
+diff --git a/libziparchive/include/ziparchive/zip_writer.h b/libziparchive/include/ziparchive/zip_writer.h
+index 964bba0..6f784fb 100644
+--- a/libziparchive/include/ziparchive/zip_writer.h
++++ b/libziparchive/include/ziparchive/zip_writer.h
+@@ -20,7 +20,6 @@
+ #include <stdio.h>
+ #include <time.h>
+
+-#include <gtest/gtest_prod.h>
+ #include <memory>
+ #include <string>
+ #include <string_view>
+@@ -192,5 +191,4 @@ class ZipWriter {
+   std::unique_ptr<z_stream, void (*)(z_stream*)> z_stream_;
+   std::vector<uint8_t> buffer_;
+
+-  FRIEND_TEST(zipwriter, WriteToUnseekableFile);
+ };

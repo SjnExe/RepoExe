@@ -66,11 +66,22 @@ RUN cd ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot \
   && cp /tmp/ndk-patches/libintl.h ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/ \
   && rm -rf /tmp/ndk-patches
 
+# Install proot and set up Termux prefix simulation directories natively in Docker
+RUN \
+  --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib \
+  eatmydata apt-get install -yq --no-install-recommends \
+    proot
+
+RUN mkdir -p /data/data/com.termux/files/usr \
+  && mkdir -p /data/data/com.termux/files/home
+
 # Remove the default ubuntu user and create 'builder' with UID 1000
 RUN userdel -r ubuntu || true \
   && useradd -u 1000 -U -m -s /bin/bash builder \
   && echo "builder ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/builder \
-  && chmod 0440 /etc/sudoers.d/builder
+  && chmod 0440 /etc/sudoers.d/builder \
+  && chown -R builder:builder /data/data/com.termux
 
 # Install modern tools for Python and formatting
 # We install nodejs and npm to get prettier, shellcheck for bash scripts

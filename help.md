@@ -31,8 +31,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 35/100] **CI Workflow: free-space.sh**: Implement hyper-fast `rm -rf` logic for massive unused toolchains on GitHub Host VMs.
 - [ ] [Complexity: 40/100] **Version Normalization (`parser.py` - Versions)**: Strictly strip `v` prefixes, parse Epochs (`1:`), and translate upstream revisions/tags into PM-specific dialects (`+r4` for Debian, `.r4` for Pacman, `_p4` for Alpine).
 - [ ] [Complexity: 40/100] **CLI Subcommands (`build.py` - CLI)**: Wire basic subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag.
-- [ ] [Complexity: 40/100] **Test Execution Sandbox (`test.py`)**: Execute tests strictly inside PRoot (downloaded and set up natively by Docker) to simulate Android Termux, implementing Flaky Test Isolation.
-- [ ] [Complexity: 40/100] **Migrate: libandroid-tools**: Split into granular sub-packages (`libbase`, `libcutils`, etc.) using logic from `backup/` directory. Embed legacy `source.sh` logic natively into `build.yml` lifecycle hooks.
+- [x] [Complexity: 40/100] **Test Execution Sandbox (`test.py`)**: Execute tests strictly inside PRoot (downloaded and set up natively by Docker) to simulate Android Termux, implementing Flaky Test Isolation.
+- [x] [Complexity: 40/100] **Migrate: libandroid-tools**: Split into granular sub-packages (`libbase`, `libcutils`, etc.) using logic from `backup/` directory. Embed legacy `source.sh` logic natively into `build.yml` lifecycle hooks.
 - [ ] [Complexity: 45/100] **Native Toolchains (`toolchains/native.py`)**: Select NDK compilers based on arch, inject `PREFIX` into `CFLAGS`/`LDFLAGS`, implement CMake/Meson/Autotools wrappers, and generate `android.toolchain.cmake`.
 - [ ] [Complexity: 45/100] **Docker Wrapper (`docker.py`)**: Wrap execution commands in `builder` container, handle mapped volume permissions deterministically, and propagate cancellation signals.
 - [ ] [Complexity: 45/100] **Language Toolchains (`toolchains/*.py`)**: Handle Rust, Python, Go environment logic natively in Python submodules.
@@ -133,3 +133,10 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Addressed code review feedback: properly mocked `pytest`, restored integration tests that were accidentally cleared out, fixed `subprocess` standard list passing for docker commands instead of shell execution.
 - Added support for `phases` dict and `maintainer` field inside `parser.py` needed for `repoexe-keyring`.
 - **Next Action (Session 9):** Start with **Test Execution Sandbox (`test.py`)** (Complexity 40/100) and **Migrate: libandroid-tools** (Complexity 40/100).
+
+**Session 9 Handover (Completed)**
+
+- Integrated PRoot natively into the `Dockerfile` with the `com.termux` layout to support sandboxed testing seamlessly via Docker without external downloads at runtime.
+- Implemented `scripts/core/test.py` with the `ProotTestRunner` to execute test commands safely inside PRoot with Flaky Test Isolation retries. Added unit tests for the runner.
+- Migrated `libandroid-tools` to the new Pydantic YAML schema under `packages/libandroid-tools/build.yml`. Embedded the legacy `sources.sh` logic completely into the `make` hook, and brought over required patches and `include/` directory.
+- **Next Action (Session 10):** Start with **Native Toolchains (`toolchains/native.py`)** (Complexity 45/100) and **Docker Wrapper (`docker.py`)** (Complexity 45/100).
