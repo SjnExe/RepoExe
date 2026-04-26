@@ -193,10 +193,10 @@ class TermuxPackage(object):
     def __repr__(self):
         return "<{} '{}'>".format(self.__class__.__name__, self.name)
 
-    def recursive_dependencies(self, pkgs_map, dir_root=None):
+    def recursive_dependencies(self, pkgs_map, dir_root=None):  # noqa: ARG002
         "All the dependencies of the package, both direct and indirect."
         result = []
-        is_root = dir_root == None
+        is_root = dir_root is None
         if is_root:
             dir_root = self.dir
         if is_root or not self.fast_build_mode or not self.separate_subdeps:
@@ -261,22 +261,11 @@ class ExternalPackage(object):
             return self.name == other.name
         return False
 
-    def recursive_dependencies(self, pkgs_map, dir_root=None):
+    def recursive_dependencies(self, pkgs_map, dir_root=None):  # noqa: ARG002
         return [self]
 
     def __repr__(self):
         return "<{} '{}'>".format(self.__class__.__name__, self.name)
-
-        self.name = name
-        self.dir = "external"
-        self.deps = set()
-        self.subpkgs = []
-        self.needed_by = set()
-        self.only_installing = False
-        self.accept_dep_scr = False
-
-    def recursive_dependencies(self, pkgs_map, dir_root=None):
-        return [self]
 
 
 class TermuxSubPackage:
@@ -310,7 +299,7 @@ class TermuxSubPackage:
             self.__class__.__name__, self.name, self.parent
         )
 
-    def recursive_dependencies(self, pkgs_map, dir_root=None):
+    def recursive_dependencies(self, pkgs_map, dir_root=None):  # noqa: ARG002
         """All the dependencies of the subpackage, both direct and indirect.
         Only relevant when building in fast-build mode"""
         result = []

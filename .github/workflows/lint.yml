@@ -8,8 +8,6 @@ on:
 jobs:
   lint-and-format:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout code
@@ -28,22 +26,11 @@ jobs:
       - name: Install Prettier
         run: npm install -g prettier
 
-      - name: Run Ruff (Fix)
-        run: uvx ruff check --fix scripts/
+      - name: Run Ruff (Check)
+        run: uvx ruff check .
 
-      - name: Run Ruff (Format)
-        run: uvx ruff format scripts/
+      - name: Run Ruff (Format Check)
+        run: uvx ruff format --check .
 
       - name: Run Prettier
-        run: prettier --write scripts/ .github/
-
-      - name: Commit and push changes
-        run: |
-          git config --global user.name "RepoExe"
-          git config --global user.email "repoexe@users.noreply.github.com"
-          if [[ -n "$(git status --porcelain)" ]]; then
-            git commit -am "chore: auto-format with ruff and prettier"
-            git push
-          else
-            echo "No formatting changes needed."
-          fi
+        run: prettier --check .
