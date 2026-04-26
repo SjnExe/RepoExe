@@ -85,6 +85,11 @@ class BuildYml(BaseModel):
     lto: bool = Field(False, description="Enable Link-Time Optimization")
     pgo: bool = Field(False, description="Enable Profile-Guided Optimization")
 
+    # Shell Phases
+    phases: Dict[str, str] = Field(default_factory=dict, description="Shell snippets for build phases")
+
+    maintainer: Optional[str] = Field(None, description="The maintainer of the package")
+
     # Packaging Output & Modifiers
     depends: List[str] = Field(default_factory=list, description="Required dependencies")
     pre_depends: List[str] = Field(default_factory=list, description="Force dependency installation before unpacking")
@@ -102,8 +107,56 @@ class BuildYml(BaseModel):
     @classmethod
     def version_must_not_start_with_v(cls, v: str) -> str:
         if v.startswith("v"):
-            raise ValueError("Version must strictly reflect upstream and MUST NOT contain a 'v' prefix.")
+            return v[1:]
         return v
+
+    @property
+    def deb_version(self) -> str:
+        """Translates the upstream version into a Debian-compatible version string."""
+        import re
+
+        version = self.version
+        tag_match = re.search(r"-([a-zA-Z]+)(\d*)$", version)
+        if tag_match:
+            tag = tag_match.group(1).lower()
+            num = tag_match.group(2)
+            if tag == "r":
+                version = version.replace(f"-{tag}{num}", f"+{tag}{num}")
+            elif tag in ("rc", "alpha", "beta", "pre"):
+                version = version.replace(f"-{tag}{num}", f"~{tag}{num}")
+        return f"{version}-{self.revision}"
+
+    @property
+    def pacman_version(self) -> str:
+        """Translates the upstream version into a Pacman-compatible version string."""
+        import re
+
+        version = self.version
+        tag_match = re.search(r"-([a-zA-Z]+)(\d*)$", version)
+        if tag_match:
+            tag = tag_match.group(1).lower()
+            num = tag_match.group(2)
+            version = version.replace(f"-{tag}{num}", f".{tag}{num}")
+
+        # Pacman versions cannot contain hyphens
+        version = version.replace("-", ".")
+        return f"{version}-{self.revision}"
+
+    @property
+    def apk_version(self) -> str:
+        """Translates the upstream version into an Alpine-compatible version string."""
+        import re
+
+        version = self.version
+        tag_match = re.search(r"-([a-zA-Z]+)(\d*)$", version)
+        if tag_match:
+            tag = tag_match.group(1).lower()
+            num = tag_match.group(2)
+            if tag == "r":
+                version = version.replace(f"-{tag}{num}", f"_p{num}")
+            elif tag in ("rc", "alpha", "beta", "pre", "cvs", "svn", "git", "hg"):
+                version = version.replace(f"-{tag}{num}", f"_{tag}{num}")
+        return f"{version}-r{self.revision}"
 
     @field_validator("license")
     @classmethod
