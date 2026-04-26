@@ -35,8 +35,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 40/100] **Migrate: libandroid-tools**: Split into granular sub-packages (`libbase`, `libcutils`, etc.) using logic from `backup/` directory. Embed legacy `source.sh` logic natively into `build.yml` lifecycle hooks.
 - [x] [Complexity: 45/100] **Native Toolchains (`toolchains/native.py`)**: Select NDK compilers based on arch, inject `PREFIX` into `CFLAGS`/`LDFLAGS`, implement CMake/Meson/Autotools wrappers, and generate `android.toolchain.cmake`.
 - [x] [Complexity: 45/100] **Docker Wrapper (`docker.py`)**: Wrap execution commands in `builder` container, handle mapped volume permissions deterministically, and propagate cancellation signals.
-- [ ] [Complexity: 45/100] **Language Toolchains (`toolchains/*.py`)**: Handle Rust, Python, Go environment logic natively in Python submodules.
-- [ ] [Complexity: 50/100] **Sysroot Symlink Farm (`sysroot.py`)**: Implement Content-Addressable Store caching for the `$PREFIX` to rapidly generate links without I/O disk copies.
+- [x] [Complexity: 45/100] **Language Toolchains (`toolchains/*.py`)**: Handle Rust, Python, Go environment logic natively in Python submodules.
+- [x] [Complexity: 50/100] **Sysroot Symlink Farm (`sysroot.py`)**: Implement Content-Addressable Store caching for the `$PREFIX` to rapidly generate links without I/O disk copies.
 - [ ] [Complexity: 50/100] **Debian Packager (`debian.py` - Base)**: Handle `.deb` generation (`zstd`), `sbin` merging, PIE enforcement, gzip docs, and libtool `.la` removal.
 - [ ] [Complexity: 50/100] **Pacman Packager (`pacman.py`)**: Handle `.pkg.tar.zst` and database (`.db`) generation using `zstd`.
 - [ ] [Complexity: 50/100] **Alpine Packager (`apk.py`)**: Handle `.apk` and `APKINDEX.tar.gz` generation.
@@ -158,3 +158,11 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Created `scripts/core/docker.py` handling deterministic hermetic constraints (`--user 1000:1000`, `--network=none`, seccomp injection).
 - Included hybrid docker execution modes providing the `DockerRunner` for ephemeral commands and the `DockerBackgroundExec` utilizing `atexit.register(self.stop)` to retain high performance via a daemon container.
 - **Next Action (Session 12):** Start with **Language Toolchains (`toolchains/*.py`)** (Complexity 45/100) and **Sysroot Symlink Farm (`sysroot.py`)** (Complexity 50/100).
+
+**Session 12 Handover (Completed)**
+
+- Implemented `scripts/core/toolchains/rust.py`, `golang.py`, `python.py`, `swift.py`, and `zig.py` to handle cross-compilation environment variables and arguments for Android.
+- Implemented `scripts/core/sysroot.py` to manage the Content-Addressable Store (CAS) cache and generate fast symlink farms into the active `$PREFIX`.
+- Added strict `fetch_source()` logic with tarball extraction and SHA256 validation to prepare for hermetic builds.
+- Wrote and passed comprehensive unit tests via `pytest` for all newly added logic components.
+- **Next Action (Session 13):** Start with **Debian Packager (`debian.py` - Base)** (Complexity 50/100), **Pacman Packager (`pacman.py`)** (Complexity 50/100), and **Alpine Packager (`apk.py`)** (Complexity 50/100).
