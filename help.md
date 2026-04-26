@@ -124,3 +124,12 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Implemented `free-space.sh` strictly as an embedded GitHub Composite Action at `.github/actions/free-space/action.yml` to cleanly optimize disk space on the runners.
 - Moved Documentation checklist items (`SCHEMA.md`, `Sample Templates`, `mkdocs Site`) to the bottom of the execution order as they belong to the final Phase 5 Handover step.
 - **Next Action (Session 8):** Start with **Version Normalization (`parser.py` - Versions)** (Complexity 40/100) and **CLI Subcommands (`build.py` - CLI)** (Complexity 40/100).
+
+**Session 8 Handover (Completed)**
+
+- Implemented version string normalization directly via Pydantic validators on the `BuildYml` schema in `parser.py`.
+- Added computed properties (`deb_version`, `pacman_version`, `apk_version`) to the Pydantic parser to seamlessly translate version dialects (`-rc`, `-r`) for distinct package managers without breaking sorting.
+- Implemented `build.py` orchestrator CLI entrypoint utilizing `argparse`. Includes functional implementations for subcommands `info`, `list`, `clean`, `init` (interactive scaffolding wizard), and `build --dry-run`.
+- Addressed code review feedback: properly mocked `pytest`, restored integration tests that were accidentally cleared out, fixed `subprocess` standard list passing for docker commands instead of shell execution.
+- Added support for `phases` dict and `maintainer` field inside `parser.py` needed for `repoexe-keyring`.
+- **Next Action (Session 9):** Start with **Test Execution Sandbox (`test.py`)** (Complexity 40/100) and **Migrate: libandroid-tools** (Complexity 40/100).
