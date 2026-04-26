@@ -44,8 +44,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 55/100] **CI Workflow: build.yml (Base)**: Dynamic Matrix Sharding (`architectures x shards`), strictly triggered on `push`/`PR` to `main`.
 - [x] [Complexity: 55/100] **CI Workflow: publish.yml**: Publish workflow separated from `build.yml`. Verify artifacts, inject signing keys, publish metadata to Pages.
 - [x] [Complexity: 60/100] **Git History Version Validation (`parser.py` - Continuity)**: Implement Git history lookups (`git show origin/main...`) to strictly enforce version/revision incrementation.
-- [ ] [Complexity: 60/100] **DAG Core Resolver (`dag.py` - Core)**: Resolve dependencies, read `isolated_shard` boolean tags, and generate matrix shards.
-- [ ] [Complexity: 60/100] **Implicit Cleanup Standards (`debian.py` - Cleanup)**: Auto-cache trimming, permissions normalization, ghost directory pruning, `-glibc` dynamic suffixing, and auto `-doc`/`-locale` Smart Subpackages.
+- [x] [Complexity: 60/100] **DAG Core Resolver (`dag.py` - Core)**: Resolve dependencies, read `isolated_shard` boolean tags, and generate matrix shards.
+- [x] [Complexity: 60/100] **Implicit Cleanup Standards (`debian.py` - Cleanup)**: Auto-cache trimming, permissions normalization, ghost directory pruning, `-glibc` dynamic suffixing, and auto `-doc`/`-locale` Smart Subpackages.
 - [ ] [Complexity: 60/100] **Migrate: aapt, aapt2, zipalign, aidl**: Implement "Local Source Building" for deprecated `aapt` (in `packages/aapt/src/`) applying standard bloat-free patches directly. Use upstream sources and native `build.yml` hooks for actively maintained `aapt2`, `zipalign`, and `aidl`.
 - [ ] [Complexity: 65/100] **Android Patching & Validation**: Auto `config.guess` updates, Linux hardcoded path fixes, `termux-elf-cleaner`, `-dbg` symbol extraction, strict Bionic Undefined Symbols validation, strict SONAME enforcement.
 - [ ] [Complexity: 65/100] **CI Workflow: package_updates.yml**: Auto-PR workflow triggered by scheduled `upstream_check.py`.
@@ -191,3 +191,13 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Updated `parser.py` to enforce version bumps by validating via `git ls-remote` if the specific release tag already exists upstream, failing the build if it does.
 - Cleaned up temp scripts and formatted with Ruff and Prettier.
 - **Next Action (Session 16):** Start with **DAG Core Resolver (`dag.py` - Core)** (Complexity 60/100) and **Implicit Cleanup Standards (`debian.py` - Cleanup)** (Complexity 60/100).
+
+**Session 16 Handover (Completed)**
+
+- Updated `DAG.get_shards` logic in `scripts/core/dag.py` to place isolated components into their own dedicated runners, correctly handling `isolated_shard` boolean tags.
+- Added implicit cleanup standard support: `debian.py` now implements Smart Subpackages by splitting off `doc` and `locale` data into isolated `.deb` archives (e.g. `hello-doc`).
+- Verified `cleanup.py` components, cache trimming, ghost pruning, and proper `-glibc` suffix application via `deb_version` across base and subpackages.
+- Fixed an issue with `ar` archive generation where member paths were absolute. All `.deb` artifacts are now created correctly.
+- Addressed pytest failures, creating comprehensive tests for the sharding logic and subpackage extraction routines.
+- Noted in `plan.md` that a `publish.yml` failure following a successful `build.yml` can be safely retried manually, since release tags are created during the build phase and `publish.yml` is stateless.
+- **Next Action (Session 17):** Start with **Migrate: aapt, aapt2, zipalign, aidl** (Complexity 60/100) and **Android Patching & Validation** (Complexity 65/100).
