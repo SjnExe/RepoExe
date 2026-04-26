@@ -33,8 +33,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [ ] [Complexity: 40/100] **CLI Subcommands (`build.py` - CLI)**: Wire basic subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag.
 - [x] [Complexity: 40/100] **Test Execution Sandbox (`test.py`)**: Execute tests strictly inside PRoot (downloaded and set up natively by Docker) to simulate Android Termux, implementing Flaky Test Isolation.
 - [x] [Complexity: 40/100] **Migrate: libandroid-tools**: Split into granular sub-packages (`libbase`, `libcutils`, etc.) using logic from `backup/` directory. Embed legacy `source.sh` logic natively into `build.yml` lifecycle hooks.
-- [ ] [Complexity: 45/100] **Native Toolchains (`toolchains/native.py`)**: Select NDK compilers based on arch, inject `PREFIX` into `CFLAGS`/`LDFLAGS`, implement CMake/Meson/Autotools wrappers, and generate `android.toolchain.cmake`.
-- [ ] [Complexity: 45/100] **Docker Wrapper (`docker.py`)**: Wrap execution commands in `builder` container, handle mapped volume permissions deterministically, and propagate cancellation signals.
+- [x] [Complexity: 45/100] **Native Toolchains (`toolchains/native.py`)**: Select NDK compilers based on arch, inject `PREFIX` into `CFLAGS`/`LDFLAGS`, implement CMake/Meson/Autotools wrappers, and generate `android.toolchain.cmake`.
+- [x] [Complexity: 45/100] **Docker Wrapper (`docker.py`)**: Wrap execution commands in `builder` container, handle mapped volume permissions deterministically, and propagate cancellation signals.
 - [ ] [Complexity: 45/100] **Language Toolchains (`toolchains/*.py`)**: Handle Rust, Python, Go environment logic natively in Python submodules.
 - [ ] [Complexity: 50/100] **Sysroot Symlink Farm (`sysroot.py`)**: Implement Content-Addressable Store caching for the `$PREFIX` to rapidly generate links without I/O disk copies.
 - [ ] [Complexity: 50/100] **Debian Packager (`debian.py` - Base)**: Handle `.deb` generation (`zstd`), `sbin` merging, PIE enforcement, gzip docs, and libtool `.la` removal.
@@ -150,3 +150,11 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Standardized python linting and formatting configuration to single quotes via `prettier` and `ruff`.
 
 - **Next Action (Session 11):** Start with **Native Toolchains (`toolchains/native.py`)** (Complexity 45/100) and **Docker Wrapper (`docker.py`)** (Complexity 45/100).
+
+**Session 11 Handover (Completed)**
+
+- Implemented `scripts/core/toolchains/native.py` bridging architecture mappings (aarch64 to arm64-v8a etc.) to dynamically construct `android.toolchain.cmake` inside the build directory.
+- Configured 32-bit `build_multilib` fallbacks and successfully merged Fortran (Flang) support into base environment setup directly, injecting `PREFIX` constraints to `CFLAGS` and `LDFLAGS`. Enforced `Ninja` backend.
+- Created `scripts/core/docker.py` handling deterministic hermetic constraints (`--user 1000:1000`, `--network=none`, seccomp injection).
+- Included hybrid docker execution modes providing the `DockerRunner` for ephemeral commands and the `DockerBackgroundExec` utilizing `atexit.register(self.stop)` to retain high performance via a daemon container.
+- **Next Action (Session 12):** Start with **Language Toolchains (`toolchains/*.py`)** (Complexity 45/100) and **Sysroot Symlink Farm (`sysroot.py`)** (Complexity 50/100).
