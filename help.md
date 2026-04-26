@@ -40,8 +40,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 50/100] **Debian Packager (`debian.py` - Base)**: Handle `.deb` generation (`zstd`), `sbin` merging, PIE enforcement, gzip docs, and libtool `.la` removal.
 - [x] [Complexity: 50/100] **Pacman Packager (`pacman.py`)**: Handle `.pkg.tar.zst` and database (`.db`) generation using `zstd`.
 - [x] [Complexity: 50/100] **Alpine Packager (`apk.py`)**: Handle `.apk` and `APKINDEX.tar.gz` generation.
-- [ ] [Complexity: 55/100] **Advanced Metadata Schema (`parser.py` - Metadata)**: Enforce advanced flags (`conffiles`, `essential`, `anti_build_depends`, `no_shebang_fix_files`, `no_staticsplit`, `excluded_arches`, `build_in_src`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `lto`, `pgo`).
-- [ ] [Complexity: 55/100] **CI Workflow: build.yml (Base)**: Dynamic Matrix Sharding (`architectures x shards`), strictly triggered on `push`/`PR` to `main`.
+- [x] [Complexity: 55/100] **Advanced Metadata Schema (`parser.py` - Metadata)**: Enforce advanced flags (`conffiles`, `essential`, `anti_build_depends`, `no_shebang_fix_files`, `no_staticsplit`, `excluded_arches`, `build_in_src`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `lto`, `pgo`).
+- [x] [Complexity: 55/100] **CI Workflow: build.yml (Base)**: Dynamic Matrix Sharding (`architectures x shards`), strictly triggered on `push`/`PR` to `main`.
 - [ ] [Complexity: 55/100] **CI Workflow: publish.yml**: Publish workflow separated from `build.yml`. Verify artifacts, inject signing keys, publish metadata to Pages.
 - [ ] [Complexity: 60/100] **Git History Version Validation (`parser.py` - Continuity)**: Implement Git history lookups (`git show origin/main...`) to strictly enforce version/revision incrementation.
 - [ ] [Complexity: 60/100] **DAG Core Resolver (`dag.py` - Core)**: Resolve dependencies, read `isolated_shard` boolean tags, and generate matrix shards.
@@ -176,3 +176,10 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Refactored `scripts/build.py` orchestrator to natively import the new packaging methods.
 - Addressed previous code review feedback by rewriting the Alpine generator to use valid concatenated streams and ensuring test files throw exceptions instead of skipping over code faults.
 - **Next Action (Session 14):** Start with **Advanced Metadata Schema (`parser.py` - Metadata)** (Complexity 55/100) and **CI Workflow: build.yml (Base)** (Complexity 55/100).
+
+**Session 14 Handover (Completed)**
+
+- Updated `build.yml` workflow triggers to strictly execute on the `main` branch, removing the legacy `dev` branch references.
+- Implemented Pydantic validators in `scripts/core/parser.py` to enforce strict architecture naming for `excluded_arches` and relative paths for `conffiles` and `no_shebang_fix_files`.
+- Updated `test_repo.py` to accurately resolve the `repo.yml` location independent of execution context.
+- **Next Action (Session 15):** Start with **CI Workflow: publish.yml** (Complexity 55/100) and **Git History Version Validation (`parser.py` - Continuity)** (Complexity 60/100).

@@ -4,14 +4,12 @@ on:
   push:
     branches:
       - main
-      - dev
     paths:
       - 'packages/**'
       - 'scripts/**'
   pull_request:
     branches:
       - main
-      - dev
     paths:
       - 'packages/**'
       - 'scripts/**'
@@ -107,7 +105,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [aarch64, arm, x86_64, i686]
+        arch: [aarch64, arm, x86_64, i686, riscv64, wasm32-wasi]
         shard: ${{ fromJson(needs.prepare.outputs.shards) }}
     steps:
       - name: Checkout
