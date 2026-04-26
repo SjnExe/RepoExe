@@ -1,5 +1,5 @@
 name: libandroid-tools
-version: 16.0.0-r4
+version: 16.0.0_r4
 description: Shared libraries for Android tools (aapt2, zipalign, aidl)
 homepage: https://android.googlesource.com/platform/system/core
 license: Apache-2.0
@@ -10,16 +10,17 @@ maintainer: "@SjnExe"
 # We'll use the 'phases' hook to define the complex clone step directly, bypassing a single 'source' string.
 # (This is supported by RepoExe's hybrid capabilities for complex packages).
 source: git
-git_branch: android-16.0.0_r4
+git_branch: android-{version}
 build_in_src: true
 
 depends:
-  - fmt
-  - libc++
-  - libexpat
-  - libpng
-  - libzopfli
-  - zlib
+  termux-main:
+    - fmt
+    - libc++
+    - libexpat
+    - libpng
+    - libzopfli
+    - zlib
 
 subpackages:
   libbase:
@@ -67,7 +68,7 @@ phases:
       CLONE_DIR=$(basename "$REPO_URL" .git | sed -e 's/platform_system_tools_//' -e 's/platform_system_//' -e 's/platform_frameworks_//' -e 's/platform_//')
 
       git clone --depth 1 --single-branch \
-        --branch "android-16.0.0_r4" \
+        --branch "android-{version}" \
         "$REPO_URL" "$CLONE_DIR"
     done
 

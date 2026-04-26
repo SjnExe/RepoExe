@@ -1,24 +1,24 @@
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "daily"
+      interval: 'daily'
     labels:
-      - "dependencies"
-      - "actions"
+      - 'dependencies'
+      - 'actions'
     groups:
       all-actions:
         patterns:
-          - "*"
-  - package-ecosystem: "pip"
-    directory: "/scripts"
+          - '*'
+  - package-ecosystem: 'pip'
+    directory: '/scripts'
     schedule:
-      interval: "daily"
+      interval: 'daily'
     labels:
-      - "dependencies"
-      - "python"
+      - 'dependencies'
+      - 'python'
     groups:
       all-python:
         patterns:
-          - "*"
+          - '*'

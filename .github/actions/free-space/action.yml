@@ -1,8 +1,8 @@
-name: "Free Disk Space"
-description: "Frees up massive unused directories on GitHub Actions Ubuntu runners to maximize disk space before compiling."
+name: 'Free Disk Space'
+description: 'Frees up massive unused directories on GitHub Actions Ubuntu runners to maximize disk space before compiling.'
 
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     - name: Optimize Disk Space
       shell: bash
