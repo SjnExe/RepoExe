@@ -27,15 +27,12 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 30/100] **CI Workflow: lint.yml**: Implement Self-Healing CI that auto-runs `ruff` and `prettier` and pushes fix commits.
 - [x] [Complexity: 30/100] **CI Workflow: python-tests.yml**: CI workflow executing the `pytest` test suite for the orchestrator, integrating `pytest-cov` and rendering GitHub Step Summaries.
 - [x] [Complexity: 30/100] **CI Workflow: cache-prune.yml**: Handled. GitHub natively manages action caches via LRU. GHCR pruning logic should be integrated into the upcoming `docker.yml` workflow as a specific step instead of creating a separate workflow.
-- [ ] [Complexity: 30/100] **Documentation: SCHEMA.md**: Write comprehensive schema documentation for all YAML fields, flags, and hooks.
-- [ ] [Complexity: 30/100] **Documentation: Sample Templates**: Create `docs/standard/build.yml` and others.
-- [ ] [Complexity: 35/100] **CI Workflow: security-scan.yml**: Integrate `osv-scanner` or `pip-audit` to proactively scan dependencies for known vulnerabilities.
-- [ ] [Complexity: 35/100] **CI Workflow: free-space.sh**: Implement hyper-fast `rm -rf` logic for massive unused toolchains on GitHub Host VMs.
+- [x] [Complexity: 35/100] **CI Workflow: security-scan.yml**: Integrate `osv-scanner` or `pip-audit` to proactively scan dependencies for known vulnerabilities.
+- [x] [Complexity: 35/100] **CI Workflow: free-space.sh**: Implement hyper-fast `rm -rf` logic for massive unused toolchains on GitHub Host VMs.
 - [ ] [Complexity: 40/100] **Version Normalization (`parser.py` - Versions)**: Strictly strip `v` prefixes, and translate upstream revisions into PM-specific dialects (`+r4` for Debian, `.r4` for Pacman, `_p4` for Alpine).
 - [ ] [Complexity: 40/100] **CLI Subcommands (`build.py` - CLI)**: Wire basic subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag.
 - [ ] [Complexity: 40/100] **Test Execution Sandbox (`test.py`)**: Execute tests inside PRoot / PRoot Distro isolation, implementing Flaky Test Isolation.
 - [ ] [Complexity: 40/100] **Migrate: libandroid-tools**: Split into granular sub-packages (`libbase`, `libcutils`, etc.).
-- [ ] [Complexity: 40/100] **Documentation: mkdocs Site**: Set up `mkdocs-material` for a searchable docs site on `/docs`.
 - [ ] [Complexity: 45/100] **Native Toolchains (`toolchains/native.py`)**: Select NDK compilers based on arch, inject `PREFIX` into `CFLAGS`/`LDFLAGS`, implement CMake/Meson/Autotools wrappers, and generate `android.toolchain.cmake`.
 - [ ] [Complexity: 45/100] **Docker Wrapper (`docker.py`)**: Wrap execution commands in `builder` container, handle mapped volume permissions deterministically, and propagate cancellation signals.
 - [ ] [Complexity: 45/100] **Language Toolchains (`toolchains/*.py`)**: Handle Rust, Python, Go environment logic natively in Python submodules.
@@ -66,6 +63,9 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [ ] [Complexity: 90/100] **Alpine RSA Signature Appending (`apk.py` - Signing)**: Natively implement the complex logic to mathematically append Alpine RSA signatures to compiled `.apk` files and `APKINDEX.tar.gz`.
 - [ ] [Complexity: 95/100] **Auto-Revision & Downstream DAG Bumping (`dag.py` - Smart)**: Enable the orchestrator to automatically calculate revision bumps down the DAG when core upstream dependencies trigger rebuilds or ABI breaks.
 - [ ] [Complexity: 100/100] **Content-Addressable Hashing Engine**: Incorporate strict SHA256 "state hash" evaluation across package inputs (YAML, patches, source hash, downstream DAG state hashes) to aggressively skip redundant builds globally.
+- [ ] [Complexity: 30/100] **Documentation: SCHEMA.md**: Write comprehensive schema documentation for all YAML fields, flags, and hooks.
+- [ ] [Complexity: 30/100] **Documentation: Sample Templates**: Create `docs/standard/build.yml` and others.
+- [ ] [Complexity: 40/100] **Documentation: mkdocs Site**: Set up `mkdocs-material` for a searchable docs site on `/docs`.
 
 ---
 
@@ -116,4 +116,11 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Implemented `python-tests.yml` to run unit tests via `pytest`, including `pytest-cov` reporting printed to GitHub Step Summaries.
 - Added basic foundational unit tests (`test_parser.py`, `test_properties.py`) for existing Python modules so `pytest` has coverage metrics to report.
 - Marked `cache-prune.yml` as handled, redirecting GHCR pruning logic to the upcoming Docker workflow since GitHub natively manages Actions cache via LRU.
-- **Next Action (Session 7):** Start with **Documentation: SCHEMA.md** (Complexity 30/100) and **Documentation: Sample Templates** (Complexity 30/100).
+- **Next Action (Session 7):** Start with **CI Workflow: security-scan.yml** (Complexity 35/100) and **CI Workflow: free-space.sh** (Complexity 35/100).
+
+**Session 7 Handover (Completed)**
+
+- Merged `codeql` and `osv-scanner` jobs into a single `.github/workflows/security-scan.yml` workflow, utilizing standard bash shell downloads for the `osv-scanner` binary to avoid third-party Action dependencies.
+- Implemented `free-space.sh` strictly as an embedded GitHub Composite Action at `.github/actions/free-space/action.yml` to cleanly optimize disk space on the runners.
+- Moved Documentation checklist items (`SCHEMA.md`, `Sample Templates`, `mkdocs Site`) to the bottom of the execution order as they belong to the final Phase 5 Handover step.
+- **Next Action (Session 8):** Start with **Version Normalization (`parser.py` - Versions)** (Complexity 40/100) and **CLI Subcommands (`build.py` - CLI)** (Complexity 40/100).
