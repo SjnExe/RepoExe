@@ -7,6 +7,10 @@ updates:
     labels:
       - "dependencies"
       - "actions"
+    groups:
+      all-actions:
+        patterns:
+          - "*"
   - package-ecosystem: "pip"
     directory: "/scripts"
     schedule:
@@ -14,3 +18,7 @@ updates:
     labels:
       - "dependencies"
       - "python"
+    groups:
+      all-python:
+        patterns:
+          - "*"
