@@ -1,0 +1,23 @@
+name: "Free Disk Space"
+description: "Frees up massive unused directories on GitHub Actions Ubuntu runners to maximize disk space before compiling."
+
+runs:
+  using: "composite"
+  steps:
+    - name: Optimize Disk Space
+      shell: bash
+      run: |
+        echo "Optimizing disk space on GitHub Actions runner..."
+
+        echo "Disk space BEFORE:"
+        df -h
+
+        # Remove massive unused directories on standard Ubuntu GitHub runners
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+        echo "Disk space AFTER:"
+        df -h
