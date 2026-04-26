@@ -1,6 +1,3 @@
-
-
-
 class GolangToolchain:
     def __init__(self, arch: str):
         self.arch = arch
