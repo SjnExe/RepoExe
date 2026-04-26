@@ -29,10 +29,10 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 30/100] **CI Workflow: cache-prune.yml**: Handled. GitHub natively manages action caches via LRU. GHCR pruning logic should be integrated into the upcoming `docker.yml` workflow as a specific step instead of creating a separate workflow.
 - [x] [Complexity: 35/100] **CI Workflow: security-scan.yml**: Integrate `osv-scanner` or `pip-audit` to proactively scan dependencies for known vulnerabilities.
 - [x] [Complexity: 35/100] **CI Workflow: free-space.sh**: Implement hyper-fast `rm -rf` logic for massive unused toolchains on GitHub Host VMs.
-- [ ] [Complexity: 40/100] **Version Normalization (`parser.py` - Versions)**: Strictly strip `v` prefixes, and translate upstream revisions into PM-specific dialects (`+r4` for Debian, `.r4` for Pacman, `_p4` for Alpine).
+- [ ] [Complexity: 40/100] **Version Normalization (`parser.py` - Versions)**: Strictly strip `v` prefixes, parse Epochs (`1:`), and translate upstream revisions/tags into PM-specific dialects (`+r4` for Debian, `.r4` for Pacman, `_p4` for Alpine).
 - [ ] [Complexity: 40/100] **CLI Subcommands (`build.py` - CLI)**: Wire basic subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag.
-- [ ] [Complexity: 40/100] **Test Execution Sandbox (`test.py`)**: Execute tests inside PRoot / PRoot Distro isolation, implementing Flaky Test Isolation.
-- [ ] [Complexity: 40/100] **Migrate: libandroid-tools**: Split into granular sub-packages (`libbase`, `libcutils`, etc.).
+- [ ] [Complexity: 40/100] **Test Execution Sandbox (`test.py`)**: Execute tests strictly inside PRoot (downloaded and set up natively by Docker) to simulate Android Termux, implementing Flaky Test Isolation.
+- [ ] [Complexity: 40/100] **Migrate: libandroid-tools**: Split into granular sub-packages (`libbase`, `libcutils`, etc.) using logic from `backup/` directory. Embed legacy `source.sh` logic natively into `build.yml` lifecycle hooks.
 - [ ] [Complexity: 45/100] **Native Toolchains (`toolchains/native.py`)**: Select NDK compilers based on arch, inject `PREFIX` into `CFLAGS`/`LDFLAGS`, implement CMake/Meson/Autotools wrappers, and generate `android.toolchain.cmake`.
 - [ ] [Complexity: 45/100] **Docker Wrapper (`docker.py`)**: Wrap execution commands in `builder` container, handle mapped volume permissions deterministically, and propagate cancellation signals.
 - [ ] [Complexity: 45/100] **Language Toolchains (`toolchains/*.py`)**: Handle Rust, Python, Go environment logic natively in Python submodules.
@@ -46,7 +46,7 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [ ] [Complexity: 60/100] **Git History Version Validation (`parser.py` - Continuity)**: Implement Git history lookups (`git show origin/main...`) to strictly enforce version/revision incrementation.
 - [ ] [Complexity: 60/100] **DAG Core Resolver (`dag.py` - Core)**: Resolve dependencies, read `isolated_shard` boolean tags, and generate matrix shards.
 - [ ] [Complexity: 60/100] **Implicit Cleanup Standards (`debian.py` - Cleanup)**: Auto-cache trimming, permissions normalization, ghost directory pruning, `-glibc` dynamic suffixing, and auto `-doc`/`-locale` Smart Subpackages.
-- [ ] [Complexity: 60/100] **Migrate: aapt & aapt2**: Implement "Local Source Building".
+- [ ] [Complexity: 60/100] **Migrate: aapt, aapt2, zipalign, aidl**: Implement "Local Source Building" for deprecated `aapt` (in `packages/aapt/src/`) applying standard bloat-free patches directly. Use upstream sources and native `build.yml` hooks for actively maintained `aapt2`, `zipalign`, and `aidl`.
 - [ ] [Complexity: 65/100] **Android Patching & Validation**: Auto `config.guess` updates, Linux hardcoded path fixes, `termux-elf-cleaner`, `-dbg` symbol extraction, strict Bionic Undefined Symbols validation, strict SONAME enforcement.
 - [ ] [Complexity: 65/100] **CI Workflow: package_updates.yml**: Auto-PR workflow triggered by scheduled `upstream_check.py`.
 - [ ] [Complexity: 65/100] **CI Workflow: promote.yml**: Automated cron job to promote staged updates from `dev` component to `main` component based on dynamic `promote_days`.
