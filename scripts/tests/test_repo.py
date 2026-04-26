@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def test_repo_yml_exists_and_valid():
-    repo_path = Path('repo.yml')
+    repo_path = Path(__file__).parent.parent / 'repo.yml'
     assert repo_path.exists(), 'repo.yml should exist in scripts/'
 
     with open(repo_path, 'r') as f:
