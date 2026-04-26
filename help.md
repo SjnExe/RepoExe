@@ -37,9 +37,9 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 45/100] **Docker Wrapper (`docker.py`)**: Wrap execution commands in `builder` container, handle mapped volume permissions deterministically, and propagate cancellation signals.
 - [x] [Complexity: 45/100] **Language Toolchains (`toolchains/*.py`)**: Handle Rust, Python, Go environment logic natively in Python submodules.
 - [x] [Complexity: 50/100] **Sysroot Symlink Farm (`sysroot.py`)**: Implement Content-Addressable Store caching for the `$PREFIX` to rapidly generate links without I/O disk copies.
-- [ ] [Complexity: 50/100] **Debian Packager (`debian.py` - Base)**: Handle `.deb` generation (`zstd`), `sbin` merging, PIE enforcement, gzip docs, and libtool `.la` removal.
-- [ ] [Complexity: 50/100] **Pacman Packager (`pacman.py`)**: Handle `.pkg.tar.zst` and database (`.db`) generation using `zstd`.
-- [ ] [Complexity: 50/100] **Alpine Packager (`apk.py`)**: Handle `.apk` and `APKINDEX.tar.gz` generation.
+- [x] [Complexity: 50/100] **Debian Packager (`debian.py` - Base)**: Handle `.deb` generation (`zstd`), `sbin` merging, PIE enforcement, gzip docs, and libtool `.la` removal.
+- [x] [Complexity: 50/100] **Pacman Packager (`pacman.py`)**: Handle `.pkg.tar.zst` and database (`.db`) generation using `zstd`.
+- [x] [Complexity: 50/100] **Alpine Packager (`apk.py`)**: Handle `.apk` and `APKINDEX.tar.gz` generation.
 - [ ] [Complexity: 55/100] **Advanced Metadata Schema (`parser.py` - Metadata)**: Enforce advanced flags (`conffiles`, `essential`, `anti_build_depends`, `no_shebang_fix_files`, `no_staticsplit`, `excluded_arches`, `build_in_src`, `pre_depends`, `build_multilib`, `no_elf_cleaner`, `host_build`, `lto`, `pgo`).
 - [ ] [Complexity: 55/100] **CI Workflow: build.yml (Base)**: Dynamic Matrix Sharding (`architectures x shards`), strictly triggered on `push`/`PR` to `main`.
 - [ ] [Complexity: 55/100] **CI Workflow: publish.yml**: Publish workflow separated from `build.yml`. Verify artifacts, inject signing keys, publish metadata to Pages.
@@ -166,3 +166,13 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Added strict `fetch_source()` logic with tarball extraction and SHA256 validation to prepare for hermetic builds.
 - Wrote and passed comprehensive unit tests via `pytest` for all newly added logic components.
 - **Next Action (Session 13):** Start with **Debian Packager (`debian.py` - Base)** (Complexity 50/100), **Pacman Packager (`pacman.py`)** (Complexity 50/100), and **Alpine Packager (`apk.py`)** (Complexity 50/100).
+
+**Session 13 Handover (Completed)**
+
+- Implemented `scripts/core/packagers/debian.py` utilizing standard `zstd` compression.
+- Implemented `scripts/core/packagers/pacman.py` handling `.pkg.tar.zst` format and `.PKGINFO` files natively.
+- Implemented `scripts/core/packagers/apk.py` handling Alpine specific concatenated `gzip` archive generation (.apk).
+- Implemented `scripts/core/packagers/cleanup.py` combining PIE enforcement, sbin merging, and ghost directory pruning into reusable functions for all three packagers.
+- Refactored `scripts/build.py` orchestrator to natively import the new packaging methods.
+- Addressed previous code review feedback by rewriting the Alpine generator to use valid concatenated streams and ensuring test files throw exceptions instead of skipping over code faults.
+- **Next Action (Session 14):** Start with **Advanced Metadata Schema (`parser.py` - Metadata)** (Complexity 55/100) and **CI Workflow: build.yml (Base)** (Complexity 55/100).

@@ -133,6 +133,11 @@ def cmd_build(args: argparse.Namespace) -> None:
         return
 
     print(f'Building {pkg.name}... (Actual build logic not yet implemented)')
+    print('Note: Packager generation is available, but hermetic build hooks are pending implementation.')
+    # When build logic is complete, it will produce a destdir and output_dir to call these:
+    # build_deb(pkg, destdir, output_dir)
+    # build_pacman(pkg, destdir, output_dir)
+    # build_apk(pkg, destdir, output_dir)
 
 
 def main() -> None:
