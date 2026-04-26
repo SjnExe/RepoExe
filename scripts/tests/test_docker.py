@@ -1,4 +1,3 @@
-import subprocess
 from unittest.mock import patch, MagicMock
 
 from core.docker import DockerConfig, DockerRunner, DockerBackgroundExec
