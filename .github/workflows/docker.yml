@@ -64,7 +64,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set lower case owner name
-        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
       - name: Extract metadata
         id: meta
@@ -95,7 +95,7 @@ jobs:
 
     steps:
       - name: Set lower case owner name
-        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
       - name: Delete untagged images
         env:
@@ -103,11 +103,11 @@ jobs:
         run: |
           echo "Fetching untagged versions..."
           VERSION_IDS=$(gh api -H "Accept: application/vnd.github+json" \
-            /users/${{ env.OWNER }}/packages/container/repoexe-builder/versions \
+            "/users/${{ env.OWNER }}/packages/container/repoexe-builder/versions" \
             --jq '.[] | select(.metadata.container.tags | length == 0) | .id')
 
           for ID in $VERSION_IDS; do
             echo "Deleting version ID: $ID"
             gh api --method DELETE -H "Accept: application/vnd.github+json" \
-              /users/${{ env.OWNER }}/packages/container/repoexe-builder/versions/$ID || true
+              "/users/${{ env.OWNER }}/packages/container/repoexe-builder/versions/$ID" || true
           done

@@ -49,15 +49,15 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             if [ "${{ github.event.inputs.packages }}" == "@all" ]; then
-              echo "packages=$(ls packages | tr '\n' ' ')" >> $GITHUB_OUTPUT
+              echo "packages=$(find packages -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
             else
-              echo "packages=${{ github.event.inputs.packages }}" >> $GITHUB_OUTPUT
+              echo "packages=${{ github.event.inputs.packages }}" >> "$GITHUB_OUTPUT"
             fi
           elif [ "${{ github.event_name }}" == "pull_request" ]; then
             BASE_COMMIT=${{ github.event.pull_request.base.sha }}
             HEAD_COMMIT=${{ github.event.pull_request.head.sha }}
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r $BASE_COMMIT $HEAD_COMMIT | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
-            echo "packages=${CHANGED}" >> $GITHUB_OUTPUT
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BASE_COMMIT" "$HEAD_COMMIT" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
+            echo "packages=${CHANGED}" >> "$GITHUB_OUTPUT"
           else
             BEFORE="${{ github.event.before }}"
             AFTER="${{ github.event.after }}"
@@ -67,8 +67,8 @@ jobs:
                AFTER="HEAD"
             fi
 
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r $BEFORE $AFTER | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
-            echo "packages=${CHANGED}" >> $GITHUB_OUTPUT
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BEFORE" "$AFTER" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
+            echo "packages=${CHANGED}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Generate Shards
@@ -98,7 +98,7 @@ jobs:
           print(json.dumps([{"shard": i, "packages": " ".join(shard)} for i, shard in enumerate(shards) if shard]))
           PY_EOF
           SHARDS_JSON=$(uv run python sharding_script.py "${{ steps.pkgs.outputs.packages }}")
-          echo "shards=${SHARDS_JSON}" >> $GITHUB_OUTPUT
+          echo "shards=${SHARDS_JSON}" >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare
@@ -145,7 +145,7 @@ jobs:
               -e REPO_ROOT=/home/builder/RepoExe \
               -e MAKEFLAGS="-j4" \
               -e NINJA_ARGS="-j4" \
-              ghcr.io/$OWNER/repoexe-builder:latest sleep infinity
+              "ghcr.io/$OWNER/repoexe-builder:latest" sleep infinity
 
             # We rely on the orchestrator logic natively now, not shell scripts
             docker exec repoexe-daemon bash -c '
@@ -164,7 +164,7 @@ jobs:
                 fi
 
                 echo "Building $pkg..."
-                # This triggers the core orchestrator. We use dry run first to see if it's excluded.
+                # This triggers the core orchestrator. We use dry run first to see if it is excluded.
                 python build.py build ../packages/$pkg --arch ${{ matrix.arch }} || continue
 
                 mv ../output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
@@ -222,6 +222,7 @@ jobs:
             fi
 
             if [ -n "$UPLOAD_FILES" ]; then
+              # shellcheck disable=SC2086
               gh release upload "$TAG" $UPLOAD_FILES
             else
               echo "No .deb files found to upload for $pkg"
