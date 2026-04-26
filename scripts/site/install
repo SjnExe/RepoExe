@@ -4,31 +4,94 @@
 
 set -e
 
+REPO_URL="https://SjnExe.github.io/RepoExe"
+GPG_KEY_URL="${REPO_URL}/repoexe.gpg"
+RSA_KEY_URL="${REPO_URL}/repoexe.rsa.pub"
+
 echo "Starting RepoExe Installation..."
 
 FOUND_PM=0
 
+# Helper function to prefer pkg if available for apt
+get_apt_cmd() {
+    if command -v pkg >/dev/null 2>&1; then
+        echo "pkg"
+    else
+        echo "apt"
+    fi
+}
+
 if command -v apt >/dev/null 2>&1; then
     echo "Detected package manager: apt"
     FOUND_PM=1
-    # TODO: Implement secure key downloading and repository configuration for apt
+
+    APT_CMD=$(get_apt_cmd)
+    PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
+    KEY_PATH="${PREFIX}/etc/apt/trusted.gpg.d/repoexe.gpg"
+    LIST_PATH="${PREFIX}/etc/apt/sources.list.d/repoexe.list"
+
+    echo "[*] Downloading GPG key for APT..."
+    mkdir -p "${PREFIX}/etc/apt/trusted.gpg.d"
+    curl -sLo "$KEY_PATH" "$GPG_KEY_URL"
+
+    echo "[*] Configuring APT repository..."
+    mkdir -p "${PREFIX}/etc/apt/sources.list.d"
+    echo "deb [signed-by=${KEY_PATH}] ${REPO_URL}/apt stable main" > "$LIST_PATH"
+
+    echo "[*] Updating APT cache..."
+    $APT_CMD update -y
 fi
 
 if command -v pacman >/dev/null 2>&1; then
     echo "Detected package manager: pacman"
     FOUND_PM=1
-    # TODO: Implement secure key downloading and repository configuration for pacman
+
+    PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
+    PACMAN_CONF="${PREFIX}/etc/pacman.conf"
+    KEY_PATH="${PREFIX}/etc/pacman.d/repoexe.gpg"
+
+    echo "[*] Downloading GPG key for Pacman..."
+    mkdir -p "${PREFIX}/etc/pacman.d"
+    curl -sLo "$KEY_PATH" "$GPG_KEY_URL"
+
+    echo "[*] Configuring Pacman repository..."
+    if ! grep -q "\[repoexe\]" "$PACMAN_CONF" 2>/dev/null; then
+        echo "" >> "$PACMAN_CONF"
+        echo "[repoexe]" >> "$PACMAN_CONF"
+        echo "Server = ${REPO_URL}/pacman/\$arch" >> "$PACMAN_CONF"
+        pacman-key --add "$KEY_PATH" || true
+        pacman-key --lsign-key repoexe || true
+    fi
+
+    echo "[*] Updating Pacman cache..."
+    pacman -Sy
 fi
 
 if command -v apk >/dev/null 2>&1; then
     echo "Detected package manager: apk"
     FOUND_PM=1
-    # TODO: Implement secure key downloading and repository configuration for apk
+
+    PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
+    KEYS_DIR="${PREFIX}/etc/apk/keys"
+    REPOS_FILE="${PREFIX}/etc/apk/repositories"
+
+    echo "[*] Downloading RSA key for Alpine/APK..."
+    mkdir -p "$KEYS_DIR"
+    curl -sLo "${KEYS_DIR}/repoexe.rsa.pub" "$RSA_KEY_URL"
+
+    echo "[*] Configuring APK repository..."
+    mkdir -p "${PREFIX}/etc/apk"
+    touch "$REPOS_FILE"
+    if ! grep -q "${REPO_URL}/alpine" "$REPOS_FILE"; then
+        echo "${REPO_URL}/alpine/main" >> "$REPOS_FILE"
+    fi
+
+    echo "[*] Updating APK cache..."
+    apk update
 fi
 
 if [ $FOUND_PM -eq 0 ]; then
     echo "Error: No supported package manager found (apt, pacman, or apk)."
-    # exiting the script on error
     exit 1
 fi
 

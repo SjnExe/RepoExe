@@ -1,0 +1,96 @@
+name: Publish Repo
+
+on:
+  workflow_run:
+    workflows: ['Build']
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      test_only:
+        description: 'Test Mode: Build packages but skip publishing to the repository.'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  packages: write
+  attestations: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch') &&
+      (!inputs.test_only)
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: 'latest'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Download all assets from GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p artifacts
+          echo "Fetching all release tags"
+          TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
+          for tag in $TAGS; do
+            echo "Downloading assets for $tag..."
+            gh release download "$tag" --dir artifacts --pattern "*" || echo "No files found in $tag"
+          done
+
+      - name: Inject Signing Keys
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          ALPINE_PRIVATE_KEY: ${{ secrets.ALPINE_PRIVATE_KEY }}
+        run: |
+          mkdir -p scripts/keys
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" > scripts/keys/repoexe.gpg
+          fi
+          if [ -n "$ALPINE_PRIVATE_KEY" ]; then
+            echo "$ALPINE_PRIVATE_KEY" > scripts/keys/repoexe.rsa
+          fi
+
+      - name: Generate Static Metadata
+        run: |
+          cd scripts
+          uv sync
+          # TODO: Integrate metadata generation with python orchestrator
+          # For now, this is a placeholder step for generating Packages, Release, InRelease, Pacman databases, and Alpine APKINDEX.
+          mkdir -p ../site/apt/dists/stable/main
+          mkdir -p ../site/pacman
+          mkdir -p ../site/alpine
+          echo "Metadata generation executed."
+
+      - name: Generate Build Provenance (SLSA)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'site/**'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
