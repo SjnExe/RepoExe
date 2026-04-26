@@ -74,33 +74,29 @@ jobs:
       - name: Generate Shards
         id: sharding
         run: |
-          # The orchestrator will parse changes and generate a JSON array of shards
           cd scripts
-          # We use a python script snippet to dynamically call the dag
           cat << 'PY_EOF' > sharding_script.py
-import json
-import sys
-import os
-from core.dag import DAG
+          import json
+          import sys
+          import os
+          from core.dag import DAG
 
-arch = "aarch64" # default for universal processing
-dag = DAG("../packages", arch)
+          arch = "aarch64"
+          dag = DAG("../packages", arch)
 
-# Parse inputs
-changed_pkgs_str = sys.argv[1]
-target_packages = None
-if changed_pkgs_str.strip():
-    target_packages = changed_pkgs_str.split()
+          changed_pkgs_str = sys.argv[1]
+          target_packages = None
+          if changed_pkgs_str.strip():
+              target_packages = changed_pkgs_str.split()
 
-try:
-    shards = dag.get_shards(target_packages=target_packages, num_shards=4)
-except Exception as e:
-    print(f"Failed to generate shards: {e}", file=sys.stderr)
-    shards = []
+          try:
+              shards = dag.get_shards(target_packages=target_packages, num_shards=4)
+          except Exception as e:
+              print(f"Failed to generate shards: {e}", file=sys.stderr)
+              shards = []
 
-print(json.dumps([{"shard": i, "packages": " ".join(shard)} for i, shard in enumerate(shards) if shard]))
-PY_EOF
-          # Execute Python with the changed packages from the previous step
+          print(json.dumps([{"shard": i, "packages": " ".join(shard)} for i, shard in enumerate(shards) if shard]))
+          PY_EOF
           SHARDS_JSON=$(uv run python sharding_script.py "${{ steps.pkgs.outputs.packages }}")
           echo "shards=${SHARDS_JSON}" >> $GITHUB_OUTPUT
 
@@ -152,28 +148,28 @@ PY_EOF
               ghcr.io/$OWNER/repoexe-builder:latest sleep infinity
 
             # We rely on the orchestrator logic natively now, not shell scripts
-            docker exec repoexe-daemon bash -c "
+            docker exec repoexe-daemon bash -c '
               # Set up fake repo for dependency resolution
               sudo mkdir -p /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/
-              echo 'deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main' | sudo tee /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
+              echo "deb [trusted=yes] https://SjnExe.github.io/RepoExe/ stable main" | sudo tee /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/repoexe.list > /dev/null
               sudo chown -R builder:builder /data/data/com.repoexe/files/usr/etc/apt/sources.list.d/
 
               cd /home/builder/RepoExe/scripts
               uv pip install --system pydantic pyyaml
 
-              for pkg in ${{ matrix.shard.packages }}; do
-                if [ ! -d \"../packages/\$pkg\" ]; then
-                  echo \"Skipping \$pkg because it no longer exists.\"
+              for pkg in ${{ matrix.shard.packages }} ; do
+                if [ ! -d "../packages/$pkg" ]; then
+                  echo "Skipping $pkg because it no longer exists."
                   continue
                 fi
 
-                echo \"Building \$pkg...\"
+                echo "Building $pkg..."
                 # This triggers the core orchestrator. We use dry run first to see if it's excluded.
-                python build.py build ../packages/\$pkg --arch ${{ matrix.arch }} || continue
+                python build.py build ../packages/$pkg --arch ${{ matrix.arch }} || continue
 
                 mv ../output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
               done
-            "
+            '
 
             docker rm -f repoexe-daemon
           fi
