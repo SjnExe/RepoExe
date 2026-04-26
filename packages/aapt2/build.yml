@@ -1,0 +1,99 @@
+name: aapt2
+version: 16.0.0
+revision: 4
+description: Android Asset Packaging Tool 2
+homepage: https://elinux.org/Android_aapt
+license: Apache-2.0
+maintainer: "@SjnExe"
+
+# Fallback dependencies for missing/external tools
+repositories:
+  - termux-main
+
+depends:
+  - fmt
+  - libc++
+  - libexpat
+  - libpng
+  - libprotobuf
+  - libzopfli
+  - zlib
+  - libbase
+  - libandroidfw
+  - libutils
+  - libziparchive
+  - libandroid-pathutils
+
+build_in_src: true
+
+phases:
+  pre_fetch: |
+    # Using git clone since we need multiple repos
+    PKG_GIT_BRANCH="android-${version}_r${revision}"
+
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/frameworks/base base
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/core core
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/libbase libbase
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/libziparchive libziparchive
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/logging logging
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/incremental_delivery incremental_delivery
+
+    for f in base/tools/aapt2/*.proto; do
+        sed -i 's:frameworks/base/tools/aapt2/::' $f
+    done
+
+    # Fetch android.jar directly from Google instead of relying on a pre-installed host SDK during install
+    # Placed here so network operations are contained to the pre_fetch phase
+    curl -sL https://dl.google.com/android/repository/platform-36_r02.zip -o platform.zip
+    unzip -q platform.zip "android-*/android.jar"
+    mv android-*/android.jar .
+    unzip -q android.jar -d android-jar-contents
+
+  make: |
+    # Ported from Termux step_make
+    export PATH="$PKG_HOSTBUILD_DIR/_prefix/bin:$PATH"
+
+    CFLAGS="$CFLAGS -fPIC"
+    CXXFLAGS="$CXXFLAGS -fPIC -std=c++17 -Wno-nontrivial-memcall -Wno-vla-cxx-extension -Wno-deprecated-anon-enum-enum-conversion -Wno-reorder-init-list"
+    CPPFLAGS="$CPPFLAGS -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__ -D__REPOEXE__=1"
+    CPPFLAGS="$CPPFLAGS -DPROTOBUF_USE_DLLS"
+    CPPFLAGS="$CPPFLAGS -I$PREFIX/include/android-tools"
+
+    _TMP_BINDIR="$PKG_SRCDIR/_bin"
+    rm -rf "$_TMP_BINDIR"
+    mkdir -p "$_TMP_BINDIR"
+
+    LDFLAGS="$LDFLAGS -L$PREFIX/lib -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils -lfmt"
+
+    . $PKG_BUILDER_DIR/sources.sh
+
+    CORE_INCDIR=$PKG_SRCDIR/core/include
+    LIBLOG_INCDIR=$PKG_SRCDIR/logging/liblog/include
+    LIBBASE_SRCDIR=$PKG_SRCDIR/libbase
+    LIBCUTILS_SRCDIR=$PKG_SRCDIR/core/libcutils
+    LIBUTILS_SRCDIR=$PKG_SRCDIR/core/libutils
+    INCFS_SUPPORT_INCDIR=$PKG_SRCDIR/libziparchive/incfs_support/include
+    LIBZIPARCHIVE_SRCDIR=$PKG_SRCDIR/libziparchive
+    INCFS_UTIL_SRCDIR=$PKG_SRCDIR/incremental_delivery/incfs/util
+    ANDROIDFW_SRCDIR=$PKG_SRCDIR/base/libs/androidfw
+    LIBIDMAP2_POLICIES_INCDIR=$PKG_SRCDIR/base/cmds/idmap2/libidmap2_policies/include
+    AAPT2_SRCDIR=$PKG_SRCDIR/base/tools/aapt2
+
+    CPPFLAGS="$CPPFLAGS -I. -I./include -I$LIBBASE_SRCDIR/include -I$LIBLOG_INCDIR -I$CORE_INCDIR -I$LIBZIPARCHIVE_SRCDIR/include -I$INCFS_UTIL_SRCDIR/include -I$ANDROIDFW_SRCDIR/include -I$ANDROIDFW_SRCDIR/include_pathutils"
+
+    cd $AAPT2_SRCDIR
+    for f in $libaapt2_proto; do
+        protoc --cpp_out=. $f
+    done
+    for f in $aapt2_sources; do
+        $CXX $CXXFLAGS $CPPFLAGS -I$LIBIDMAP2_POLICIES_INCDIR $f -c -o ${f%.*}.o
+    done
+    $CXX $CXXFLAGS $(find . -name '*.o') $LDFLAGS -lexpat -lpng -lprotobuf -o $_TMP_BINDIR/aapt2
+
+  install: |
+    install -Dm700 -t $PREFIX/bin $_TMP_BINDIR/aapt2
+
+    # Create an android.jar with AndroidManifest.xml and resources.arsc:
+    mkdir -p $PREFIX/share/aapt
+    cd $PKG_SRCDIR/android-jar-contents
+    fastjar cfM $PREFIX/share/aapt/android.jar AndroidManifest.xml resources.arsc

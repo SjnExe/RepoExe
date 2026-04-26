@@ -31,8 +31,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 35/100] **CI Workflow: free-space.sh**: Implement hyper-fast `rm -rf` logic for massive unused toolchains on GitHub Host VMs.
 - [ ] [Complexity: 40/100] **Version Normalization (`parser.py` - Versions)**: Strictly strip `v` prefixes, and translate upstream revisions into PM-specific dialects (`+r4` for Debian, `.r4` for Pacman, `_p4` for Alpine).
 - [ ] [Complexity: 40/100] **CLI Subcommands (`build.py` - CLI)**: Wire basic subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag.
-- [ ] [Complexity: 40/100] **Test Execution Sandbox (`test.py`)**: Execute tests inside PRoot / PRoot Distro isolation, implementing Flaky Test Isolation.
-- [ ] [Complexity: 40/100] **Migrate: libandroid-tools**: Split into granular sub-packages (`libbase`, `libcutils`, etc.).
+- [x] [Complexity: 40/100] **Test Execution Sandbox (`test.py`)**: Execute tests inside PRoot / PRoot Distro isolation, implementing Flaky Test Isolation.
+- [x] [Complexity: 40/100] **Migrate: libandroid-tools**: Split into granular sub-packages (`libbase`, `libcutils`, etc.).
 - [ ] [Complexity: 45/100] **Native Toolchains (`toolchains/native.py`)**: Select NDK compilers based on arch, inject `PREFIX` into `CFLAGS`/`LDFLAGS`, implement CMake/Meson/Autotools wrappers, and generate `android.toolchain.cmake`.
 - [ ] [Complexity: 45/100] **Docker Wrapper (`docker.py`)**: Wrap execution commands in `builder` container, handle mapped volume permissions deterministically, and propagate cancellation signals.
 - [ ] [Complexity: 45/100] **Language Toolchains (`toolchains/*.py`)**: Handle Rust, Python, Go environment logic natively in Python submodules.
@@ -46,7 +46,7 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [ ] [Complexity: 60/100] **Git History Version Validation (`parser.py` - Continuity)**: Implement Git history lookups (`git show origin/main...`) to strictly enforce version/revision incrementation.
 - [ ] [Complexity: 60/100] **DAG Core Resolver (`dag.py` - Core)**: Resolve dependencies, read `isolated_shard` boolean tags, and generate matrix shards.
 - [ ] [Complexity: 60/100] **Implicit Cleanup Standards (`debian.py` - Cleanup)**: Auto-cache trimming, permissions normalization, ghost directory pruning, `-glibc` dynamic suffixing, and auto `-doc`/`-locale` Smart Subpackages.
-- [ ] [Complexity: 60/100] **Migrate: aapt & aapt2**: Implement "Local Source Building".
+- [x] [Complexity: 60/100] **Migrate: aapt & aapt2**: Implement "Local Source Building".
 - [ ] [Complexity: 65/100] **Android Patching & Validation**: Auto `config.guess` updates, Linux hardcoded path fixes, `termux-elf-cleaner`, `-dbg` symbol extraction, strict Bionic Undefined Symbols validation, strict SONAME enforcement.
 - [ ] [Complexity: 65/100] **CI Workflow: package_updates.yml**: Auto-PR workflow triggered by scheduled `upstream_check.py`.
 - [ ] [Complexity: 65/100] **CI Workflow: promote.yml**: Automated cron job to promote staged updates from `dev` component to `main` component based on dynamic `promote_days`.
@@ -133,3 +133,12 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Addressed code review feedback: properly mocked `pytest`, restored integration tests that were accidentally cleared out, fixed `subprocess` standard list passing for docker commands instead of shell execution.
 - Added support for `phases` dict and `maintainer` field inside `parser.py` needed for `repoexe-keyring`.
 - **Next Action (Session 9):** Start with **Test Execution Sandbox (`test.py`)** (Complexity 40/100) and **Migrate: libandroid-tools** (Complexity 40/100).
+
+**Session 9 Handover (Completed)**
+
+- Updated `Dockerfile` to include `proot` in the standard build environment.
+- Updated `plan.md` to scope tests strictly to `proot` instead of flaky Android Emulators, per user input.
+- Implemented `scripts/core/test.py` Test Execution Sandbox which uses Python `subprocess` to launch a simulated Termux Rootfs environment via `proot` and injects standard legacy test assertions. Wrote unit tests for it.
+- Migrated `libandroid-tools` to the new Pydantic schema structure (`packages/libandroid-tools/build.yml`). Replaced multiple custom git checkouts with a script in `phases: pre_fetch`. Preserved all compilation custom flags and patches in the declarative `make` phases.
+- Updated `scripts/core/parser.py` schema with a `subpackages` property that expects a dictionary of includes (e.g. `libbase: { includes: ["lib/*"] }`) to support the libandroid-tools migration.
+- **Next Action (Session 10):** Start with **Native Toolchains (`toolchains/native.py`)** (Complexity 45/100) and **Docker Wrapper (`docker.py`)** (Complexity 45/100).

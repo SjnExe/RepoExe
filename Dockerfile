@@ -24,7 +24,7 @@ RUN \
   && sed -i 's@http://security.ubuntu.com/ubuntu/@mirror://mirrors.ubuntu.com/mirrors.txt@g' /etc/apt/sources.list.d/ubuntu.sources \
   && apt-get update \
   && apt-get install -yq --no-install-recommends \
-    eatmydata sudo curl git ca-certificates aria2 fuse-overlayfs unzip patch \
+    eatmydata sudo curl git ca-certificates aria2 fuse-overlayfs unzip patch proot \
   && eatmydata apt-get -yq upgrade
 
 # Install sccache for distributed compiler caching
@@ -78,7 +78,7 @@ RUN \
   --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache \
   --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib \
   eatmydata apt-get install -yq --no-install-recommends \
-    nodejs npm shellcheck
+    nodejs npm shellcheck fastjar
 
 # Install prettier globally
 RUN npm install -g prettier@latest

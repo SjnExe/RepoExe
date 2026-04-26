@@ -219,9 +219,7 @@ RepoExe/
      - **Recursive Git Submodule Support:** If a package defines a Git repository as its source instead of a tarball, the orchestrator's fetcher (`sysroot.py`) must seamlessly and natively support deep, recursive Git submodule initialization, resolving inconsistencies found in legacy Bash scripts.
    - **Strict Test Environment Sandboxing:** The old `test-runner.sh` script is deprecated. The Python orchestrator will include a robust `test.py` module to execute integration assertions (defined in the `test` phase of the YAML). To prevent "it works on my machine" false positives, `test.py` MUST execute these tests inside isolated environments:
      1. A nested **PRoot container** to strictly simulate a standard Android Termux app environment (no root access, strict `$PREFIX` paths, no access to the builder's source tree).
-     2. A simulated **PRoot Distro** environment to catch edge-case filesystem bugs that occur when Termux users run packages inside Linux chroots.
-     3. A nightly/release **Real Android Emulator** environment via CI workflows (e.g., using `reactivecircus/android-emulator-runner`). The CI will boot an Android emulator on a Linux runner with KVM support, securely install the Termux APK via `adb`, push the compiled packages, and execute `pkg install` inside the Termux shell via `adb shell` to natively verify behavior.
-     4. **Flaky Test Isolation:** To prevent CI stalling due to transient emulator/PRoot quirks, `test.py` must integrate an automatic retry mechanism. Tests that fail initially but pass on retry are quarantined as "flaky", generating warnings without hard-blocking the release pipeline.
+     2. **Flaky Test Isolation:** To prevent CI stalling due to transient PRoot quirks, `test.py` must integrate an automatic retry mechanism. Tests that fail initially but pass on retry are quarantined as "flaky", generating warnings without hard-blocking the release pipeline.
 
 ---
 

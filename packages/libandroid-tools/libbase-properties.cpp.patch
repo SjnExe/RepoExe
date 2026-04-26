@@ -1,0 +1,146 @@
+--- a/libbase/properties.cpp
++++ b/libbase/properties.cpp
+@@ -16,7 +16,7 @@
+
+ #include "android-base/properties.h"
+
+-#if defined(__BIONIC__)
++#if defined(__BIONIC__) && !defined(__REPOEXE__)
+ #include <sys/system_properties.h>
+ #endif
+
+@@ -31,7 +31,7 @@
+ #include <android-base/strings.h>
+ #include <android-base/thread_annotations.h>
+
+-#if !defined(__BIONIC__)
++#if !defined(__BIONIC__) || defined(__REPOEXE__)
+
+ // Here lies a rudimentary implementation of system properties for non-Bionic
+ // platforms. We are using weak symbols here because we want to allow
+@@ -82,6 +82,10 @@
+     ++it->serial;
+   }
+   return 0;
++
++#endif
++
++#if !defined(__BIONIC__) || defined(__REPOEXE__)
+ }
+
+ SYSPROP_WEAK int __system_property_get(const char* key, char* value) {
+@@ -166,12 +170,19 @@
+   if (pi == nullptr) return default_value;
+
++#if defined __ANDROID__ && __ANDROID_API__ >= 26
+   __system_property_read_callback(
+       pi,
+       [](void* cookie, const char*, const char* value, unsigned) {
+         auto property_value = reinterpret_cast<std::string*>(cookie);
+         *property_value = value;
+       },
+       &property_value);
++#else
++  char value_buf[PROP_VALUE_MAX];
++  if (__system_property_read(pi, nullptr, value_buf) == 0) {
++    property_value = value_buf;
++  }
++#endif
+   // If the property exists but is empty, also return the default value.
+   // Since we can't remove system properties, "empty" is traditionally
+   // the same as "missing" (this was true for cutils' property_get).
+@@ -178,7 +189,7 @@
+   return (__system_property_set(key.c_str(), value.c_str()) == 0);
+ }
+
+-#if defined(__BIONIC__)
++#if defined(__BIONIC__) && !defined(__REPOEXE__)
+
+ struct WaitForPropertyData {
+   bool done;
+@@ -232,7 +243,11 @@
+     // Wait for a global change and then look again.
+     timespec ts;
+     UpdateTimeSpec(ts, relative_timeout, start_time);
++    #if __ANDROID_API__ >= 26
+     if (!__system_property_wait(nullptr, global_serial, &global_serial, &ts)) return nullptr;
++#else
++    return nullptr;
++#endif
+   }
+   return pi;
+ }
+@@ -250,15 +265,28 @@
+   data.expected_value = &expected_value;
+   data.done = false;
+   while (true) {
+     timespec ts;
+     // Check whether the property has the value we're looking for?
++#if defined __ANDROID__ && __ANDROID_API__ >= 26
+     __system_property_read_callback(pi, WaitForPropertyCallback, &data);
++#else
++    char value_buf[PROP_VALUE_MAX];
++    if (__system_property_read(pi, nullptr, value_buf) == 0) {
++      WaitForPropertyCallback(&data, nullptr, value_buf, __system_property_serial(pi));
++    } else {
++      WaitForPropertyCallback(&data, nullptr, "", __system_property_serial(pi));
++    }
++#endif
+     if (data.done) return true;
+
+     // It didn't, so wait for the property to change before checking again.
+     UpdateTimeSpec(ts, relative_timeout, start_time);
+     uint32_t unused;
++    #if __ANDROID_API__ >= 26
+     if (!__system_property_wait(pi, data.last_read_serial, &unused, &ts)) return false;
++#else
++    return false;
++#endif
+   }
+ }
+
+@@ -308,20 +333,32 @@
+     // Only bother re-reading the property if it's actually changed since last time.
+     uint32_t property_serial = __system_property_serial(prop_info_);
+     if (property_serial != cached_property_serial_) {
++#if defined __ANDROID__ && __ANDROID_API__ >= 26
+       __system_property_read_callback(
+           prop_info_,
+           [](void* data, const char*, const char* value, uint32_t serial) {
+             CachedProperty* instance = reinterpret_cast<CachedProperty*>(data);
+             instance->cached_property_serial_ = serial;
+             // Read only properties can be larger than PROP_VALUE_MAX, but also never change value
+             // or location, thus we return the pointer from the shared memory directly.
+             if (instance->is_read_only_) {
+               instance->read_only_property_ = value;
+             } else {
+               strlcpy(instance->cached_value_, value, PROP_VALUE_MAX);
+             }
+           },
+           this);
++#else
++      char value_buf[PROP_VALUE_MAX];
++      if (__system_property_read(prop_info_, nullptr, value_buf) == 0) {
++        cached_property_serial_ = property_serial;
++        // For read-only properties below API 26, we don't have direct access
++        // to the shared memory string pool, so we must also copy them to cached_value_.
++        // We change is_read_only_ to false to ensure we return cached_value_ in Get().
++        is_read_only_ = false;
++        strlcpy(cached_value_, value_buf, PROP_VALUE_MAX);
++      }
++#endif
+     }
+   }
+
+@@ -337,7 +373,11 @@
+
+     uint32_t old_serial = cached_property_serial_.value_or(0);
+     uint32_t new_serial;
++    #if __ANDROID_API__ >= 26
+     if (!__system_property_wait(prop_info_, old_serial, &new_serial, &ts)) return nullptr;
++#else
++    return nullptr;
++#endif
+   }
+
+   return Get(nullptr);

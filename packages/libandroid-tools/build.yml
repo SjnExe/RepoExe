@@ -1,0 +1,140 @@
+name: libandroid-tools
+version: 16.0.0
+revision: 4
+description: Shared libraries for Android tools (aapt2, zipalign, aidl)
+homepage: https://android.googlesource.com/platform/system/core
+license: Apache-2.0
+maintainer: "@SjnExe"
+
+# Fallback dependencies for missing/external tools
+repositories:
+  - termux-main
+
+depends:
+  - fmt
+  - libc++
+  - libexpat
+  - libpng
+  - libzopfli
+  - zlib
+
+build_in_src: true
+
+# The new parser supports parsing dict of subpackages
+subpackages:
+  libbase:
+    includes:
+      - "lib/libandroid-base.so"
+  libcutils:
+    includes:
+      - "lib/libandroid-cutils.so"
+  libutils:
+    includes:
+      - "lib/libandroid-utils.so"
+  libziparchive:
+    includes:
+      - "lib/libandroid-ziparchive.so"
+  libandroidfw:
+    includes:
+      - "lib/libandroid-fw.so"
+  libandroid-pathutils:
+    includes:
+      - "lib/libandroid-pathutils.so"
+
+phases:
+  pre_fetch: |
+    # Using git clone since we need multiple repos
+    PKG_GIT_BRANCH="android-${version}_r${revision}"
+
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/frameworks/base base
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/core core
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/libbase libbase
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/libziparchive libziparchive
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/logging logging
+    git clone --depth 1 --single-branch --branch $PKG_GIT_BRANCH https://android.googlesource.com/platform/system/incremental_delivery incremental_delivery
+
+  make: |
+    # Ported from Termux step_make
+    export PATH="$PKG_HOSTBUILD_DIR/_prefix/bin:$PATH"
+
+    CFLAGS="$CFLAGS -fPIC"
+    CXXFLAGS="$CXXFLAGS -Wno-c99-designator -fPIC -std=c++20"
+    CPPFLAGS="$CPPFLAGS -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__ -D__REPOEXE__=1"
+
+    _TMP_LIBDIR="$PKG_SRCDIR/_lib"
+    rm -rf "$_TMP_LIBDIR"
+    mkdir -p "$_TMP_LIBDIR"
+
+    LDFLAGS="$LDFLAGS -L$PREFIX/lib -llog -L$_TMP_LIBDIR"
+
+    . $PKG_BUILDER_DIR/sources.sh
+
+    CORE_INCDIR=$PKG_SRCDIR/core/include
+    LIBLOG_INCDIR=$PKG_SRCDIR/logging/liblog/include
+    LIBBASE_SRCDIR=$PKG_SRCDIR/libbase
+    LIBCUTILS_SRCDIR=$PKG_SRCDIR/core/libcutils
+    LIBUTILS_SRCDIR=$PKG_SRCDIR/core/libutils
+    INCFS_SUPPORT_INCDIR=$PKG_SRCDIR/libziparchive/incfs_support/include
+    LIBZIPARCHIVE_SRCDIR=$PKG_SRCDIR/libziparchive
+    INCFS_UTIL_SRCDIR=$PKG_SRCDIR/incremental_delivery/incfs/util
+    ANDROIDFW_SRCDIR=$PKG_SRCDIR/base/libs/androidfw
+
+    CPPFLAGS="$CPPFLAGS -I. -I./include -I$PKG_BUILDER_DIR/include -I$LIBBASE_SRCDIR/include -I$LIBLOG_INCDIR -I$CORE_INCDIR"
+
+    # Build libbase
+    cd $LIBBASE_SRCDIR
+    for f in $libbase_sources; do
+        $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o -shared $LDFLAGS -lfmt -o $_TMP_LIBDIR/libandroid-base.so
+
+    # Build libcutils
+    cd $LIBCUTILS_SRCDIR
+    for f in $libcutils_sources; do
+        $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o -shared $LDFLAGS -landroid-base -o $_TMP_LIBDIR/libandroid-cutils.so
+
+    # Build libutils
+    cd $LIBUTILS_SRCDIR
+    for f in $libutils_sources; do
+        $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o -shared $LDFLAGS -landroid-base -landroid-cutils -o $_TMP_LIBDIR/libandroid-utils.so
+
+    # Build libziparchive
+    cd $LIBZIPARCHIVE_SRCDIR
+    for f in $libziparchive_sources; do
+        $CXX $CXXFLAGS $CPPFLAGS -I$INCFS_SUPPORT_INCDIR $f -c
+    done
+    $CXX $CXXFLAGS *.o -shared $LDFLAGS -landroid-base -lz -o $_TMP_LIBDIR/libandroid-ziparchive.so
+
+    CPPFLAGS="$CPPFLAGS -I$LIBZIPARCHIVE_SRCDIR/include -I$INCFS_UTIL_SRCDIR/include -I$ANDROIDFW_SRCDIR/include_pathutils"
+
+    # Build libandroidfw
+    cd $ANDROIDFW_SRCDIR
+    for f in $androidfw_sources $INCFS_UTIL_SRCDIR/map_ptr.cpp; do
+        $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o -shared $LDFLAGS -landroid-base -landroid-cutils -landroid-utils -landroid-ziparchive -lz -o $_TMP_LIBDIR/libandroid-fw.so
+
+    # Build libandroid-pathutils
+    cd $ANDROIDFW_SRCDIR
+    for f in PathUtils.cpp; do
+        $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS PathUtils.o -shared $LDFLAGS -landroid-base -landroid-cutils -landroid-utils -landroid-ziparchive -landroid-fw -lz -o $_TMP_LIBDIR/libandroid-pathutils.so
+
+  install: |
+    mkdir -p $PREFIX/lib
+    install -Dm644 -t $PREFIX/lib $_TMP_LIBDIR/libandroid-{cutils,utils,base,ziparchive,fw,pathutils}.so
+
+    mkdir -p $PREFIX/include/android-tools
+    cp -r $PKG_SRCDIR/core/include/* $PREFIX/include/android-tools/
+    cp -r $PKG_SRCDIR/logging/liblog/include/* $PREFIX/include/android-tools/
+    cp -r $PKG_SRCDIR/libbase/include/* $PREFIX/include/android-tools/
+    cp -r $PKG_SRCDIR/libziparchive/incfs_support/include/* $PREFIX/include/android-tools/
+    cp -r $PKG_SRCDIR/libziparchive/include/* $PREFIX/include/android-tools/
+    cp -r $PKG_SRCDIR/incremental_delivery/incfs/util/include/* $PREFIX/include/android-tools/
+    cp -r $PKG_SRCDIR/base/libs/androidfw/include/* $PREFIX/include/android-tools/
+    cp -r $PKG_SRCDIR/base/libs/androidfw/include_pathutils/* $PREFIX/include/android-tools/
