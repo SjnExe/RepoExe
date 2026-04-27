@@ -19,7 +19,7 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 10/100] **Configure IDE Integration**: Implement DevContainers (`.devcontainer/devcontainer.json`) and `.vscode/settings.json` for YAML IDE Intellisense.
 - [x] [Complexity: 15/100] **Configure Local Pre-commit Hooks**: Create `.pre-commit-config.yaml` for automated formatting checks (`ruff`, `prettier`, `shellcheck`).
 - [x] [Complexity: 20/100] **Docker Base Image**: Write the base `Dockerfile` (Ubuntu 24.04, non-root `builder`, integrate `uv`, `ruff`, `mypy`, `shellcheck`).
-- [x] [Complexity: 20/100] **Migrate: repoexe-keyring & repoexe-dev**: Base component opt-in packages.
+- [x] [Complexity: 20/100] **Migrate: repoexe-keyring**: Base component opt-in packages.
 - [x] [Complexity: 25/100] **Docker NDK & Caching**: Download NDK 29, bake standard NDK patches directly into a Docker layer, and configure `sccache` with GitHub Actions Cache API chunking.
 - [x] [Complexity: 25/100] **Properties Module (`properties.py`)**: Define explicit internal `PREFIX` bounds for the device layout (`/data/data/com.termux/files/usr`).
 - [x] [Complexity: 25/100] **Repository Configurations (`repo.yml`)**: Implement `scripts/repo.yml` to define external repository endpoints (Termux/TUR), their GPG keys, and their component layouts for dynamic fallback dependency resolution.
@@ -49,7 +49,6 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [ ] [Complexity: 60/100] **Migrate: aapt, aapt2, zipalign, aidl**: Implement "Local Source Building" for deprecated `aapt` (in `packages/aapt/src/`) applying standard bloat-free patches directly. Use upstream sources and native `build.yml` hooks for actively maintained `aapt2`, `zipalign`, and `aidl`.
 - [ ] [Complexity: 65/100] **Android Patching & Validation**: Auto `config.guess` updates, Linux hardcoded path fixes, `termux-elf-cleaner`, `-dbg` symbol extraction, strict Bionic Undefined Symbols validation, strict SONAME enforcement.
 - [ ] [Complexity: 65/100] **CI Workflow: package_updates.yml**: Auto-PR workflow triggered by scheduled `upstream_check.py`.
-- [ ] [Complexity: 65/100] **CI Workflow: promote.yml**: Automated cron job to promote staged updates from `dev` component to `main` component based on dynamic `promote_days`.
 - [ ] [Complexity: 70/100] **Source Mirroring & Git Submodules (`sysroot.py` - Advanced)**: Validate GPG signatures, auto-mirror fetched tarballs to GitHub Releases, natively clone upstream Git branches, and handle recursive submodules.
 - [ ] [Complexity: 70/100] **Repository Health Core (`health.py`)**: Cron job logic validating sync between YAML and Pages, flagging zombie packages, and Release Asset Pruning (keep last 5 versions).
 - [ ] [Complexity: 75/100] **Hermetic Docker Sandbox (`docker.py` - Strict)**: Disable network access during compilation. Integrate strict Bubblewrap (`bwrap`) jail boundaries, natively mount `binfmt_misc` / `qemu-user-static` for transparent emulation.
@@ -91,7 +90,7 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 **Session 3 Handover (Completed)**
 
 - Created the modern `Dockerfile` utilizing Ubuntu 24.04, non-root builder user, caching overlays, and astral-sh/uv for python tools.
-- Migrated `repoexe-keyring` and `repoexe-dev` to the new Pydantic YAML schema under `packages/`.
+- Migrated `repoexe-keyring` to the new Pydantic YAML schema under `packages/`.
 - **Next Action (Session 4):** Start with **Docker NDK & Caching** (Complexity 25/100), bake standard NDK patches directly into a Docker layer, and configure `sccache`. Then move on to the **Properties Module (`properties.py`)**.
 
 **Session 4 Handover (Completed)**
@@ -179,7 +178,7 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 
 **Session 14 Handover (Completed)**
 
-- Updated `build.yml` workflow triggers to strictly execute on the `main` branch, removing the legacy `dev` branch references.
+- Updated `build.yml` workflow triggers to strictly execute on the `main` branch.
 - Implemented Pydantic validators in `scripts/core/parser.py` to enforce strict architecture naming for `excluded_arches` and relative paths for `conffiles` and `no_shebang_fix_files`.
 - Updated `test_repo.py` to accurately resolve the `repo.yml` location independent of execution context.
 - **Next Action (Session 15):** Start with **CI Workflow: publish.yml** (Complexity 55/100) and **Git History Version Validation (`parser.py` - Continuity)** (Complexity 60/100).

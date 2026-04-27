@@ -8,7 +8,7 @@ from ..properties import PREFIX
 from .cleanup import run_all_cleanups
 
 
-def build_deb(pkg: BuildYml, destdir: str, output_dir: str) -> None:
+def build_deb(pkg: BuildYml, destdir: str, output_dir: str, target_arch: str = 'aarch64') -> None:
     """Builds a .deb package from the given destdir."""
     run_all_cleanups(destdir)
 
@@ -24,7 +24,7 @@ def build_deb(pkg: BuildYml, destdir: str, output_dir: str) -> None:
         pkg_name += '-glibc'
 
     version = pkg.deb_version
-    arch = 'all' if pkg.platform_independent else 'aarch64'  # TODO: dynamic arch based on target
+    arch = 'all' if pkg.platform_independent else target_arch
 
     import math
 

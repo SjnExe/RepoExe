@@ -42,7 +42,7 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Download all assets from GitHub Releases
+      - name: Extract metadata from GitHub Releases without downloading all packages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -50,8 +50,14 @@ jobs:
           echo "Fetching all release tags"
           TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
           for tag in $TAGS; do
-            echo "Downloading assets for $tag..."
-            gh release download "$tag" --dir artifacts --pattern "*" || echo "No files found in $tag"
+            echo "Processing tag $tag..."
+            # We can download just the metadata.json instead of all files
+            gh release download "$tag" --dir artifacts --pattern "metadata.json" || echo "No metadata found in $tag"
+
+            # To serve packages using GitHub release asset URLs, the index generation logic
+            # will need to know the download URLs of the assets.
+            # We can dump the asset list and URLs.
+            gh release view "$tag" --json assets > artifacts/${tag}_assets.json || true
           done
 
       - name: Inject Signing Keys
