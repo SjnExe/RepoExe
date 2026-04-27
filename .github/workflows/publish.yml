@@ -57,7 +57,7 @@ jobs:
             # To serve packages using GitHub release asset URLs, the index generation logic
             # will need to know the download URLs of the assets.
             # We can dump the asset list and URLs.
-            gh release view "$tag" --json assets > artifacts/${tag}_assets.json || true
+            gh release view "$tag" --json assets > "artifacts/${tag}_assets.json" || true
           done
 
       - name: Inject Signing Keys
