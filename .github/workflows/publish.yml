@@ -46,12 +46,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p artifacts
+          mkdir -p site/apt/dists/stable/main
+          mkdir -p site/pacman
+          mkdir -p site/alpine
           echo "Fetching all release tags"
           TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
           for tag in $TAGS; do
-            echo "Downloading assets for $tag..."
-            gh release download "$tag" --dir artifacts --pattern "*" || echo "No files found in $tag"
+            echo "Reading release notes for $tag..."
+            NOTES=$(gh release view "$tag" --json body --jq '.body' || true)
+
+            # We skip downloading the actual assets and instead rely on the metadata
+            # written in the release notes to generate indices later.
+            mkdir -p artifacts/$tag
+            echo "$NOTES" > artifacts/$tag/notes.md
           done
 
       - name: Inject Signing Keys

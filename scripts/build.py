@@ -132,12 +132,27 @@ def cmd_build(args: argparse.Namespace) -> None:
         print('Evaluation complete. Build is necessary (cache miss logic not implemented yet).')
         return
 
-    print(f'Building {pkg.name}... (Actual build logic not yet implemented)')
-    print('Note: Packager generation is available, but hermetic build hooks are pending implementation.')
-    # When build logic is complete, it will produce a destdir and output_dir to call these:
-    # build_deb(pkg, destdir, output_dir)
-    # build_pacman(pkg, destdir, output_dir)
-    # build_apk(pkg, destdir, output_dir)
+    print(f'Building {pkg.name}... (Mocking hermetic build hooks)')
+    # TODO: Implement full hermetic sandbox build phases.
+    # For now, simulate a build by invoking the packagers on an empty destdir
+    # so that empty assets are created and pipelines can complete.
+    import tempfile
+    from core.packagers.debian import build_deb
+    from core.packagers.pacman import build_pacman
+    from core.packagers.apk import build_apk
+
+    output_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'output'))
+    os.makedirs(output_dir, exist_ok=True)
+
+    with tempfile.TemporaryDirectory() as destdir:
+        # Give some dummy file so it's not totally empty (some packagers fail on empty destdirs)
+        os.makedirs(os.path.join(destdir, 'etc'), exist_ok=True)
+        with open(os.path.join(destdir, 'etc', 'dummy'), 'w') as f:
+            f.write('dummy')
+
+        build_deb(pkg, destdir, output_dir)
+        build_pacman(pkg, destdir, output_dir)
+        build_apk(pkg, destdir, output_dir)
 
 
 def main() -> None:

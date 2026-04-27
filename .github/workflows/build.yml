@@ -190,15 +190,56 @@ jobs:
             fi
 
             TAG="$pkg"
-            TITLE="$pkg"
-            if [ "${{ github.ref }}" == "refs/heads/dev" ] || [ "${{ github.base_ref }}" == "dev" ]; then
-              TAG="$pkg-dev"
-              TITLE="$pkg (dev)"
+            # Get version and revision from YAML parser or manually via Python script
+            cd scripts
+            VERSION_REV=$(uv run python -c "from core.parser import parse_build_yml; pkg = parse_build_yml('../packages/$pkg/build.yml'); print(f'{pkg.version}-{pkg.revision}')" 2>/dev/null || echo "unknown")
+            cd ..
+            TITLE="$pkg $VERSION_REV"
+
+            # Compute metadata for release notes
+            # Collect file metadata (sizes and hashes)
+            METADATA_JSON="{}"
+            if ls output/*_${{ matrix.arch }}.deb 1> /dev/null 2>&1 || ls output/*_all.deb 1> /dev/null 2>&1; then
+              METADATA_JSON=$(cd scripts && uv run python -c "
+import os, hashlib, json, sys, subprocess
+metadata = {}
+output_dir = '../output'
+if os.path.exists(output_dir):
+    for f in os.listdir(output_dir):
+        if f.endswith('.deb') or f.endswith('.apk') or f.endswith('.pkg.tar.zst'):
+            path = os.path.join(output_dir, f)
+            with open(path, 'rb') as file:
+                data = file.read()
+                entry = {'size': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+
+                # Extract full metadata depending on format
+                if f.endswith('.deb'):
+                    try:
+                        dpkg_out = subprocess.check_output(['dpkg-deb', '-I', path], text=True, stderr=subprocess.DEVNULL)
+                        entry['control'] = dpkg_out
+                    except:
+                        pass
+                elif f.endswith('.apk'):
+                    try:
+                        # minimal tar extraction for info
+                        tar_out = subprocess.check_output(['tar', '-Oxf', path, '.PKGINFO'], text=True, stderr=subprocess.DEVNULL)
+                        entry['pkginfo'] = tar_out
+                    except:
+                        pass
+                elif f.endswith('.pkg.tar.zst'):
+                    try:
+                        tar_out = subprocess.check_output(['tar', '-Oxf', path, '.PKGINFO'], text=True, stderr=subprocess.DEVNULL)
+                        entry['pkginfo'] = tar_out
+                    except:
+                        pass
+                metadata[f] = entry
+print(json.dumps(metadata))
+")
             fi
 
-            NOTES="Automated build for $pkg"$'\n'"- **Commit:** ${{ github.sha }}"
+            NOTES="Automated build for $pkg"$'\n'"- **Commit:** ${{ github.sha }}"$'\n\n'"\`\`\`json"$'\n'"$METADATA_JSON"$'\n'"\`\`\`"
 
-            gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
+            gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || gh release edit "$TAG" --title "$TITLE" --notes "$NOTES"
 
             echo "Pruning old assets for $TAG (${{ matrix.arch }})..."
             OLD_ASSETS=$(gh release view "$TAG" --json assets --jq ".assets[].name | select(endswith(\"_${{ matrix.arch }}.deb\") or endswith(\"_all.deb\"))" || true)

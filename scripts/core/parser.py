@@ -64,7 +64,6 @@ class BuildYml(BaseModel):
     auto_update: bool = Field(False, description='Opt-in to upstream_check.py')
 
     # Dependencies & Repositories
-    bypass_dev: bool = Field(False, description='Bypass the dev component staging area')
 
     # Build Environment & Execution
     build_in_src: bool = Field(False, description='Force build inside the source tree')
