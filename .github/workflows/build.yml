@@ -200,33 +200,34 @@ jobs:
             # Collect file metadata (sizes and hashes)
             METADATA_JSON="{}"
             if ls output/*_${{ matrix.arch }}.deb 1> /dev/null 2>&1 || ls output/*_all.deb 1> /dev/null 2>&1; then
-              METADATA_JSON=$(cd scripts && uv run python -c '
-import os, hashlib, json, sys, subprocess
-metadata = {}
-output_dir = "../output"
-if os.path.exists(output_dir):
-    for f in os.listdir(output_dir):
-        if f.endswith(".deb") or f.endswith(".apk") or f.endswith(".pkg.tar.zst"):
-            path = os.path.join(output_dir, f)
-            with open(path, "rb") as file:
-                data = file.read()
-                entry = {"size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+              cat << 'PY_EOF' > scripts/metadata_script.py
+              import os, hashlib, json, sys, subprocess
+              metadata = {}
+              output_dir = "../output"
+              if os.path.exists(output_dir):
+                  for f in os.listdir(output_dir):
+                      if f.endswith(".deb") or f.endswith(".apk") or f.endswith(".pkg.tar.zst"):
+                          path = os.path.join(output_dir, f)
+                          with open(path, "rb") as file:
+                              data = file.read()
+                              entry = {"size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
 
-                if f.endswith(".deb"):
-                    try:
-                        dpkg_out = subprocess.check_output(["dpkg-deb", "-I", path], text=True, stderr=subprocess.DEVNULL)
-                        entry["control"] = dpkg_out
-                    except:
-                        pass
-                elif f.endswith(".apk") or f.endswith(".pkg.tar.zst"):
-                    try:
-                        tar_out = subprocess.check_output(["tar", "-Oxf", path, ".PKGINFO"], text=True, stderr=subprocess.DEVNULL)
-                        entry["pkginfo"] = tar_out
-                    except:
-                        pass
-                metadata[f] = entry
-print(json.dumps(metadata))
-')
+                              if f.endswith(".deb"):
+                                  try:
+                                      dpkg_out = subprocess.check_output(["dpkg-deb", "-I", path], text=True, stderr=subprocess.DEVNULL)
+                                      entry["control"] = dpkg_out
+                                  except:
+                                      pass
+                              elif f.endswith(".apk") or f.endswith(".pkg.tar.zst"):
+                                  try:
+                                      tar_out = subprocess.check_output(["tar", "-Oxf", path, ".PKGINFO"], text=True, stderr=subprocess.DEVNULL)
+                                      entry["pkginfo"] = tar_out
+                                  except:
+                                      pass
+                              metadata[f] = entry
+              print(json.dumps(metadata))
+              PY_EOF
+              METADATA_JSON=$(cd scripts && uv run python metadata_script.py)
             fi
 
             NOTES="Automated build for $pkg"$'\n'"- **Commit:** ${{ github.sha }}"$'\n\n'"\`\`\`json"$'\n'"$METADATA_JSON"$'\n'"\`\`\`"

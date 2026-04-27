@@ -57,8 +57,8 @@ jobs:
 
             # We skip downloading the actual assets and instead rely on the metadata
             # written in the release notes to generate indices later.
-            mkdir -p artifacts/$tag
-            echo "$NOTES" > artifacts/$tag/notes.md
+            mkdir -p "artifacts/$tag"
+            echo "$NOTES" > "artifacts/$tag/notes.md"
           done
 
       - name: Inject Signing Keys
@@ -68,10 +68,10 @@ jobs:
         run: |
           mkdir -p scripts/keys
           if [ -n "$GPG_PRIVATE_KEY" ]; then
-            echo "$GPG_PRIVATE_KEY" > scripts/keys/repoexe.gpg
+            echo "$GPG_PRIVATE_KEY" > "scripts/keys/repoexe.gpg"
           fi
           if [ -n "$ALPINE_PRIVATE_KEY" ]; then
-            echo "$ALPINE_PRIVATE_KEY" > scripts/keys/repoexe.rsa
+            echo "$ALPINE_PRIVATE_KEY" > "scripts/keys/repoexe.rsa"
           fi
 
       - name: Generate Static Metadata
