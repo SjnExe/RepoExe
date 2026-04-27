@@ -12,3 +12,6 @@ __pycache__/
 # Ignore upstream backups
 backup/
 termux-packages/
+
+# Ignore workflows with bash injection strings causing format issues
+.github/workflows/build.yml
