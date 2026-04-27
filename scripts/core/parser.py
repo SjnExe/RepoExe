@@ -64,7 +64,6 @@ class BuildYml(BaseModel):
     auto_update: bool = Field(False, description='Opt-in to upstream_check.py')
 
     # Dependencies & Repositories
-    bypass_dev: bool = Field(False, description='Bypass the dev component staging area')
 
     # Build Environment & Execution
     build_in_src: bool = Field(False, description='Force build inside the source tree')
@@ -293,22 +292,33 @@ def validate_version_bump_from_git(filepath: str, current_yml: BuildYml) -> None
     # matching the current package name and version+revision exists.
     # Termux doesn't use package-specific tags in the main repo usually, but let's check
     # if the artifact/tag for this exact version exists upstream via gh CLI or git tags.
-    tag_name = f'{current_yml.name}-{current_version}-{current_revision}'
+    # The requirement is: "Tag should be just package name"
+    # Actually wait, if the tag is just the package name, it's reused.
+    # The old tag was {package_name}.
+    # The requirement: "Tag should be just package name, the release title should be the "{package name} {version}-{revision}""
+    # If the tag is just the package name, then we can't check `refs/tags/{tag_name}` to see if the VERSION was bumped.
+    # Because there's only one tag per package, and it always exists.
+    # We should fetch the release title to see what the published version is.
+
+    # Actually, we can check `gh release view {current_yml.name}` and check its title.
+    tag_name = current_yml.name
+    expected_title = f'{current_yml.name} {current_version}-{current_revision}'
 
     try:
         # We only run this check if gh CLI is available and we are in a context where it works
-        # or we check git tags locally.
         result = subprocess.run(
-            ['git', 'ls-remote', '--tags', 'origin', f'refs/tags/{tag_name}'], capture_output=True, text=True
+            ['gh', 'release', 'view', tag_name, '--json', 'name', '--jq', '.name'], capture_output=True, text=True
         )
-        if result.returncode == 0 and result.stdout.strip():
-            # Tag already exists upstream, meaning this version was already published.
-            # We must fail the build.
-            raise ValueError(
-                f"Version validation failed: Release tag '{tag_name}' already exists upstream. "
-                f"You must increment the 'version' or 'revision' in build.yml."
-            )
+        if result.returncode == 0:
+            existing_title = result.stdout.strip()
+            if existing_title == expected_title:
+                # Title matches exactly, meaning this version was already published.
+                # We must fail the build.
+                raise ValueError(
+                    f"Version validation failed: Release '{tag_name}' is already at version '{expected_title}' upstream. "
+                    f"You must increment the 'version' or 'revision' in build.yml."
+                )
 
     except FileNotFoundError:
-        # Git is not installed, silently skip validation
+        # gh CLI is not installed, silently skip validation
         pass

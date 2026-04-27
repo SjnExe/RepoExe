@@ -129,6 +129,8 @@ jobs:
           echo "Building packages for ${{ matrix.arch }} (Shard ${{ matrix.shard.shard }}): ${{ matrix.shard.packages }}"
           mkdir -p output ~/.ccache
 
+          chmod 777 output
+
           if [ -z "${{ matrix.shard.packages }}" ] || [ "${{ matrix.shard.packages }}" = " " ]; then
             echo "No packages found in this shard. Skipping."
             # We don't exit to prevent erroring out, we just let it finish.
@@ -166,6 +168,8 @@ jobs:
                 python build.py build ../packages/$pkg --arch ${{ matrix.arch }} || continue
 
                 mv ../output/*.deb /home/builder/RepoExe/output/ 2>/dev/null || true
+                mv ../output/*.pkg.tar.zst /home/builder/RepoExe/output/ 2>/dev/null || true
+                mv ../output/*.apk /home/builder/RepoExe/output/ 2>/dev/null || true
               done
             '
 
@@ -174,10 +178,10 @@ jobs:
 
       # Generate SLSA build provenance (only for non-PR runs)
       - name: Generate build provenance
-        if: github.event_name != 'pull_request' && hashFiles('output/*.deb') != ''
+        if: github.event_name != 'pull_request' && hashFiles('output/*') != ''
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: 'output/*.deb'
+          subject-path: 'output/*'
 
       - name: Upload to GitHub Releases
         if: github.event_name != 'pull_request'
@@ -189,23 +193,42 @@ jobs:
               continue
             fi
 
+            # Need to get version and revision to form the title
+            PKG_VER=$(uv run python -c "from scripts.core.parser import parse_build_yml; pkg=parse_build_yml('packages/$pkg/build.yml'); print(pkg.version)")
+            PKG_REV=$(uv run python -c "from scripts.core.parser import parse_build_yml; pkg=parse_build_yml('packages/$pkg/build.yml'); print(pkg.revision)")
+
             TAG="$pkg"
-            TITLE="$pkg"
-            if [ "${{ github.ref }}" == "refs/heads/dev" ] || [ "${{ github.base_ref }}" == "dev" ]; then
-              TAG="$pkg-dev"
-              TITLE="$pkg (dev)"
-            fi
+            TITLE="$pkg $PKG_VER-$PKG_REV"
 
             NOTES="Automated build for $pkg"$'\n'"- **Commit:** ${{ github.sha }}"
 
             gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
 
-            echo "Pruning old assets for $TAG (${{ matrix.arch }})..."
-            OLD_ASSETS=$(gh release view "$TAG" --json assets --jq ".assets[].name | select(endswith(\"_${{ matrix.arch }}.deb\") or endswith(\"_all.deb\"))" || true)
+            echo "We want to keep only the latest release for a tag, and the tag itself represents the package."
+            # Actually, to truly ensure we only have the latest version's assets, and since the title has the version:
+            # We can check if the title of the existing release matches our TITLE. If not, we should probably delete the old release and recreate it.
+            # But the requirement is: "Tag/release should always keep latest versions only, and should either delete the tag and remake it or remove the old assets and add new assets."
+            # "Tag should be just package name, the release title should be the "{package name} {version}-{revision}""
 
-            for asset in $OLD_ASSETS; do
-              gh release delete-asset "$TAG" "$asset" -y || true
-            done
+            # Read existing title
+            EXISTING_TITLE=$(gh release view "$TAG" --json name --jq '.name' || true)
+
+            if [ "$EXISTING_TITLE" != "$TITLE" ]; then
+              echo "Title changed. Re-creating release to prune old assets."
+              gh release delete "$TAG" -y --cleanup-tag || true
+              gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
+            else
+              # Since the title is exactly what we want, let's just make sure it's updated.
+              gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" || true
+
+              # Prune old assets (any .deb for this arch)
+              echo "Pruning old assets for $TAG (${{ matrix.arch }})..."
+            OLD_ASSETS=$(gh release view "$TAG" --json assets --jq ".assets[].name | select(endswith(\"_${{ matrix.arch }}.deb\") or endswith(\"_all.deb\") or endswith(\"_${{ matrix.arch }}.pkg.tar.zst\") or endswith(\"_${{ matrix.arch }}.apk\"))" || true)
+
+              for asset in $OLD_ASSETS; do
+                gh release delete-asset "$TAG" "$asset" -y || true
+              done
+            fi
 
             echo "Uploading new assets for $TAG..."
             UPLOAD_FILES=""
@@ -219,10 +242,33 @@ jobs:
               fi
             fi
 
+            # Add other extension support
+            if ls output/*_${{ matrix.arch }}.pkg.tar.zst 1> /dev/null 2>&1; then
+              UPLOAD_FILES="$UPLOAD_FILES output/*_${{ matrix.arch }}.pkg.tar.zst"
+            fi
+            if ls output/*_${{ matrix.arch }}.apk 1> /dev/null 2>&1; then
+              UPLOAD_FILES="$UPLOAD_FILES output/*_${{ matrix.arch }}.apk"
+            fi
+            if [ "${{ matrix.arch }}" = "aarch64" ]; then
+              if ls output/*_all.pkg.tar.zst 1> /dev/null 2>&1; then
+                UPLOAD_FILES="$UPLOAD_FILES output/*_all.pkg.tar.zst"
+              fi
+              if ls output/*_all.apk 1> /dev/null 2>&1; then
+                UPLOAD_FILES="$UPLOAD_FILES output/*_all.apk"
+              fi
+            fi
+
             if [ -n "$UPLOAD_FILES" ]; then
               # shellcheck disable=SC2086
               gh release upload "$TAG" $UPLOAD_FILES
+
+              # Save necessary metadata into release notes or file to avoid downloading entire packages in publish
+              # For APT, we could extract the control file data. For now, since the issue just states:
+              # "Also in tag, there's patch note or release note, we can store some necessary stuffs there for above scenario to work if it's necessary, also it can be used for many other purposes."
+              # Let's upload a metadata file.
+              echo "{\"name\": \"$pkg\", \"version\": \"$PKG_VER\", \"revision\": \"$PKG_REV\"}" > metadata.json
+              gh release upload "$TAG" metadata.json || true
             else
-              echo "No .deb files found to upload for $pkg"
+              echo "No package files found to upload for $pkg"
             fi
           done
