@@ -288,16 +288,25 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
 
    - **Build-Time Telemetry & Profiling:** The Python orchestrator (`build.py`) must instrument **OpenTelemetry (OTel)** tracing. It will stream phase execution durations (e.g., `configure`, `make`, `install`), layer sizes, and peak memory usage directly to an observability backend, replacing static JSON telemetry and allowing real-time visualization of CI bottlenecks.
 
-5. **Package Updates (`package_updates.yml`):**
+5. **Incremental Updates Architecture:**
+   RepoExe addresses "incremental updates" across three distinct domains to optimize bandwidth and CI costs without introducing fragile architectures:
+   - **Incremental Package Downloads:** For end-users updating packages on their devices, RepoExe strictly utilizes aggressive **`zstd`** compression. We explicitly reject complex delta-transfer systems (like `debdelta` or `zsync` wrappers) as Pacman and Alpine do not natively support them, and APT implementations are fragile. High-dictionary `zstd` provides near-delta compression ratios natively across all platforms with zero added client complexity.
+   - **Incremental CI/CD Builds:** The orchestrator utilizes **Content-Addressable "State Hashing"** (evaluating the hash of the source code, patches, `build.yml`, and dependency state hashes). If the resulting holistic hash matches an asset already existing on GitHub Releases, the entire build is instantly skipped. This is layered on top of `sccache` which accelerates the compilation phase when a build _does_ execute.
+   - **Incremental Repository Metadata Updates (Hybrid pdiff Approach):** To save end-user bandwidth when running `apt update`, the repository will support **APT pdiffs**.
+     - **CI Side (Stateless Base):** The core static generator (`debian.py`) will still perform a **100% reliable Full Static Regeneration** of the metadata by scraping the real state of GitHub Releases. This guarantees zero "zombie packages".
+     - **Diff Generation:** After generating the new `Packages` file, the orchestrator will automatically compute the `ed`-style difference against the previous `Packages` file and generate the corresponding `.pdiff` patches and `Index` file.
+     - **Pruning:** These `.pdiff` files will be uploaded to GitHub Pages alongside the main index. To prevent the repository from bloating infinitely, the static generator (`debian.py`) invoked by the `publish.yml` workflow will natively manage a strict limit of the **latest 256 diffs**. During generation, it will parse the `Index`, and automatically prune any older historical diffs directly, eliminating the need for external cron jobs.
+
+6. **Package Updates (`package_updates.yml`):**
    - Auto-update logic must be disabled by default and explicitly enabled per package via the new YAML definitions. Updates trigger auto-PRs via `gh pr create`.
-6. **Reproducible Builds Verification & Multi-Runner Consensus:**
+7. **Reproducible Builds Verification & Multi-Runner Consensus:**
    - **`reproducible.yml`:** Implement a manual `workflow_dispatch` workflow that accepts a package name as input. It will explicitly build the package twice (manipulating timestamps, runner paths, and environments) and use `diffoscope` to compare the resulting `.deb` files. If they are not bit-for-bit identical, the workflow fails, identifying non-deterministic metadata leaks within the Hermetic Sandbox.
    - **Multi-Runner Consensus:** For "essential" or core cryptographic packages (e.g., `openssl`, `apt`), the CI must dynamically spawn two independent runners. Both runners build the package concurrently, and the publish step only succeeds if both runners produce bit-for-bit identical artifact hashes. This defends against compromised GitHub runners, localized hardware memory flips, or cache poisoning.
-7. **Host Space Optimization (`free-space.sh`):**
+8. **Host Space Optimization (`free-space.sh`):**
    - Integrate hyper-fast `rm -rf` logic for massive unused toolchains on the GitHub Host VM before build steps to free up disk space.
-8. **Parallelization Enforcement:** Globally standardize `MAKEFLAGS="-j4"` / `ninja -j4` across the build system to maximize the 4-core runners.
-9. **Security Analysis (`codeql.yml` & `osv-scanner`):** Integrate CodeQL for static analysis. Add `osv-scanner` or `pip-audit` to the CI to proactively scan dependencies for known vulnerabilities.
-10. **`uv` CI Caching:** All Python-based workflows must explicitly implement `uv` cache restoration to ensure the orchestrator environment initializes near-instantaneously on GitHub runners.
+9. **Parallelization Enforcement:** Globally standardize `MAKEFLAGS="-j4"` / `ninja -j4` across the build system to maximize the 4-core runners.
+10. **Security Analysis (`codeql.yml` & `osv-scanner`):** Integrate CodeQL for static analysis. Add `osv-scanner` or `pip-audit` to the CI to proactively scan dependencies for known vulnerabilities.
+11. **`uv` CI Caching:** All Python-based workflows must explicitly implement `uv` cache restoration to ensure the orchestrator environment initializes near-instantaneously on GitHub runners.
 
 ---
 
