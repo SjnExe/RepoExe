@@ -200,7 +200,7 @@ jobs:
             # Collect file metadata (sizes and hashes)
             METADATA_JSON="{}"
             if ls output/*_${{ matrix.arch }}.deb 1> /dev/null 2>&1 || ls output/*_all.deb 1> /dev/null 2>&1; then
-              cat << 'PY_EOF' > scripts/metadata_script.py
+              cat <<- 'PY_EOF' > scripts/metadata_script.py
               import os, hashlib, json, sys, subprocess
               metadata = {}
               output_dir = "../output"
