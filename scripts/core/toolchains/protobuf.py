@@ -2,7 +2,6 @@ import os
 import urllib.request
 import hashlib
 import zipfile
-import shutil
 
 class ProtobufToolchain:
     def __init__(self, version: str = "34.1"):
