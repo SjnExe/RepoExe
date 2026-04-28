@@ -13,5 +13,5 @@ __all__ = [
     'RustToolchain',
     'SwiftToolchain',
     'ZigToolchain',
-    'ProtobufToolchain'
+    'ProtobufToolchain',
 ]
