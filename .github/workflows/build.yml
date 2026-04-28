@@ -52,7 +52,6 @@ jobs:
             echo "publish_decision=false" >> "$GITHUB_OUTPUT"
           fi
 
-
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
