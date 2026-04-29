@@ -38,12 +38,14 @@ ALLOWED_LICENSES = {
 
 class SourceItem(BaseModel):
     """Represents a single source to fetch."""
+
     url: str = Field(..., description='The URL to download the source from')
     sha256: Optional[str] = Field(None, description='The SHA256 checksum of the source')
 
 
 class HostConfig(BaseModel):
     """Configuration for host build and prebuilt binaries."""
+
     build: bool = Field(False, description='Trigger native Linux compilation before cross-compilation')
     url: Optional[str] = Field(None, description='Optional URL to a prebuilt host binary zip/tarball')
     sha256: Optional[str] = Field(None, description='Optional SHA256 checksum for the prebuilt host binary')
@@ -205,6 +207,7 @@ class BuildYml(BaseModel):
     def validate_github_urls(cls, v: Union[str, List[SourceItem], None]) -> Union[str, List[SourceItem], None]:
         if isinstance(v, list):
             from urllib.parse import urlparse
+
             for item in v:
                 parsed = urlparse(item.url)
                 if parsed.hostname and ('github.com' == parsed.hostname or parsed.hostname.endswith('.github.com')):
