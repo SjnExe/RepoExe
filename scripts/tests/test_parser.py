@@ -44,7 +44,7 @@ def test_github_url_archive():
             description='A test package',
             homepage='https://example.com',
             license='MIT',
-            source_url='https://github.com/user/repo/archive/1.0.0.tar.gz',
+            source=[{"url": 'https://github.com/user/repo/archive/1.0.0.tar.gz'}],
         )
 
 

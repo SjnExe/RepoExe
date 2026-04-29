@@ -4,7 +4,6 @@ from .python import PythonToolchain
 from .rust import RustToolchain
 from .swift import SwiftToolchain
 from .zig import ZigToolchain
-from .protobuf import ProtobufToolchain
 
 __all__ = [
     'GolangToolchain',
@@ -13,5 +12,4 @@ __all__ = [
     'RustToolchain',
     'SwiftToolchain',
     'ZigToolchain',
-    'ProtobufToolchain',
 ]

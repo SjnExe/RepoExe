@@ -1,7 +1,7 @@
 """YAML Pydantic Parser for RepoExe."""
 
 import yaml
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Standard set of open-source licenses based on legacy Termux standards
@@ -36,6 +36,19 @@ ALLOWED_LICENSES = {
 }
 
 
+class SourceItem(BaseModel):
+    """Represents a single source to fetch."""
+    url: str = Field(..., description='The URL to download the source from')
+    sha256: Optional[str] = Field(None, description='The SHA256 checksum of the source')
+
+
+class HostConfig(BaseModel):
+    """Configuration for host build and prebuilt binaries."""
+    build: bool = Field(False, description='Trigger native Linux compilation before cross-compilation')
+    url: Optional[str] = Field(None, description='Optional URL to a prebuilt host binary zip/tarball')
+    sha256: Optional[str] = Field(None, description='Optional SHA256 checksum for the prebuilt host binary')
+
+
 class BuildYml(BaseModel):
     """Pydantic model representing a RepoExe build.yml definition."""
 
@@ -49,9 +62,9 @@ class BuildYml(BaseModel):
     license: str = Field(..., description='The SPDX license identifier')
 
     # Source fields
-    source_url: Optional[str] = Field(None, description='The URL to download the source tarball')
-    source_sha256: Optional[str] = Field(None, description='The SHA256 checksum of the source tarball')
-    source: Optional[str] = Field(None, description="Source type, e.g., 'git' or 'local'")
+    source: Union[str, List[SourceItem], None] = Field(
+        None, description="Source type (e.g., 'git', 'local') or a list of URL/SHA256 objects"
+    )
     git_branch: Optional[str] = Field(None, description="Git branch to clone if source is 'git'")
 
     # Advanced metadata
@@ -67,7 +80,7 @@ class BuildYml(BaseModel):
 
     # Build Environment & Execution
     build_in_src: bool = Field(False, description='Force build inside the source tree')
-    host_build: bool = Field(False, description='Trigger native Linux compilation before cross-compilation')
+    host: HostConfig = Field(default_factory=HostConfig, description='Host build settings and prebuilts')
     isolated_shard: bool = Field(False, description='Route to a dedicated CI runner shard')
     inherits: Optional[str | List[str]] = Field(None, description='Inherit lifecycle blocks from a mixin')
     build_multilib: bool = Field(False, description='Compile 32-bit packages explicitly for 64-bit targets')
@@ -107,7 +120,7 @@ class BuildYml(BaseModel):
     conffiles: List[str] = Field(default_factory=list, description='Config files not to overwrite')
     recommends_doc: bool = Field(True, description='Generate -doc subpackages')
     recommends_locale: bool = Field(True, description='Generate -locale subpackages')
-    no_staticsplit: bool = Field(False, description='Disable automatic splitting of static libraries')
+    static: bool = Field(False, description='Enable or disable static libraries')
     no_shebang_fix: bool = Field(False, description='Disable automated /bin/sh replacements')
     no_shebang_fix_files: List[str] = Field(default_factory=list, description='Files to exclude from shebang fixing')
     no_elf_cleaner: bool = Field(False, description='Disable termux-elf-cleaner execution')
@@ -187,19 +200,19 @@ class BuildYml(BaseModel):
                 )
         return v
 
-    @field_validator('source_url')
+    @field_validator('source')
     @classmethod
-    def validate_github_url(cls, v: Optional[str]) -> Optional[str]:
-        if v:
+    def validate_github_urls(cls, v: Union[str, List[SourceItem], None]) -> Union[str, List[SourceItem], None]:
+        if isinstance(v, list):
             from urllib.parse import urlparse
-
-            parsed = urlparse(v)
-            if parsed.hostname and ('github.com' == parsed.hostname or parsed.hostname.endswith('.github.com')):
-                if '/archive/' in parsed.path and '/archive/refs/tags/' not in parsed.path:
-                    raise ValueError(
-                        "GitHub '/archive/' URLs are highly volatile. Use official release assets "
-                        '(/releases/download/) or strict tag archives (/archive/refs/tags/) to ensure SHA256 stability.'
-                    )
+            for item in v:
+                parsed = urlparse(item.url)
+                if parsed.hostname and ('github.com' == parsed.hostname or parsed.hostname.endswith('.github.com')):
+                    if '/archive/' in parsed.path and '/archive/refs/tags/' not in parsed.path:
+                        raise ValueError(
+                            "GitHub '/archive/' URLs are highly volatile. Use official release assets "
+                            '(/releases/download/) or strict tag archives (/archive/refs/tags/) to ensure SHA256 stability.'
+                        )
         return v
 
     @field_validator('excluded_arches')
