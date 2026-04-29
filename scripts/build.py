@@ -97,8 +97,7 @@ def cmd_init(args: argparse.Namespace) -> None:
     }
 
     if source_url:
-        template['source_url'] = source_url
-        template['source_sha256'] = 'INSERT_SHA256_HERE'
+        template['source'] = [{'url': source_url, 'sha256': 'INSERT_SHA256_HERE'}]
 
     with open(build_yml_path, 'w', encoding='utf-8') as f:
         yaml.dump(template, f, sort_keys=False, default_flow_style=False)
