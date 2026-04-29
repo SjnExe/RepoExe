@@ -38,9 +38,5 @@ jobs:
       - name: Run actionlint
         run: |
           # Download and install latest actionlint directly without third-party actions
-          cd /tmp
-          LATEST_VERSION=$(curl -s "https://api.github.com/repos/rhysd/actionlint/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')
-          wget -qO- "https://github.com/rhysd/actionlint/releases/download/${LATEST_VERSION}/actionlint_${LATEST_VERSION#v}_linux_amd64.tar.gz" | tar xz
-          sudo mv actionlint /usr/local/bin/
-          cd "$GITHUB_WORKSPACE"
+          curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | sudo bash -s -- latest /usr/local/bin
           actionlint
