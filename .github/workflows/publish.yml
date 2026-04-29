@@ -21,11 +21,45 @@ permissions:
   attestations: write
 
 jobs:
+  check-decision:
+    runs-on: ubuntu-latest
+    if: always()
+    outputs:
+      should_publish: ${{ steps.check.outputs.should_publish }}
+    steps:
+      - name: Check for publish decision artifact
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Try to download the artifact from the triggering workflow
+          if [ "${{ github.event_name }}" != "workflow_run" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          echo "Checking run $RUN_ID for publish_decision artifact..."
+
+          # gh run download doesn't fail cleanly if no artifacts exist sometimes, so we list first
+          ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts --jq '.artifacts[].name' || true)
+
+          if echo "$ARTIFACTS" | grep -q "publish_decision"; then
+            echo "Publish decision artifact found."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Publish decision artifact NOT found. Skipping publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
   publish:
+    needs: [check-decision]
     runs-on: ubuntu-latest
     if: |
-      (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch') &&
-      (!inputs.test_only)
+      always() && (
+        (github.event_name == 'workflow_dispatch' && !inputs.test_only) ||
+        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && needs.check-decision.outputs.should_publish == 'true')
+      )
 
     steps:
       - uses: actions/checkout@v6

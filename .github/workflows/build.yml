@@ -19,6 +19,11 @@ on:
         description: 'Space separated list of packages to build (use @all to build everything)'
         required: true
         default: '@all'
+      publish_repo:
+        description: 'Publish the built packages to the repository if successful'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -30,11 +35,22 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       shards: ${{ steps.sharding.outputs.shards }}
+      publish_decision: ${{ steps.decision.outputs.publish_decision }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      - name: Set publish decision
+        id: decision
+        run: |
+          if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "publish_decision=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ inputs.publish_repo }}" == "true" ]; then
+            echo "publish_decision=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish_decision=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -272,3 +288,16 @@ jobs:
               echo "No package files found to upload for $pkg"
             fi
           done
+
+  trigger_publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    if: always() && needs.prepare.outputs.publish_decision == 'true'
+    steps:
+      - name: Save publish decision
+        run: echo "true" > publish_decision.txt
+      - name: Upload decision artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish_decision
+          path: publish_decision.txt
