@@ -1,0 +1,65 @@
+name: aapt
+version: 1:0.2
+revision: 0
+description: Android Asset Packaging Tool
+homepage: https://elinux.org/Android_aapt
+license: Apache-2.0
+maintainer: "@SjnExe"
+
+source: local
+build_in_src: true
+
+depends:
+  termux-main:
+    - fmt
+    - libc++
+    - libexpat
+    - libpng
+    - zlib
+  local:
+    - libbase
+    - libandroidfw
+    - libutils
+    - libziparchive
+    - libandroid-pathutils
+
+phases:
+  pre_configure: |
+    export PATH=$PREFIX/bin:$PATH
+    CFLAGS+=" -fPIC"
+    CXXFLAGS+=" -fPIC -std=c++17 -Wno-nontrivial-memcall -Wno-vla-cxx-extension -Wno-deprecated-anon-enum-enum-conversion -Wno-reorder-init-list"
+    CPPFLAGS+=" -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__"
+    CPPFLAGS+=" -I$PREFIX/include/android-tools"
+
+    _TMP_BINDIR=./_bin
+    rm -rf $_TMP_BINDIR
+    mkdir -p $_TMP_BINDIR
+
+    LDFLAGS+=" -L$PREFIX/lib -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils -lfmt"
+
+  make: |
+    # In local source, we assume src contains the aapt sources.
+    # The actual sources.sh is embedded or we just compile the .cpp files in src/
+    cd src
+    for f in *.cpp; do
+      $CXX $CXXFLAGS $CPPFLAGS $f -c
+    done
+    $CXX $CXXFLAGS *.o $LDFLAGS \
+      -lexpat \
+      -lpng \
+      -lz \
+      -o ../_bin/aapt
+
+  install: |
+    install -Dm700 -t $PREFIX/bin ./_bin/aapt
+
+    # Create an android.jar with AndroidManifest.xml and resources.arsc
+    rm -rf android-jar
+    mkdir android-jar
+    cd android-jar
+    curl -sL https://dl.google.com/android/repository/platform-36_r02.zip -o platform.zip
+    unzip -q platform.zip "android-*/android.jar"
+    mv android-*/android.jar .
+    unzip -q android.jar
+    mkdir -p $PREFIX/share/aapt
+    jar cfM $PREFIX/share/aapt/android.jar AndroidManifest.xml resources.arsc

@@ -89,3 +89,40 @@ class Sysroot:
 
                     if not os.path.exists(dest_file):
                         os.symlink(src_file, dest_file)
+
+    def update_config_guess(self, source_dir: str) -> None:
+        """
+        Scans the source directory and replaces config.guess and config.sub
+        with modern, Android-compatible versions before compilation begins.
+        """
+        import urllib.request
+
+        logger.info('Updating config.guess and config.sub in source tree')
+
+        # We fetch the latest config.guess and config.sub from upstream GNU git
+        guess_url = 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD'
+        sub_url = 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD'
+
+        # Download them to a temporary location to verify
+        tmp_guess = os.path.join(source_dir, '.tmp_config.guess')
+        tmp_sub = os.path.join(source_dir, '.tmp_config.sub')
+
+        try:
+            urllib.request.urlretrieve(guess_url, tmp_guess)
+            urllib.request.urlretrieve(sub_url, tmp_sub)
+        except Exception as e:
+            logger.warning(f'Failed to fetch updated config.guess/sub: {e}')
+            return
+
+        # Replace any existing ones
+        for root, _, files in os.walk(source_dir):
+            if 'config.guess' in files:
+                shutil.copy2(tmp_guess, os.path.join(root, 'config.guess'))
+            if 'config.sub' in files:
+                shutil.copy2(tmp_sub, os.path.join(root, 'config.sub'))
+
+        # Clean up
+        if os.path.exists(tmp_guess):
+            os.remove(tmp_guess)
+        if os.path.exists(tmp_sub):
+            os.remove(tmp_sub)

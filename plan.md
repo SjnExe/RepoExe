@@ -82,6 +82,7 @@ RepoExe/
 **Our repository is being built strictly for AI agents (Jules) to maintain.**
 
 1. **Language Migration (Bash to Micro-Modular Python):**
+
    - The core build logic (currently housed in hundreds of Bash scripts under `scripts/build/`) must be entirely rewritten into a **strictly micro-modular** Python build system.
    - **No Massive Monoliths:** There must be NO single massive script. The orchestrator must be split into logical, focused modules (e.g. `parser.py`, `dag.py`, `debian.py`) to prevent context window overload and maintainability issues for the AI.
    - Python enables superior linting (Ruff/Flake8), type hinting (MyPy), centralized error handling, and logical flow control.
@@ -169,6 +170,7 @@ RepoExe/
 - **Documentation & Sample Folder:** A `docs/` folder must be created at the very end of the refactoring process. It will contain explicit, well-commented sample `build.yml` templates for various package types (standard, multi-architecture, subpackages, metapackages). Crucially, this folder MUST also contain a comprehensive `SCHEMA.md` documentation file that details every single supported YAML field, macro, and lifecycle hook so future developers (and AI agents) have zero confusion when using advanced features.
 
 3. **Strict Linting & Formatting Stack (AI-Optimized):**
+
    - **Python:** Use **uv** as the primary Python package manager for its extreme speed and deterministic lockfiles (`uv.lock`). Use **Ruff** exclusively for both linting and formatting the Python orchestrator. It is extremely fast and replaces multiple legacy tools (flake8, black, isort). Use `mypy` for strict type hinting to catch AI hallucinations early.
    - **YAML, JSON, Markdown:** Use **Prettier** as the standard formatter. The `.prettierrc` must be configured strictly (e.g., trailing commas, consistent quoting) to minimize noisy diffs, ensuring the AI only sees meaningful logic changes.
    - **GitHub Actions:** Use `actionlint` in the CI to validate `.github/workflows/*.yml` syntax before execution.
@@ -179,10 +181,12 @@ RepoExe/
    - **DevContainers & IDE Integrations:** The repository must include a `.devcontainer/devcontainer.json` for web-based IDEs and a `.vscode/settings.json` that hooks into a Pydantic-exported JSON Schema for `build.yml` to provide real-time YAML Intellisense.
 
 4. **Variable Standardization & Branding Removal:**
+
    - **Generic Variables:** Strip `TERMUX_` branding from variables wherever possible to reduce bloat (e.g., `TERMUX_APP__PACKAGE_NAME` -> `APP_PACKAGE_NAME`, `TERMUX_PKG_*` -> `PKG_*`).
    - **Strict Device Path Compatibility:** While the repository is branded "RepoExe", the internal device paths MUST remain strictly **`PREFIX=/data/data/com.termux/files/usr`**. Do NOT replace this internal path with `com.repoexe`. Preserving the original Termux PREFIX guarantees that compiled binaries function flawlessly and integrate perfectly when installed on the user's live Termux application.
 
 5. **Modularity, Profiles & Subpackages:**
+
    - **Granular Dependency Splitting:** Bundled packages (like `android-tools`) must be split into specific, independent sub-packages (e.g., `libbase`, `libcutils`, `libutils`, `libziparchive`). These will be grouped under a single source directory for maintenance but output granular `.deb` files.
    - **Explicit Subpackages:** Replace Termux's regex-based automatic subpackage generation (e.g., automatically generating `-dev` or `-static` packages via bash scripts) with **explicit configuration**. The `build.yml` must explicitly declare core subpackages and the file patterns they include (e.g., `subpackages: dev: includes: ["include/*", "lib/*.so"]`).
    - **Smart Subpackaging & Headless Profiles:** Instead of blindly deleting documentation (`man` pages, `info`) or translations like Termux does, RepoExe will natively support Headless/CLI configuration preferences. The Python packagers (`debian.py` / `pacman.py`) will automatically intercept documentation directories (e.g., `share/man`, `share/info`) and localization directories (e.g., `share/locale`) and dynamically split them into `-doc` and `-locale` subpackages without the developer having to explicitly define them in the YAML.
@@ -276,6 +280,7 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
    - **`promote.yml`:** Triggered on a daily `schedule` (e.g., `cron: '0 0 * * *'`) and manual `workflow_dispatch`.
    - **`health.yml`:** Triggered on a daily `schedule` and manual `workflow_dispatch`.
 4. **Dual-Mode Workflow with Strict Release Boundaries (`build.yml` & `publish.yml`):**
+
    - **Semantic Release Integration:** Implement automated release note generation and version bumping (e.g., using `Release Please` or `Semantic Release`) based on Conventional Commits for the Python orchestrator and core releases.
    - **Manual Dispatch Features:**
      - **Test Mode:** Manual dispatches can include a `test_only` flag. When enabled, the workflow builds packages but strictly skips publishing to the repository.
@@ -290,6 +295,7 @@ The CI/CD pipeline must be **strictly optimized for GitHub Actions** (4 Cores, 1
 
 5. **Incremental Updates Architecture:**
    RepoExe addresses "incremental updates" across three distinct domains to optimize bandwidth and CI costs without introducing fragile architectures:
+
    - **Incremental Package Downloads:** For end-users updating packages on their devices, RepoExe strictly utilizes aggressive **`zstd`** compression. We explicitly reject complex delta-transfer systems (like `debdelta` or `zsync` wrappers) as Pacman and Alpine do not natively support them, and APT implementations are fragile. High-dictionary `zstd` provides near-delta compression ratios natively across all platforms with zero added client complexity.
    - **Incremental CI/CD Builds:** The orchestrator utilizes **Content-Addressable "State Hashing"** (evaluating the hash of the source code, patches, `build.yml`, and dependency state hashes). If the resulting holistic hash matches an asset already existing on GitHub Releases, the entire build is instantly skipped. This is layered on top of `sccache` which accelerates the compilation phase when a build _does_ execute.
    - **Incremental Repository Metadata Updates (Hybrid pdiff Approach):** To save end-user bandwidth when running `apt update`, the repository will support **APT pdiffs**.

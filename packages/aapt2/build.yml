@@ -1,0 +1,116 @@
+name: aapt2
+version: "1:2.20-{tag_version}"
+vars:
+  tag_version: 16.0.0_r4
+revision: 0
+description: Android Asset Packaging Tool 2
+homepage: https://elinux.org/Android_aapt
+license: Apache-2.0
+maintainer: "@SjnExe"
+
+source: git
+git_branch: android-{tag_version}
+build_in_src: true
+
+depends:
+  termux-main:
+    - fmt
+    - libc++
+    - libexpat
+    - libpng
+    - libprotobuf
+    - libzopfli
+    - zlib
+  local:
+    - libbase
+    - libandroidfw
+    - libutils
+    - libziparchive
+    - libandroid-pathutils
+
+phases:
+  pre_fetch: |
+    PKG_SRCURL=(
+      "https://android.googlesource.com/platform/frameworks/base"
+      "https://android.googlesource.com/platform/system/core"
+      "https://android.googlesource.com/platform/system/libbase"
+      "https://android.googlesource.com/platform/system/libziparchive"
+      "https://android.googlesource.com/platform/system/logging"
+      "https://android.googlesource.com/platform/system/incremental_delivery"
+    )
+
+    for i in $(seq 0 $(( ${#PKG_SRCURL[@]}-1 ))); do
+      REPO_URL=${PKG_SRCURL[$i]}
+      CLONE_DIR=$(basename "$REPO_URL" .git | sed -e 's/platform_system_tools_//' -e 's/platform_system_//' -e 's/platform_frameworks_//' -e 's/platform_//')
+
+      git clone --depth 1 --single-branch \
+        --branch "android-{tag_version}" \
+        "$REPO_URL" "$CLONE_DIR"
+    done
+
+    for f in base/tools/aapt2/*.proto; do
+      sed -i 's:frameworks/base/tools/aapt2/::' $f
+    done
+
+  pre_configure: |
+    export PATH=$PREFIX/bin:$PATH
+
+    CFLAGS+=" -fPIC"
+    CXXFLAGS+=" -fPIC -std=c++17 -Wno-nontrivial-memcall -Wno-vla-cxx-extension -Wno-deprecated-anon-enum-enum-conversion -Wno-reorder-init-list"
+    CPPFLAGS+=" -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__"
+    CPPFLAGS+=" -DPROTOBUF_USE_DLLS"
+    CPPFLAGS+=" -I$PREFIX/include/android-tools"
+
+    _TMP_BINDIR=./_bin
+    rm -rf $_TMP_BINDIR
+    mkdir -p $_TMP_BINDIR
+
+    LDFLAGS+=" -L$PREFIX/lib -llog -landroid-base -landroid-fw -landroid-utils -landroid-ziparchive -landroid-pathutils -lfmt"
+
+  make: |
+    # Embedded sources.sh logic
+    libaapt2_proto="Configuration.proto Resources.proto ResourcesInternal.proto"
+    libaapt2_sources="${libaapt2_proto//.proto/.pb.cc} compile/IdAssigner.cpp compile/InlineXmlFormatParser.cpp compile/NinePatch.cpp compile/Png.cpp compile/PngChunkFilter.cpp compile/PngCrunch.cpp compile/PseudolocaleGenerator.cpp compile/Pseudolocalizer.cpp compile/XmlIdCollector.cpp configuration/ConfigurationParser.cpp dump/DumpManifest.cpp filter/AbiFilter.cpp filter/ConfigFilter.cpp format/Archive.cpp format/Container.cpp format/binary/BinaryResourceParser.cpp format/binary/ResChunkPullParser.cpp format/binary/TableFlattener.cpp format/binary/XmlFlattener.cpp format/proto/ProtoDeserialize.cpp format/proto/ProtoSerialize.cpp io/BigBufferStream.cpp io/File.cpp io/FileStream.cpp io/FileSystem.cpp io/StringStream.cpp io/Util.cpp io/ZipArchive.cpp link/AutoVersioner.cpp link/ManifestFixer.cpp link/NoDefaultResourceRemover.cpp link/ProductFilter.cpp link/PrivateAttributeMover.cpp link/ReferenceLinker.cpp link/ResourceExcluder.cpp link/TableMerger.cpp link/XmlCompatVersioner.cpp link/XmlNamespaceRemover.cpp link/XmlReferenceLinker.cpp optimize/MultiApkGenerator.cpp optimize/ResourceDeduper.cpp optimize/ResourceFilter.cpp optimize/ResourcePathShortener.cpp optimize/VersionCollapser.cpp process/SymbolTable.cpp split/TableSplitter.cpp text/Printer.cpp text/Unicode.cpp text/Utf8Iterator.cpp util/BigBuffer.cpp util/Files.cpp util/Util.cpp Debug.cpp DominatorTree.cpp java/AnnotationProcessor.cpp java/ClassDefinition.cpp java/JavaClassGenerator.cpp java/ManifestClassGenerator.cpp java/ProguardRules.cpp LoadedApk.cpp Resource.cpp ResourceParser.cpp ResourceTable.cpp ResourceUtils.cpp ResourceValues.cpp SdkConstants.cpp StringPool.cpp trace/TraceBuffer.cpp xml/XmlActionExecutor.cpp xml/XmlDom.cpp xml/XmlPullParser.cpp xml/XmlUtil.cpp ValueTransformer.cpp"
+    aapt2_tool_sources="cmd/Command.cpp cmd/Compile.cpp cmd/Convert.cpp cmd/Diff.cpp cmd/Dump.cpp cmd/Link.cpp cmd/Optimize.cpp cmd/Util.cpp"
+    aapt2_sources="$libaapt2_sources $aapt2_tool_sources Main.cpp"
+
+    CORE_INCDIR=./core/include
+    LIBLOG_INCDIR=./logging/liblog/include
+    LIBBASE_SRCDIR=./libbase
+    LIBCUTILS_SRCDIR=./core/libcutils
+    LIBUTILS_SRCDIR=./core/libutils
+    INCFS_SUPPORT_INCDIR=./libziparchive/incfs_support/include
+    LIBZIPARCHIVE_SRCDIR=./libziparchive
+    INCFS_UTIL_SRCDIR=./incremental_delivery/incfs/util
+    ANDROIDFW_SRCDIR=./base/libs/androidfw
+    LIBIDMAP2_POLICIES_INCDIR=./base/cmds/idmap2/libidmap2_policies/include
+    AAPT2_SRCDIR=./base/tools/aapt2
+
+    CPPFLAGS+=" -I. -I./include -I../$LIBBASE_SRCDIR/include -I../$LIBLOG_INCDIR -I../$CORE_INCDIR -I../$LIBZIPARCHIVE_SRCDIR/include -I../$INCFS_UTIL_SRCDIR/include -I../$ANDROIDFW_SRCDIR/include -I../$ANDROIDFW_SRCDIR/include_pathutils"
+
+    cd $AAPT2_SRCDIR
+    for f in $libaapt2_proto; do
+      protoc --cpp_out=. $f
+    done
+    for f in $aapt2_sources; do
+      $CXX $CXXFLAGS $CPPFLAGS -I../$LIBIDMAP2_POLICIES_INCDIR $f -c -o ${f%.*}.o
+    done
+    $CXX $CXXFLAGS $(find . -name '*.o') $LDFLAGS \
+      -lexpat \
+      -lpng \
+      -lprotobuf \
+      -o ../../../_bin/aapt2
+    cd ../../..
+
+  install: |
+    install -Dm700 -t $PREFIX/bin ./_bin/aapt2
+
+    rm -rf android-jar
+    mkdir android-jar
+    cd android-jar
+    curl -sL https://dl.google.com/android/repository/platform-36_r02.zip -o platform.zip
+    unzip -q platform.zip "android-*/android.jar"
+    mv android-*/android.jar .
+    unzip -q android.jar
+    mkdir -p $PREFIX/share/aapt
+    jar cfM $PREFIX/share/aapt/android.jar AndroidManifest.xml resources.arsc

@@ -1,0 +1,80 @@
+name: zipalign
+version: "{tag_version}-{revision}"
+vars:
+  tag_version: 16.0.0_r4
+revision: 4
+description: Zip archive alignment tool
+homepage: https://developer.android.com/studio/command-line/zipalign
+license: Apache-2.0
+maintainer: "@SjnExe"
+
+source: git
+git_branch: android-{tag_version}
+build_in_src: true
+
+depends:
+  termux-main:
+    - fmt
+    - libc++
+    - libzopfli
+    - zlib
+  local:
+    - libbase
+    - libutils
+    - libziparchive
+
+phases:
+  pre_fetch: |
+    PKG_SRCURL=(
+      "https://android.googlesource.com/platform/build"
+      "https://android.googlesource.com/platform/system/core"
+      "https://android.googlesource.com/platform/system/libbase"
+      "https://android.googlesource.com/platform/system/libziparchive"
+    )
+
+    for i in $(seq 0 $(( ${#PKG_SRCURL[@]}-1 ))); do
+      REPO_URL=${PKG_SRCURL[$i]}
+      CLONE_DIR=$(basename "$REPO_URL" .git | sed -e 's/platform_system_tools_//' -e 's/platform_system_//' -e 's/platform_frameworks_//' -e 's/platform_//')
+
+      git clone --depth 1 --single-branch \
+        --branch "android-{tag_version}" \
+        "$REPO_URL" "$CLONE_DIR"
+    done
+
+    # Get zopfli source
+    ZOPFLI_VER="1.0.3"
+    ZOPFLI_TARFILE=zopfli-${ZOPFLI_VER}.tar.gz
+    curl -sL "https://github.com/google/zopfli/archive/zopfli-${ZOPFLI_VER}.tar.gz" -o $ZOPFLI_TARFILE
+    tar xf $ZOPFLI_TARFILE
+    mv zopfli-zopfli-$ZOPFLI_VER zopfli
+
+  pre_configure: |
+    export PATH=$PREFIX/bin:$PATH
+
+    CFLAGS+=" -fPIC"
+    CXXFLAGS+=" -fPIC -std=c++17"
+    CPPFLAGS+=" -DNDEBUG -D__ANDROID_SDK_VERSION__=__ANDROID_API__"
+
+    _TMP_BINDIR=./_bin
+    rm -rf $_TMP_BINDIR
+    mkdir -p $_TMP_BINDIR
+
+    LDFLAGS+=" -L$PREFIX/lib -llog -landroid-utils -landroid-ziparchive -landroid-base -lfmt"
+
+  make: |
+    LIBBASE_SRCDIR=./libbase
+    CORE_INCDIR=./core/include
+    LIBZIPARCHIVE_SRCDIR=./libziparchive
+    ZIPALIGN_SRCDIR=./build/tools/zipalign
+
+    CPPFLAGS+=" -I. -I./include -I../$LIBBASE_SRCDIR/include -I../$CORE_INCDIR -I../$LIBZIPARCHIVE_SRCDIR/include"
+
+    cd $ZIPALIGN_SRCDIR
+    for f in *.cpp; do
+      $CXX $CXXFLAGS $CPPFLAGS -I../../zopfli/src $f -c
+    done
+    $CXX $CXXFLAGS *.o $LDFLAGS -lzopfli -lz -o ../../_bin/zipalign
+    cd ../..
+
+  install: |
+    install -Dm700 -t $PREFIX/bin ./_bin/zipalign

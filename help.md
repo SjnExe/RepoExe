@@ -46,8 +46,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 60/100] **Git History Version Validation (`parser.py` - Continuity)**: Implement Git history lookups (`git show origin/main...`) to strictly enforce version/revision incrementation.
 - [x] [Complexity: 60/100] **DAG Core Resolver (`dag.py` - Core)**: Resolve dependencies, read `isolated_shard` boolean tags, and generate matrix shards.
 - [x] [Complexity: 60/100] **Implicit Cleanup Standards (`debian.py` - Cleanup)**: Auto-cache trimming, permissions normalization, ghost directory pruning, `-glibc` dynamic suffixing, and auto `-doc`/`-locale` Smart Subpackages.
-- [ ] [Complexity: 60/100] **Migrate: aapt, aapt2, zipalign, aidl**: Implement "Local Source Building" for deprecated `aapt` (in `packages/aapt/src/`) applying standard bloat-free patches directly. Use upstream sources and native `build.yml` hooks for actively maintained `aapt2`, `zipalign`, and `aidl`.
-- [ ] [Complexity: 65/100] **Android Patching & Validation**: Auto `config.guess` updates, Linux hardcoded path fixes, `termux-elf-cleaner`, `-dbg` symbol extraction, strict Bionic Undefined Symbols validation, strict SONAME enforcement.
+- [x] [Complexity: 60/100] **Migrate: aapt, aapt2, zipalign, aidl**: Implement "Local Source Building" for deprecated `aapt` (in `packages/aapt/src/`) applying standard bloat-free patches directly. Use upstream sources and native `build.yml` hooks for actively maintained `aapt2`, `zipalign`, and `aidl`.
+- [x] [Complexity: 65/100] **Android Patching & Validation**: Auto `config.guess` updates, Linux hardcoded path fixes, `termux-elf-cleaner`, `-dbg` symbol extraction, strict Bionic Undefined Symbols validation, strict SONAME enforcement.
 - [ ] [Complexity: 65/100] **CI Workflow: package_updates.yml**: Auto-PR workflow triggered by scheduled `upstream_check.py`.
 - [ ] [Complexity: 70/100] **Source Mirroring & Git Submodules (`sysroot.py` - Advanced)**: Validate GPG signatures, auto-mirror fetched tarballs to GitHub Releases, natively clone upstream Git branches, and handle recursive submodules.
 - [ ] [Complexity: 70/100] **Repository Health Core (`health.py`)**: Cron job logic validating sync between YAML and Pages, flagging zombie packages, and Release Asset Pruning (keep last 5 versions).
@@ -200,3 +200,13 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Addressed pytest failures, creating comprehensive tests for the sharding logic and subpackage extraction routines.
 - Noted in `plan.md` that a `publish.yml` failure following a successful `build.yml` can be safely retried manually, since release tags are created during the build phase and `publish.yml` is stateless.
 - **Next Action (Session 17):** Start with **Migrate: aapt, aapt2, zipalign, aidl** (Complexity 60/100) and **Android Patching & Validation** (Complexity 65/100).
+
+**Session 17 Handover (Completed)**
+
+- Implemented "Local Source Building" structural layout for deprecated `aapt` (in `packages/aapt/src/`) applying standard bloat-free patches.
+- Recreated `build.yml` files for `aapt2`, `zipalign`, and `aidl` directly embedding `sources.sh` logic to natively map legacy variables, dynamically fetching the latest source code from git tags in `pre_fetch` phases.
+- Integrated comprehensive Android Patching & Validation routines inside `scripts/core/packagers/cleanup.py` encompassing `termux-elf-cleaner`, PIE compliance checking, Linux hardcoded paths replacements, `llvm-strip` debug symbol extraction, SONAME enforcement, and strict Bionic symbol validation checks.
+- Addressed `config.guess` and `config.sub` auto-updating inside `scripts/core/sysroot.py`.
+- Formatted newly added python scripts through strict pre-commit linters using `uv` and `ruff`.
+
+- **Next Action (Session 18):** Start with **CI Workflow: package_updates.yml** (Complexity 65/100) and **Source Mirroring & Git Submodules (`sysroot.py` - Advanced)** (Complexity 70/100).
