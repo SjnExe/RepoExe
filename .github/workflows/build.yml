@@ -297,7 +297,7 @@ jobs:
       - name: Save publish decision
         run: echo "true" > publish_decision.txt
       - name: Upload decision artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: publish_decision
           path: publish_decision.txt
