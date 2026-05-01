@@ -6,7 +6,6 @@
 #include "Main.h"
 #include "Bundle.h"
 
-#include <build/version.h>
 #include <utils/Compat.h>
 #include <utils/Log.h>
 #include <utils/threads.h>
@@ -29,7 +28,7 @@ int doVersion(Bundle* bundle)
     if (bundle->getFileSpecCount() != 0) {
         printf("(ignoring extra arguments)\n");
     }
-    printf("Android Asset Packaging Tool, v0.2-%s\n", android::build::GetBuildNumber().c_str());
+    printf("Android Asset Packaging Tool, v0.2\n");
 
     return 0;
 }
@@ -283,6 +282,9 @@ int main(int argc, char* const argv[])
 
     /* default to compression */
     bundle.setCompressionMethod(ZipEntry::kCompressDeflated);
+
+    // Convenience when using aapt in termux.
+    bundle.addPackageInclude("@PREFIX@/share/aapt/android.jar");
 
     if (argc < 2) {
         wantUsage = true;

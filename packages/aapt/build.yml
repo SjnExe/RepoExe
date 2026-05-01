@@ -40,11 +40,9 @@ phases:
 
   make: |
     # Apply standard patches first
-    patch --no-backup-if-mismatch -p1 -i ./aapt-Main.cpp.patch
-    patch --no-backup-if-mismatch -p1 -i ./include-android-base-unique_fd.h.patch
 
     # We expect base/tools/aapt to exist within the src directory
-    AAPT_SRCDIR=./base/tools/aapt
+    AAPT_SRCDIR=.
 
     # We also need these paths mapped if they're still used in CPPFLAGS.
     # However, since aapt uses libandroid-tools from dependencies, we can just point to PREFIX include.
@@ -60,7 +58,7 @@ phases:
       -lexpat \
       -lpng \
       -lz \
-      -o ../../../_bin/aapt
+      -o ../_bin/aapt
 
   install: |
     install -Dm700 -t $PREFIX/bin ./_bin/aapt
