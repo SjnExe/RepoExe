@@ -1,18 +1,19 @@
 name: protobuf
-vars:
-  version: "34.1"
-version: "2:{version}"
+version: "2:{tag_version}"
 revision: 1
 description: Protocol buffers C++ library
 homepage: https://github.com/protocolbuffers/protobuf
 license: custom:BSD 3-Clause, MIT
 
+vars:
+  tag_version: "34.1"
+
 host:
-  url: https://github.com/protocolbuffers/protobuf/releases/download/v{version}/protoc-{version}-linux-x86_64.zip
+  url: https://github.com/protocolbuffers/protobuf/releases/download/v{tag_version}/protoc-{tag_version}-linux-x86_64.zip
   sha256: af27ea66cd26938fe48587804ca7d4817457a08350021a1c6e23a27ccc8c6904
 
 source:
-  - url: https://github.com/protocolbuffers/protobuf/archive/refs/tags/v{version}.tar.gz
+  - url: https://github.com/protocolbuffers/protobuf/archive/refs/tags/v{tag_version}.tar.gz
     sha256: 0c98bb704ceb4e68c92f93907951ca3c36130bc73f87264e8c0771a80362ac97
 
 depends:

@@ -1,9 +1,9 @@
 name: repoexe-keyring
-version: "3.9"
+version: "1.0"
 description: RepoExe keyring
-homepage: https://repoexe.dev/
-license: Apache-2.0
-maintainer: "@repoexe"
+homepage: https://sjnexe.github.io/RepoExe/
+license: MIT
+maintainer: "@SjnExe"
 source: local
 platform_independent: true
 essential: true
