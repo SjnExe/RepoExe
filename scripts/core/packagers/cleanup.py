@@ -277,6 +277,7 @@ def extract_debug_symbols(target_dir: str) -> None:
 
 import re
 
+
 def fix_shebangs(target_dir: str, no_shebang_fix_files: list[str]) -> None:
     """Fixes hardcoded /bin/sh and /usr/bin/env paths in shebangs."""
     shebang_regex = re.compile(rb'^#!.*/bin/.*')

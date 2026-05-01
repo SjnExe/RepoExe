@@ -91,7 +91,6 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
     """Builds a -dbg subpackage dynamically by collecting all .dbg files."""
     import os
     import shutil
-    import subprocess
     import tempfile
 
     # Search for any .dbg files
@@ -125,9 +124,9 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
             f'pkgver = {pkg.apk_version}',
             f'pkgdesc = Debug symbols for {pkg.name}',
             f'url = {pkg.homepage}',
-            f'builddate = 0',
+            'builddate = 0',
             f'packager = {pkg.maintainer}',
-            f'size = 0',
+            'size = 0',
             f'arch = {target_arch}',
             f'depend = {pkg.name}={pkg.apk_version}'
         ]
@@ -139,7 +138,6 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
         apk_path = os.path.join(output_dir, apk_filename)
 
         import tarfile
-        import io
         import gzip
 
         # Create control tar

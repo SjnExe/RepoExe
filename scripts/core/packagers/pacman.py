@@ -107,9 +107,9 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
             f'pkgver = {pkg.pacman_version}',
             f'pkgdesc = Debug symbols for {pkg.name}',
             f'url = {pkg.homepage}',
-            f'builddate = 0',
+            'builddate = 0',
             f'packager = {pkg.maintainer}',
-            f'size = 0',
+            'size = 0',
             f'arch = {target_arch}',
             f'depend = {pkg.name}={pkg.pacman_version}'
         ]
