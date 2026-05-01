@@ -12,7 +12,7 @@ def build_pacman(pkg: BuildYml, destdir: str, output_dir: str) -> None:
 
     # Automatically build a -dbg subpackage if any .dbg files were generated
     # Assuming target arch is aarch64 if not passed
-    _build_dbg_subpackage(pkg, destdir, output_dir, "aarch64")
+    _build_dbg_subpackage(pkg, destdir, output_dir, 'aarch64')
 
     pkg_name = pkg.name
     if pkg.libc == 'glibc':
@@ -83,7 +83,7 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
     if not has_dbg:
         return
 
-    pkg_name = f"{pkg.name}-dbg"
+    pkg_name = f'{pkg.name}-dbg'
     if pkg.libc == 'glibc':
         pkg_name += '-glibc'
 
@@ -111,7 +111,7 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
             f'packager = {pkg.maintainer}',
             'size = 0',
             f'arch = {target_arch}',
-            f'depend = {pkg.name}={pkg.pacman_version}'
+            f'depend = {pkg.name}={pkg.pacman_version}',
         ]
 
         with open(pkginfo_path, 'w') as f:
@@ -120,10 +120,8 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
         pkg_filename = f'{pkg_name}-{pkg.pacman_version}-{target_arch}.pkg.tar.zst'
         pkg_path = os.path.join(output_dir, pkg_filename)
 
-        subprocess.run(
-            ['tar', '-I', 'zstd -c -T0 --ultra -20 -', '-cf', pkg_path, '-C', tmp_subpkg, '.'],
-            check=True
-        )
+        subprocess.run(['tar', '-I', 'zstd -c -T0 --ultra -20 -', '-cf', pkg_path, '-C', tmp_subpkg, '.'], check=True)
+
 
 def generate_pacman_metadata(output_dir: str, arch: str = 'aarch64') -> None:
     """Generates Pacman database (.db) from .pkg.tar.zst files in the output directory."""

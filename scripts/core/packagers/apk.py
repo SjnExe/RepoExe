@@ -12,7 +12,7 @@ def build_apk(pkg: BuildYml, destdir: str, output_dir: str) -> None:
 
     # Automatically build a -dbg subpackage if any .dbg files were generated
     # Assuming target arch defaults to aarch64 if not passed, but let's pass aarch64 for now
-    _build_dbg_subpackage(pkg, destdir, output_dir, "aarch64")
+    _build_dbg_subpackage(pkg, destdir, output_dir, 'aarch64')
 
     pkg_name = pkg.name
     if pkg.libc == 'glibc':
@@ -103,7 +103,7 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
     if not has_dbg:
         return
 
-    pkg_name = f"{pkg.name}-dbg"
+    pkg_name = f'{pkg.name}-dbg'
     if pkg.libc == 'glibc':
         pkg_name += '-glibc'
 
@@ -128,7 +128,7 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
             f'packager = {pkg.maintainer}',
             'size = 0',
             f'arch = {target_arch}',
-            f'depend = {pkg.name}={pkg.apk_version}'
+            f'depend = {pkg.name}={pkg.apk_version}',
         ]
 
         with open(os.path.join(tmp_subpkg, '.PKGINFO'), 'w') as f:
@@ -162,6 +162,7 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
                 out_f.write(f.read())
             with open(data_tar_path, 'rb') as f:
                 out_f.write(f.read())
+
 
 def generate_apk_metadata(output_dir: str, arch: str = 'aarch64') -> None:
     """Generates APKINDEX.tar.gz from .apk files in the output directory."""

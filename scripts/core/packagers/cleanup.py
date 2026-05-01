@@ -188,12 +188,16 @@ def validate_bionic_symbols(target_dir: str, libc: str) -> None:
                     if magic == b'\x7fELF':
                         try:
                             # Use readelf to dump dynamic symbols and needed libraries
-                            output = subprocess.check_output(['readelf', '-dW', file_path], stderr=subprocess.DEVNULL, text=True)
+                            output = subprocess.check_output(
+                                ['readelf', '-dW', file_path], stderr=subprocess.DEVNULL, text=True
+                            )
 
                             # Skip if not linking to Bionic libs
                             linked_libs = re.findall(r'\(NEEDED\).*?Shared library: \[(.*?)\]', output)
 
-                            sym_output = subprocess.check_output(['readelf', '-sW', file_path], stderr=subprocess.DEVNULL, text=True)
+                            sym_output = subprocess.check_output(
+                                ['readelf', '-sW', file_path], stderr=subprocess.DEVNULL, text=True
+                            )
 
                             for line in sym_output.splitlines():
                                 parts = line.split()
@@ -214,7 +218,9 @@ def validate_bionic_symbols(target_dir: str, libc: str) -> None:
                                     if 'libc.so' in linked_libs and sym_name not in allowed_symbols['libc.so']:
                                         # To avoid false positives on complex packages, we just log a warning instead of failing
                                         # because readelf output mapping to specific NEEDED libraries is ambiguous.
-                                        print(f"Warning: Bionic binary {file_path} uses potentially undefined symbol {sym_name}")
+                                        print(
+                                            f'Warning: Bionic binary {file_path} uses potentially undefined symbol {sym_name}'
+                                        )
                         except subprocess.CalledProcessError:
                             pass
 
@@ -233,9 +239,11 @@ def validate_soname(target_dir: str) -> None:
                     magic = f.read(4)
                 if magic == b'\x7fELF':
                     try:
-                        output = subprocess.check_output(['readelf', '-d', file_path], stderr=subprocess.DEVNULL, text=True)
+                        output = subprocess.check_output(
+                            ['readelf', '-d', file_path], stderr=subprocess.DEVNULL, text=True
+                        )
                         if 'SONAME' not in output:
-                            raise ValueError(f"Shared library {file_path} is missing a SONAME declaration.")
+                            raise ValueError(f'Shared library {file_path} is missing a SONAME declaration.')
                     except subprocess.CalledProcessError:
                         pass
 
@@ -264,11 +272,21 @@ def extract_debug_symbols(target_dir: str) -> None:
                         try:
                             dbg_path = file_path + '.dbg'
                             # Extract debug info
-                            subprocess.run(['llvm-objcopy', '--only-keep-debug', file_path, dbg_path], check=True, capture_output=True)
+                            subprocess.run(
+                                ['llvm-objcopy', '--only-keep-debug', file_path, dbg_path],
+                                check=True,
+                                capture_output=True,
+                            )
                             # Strip binary
-                            subprocess.run(['llvm-strip', '--strip-unneeded', file_path], check=True, capture_output=True)
+                            subprocess.run(
+                                ['llvm-strip', '--strip-unneeded', file_path], check=True, capture_output=True
+                            )
                             # Link debug info to binary
-                            subprocess.run(['llvm-objcopy', f'--add-gnu-debuglink={dbg_path}', file_path], check=True, capture_output=True)
+                            subprocess.run(
+                                ['llvm-objcopy', f'--add-gnu-debuglink={dbg_path}', file_path],
+                                check=True,
+                                capture_output=True,
+                            )
                         except subprocess.CalledProcessError:
                             pass
                             # If it fails, maybe llvm-objcopy or llvm-strip are not available or it's an incompatible ELF. Ignore.
@@ -314,7 +332,11 @@ def fix_shebangs(target_dir: str, no_shebang_fix_files: list[str]) -> None:
 
             if len(header_line) >= 3 and header_line.startswith(b'#!') and shebang_regex.search(header_line):
                 # Check if it's already valid (starts with /system/ or PREFIX)
-                if header_line.startswith(b'#!/system/') or header_line.startswith(b'#! ' + prefix_bytes + b'/') or header_line.startswith(b'#!' + prefix_bytes + b'/'):
+                if (
+                    header_line.startswith(b'#!/system/')
+                    or header_line.startswith(b'#! ' + prefix_bytes + b'/')
+                    or header_line.startswith(b'#!' + prefix_bytes + b'/')
+                ):
                     continue
 
                 # We need to replace it.

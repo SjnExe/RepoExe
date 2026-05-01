@@ -128,7 +128,7 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
     if not has_dbg:
         return
 
-    pkg_name = f"{pkg.name}-dbg"
+    pkg_name = f'{pkg.name}-dbg'
     if pkg.libc == 'glibc':
         pkg_name += '-glibc'
 
@@ -153,7 +153,7 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
             f'Architecture: {target_arch}',
             f'Maintainer: {pkg.maintainer}',
             f'Description: Debug symbols for {pkg.name}',
-            f'Depends: {pkg.name} (= {pkg.deb_version})'
+            f'Depends: {pkg.name} (= {pkg.deb_version})',
         ]
 
         with open(os.path.join(ctrl_dir, 'control'), 'w') as f:
@@ -162,11 +162,8 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
         deb_filename = f'{pkg_name}_{pkg.deb_version}_{target_arch}.deb'
         deb_path = os.path.join(output_dir, deb_filename)
 
-        subprocess.run(
-            ['dpkg-deb', '-Zzstd', '--build', tmp_subpkg, deb_path],
-            check=True,
-            stdout=subprocess.DEVNULL
-        )
+        subprocess.run(['dpkg-deb', '-Zzstd', '--build', tmp_subpkg, deb_path], check=True, stdout=subprocess.DEVNULL)
+
 
 def _build_subpackage(pkg: BuildYml, destdir: str, output_dir: str, subpkg_type: str, subdirs: List[str]) -> None:
     """Extracts subpackage files from destdir and builds a discrete .deb package."""

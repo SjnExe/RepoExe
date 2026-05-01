@@ -70,7 +70,7 @@ class Sysroot:
         custom_sub = os.path.join(base_dir, 'scripts', 'config.sub')
 
         if not os.path.exists(custom_guess) or not os.path.exists(custom_sub):
-            logger.warning("Custom config.guess or config.sub not found, skipping replacement.")
+            logger.warning('Custom config.guess or config.sub not found, skipping replacement.')
             return
 
         for root, _, files in os.walk(src_dir):
