@@ -200,3 +200,10 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Addressed pytest failures, creating comprehensive tests for the sharding logic and subpackage extraction routines.
 - Noted in `plan.md` that a `publish.yml` failure following a successful `build.yml` can be safely retried manually, since release tags are created during the build phase and `publish.yml` is stateless.
 - **Next Action (Session 17):** Start with **Migrate: aapt, aapt2, zipalign, aidl** (Complexity 60/100) and **Android Patching & Validation** (Complexity 65/100).
+
+**Session 17 Handover (Completed)**
+
+- Migrated deprecated `aapt` package to `build.yml` schema utilizing local `src/` source compiling.
+- Applied Termux standard `unique_fd` and version string patches into the `src/` structure.
+- Provided sparse-checkout commands for Git clone optimization locally.
+- **Next Action (Session 18):** Start with **Migrate: aapt2, zipalign, aidl** (Complexity 60/100) using upstream sources and native `build.yml` hooks, and then move onto **Android Patching & Validation** (Complexity 65/100).
