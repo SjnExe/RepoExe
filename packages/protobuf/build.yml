@@ -1,11 +1,12 @@
 name: protobuf
-vars:
-  version: "34.1"
 version: "2:{version}"
 revision: 1
 description: Protocol buffers C++ library
 homepage: https://github.com/protocolbuffers/protobuf
 license: custom:BSD 3-Clause, MIT
+
+vars:
+  version: "34.1"
 
 host:
   url: https://github.com/protocolbuffers/protobuf/releases/download/v{version}/protoc-{version}-linux-x86_64.zip
