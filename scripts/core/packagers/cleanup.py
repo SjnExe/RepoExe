@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -273,9 +274,6 @@ def extract_debug_symbols(target_dir: str) -> None:
                             # If it fails, maybe llvm-objcopy or llvm-strip are not available or it's an incompatible ELF. Ignore.
                         except FileNotFoundError:
                             pass
-
-
-import re
 
 
 def fix_shebangs(target_dir: str, no_shebang_fix_files: list[str]) -> None:
