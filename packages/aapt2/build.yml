@@ -1,17 +1,16 @@
 name: aapt2
 version: "1:2.20-{tag_version}"
-revision: 4
+revision: 0
 description: Android Asset Packaging Tool 2
 homepage: https://elinux.org/Android_aapt
 license: Apache-2.0
 maintainer: "@SjnExe"
 
 vars:
-  tag_version: "16.0.0"
-  tag_revision: "4"
+  tag_version: "16.0.0_r4"
 
 source: git
-git_branch: android-{tag_version}_r{tag_revision}
+git_branch: android-{tag_version}
 build_in_src: true
 
 depends:
@@ -48,7 +47,7 @@ phases:
       CLONE_DIR=$(basename "$REPO_URL" .git | sed -e 's/platform_system_tools_//' -e 's/platform_system_//' -e 's/platform_frameworks_//' -e 's/platform_//')
 
       git clone --depth 1 --single-branch \
-        --branch "android-{tag_version}_r{tag_revision}" \
+        --branch "android-{tag_version}" \
         "$REPO_URL" "$CLONE_DIR"
     done
 
