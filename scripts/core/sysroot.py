@@ -59,7 +59,35 @@ class Sysroot:
                         shutil.move(os.path.join(single_dir, item), dest_dir)
                     os.rmdir(single_dir)
 
-            return dest_dir
+        self._patch_config_scripts(dest_dir)
+        return dest_dir
+
+    def _patch_config_scripts(self, src_dir: str) -> None:
+        """Replaces config.guess and config.sub with our Android-compatible versions."""
+        # Find scripts/config.guess relative to this file
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        custom_guess = os.path.join(base_dir, 'scripts', 'config.guess')
+        custom_sub = os.path.join(base_dir, 'scripts', 'config.sub')
+
+        if not os.path.exists(custom_guess) or not os.path.exists(custom_sub):
+            logger.warning("Custom config.guess or config.sub not found, skipping replacement.")
+            return
+
+        for root, _, files in os.walk(src_dir):
+            if 'config.guess' in files:
+                target = os.path.join(root, 'config.guess')
+                try:
+                    os.chmod(target, 0o755)
+                    shutil.copy2(custom_guess, target)
+                except OSError:
+                    pass
+            if 'config.sub' in files:
+                target = os.path.join(root, 'config.sub')
+                try:
+                    os.chmod(target, 0o755)
+                    shutil.copy2(custom_sub, target)
+                except OSError:
+                    pass
 
     def prepare_symlink_farm(self, package_hashes: dict[str, str], prefix: str):
         """

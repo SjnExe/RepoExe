@@ -8,7 +8,11 @@ from .cleanup import run_all_cleanups
 
 def build_apk(pkg: BuildYml, destdir: str, output_dir: str) -> None:
     """Builds an .apk package from the given destdir."""
-    run_all_cleanups(destdir)
+    run_all_cleanups(destdir, pkg=pkg)
+
+    # Automatically build a -dbg subpackage if any .dbg files were generated
+    # Assuming target arch defaults to aarch64 if not passed, but let's pass aarch64 for now
+    _build_dbg_subpackage(pkg, destdir, output_dir, "aarch64")
 
     pkg_name = pkg.name
     if pkg.libc == 'glibc':
@@ -82,6 +86,84 @@ def build_apk(pkg: BuildYml, destdir: str, output_dir: str) -> None:
     shutil.rmtree(control_dir)
     print(f'Successfully generated {tar_filepath}')
 
+
+def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_arch: str) -> None:
+    """Builds a -dbg subpackage dynamically by collecting all .dbg files."""
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    # Search for any .dbg files
+    has_dbg = False
+    for root, _, files in os.walk(destdir):
+        if any(f.endswith('.dbg') for f in files):
+            has_dbg = True
+            break
+
+    if not has_dbg:
+        return
+
+    pkg_name = f"{pkg.name}-dbg"
+    if pkg.libc == 'glibc':
+        pkg_name += '-glibc'
+
+    with tempfile.TemporaryDirectory() as tmp_subpkg:
+        # Move all .dbg files
+        for root, _, files in os.walk(destdir):
+            for file in files:
+                if file.endswith('.dbg'):
+                    src = os.path.join(root, file)
+                    rel_path = os.path.relpath(src, destdir)
+                    dst = os.path.join(tmp_subpkg, rel_path)
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    shutil.move(src, dst)
+
+        # Fake a PKGINFO for the dbg package so _create_apk_archive can pack it
+        pkginfo_content = [
+            f'pkgname = {pkg_name}',
+            f'pkgver = {pkg.apk_version}',
+            f'pkgdesc = Debug symbols for {pkg.name}',
+            f'url = {pkg.homepage}',
+            f'builddate = 0',
+            f'packager = {pkg.maintainer}',
+            f'size = 0',
+            f'arch = {target_arch}',
+            f'depend = {pkg.name}={pkg.apk_version}'
+        ]
+
+        with open(os.path.join(tmp_subpkg, '.PKGINFO'), 'w') as f:
+            f.write('\\n'.join(pkginfo_content) + '\\n')
+
+        apk_filename = f'{pkg_name}-{pkg.apk_version}.apk'
+        apk_path = os.path.join(output_dir, apk_filename)
+
+        import tarfile
+        import io
+        import gzip
+
+        # Create control tar
+        control_tar_path = os.path.join(tmp_subpkg, 'control.tar.gz')
+        with gzip.open(control_tar_path, 'wb') as gz:
+            with tarfile.open(fileobj=gz, mode='w') as tar:
+                tar.add(os.path.join(tmp_subpkg, '.PKGINFO'), arcname='.PKGINFO')
+
+        os.remove(os.path.join(tmp_subpkg, '.PKGINFO'))
+
+        # Create data tar
+        data_tar_path = os.path.join(tmp_subpkg, 'data.tar.gz')
+        with gzip.open(data_tar_path, 'wb') as gz:
+            with tarfile.open(fileobj=gz, mode='w') as tar:
+                for item in os.listdir(tmp_subpkg):
+                    if item not in ('control.tar.gz', 'data.tar.gz'):
+                        tar.add(os.path.join(tmp_subpkg, item), arcname=item)
+
+        # Concat archives into apk
+        with open(apk_path, 'wb') as out_f:
+            with open(control_tar_path, 'rb') as f:
+                out_f.write(f.read())
+            with open(data_tar_path, 'rb') as f:
+                out_f.write(f.read())
 
 def generate_apk_metadata(output_dir: str, arch: str = 'aarch64') -> None:
     """Generates APKINDEX.tar.gz from .apk files in the output directory."""
