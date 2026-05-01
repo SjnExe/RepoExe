@@ -40,8 +40,6 @@ phases:
 
   make: |
     # Apply standard patches first
-    patch --no-backup-if-mismatch -p1 -i ./aapt-Main.cpp.patch
-    patch --no-backup-if-mismatch -p1 -i ./include-android-base-unique_fd.h.patch
 
     # We expect base/tools/aapt to exist within the src directory
     AAPT_SRCDIR=./base/tools/aapt
