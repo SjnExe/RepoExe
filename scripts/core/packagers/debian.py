@@ -10,13 +10,16 @@ from .cleanup import run_all_cleanups
 
 def build_deb(pkg: BuildYml, destdir: str, output_dir: str, target_arch: str = 'aarch64') -> None:
     """Builds a .deb package from the given destdir."""
-    run_all_cleanups(destdir)
+    run_all_cleanups(destdir, pkg=pkg)
 
-    # 1. Prepare subpackages (doc, locale) if configured
+    # 1. Prepare subpackages (doc, locale, dbg) if configured
     if pkg.recommends_doc:
         _build_subpackage(pkg, destdir, output_dir, 'doc', ['share/man', 'share/info'])
     if pkg.recommends_locale:
         _build_subpackage(pkg, destdir, output_dir, 'locale', ['share/locale'])
+
+    # Automatically build a -dbg subpackage if any .dbg files were generated
+    _build_dbg_subpackage(pkg, destdir, output_dir, target_arch)
 
     # 2. Add -glibc suffix if libc == 'glibc'
     pkg_name = pkg.name
@@ -106,6 +109,60 @@ Description: {pkg.description}
     shutil.rmtree(control_dir)
 
     print(f'Successfully generated {deb_filepath}')
+
+
+def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_arch: str) -> None:
+    """Builds a -dbg subpackage dynamically by collecting all .dbg files."""
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    # Search for any .dbg files
+    has_dbg = False
+    for root, _, files in os.walk(destdir):
+        if any(f.endswith('.dbg') for f in files):
+            has_dbg = True
+            break
+
+    if not has_dbg:
+        return
+
+    pkg_name = f'{pkg.name}-dbg'
+    if pkg.libc == 'glibc':
+        pkg_name += '-glibc'
+
+    with tempfile.TemporaryDirectory() as tmp_subpkg:
+        # Move all .dbg files
+        for root, _, files in os.walk(destdir):
+            for file in files:
+                if file.endswith('.dbg'):
+                    src = os.path.join(root, file)
+                    rel_path = os.path.relpath(src, destdir)
+                    dst = os.path.join(tmp_subpkg, rel_path)
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    shutil.move(src, dst)
+
+        # Generate control file for -dbg
+        ctrl_dir = os.path.join(tmp_subpkg, 'DEBIAN')
+        os.makedirs(ctrl_dir, exist_ok=True)
+
+        control_content = [
+            f'Package: {pkg_name}',
+            f'Version: {pkg.deb_version}',
+            f'Architecture: {target_arch}',
+            f'Maintainer: {pkg.maintainer}',
+            f'Description: Debug symbols for {pkg.name}',
+            f'Depends: {pkg.name} (= {pkg.deb_version})',
+        ]
+
+        with open(os.path.join(ctrl_dir, 'control'), 'w') as f:
+            f.write('\\n'.join(control_content) + '\\n')
+
+        deb_filename = f'{pkg_name}_{pkg.deb_version}_{target_arch}.deb'
+        deb_path = os.path.join(output_dir, deb_filename)
+
+        subprocess.run(['dpkg-deb', '-Zzstd', '--build', tmp_subpkg, deb_path], check=True, stdout=subprocess.DEVNULL)
 
 
 def _build_subpackage(pkg: BuildYml, destdir: str, output_dir: str, subpkg_type: str, subdirs: List[str]) -> None:
