@@ -140,6 +140,91 @@ def cmd_build(args: argparse.Namespace) -> None:
     # build_apk(pkg, destdir, output_dir)
 
 
+def cmd_revbump(args: argparse.Namespace) -> None:
+    pkg_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'packages', args.pkg))
+    build_yml_path = os.path.join(pkg_dir, 'build.yml')
+
+    if not os.path.exists(build_yml_path):
+        print(f"Error: Package '{args.pkg}' not found (missing {build_yml_path})", file=sys.stderr)
+        sys.exit(1)
+
+    import yaml
+
+    with open(build_yml_path, 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
+
+    if data is None:
+        print(f"Error parsing build.yml for '{args.pkg}'", file=sys.stderr)
+        sys.exit(1)
+
+    current_revision = data.get('revision', 0)
+    data['revision'] = current_revision + 1
+
+    with open(build_yml_path, 'w', encoding='utf-8') as f:
+        yaml.dump(data, f, sort_keys=False, default_flow_style=False)
+
+    print(f'Bumped revision of {args.pkg} to {data["revision"]}')
+
+    if getattr(args, 'dependencies', False):
+        print('Note: Cascading bump to dependencies is not yet fully implemented via DAG.')
+
+
+def cmd_update_checksum(args: argparse.Namespace) -> None:
+    pkg_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'packages', args.pkg))
+    build_yml_path = os.path.join(pkg_dir, 'build.yml')
+
+    if not os.path.exists(build_yml_path):
+        print(f"Error: Package '{args.pkg}' not found (missing {build_yml_path})", file=sys.stderr)
+        sys.exit(1)
+
+    import yaml
+
+    with open(build_yml_path, 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
+
+    if not data.get('source'):
+        print(f"Error: Package '{args.pkg}' does not have a source defined.", file=sys.stderr)
+        sys.exit(1)
+
+    source = data.get('source')
+    if isinstance(source, list) and len(source) > 0:
+        url = source[0].get('url')
+        if not url:
+            print(f"Error: No URL found in source for '{args.pkg}'.", file=sys.stderr)
+            sys.exit(1)
+
+        import urllib.request
+        import hashlib
+        import tempfile
+
+        print(f'Downloading {url} to calculate sha256...')
+        try:
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                urllib.request.urlretrieve(url, tmp_file.name)
+
+                sha256_hash = hashlib.sha256()
+                with open(tmp_file.name, 'rb') as f2:
+                    for byte_block in iter(lambda: f2.read(4096), b''):
+                        sha256_hash.update(byte_block)
+                new_sha256 = sha256_hash.hexdigest()
+
+            os.remove(tmp_file.name)
+
+            source[0]['sha256'] = new_sha256
+
+            with open(build_yml_path, 'w', encoding='utf-8') as f:
+                yaml.dump(data, f, sort_keys=False, default_flow_style=False)
+
+            print(f'Updated sha256 of {args.pkg} to {new_sha256}')
+
+        except Exception as e:
+            print(f'Failed to download and calculate sha256: {e}', file=sys.stderr)
+            sys.exit(1)
+    else:
+        print('Error: unsupported source type for update-checksum.', file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description='RepoExe Orchestrator')
     subparsers = parser.add_subparsers(dest='command', required=True, help='Subcommand to run')
@@ -153,6 +238,14 @@ def main() -> None:
 
     # clean
     subparsers.add_parser('clean', help='Clean Docker environment')
+    # revbump
+    parser_revbump = subparsers.add_parser('revbump', help='Automatically increments the revision integer')
+    parser_revbump.add_argument('pkg', help='Package name')
+    parser_revbump.add_argument('--dependencies', action='store_true', help='Cascade bump to dependencies')
+
+    # update-checksum
+    parser_checksum = subparsers.add_parser('update-checksum', help='Automatically fetch source_url and replace sha256')
+    parser_checksum.add_argument('pkg', help='Package name')
 
     # init
     parser_init = subparsers.add_parser('init', help='Initialize a new package template')
@@ -172,6 +265,10 @@ def main() -> None:
         cmd_list(args)
     elif args.command == 'clean':
         cmd_clean(args)
+    elif args.command == 'revbump':
+        cmd_revbump(args)
+    elif args.command == 'update-checksum':
+        cmd_update_checksum(args)
     elif args.command == 'init':
         cmd_init(args)
     elif args.command == 'build':

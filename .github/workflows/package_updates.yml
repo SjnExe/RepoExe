@@ -1,0 +1,85 @@
+name: Package Updates
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Run upstream_check.py
+        id: check
+        run: |
+          uv run python scripts/core/upstream_check.py > update_log.txt 2>&1 || true
+          cat update_log.txt
+
+          # Find lines matching "Update available for pkg: old -> new"
+          grep "Update available for" update_log.txt > updates_to_process.txt || true
+
+          if [ -s updates_to_process.txt ]; then
+            echo "updates_found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "updates_found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Process Updates
+        if: steps.check.outputs.updates_found == 'true'
+        run: |
+          # Read the updates file and create PRs
+          while read -r line; do
+            # Format: Update available for <pkg>: <old> -> <new>
+            if [[ "$line" =~ Update\ available\ for\ ([^:]+):\ ([^\ ]+)\ -\>\ (.+) ]]; then
+              PKG="${BASH_REMATCH[1]}"
+              OLD="${BASH_REMATCH[2]}"
+              NEW="${BASH_REMATCH[3]}"
+
+              BRANCH_NAME="update-${PKG}-${NEW}"
+
+              # Check if branch already exists
+              if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+                echo "Branch $BRANCH_NAME already exists, skipping."
+                continue
+              fi
+
+              echo "Processing update for $PKG to $NEW"
+              git checkout -b "$BRANCH_NAME"
+
+              # Update version in build.yml
+              sed -i "s/^version: .*/version: $NEW/" "packages/$PKG/build.yml"
+
+              # Reset revision to 0
+              sed -i "s/^revision: .*/revision: 0/" "packages/$PKG/build.yml"
+
+              # Try to update checksum
+              uv run python scripts/build.py update-checksum "$PKG" || echo "Warning: Failed to update checksum for $PKG"
+
+              # Commit and PR
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add "packages/$PKG/build.yml"
+              git commit -m "feat($PKG): update to $NEW"
+
+              git push origin "$BRANCH_NAME"
+
+              gh pr create --title "feat($PKG): update to $NEW" --body "Automated update from $OLD to $NEW" --base main --head "$BRANCH_NAME"
+
+              # Return to main for next package
+              git checkout main
+            fi
+          done < updates_to_process.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

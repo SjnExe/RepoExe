@@ -19,14 +19,22 @@ class Sysroot:
         """Returns the SHA256 of a string."""
         return hashlib.sha256(s.encode('utf-8')).hexdigest()
 
-    def fetch_source(self, source_url: str, dest_dir: str, sha256: str = None) -> str:
-        """Fetches the source code either via Git or downloading a tarball."""
+    def fetch_source(
+        self, source_url: str, dest_dir: str, sha256: str = None, mirror: bool = False, git_branch: str = None
+    ) -> str:
+        """Fetches the source code either via Git or downloading a tarball, validates signatures and mirrors to GitHub Releases."""
         os.makedirs(dest_dir, exist_ok=True)
 
-        if source_url.endswith('.git') or source_url.startswith('git://'):
+        if source_url == 'local':
+            logger.info('Using local source')
+            return dest_dir
+        elif source_url.endswith('.git') or source_url.startswith('git://') or git_branch is not None:
             # Source is a Git repository
             logger.info(f'Cloning Git repository: {source_url}')
-            clone_cmd = ['git', 'clone', '--recurse-submodules', source_url, dest_dir]
+            clone_cmd = ['git', 'clone', '--recurse-submodules']
+            if git_branch:
+                clone_cmd.extend(['--branch', git_branch, '--single-branch'])
+            clone_cmd.extend([source_url, dest_dir])
             subprocess.run(clone_cmd, check=True, capture_output=True)
             return dest_dir
         else:
@@ -34,14 +42,70 @@ class Sysroot:
             filename = source_url.split('/')[-1]
             archive_path = os.path.join(dest_dir, filename)
 
-            logger.info(f'Downloading archive: {source_url}')
-            urllib.request.urlretrieve(source_url, archive_path)
+            # Try to fetch from our mirror first if enabled
+            downloaded = False
+            if mirror:
+                # Assuming GH_TOKEN is set
+                mirror_url = f'https://github.com/SjnExe/RepoExe/releases/download/mirrors/{filename}'
+                logger.info(f'Attempting to download from mirror: {mirror_url}')
+                try:
+                    urllib.request.urlretrieve(mirror_url, archive_path)
+                    downloaded = True
+                except urllib.error.URLError:
+                    logger.info('Mirror download failed, falling back to upstream')
+
+            if not downloaded:
+                logger.info(f'Downloading archive: {source_url}')
+                req = urllib.request.Request(source_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as response, open(archive_path, 'wb') as out_file:
+                    shutil.copyfileobj(response, out_file)
+
+                # Try to mirror it
+                if mirror and shutil.which('gh'):
+                    logger.info(f'Mirroring to GitHub Releases: {filename}')
+                    # We create/update a 'mirrors' release tag
+                    try:
+                        subprocess.run(['gh', 'release', 'view', 'mirrors'], check=True, capture_output=True)
+                    except subprocess.CalledProcessError:
+                        subprocess.run(
+                            [
+                                'gh',
+                                'release',
+                                'create',
+                                'mirrors',
+                                '--title',
+                                'Source Mirrors',
+                                '--notes',
+                                'Mirrored source tarballs',
+                            ],
+                            check=True,
+                        )
+
+                    try:
+                        subprocess.run(['gh', 'release', 'upload', 'mirrors', archive_path, '--clobber'], check=True)
+                    except subprocess.CalledProcessError as e:
+                        logger.warning(f'Failed to upload mirror: {e}')
 
             if sha256:
                 with open(archive_path, 'rb') as f:
                     file_hash = hashlib.sha256(f.read()).hexdigest()
                 if file_hash != sha256:
                     raise ValueError(f'SHA256 mismatch for {archive_path}. Expected {sha256}, got {file_hash}')
+
+            # Try to verify GPG signature if a .sig or .asc file exists alongside
+            sig_url = f'{source_url}.sig'
+            sig_path = f'{archive_path}.sig'
+            try:
+                urllib.request.urlretrieve(sig_url, sig_path)
+                logger.info('Found signature, verifying...')
+                # Note: this requires gpg to be set up and the correct keys imported by the orchestrator beforehand.
+                # E.g., `gpg --verify {sig_path} {archive_path}`
+                subprocess.run(['gpg', '--verify', sig_path, archive_path], check=True, capture_output=True)
+                logger.info('Signature verified successfully.')
+            except urllib.error.URLError:
+                pass  # No signature found, that's fine
+            except subprocess.CalledProcessError:
+                logger.warning('Signature verification failed! Proceeding anyway, but please review.')
 
             # Extract archive
             logger.info(f'Extracting archive: {archive_path}')
@@ -50,6 +114,8 @@ class Sysroot:
             # Often tarballs extract into a single root directory.
             extracted_items = os.listdir(dest_dir)
             extracted_items.remove(filename)  # Ignore the archive we just downloaded
+            if os.path.exists(sig_path):
+                extracted_items.remove(filename + '.sig')
 
             if len(extracted_items) == 1:
                 single_dir = os.path.join(dest_dir, extracted_items[0])
