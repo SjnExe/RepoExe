@@ -28,7 +28,6 @@ on:
 permissions:
   contents: write
   id-token: write
-  attestations: write
 
 jobs:
   prepare:
@@ -191,13 +190,6 @@ jobs:
 
             docker rm -f repoexe-daemon
           fi
-
-      # Generate SLSA build provenance (only for non-PR runs)
-      - name: Generate build provenance
-        if: github.event_name != 'pull_request' && hashFiles('output/*') != ''
-        uses: actions/attest-build-provenance@v4
-        with:
-          subject-path: 'output/*'
 
       - name: Upload to GitHub Releases
         if: github.event_name != 'pull_request'

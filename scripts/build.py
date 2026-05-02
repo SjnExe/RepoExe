@@ -286,16 +286,6 @@ def cmd_update_checksum(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
-def cmd_telemetry(args: argparse.Namespace) -> None:
-    packages_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'packages'))
-    from core.dag import DAG
-
-    dag = DAG(packages_dir, args.arch)
-    shards = dag.get_shards()
-    dag.export_telemetry(shards)
-    dag.export_graphviz()
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description='RepoExe Orchestrator')
     subparsers = parser.add_subparsers(dest='command', required=True, help='Subcommand to run')
@@ -306,10 +296,6 @@ def main() -> None:
 
     # list
     subparsers.add_parser('list', help='List all packages')
-
-    # telemetry
-    parser_telemetry = subparsers.add_parser('telemetry', help='Generate DAG telemetry and Graphviz dot files')
-    parser_telemetry.add_argument('--arch', default='aarch64', help='Target architecture (default: aarch64)')
 
     # clean
     subparsers.add_parser('clean', help='Clean Docker environment')
@@ -338,8 +324,6 @@ def main() -> None:
         cmd_info(args)
     elif args.command == 'list':
         cmd_list(args)
-    elif args.command == 'telemetry':
-        cmd_telemetry(args)
     elif args.command == 'clean':
         cmd_clean(args)
     elif args.command == 'revbump':

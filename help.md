@@ -57,8 +57,6 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 80/100] **Ghost Dependency & ABI Detection**: Run `dpkg-shlibdeps` against `Depends` array to lint unused dependencies. Integrate `libabigail` validation for ABI breakage.
 - [ ] [Complexity: 85/100] **Static APT Generator (`debian.py` - APT)**: Natively implement Python-based custom static APT metadata generation (`Packages`, `Release`, `InRelease`) entirely replacing `aptly`. Also implement `APT pdiff` incremental generation and automated `.pdiff` pruning directly in the generator with a max limit of 256 diffs.
 - [ ] [Complexity: 85/100] **CI Workflow: build.yml (Exclusions & PR Mode)**: Implement `!{package}` exclusion syntax, PR Test Mode (no save caches), and automated downstream testing queue logic.
-- [ ] [Complexity: 85/100] **CI Workflow: publish.yml (TUF & SLSA)**: Generate SLSA Provenance using `actions/attest-build-provenance`, and enforce TUF principles for static hosting.
-- [ ] [Complexity: 90/100] **Multi-Runner Consensus (CI)**: Update workflows so that "essential" packages dynamically spawn two independent runners and require bit-for-bit identical hashes before publishing.
 - [ ] [Complexity: 90/100] **Alpine RSA Signature Appending (`apk.py` - Signing)**: Natively implement the complex logic to mathematically append Alpine RSA signatures to compiled `.apk` files and `APKINDEX.tar.gz`.
 - [ ] [Complexity: 95/100] **Auto-Revision & Downstream DAG Bumping (`dag.py` - Smart)**: Enable the orchestrator to automatically calculate revision bumps down the DAG when core upstream dependencies trigger rebuilds or ABI breaks.
 - [ ] [Complexity: 100/100] **Content-Addressable Hashing Engine**: Incorporate strict SHA256 "state hash" evaluation across package inputs (YAML, patches, source hash, downstream DAG state hashes) to aggressively skip redundant builds globally.
@@ -255,7 +253,7 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 **Session 23 Handover (Completed)**
 
 - Updated `Dockerfile` to natively install `abigail-tools`, `graphviz`, and `dpkg-dev`.
-- Implemented `export_telemetry()` and `export_graphviz()` in `dag.py` to output dynamic sharding metadata and dependency graphs.
+- Implemented `export_graphviz()` in `dag.py` to output dependency graphs.
 - Hooked `anti_build_depends` into the build lifecycle in `build.py`, cleanly `apt-get remove`-ing conflicting dependencies prior to fetching.
 - Added `detect_ghost_dependencies()` scanning compiled binaries via `readelf` against their `Depends` list to lint for unused packages.
 - Added `detect_abi_breakage()` checking the active build output's `.so` libraries against the prior GitHub release via `abidiff`, failing on incompatible breaks.
