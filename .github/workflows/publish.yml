@@ -107,6 +107,13 @@ jobs:
             echo "$ALPINE_PRIVATE_KEY" > scripts/keys/repoexe.rsa
           fi
 
+      - name: Prune Old Assets and Zombie Tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd scripts
+          uv run python core/prune.py
+
       - name: Generate Static Metadata
         run: |
           cd scripts
