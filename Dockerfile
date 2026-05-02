@@ -66,12 +66,12 @@ RUN cd ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot \
   && cp /tmp/ndk-patches/libintl.h ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/ \
   && rm -rf /tmp/ndk-patches
 
-# Install proot and set up Termux prefix simulation directories natively in Docker
+# Install proot and additional utilities for ABI/Ghost dependency detection
 RUN \
   --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache \
   --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib \
   eatmydata apt-get install -yq --no-install-recommends \
-    proot
+    proot abigail-tools graphviz dpkg-dev
 
 RUN mkdir -p /data/data/com.termux/files/usr \
   && mkdir -p /data/data/com.termux/files/home

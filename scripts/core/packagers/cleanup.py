@@ -357,6 +357,159 @@ def fix_shebangs(target_dir: str, no_shebang_fix_files: list[str]) -> None:
                         pass
 
 
+def detect_ghost_dependencies(target_dir: str, pkg: 'BuildYml') -> None:
+    """Uses dpkg-shlibdeps to detect ghost dependencies."""
+    if not pkg or not pkg.depends:
+        return
+
+    scan_dirs = [
+        os.path.join(target_dir, PREFIX.lstrip('/'), 'bin'),
+        os.path.join(target_dir, PREFIX.lstrip('/'), 'lib'),
+        os.path.join(target_dir, PREFIX.lstrip('/'), 'libexec'),
+    ]
+
+    elf_files = []
+    for d in scan_dirs:
+        if not os.path.isdir(d):
+            continue
+        for root, dirs, files in os.walk(d):
+            for file in files:
+                file_path = os.path.join(root, file)
+                if os.path.isfile(file_path) and not os.path.islink(file_path):
+                    with open(file_path, 'rb') as f:
+                        magic = f.read(4)
+                    if magic == b'\x7fELF':
+                        elf_files.append(file_path)
+
+    if not elf_files:
+        return
+
+    # dpkg-shlibdeps -O outputs shlibs:Depends=...
+    try:
+        output = subprocess.check_output(
+            ['dpkg-shlibdeps', '-O', '--ignore-missing-info'] + elf_files,
+            stderr=subprocess.DEVNULL, text=True
+        )
+        if 'shlibs:Depends=' in output:
+            depends_str = output.split('shlibs:Depends=')[1].strip()
+            # Split by comma
+            dpkg_deps = [d.split()[0] for d in depends_str.split(',')]
+
+            # Now we have dpkg_deps from dpkg-shlibdeps, compare with declared
+            all_declared_deps = set()
+            if isinstance(pkg.depends, dict):
+                for repo, deps in pkg.depends.items():
+                    all_declared_deps.update(deps)
+            elif isinstance(pkg.depends, list):
+                all_declared_deps.update(pkg.depends)
+
+            # Heuristic map since Android/Termux packages don't always perfectly match Debian
+            dpkg_deps_base = {d.replace('-dev', '').replace('lib', '') for d in dpkg_deps}
+            declared_deps_base = {d.replace('-dev', '').replace('lib', '') for d in all_declared_deps}
+
+            for dep in all_declared_deps:
+                base = dep.replace('-dev', '').replace('lib', '')
+                if base not in dpkg_deps_base:
+                    print(f"Warning: Package '{pkg.name}' declares dependency '{dep}', but dpkg-shlibdeps could not find it used.")
+
+    except FileNotFoundError:
+        pass # dpkg-dev not installed
+    except subprocess.CalledProcessError:
+        pass # dpkg-shlibdeps can fail if libraries aren't found in standard paths
+
+
+def detect_abi_breakage(target_dir: str, pkg: 'BuildYml') -> None:
+    """Uses abidiff to detect ABI breakages against the latest published version on GitHub Releases."""
+    if not pkg:
+        return
+
+    # Check if there are any shared libraries to validate
+    lib_dir = os.path.join(target_dir, PREFIX.lstrip('/'), 'lib')
+    if not os.path.isdir(lib_dir):
+        return
+
+    so_files = []
+    for root, dirs, files in os.walk(lib_dir):
+        for file in files:
+            if file.endswith('.so') and not os.path.islink(os.path.join(root, file)):
+                so_files.append(os.path.join(root, file))
+
+    if not so_files:
+        return
+
+    import tempfile
+    import shutil
+
+    # To get the latest release, we'll try to use gh CLI to download the latest deb
+    # If gh is not available or there is no previous release, we skip gracefully.
+    try:
+        # We need the deb file to extract old .so files. If the repository uses a unified single release format
+        # where the release tag matches the package's name and version, we can use that.
+        # But commonly in this repo, the tag might just be the package name.
+        # Let's try to query just by the package name tag first.
+        result = subprocess.run(
+            ['gh', 'release', 'view', pkg.name, '--json', 'assets', '--jq', '.assets[].name'],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            return  # No previous release found
+
+        assets = result.stdout.strip().split()
+        deb_asset = None
+        # Try to find a deb matching our current arch
+        # E.g. libbase_1.0.0-1_aarch64.deb
+        for asset in assets:
+            if asset.endswith('.deb') and '-static' not in asset and '-dev' not in asset:
+                deb_asset = asset
+                break
+
+        if not deb_asset:
+            return
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            deb_path = os.path.join(tmpdir, deb_asset)
+            download_result = subprocess.run(
+                ['gh', 'release', 'download', pkg.name, '-p', deb_asset, '-D', tmpdir],
+                capture_output=True
+            )
+            if download_result.returncode != 0:
+                return
+
+            # Extract the deb
+            extract_dir = os.path.join(tmpdir, 'extracted')
+            os.makedirs(extract_dir, exist_ok=True)
+            subprocess.run(['dpkg', '-x', deb_path, extract_dir], capture_output=True)
+
+            old_lib_dir = os.path.join(extract_dir, PREFIX.lstrip('/'), 'lib')
+            if not os.path.isdir(old_lib_dir):
+                return
+
+            for new_so in so_files:
+                basename = os.path.basename(new_so)
+                old_so = os.path.join(old_lib_dir, basename)
+                if os.path.exists(old_so):
+                    try:
+                        # run abidiff
+                        abidiff_result = subprocess.run(
+                            ['abidiff', old_so, new_so],
+                            capture_output=True, text=True
+                        )
+                        # abidiff returns 0 if ABI is identical, >0 if changes or errors
+                        # 1 means ABI changes. 2 means incompatible changes.
+                        if abidiff_result.returncode != 0:
+                            print(f"\n[ABI Breakage Detection] WARNING: ABI changes detected in {basename}!")
+                            print(abidiff_result.stdout)
+                            # To strictly enforce, we could raise an error here if returncode is >= 4
+                            # For now, we will fail if we detect a change and it's an incompatible change.
+                            # Bit 0 (1): leaf changes. Bit 1 (2): incompatible changes.
+                            if abidiff_result.returncode & 2:
+                                raise ValueError(f"Incompatible ABI breakage detected in {basename}! You must bump the downstream dependent packages or the package name/SONAME.")
+                    except FileNotFoundError:
+                        pass # abidiff not installed
+    except FileNotFoundError:
+        pass # gh CLI not installed
+
+
 def run_all_cleanups(target_dir: str, pkg: 'BuildYml' = None) -> None:
     trim_caches(target_dir)
     remove_libtool_la(target_dir)
@@ -369,6 +522,8 @@ def run_all_cleanups(target_dir: str, pkg: 'BuildYml' = None) -> None:
             run_elf_cleaner(target_dir)
 
         validate_bionic_symbols(target_dir, pkg.libc)
+        detect_ghost_dependencies(target_dir, pkg)
+        detect_abi_breakage(target_dir, pkg)
     else:
         run_elf_cleaner(target_dir)
 

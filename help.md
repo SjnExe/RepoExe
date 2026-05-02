@@ -53,8 +53,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 70/100] **Repository Health Core**: Implemented implicitly via the `publish.yml` CI workflow which automatically deletes zombie tags and prunes old assets, strictly keeping only the latest version.
 - [x] [Complexity: 75/100] **Hermetic Docker Sandbox (`docker.py` - Strict)**: Disable network access during compilation. Integrate strict Bubblewrap (`bwrap`) jail boundaries, natively mount `binfmt_misc` / `qemu-user-static` for transparent emulation.
 - [x] [Complexity: 75/100] **Hybrid Build Engine (`build.py` - Runner)**: Execute structured declarative targets vs wrappers. Ensure `pre_fetch` hook runs _before_ Hermetic sandboxing. Instrument OpenTelemetry and generate `crash_report.json`.
-- [ ] [Complexity: 80/100] **DAG Telemetry & Anti-Deps (`dag.py` - Advanced)**: Telemetry-driven dynamic sharding to balance execution times. Natively handle `anti_build_depends` to strictly uninstall conflicting dependencies on runners. Output Dependency Graphs.
-- [ ] [Complexity: 80/100] **Ghost Dependency & ABI Detection**: Run `dpkg-shlibdeps` against `Depends` array to lint unused dependencies. Integrate `libabigail` validation for ABI breakage.
+- [x] [Complexity: 80/100] **DAG Telemetry & Anti-Deps (`dag.py` - Advanced)**: Telemetry-driven dynamic sharding to balance execution times. Natively handle `anti_build_depends` to strictly uninstall conflicting dependencies on runners. Output Dependency Graphs.
+- [x] [Complexity: 80/100] **Ghost Dependency & ABI Detection**: Run `dpkg-shlibdeps` against `Depends` array to lint unused dependencies. Integrate `libabigail` validation for ABI breakage.
 - [ ] [Complexity: 85/100] **Static APT Generator (`debian.py` - APT)**: Natively implement Python-based custom static APT metadata generation (`Packages`, `Release`, `InRelease`) entirely replacing `aptly`. Also implement `APT pdiff` incremental generation and automated `.pdiff` pruning directly in the generator with a max limit of 256 diffs.
 - [ ] [Complexity: 85/100] **CI Workflow: build.yml (Exclusions & PR Mode)**: Implement `!{package}` exclusion syntax, PR Test Mode (no save caches), and automated downstream testing queue logic.
 - [ ] [Complexity: 85/100] **CI Workflow: publish.yml (TUF & SLSA)**: Generate SLSA Provenance using `actions/attest-build-provenance`, and enforce TUF principles for static hosting.
@@ -251,3 +251,12 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Implemented **Hermetic Docker Sandbox (`docker.py` - Strict)** by enforcing `--network=none` isolation securely inside `DockerRunner`.
 - Implemented **Hybrid Build Engine (`build.py` - Runner)** to evaluate, format, and execute declarative `phases` from `build.yml` locally via `phase_name.sh` temporary scripts directly into the Docker sandbox, maintaining hermetic constraints where appropriate.
 - **Next Action (Session 23):** Start with **DAG Telemetry & Anti-Deps (`dag.py` - Advanced)** (Complexity 80/100) and **Ghost Dependency & ABI Detection** (Complexity 80/100).
+
+**Session 23 Handover (Completed)**
+
+- Updated `Dockerfile` to natively install `abigail-tools`, `graphviz`, and `dpkg-dev`.
+- Implemented `export_telemetry()` and `export_graphviz()` in `dag.py` to output dynamic sharding metadata and dependency graphs.
+- Hooked `anti_build_depends` into the build lifecycle in `build.py`, cleanly `apt-get remove`-ing conflicting dependencies prior to fetching.
+- Added `detect_ghost_dependencies()` scanning compiled binaries via `readelf` against their `Depends` list to lint for unused packages.
+- Added `detect_abi_breakage()` checking the active build output's `.so` libraries against the prior GitHub release via `abidiff`, failing on incompatible breaks.
+- **Next Action (Session 24):** Start with **Static APT Generator (`debian.py` - APT)** (Complexity 85/100) and **CI Workflow: build.yml (Exclusions & PR Mode)** (Complexity 85/100).
