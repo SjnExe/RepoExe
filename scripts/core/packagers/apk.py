@@ -6,6 +6,52 @@ from ..parser import BuildYml
 from .cleanup import run_all_cleanups
 
 
+def _get_rsa_key() -> str | None:
+    """Retrieves the RSA private key string if available."""
+    import os
+
+    env_key = os.environ.get('ALPINE_PRIVATE_KEY')
+    if env_key:
+        return env_key
+
+    key_path = os.path.join(os.getcwd(), 'scripts', 'keys', 'repoexe.rsa')
+    if os.path.exists(key_path):
+        with open(key_path, 'r') as f:
+            return f.read().strip()
+    return None
+
+
+def _create_signature_tarball(target_tar_path: str, rsa_key_str: str, key_name: str = 'repoexe.rsa.pub') -> str:
+    """Computes SHA1 hash of target_tar_path, signs it with RSA key, and packages it into a signature tarball."""
+    from Crypto.PublicKey import RSA
+    from Crypto.Signature import pkcs1_15
+    from Crypto.Hash import SHA1
+    import tempfile
+    import tarfile
+
+    key = RSA.import_key(rsa_key_str)
+
+    with open(target_tar_path, 'rb') as f:
+        h = SHA1.new(f.read())
+
+    signature = pkcs1_15.new(key).sign(h)
+
+    fd, tmp_sig_path = tempfile.mkstemp()
+    os.close(fd)
+
+    with open(tmp_sig_path, 'wb') as f:
+        f.write(signature)
+
+    out_fd, out_tar_path = tempfile.mkstemp(suffix='.tar.gz')
+    os.close(out_fd)
+
+    with tarfile.open(out_tar_path, 'w:gz') as tar:
+        tar.add(tmp_sig_path, arcname=f'.SIGN.RSA.{key_name}')
+
+    os.remove(tmp_sig_path)
+    return out_tar_path
+
+
 def build_apk(pkg: BuildYml, destdir: str, output_dir: str) -> None:
     """Builds an .apk package from the given destdir."""
     run_all_cleanups(destdir, pkg=pkg)
@@ -74,8 +120,16 @@ def build_apk(pkg: BuildYml, destdir: str, output_dir: str) -> None:
     shutil.copy2(pkginfo_path, os.path.join(control_dir, '.PKGINFO'))
     subprocess.run(['tar', '-czf', control_tar_path, '--owner=0', '--group=0', '-C', control_dir, '.'], check=True)
 
+    sig_tar_path = None
+    rsa_key = _get_rsa_key()
+    if rsa_key:
+        sig_tar_path = _create_signature_tarball(control_tar_path, rsa_key)
+
     # Concatenate to create final apk
     with open(tar_filepath, 'wb') as outfile:
+        if sig_tar_path:
+            with open(sig_tar_path, 'rb') as infile:
+                shutil.copyfileobj(infile, outfile)
         with open(control_tar_path, 'rb') as infile:
             shutil.copyfileobj(infile, outfile)
         with open(data_tar_path, 'rb') as infile:
@@ -83,6 +137,8 @@ def build_apk(pkg: BuildYml, destdir: str, output_dir: str) -> None:
 
     os.remove(data_tar_path)
     os.remove(control_tar_path)
+    if sig_tar_path:
+        os.remove(sig_tar_path)
     shutil.rmtree(control_dir)
     print(f'Successfully generated {tar_filepath}')
 
@@ -156,15 +212,86 @@ def _build_dbg_subpackage(pkg: BuildYml, destdir: str, output_dir: str, target_a
                     if item not in ('control.tar.gz', 'data.tar.gz'):
                         tar.add(os.path.join(tmp_subpkg, item), arcname=item)
 
+        sig_tar_path = None
+        rsa_key = _get_rsa_key()
+        if rsa_key:
+            sig_tar_path = _create_signature_tarball(control_tar_path, rsa_key)
+
         # Concat archives into apk
         with open(apk_path, 'wb') as out_f:
+            if sig_tar_path:
+                with open(sig_tar_path, 'rb') as f:
+                    shutil.copyfileobj(f, out_f)
             with open(control_tar_path, 'rb') as f:
-                out_f.write(f.read())
+                shutil.copyfileobj(f, out_f)
             with open(data_tar_path, 'rb') as f:
-                out_f.write(f.read())
+                shutil.copyfileobj(f, out_f)
+
+        if sig_tar_path:
+            os.remove(sig_tar_path)
 
 
 def generate_apk_metadata(output_dir: str, arch: str = 'aarch64') -> None:
-    """Generates APKINDEX.tar.gz from .apk files in the output directory."""
-    # Stub for the index generator.
-    pass
+    """Generates APKINDEX.tar.gz from .apk files in the output directory and signs it."""
+    import os
+    import glob
+    import tarfile
+    import tempfile
+    import shutil
+
+    apk_files = glob.glob(os.path.join(output_dir, '*.apk'))
+    if not apk_files:
+        return
+
+    pkginfos = []
+    for apk_path in apk_files:
+        with open(apk_path, 'rb') as f:
+            data = f.read()
+
+        try:
+            with tarfile.open(apk_path, 'r:gz', ignore_zeros=True) as tar:
+                names = tar.getnames()
+                if './.PKGINFO' in names or '.PKGINFO' in names:
+                    name = './.PKGINFO' if './.PKGINFO' in names else '.PKGINFO'
+                    f_info = tar.extractfile(name)
+                    if f_info:
+                        # Alpine APKINDEX separates entries by a blank line
+                        pkginfos.append(f_info.read().decode('utf-8').strip())
+        except Exception:
+            pass
+
+    if not pkginfos:
+        return
+
+    apkindex_content = '\n\n'.join(pkginfos) + '\n'
+
+    fd, tmp_apkindex_path = tempfile.mkstemp()
+    os.close(fd)
+    with open(tmp_apkindex_path, 'w') as f:
+        f.write(apkindex_content)
+
+    index_tar_path = os.path.join(output_dir, 'APKINDEX.tar.gz')
+
+    with tarfile.open(index_tar_path, 'w:gz') as tar:
+        tar.add(tmp_apkindex_path, arcname='APKINDEX')
+
+    os.remove(tmp_apkindex_path)
+
+    rsa_key = _get_rsa_key()
+    if rsa_key:
+        sig_tar_path = _create_signature_tarball(index_tar_path, rsa_key)
+
+        # Concatenate signature and APKINDEX
+        fd, tmp_final_path = tempfile.mkstemp()
+        os.close(fd)
+
+        with open(tmp_final_path, 'wb') as outfile:
+            with open(sig_tar_path, 'rb') as infile:
+                shutil.copyfileobj(infile, outfile)
+            with open(index_tar_path, 'rb') as infile:
+                shutil.copyfileobj(infile, outfile)
+
+        shutil.move(tmp_final_path, index_tar_path)
+        os.remove(sig_tar_path)
+
+    print(f'Successfully generated {index_tar_path}')

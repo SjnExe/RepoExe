@@ -5,6 +5,7 @@ description = "Micro-modular Python orchestrator for RepoExe"
 readme = "../README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "pycryptodome>=3.23.0",
     "pydantic",
     "pytest",
     "pytest-cov",
