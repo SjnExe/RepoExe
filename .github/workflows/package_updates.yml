@@ -31,16 +31,16 @@ jobs:
           grep "Update available for" update_log.txt > updates_to_process.txt || true
 
           if [ -s updates_to_process.txt ]; then
-            echo "updates_found=true" >> $GITHUB_OUTPUT
+            echo "updates_found=true" >> "$GITHUB_OUTPUT"
           else
-            echo "updates_found=false" >> $GITHUB_OUTPUT
+            echo "updates_found=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Process Updates
         if: steps.check.outputs.updates_found == 'true'
         run: |
           # Read the updates file and create PRs
-          while read line; do
+          while read -r line; do
             # Format: Update available for <pkg>: <old> -> <new>
             if [[ "$line" =~ Update\ available\ for\ ([^:]+):\ ([^\ ]+)\ -\>\ (.+) ]]; then
               PKG="${BASH_REMATCH[1]}"
