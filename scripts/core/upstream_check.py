@@ -57,11 +57,11 @@ def extract_repo_info(url: str) -> Tuple[Optional[str], Optional[str], Optional[
     """Returns domain, owner, repo."""
     import urllib.parse
     parsed = urllib.parse.urlparse(url)
-    if parsed.hostname and 'github.com' in parsed.hostname:
+    if parsed.hostname and (parsed.hostname == 'github.com' or parsed.hostname.endswith('.github.com')):
         parts = parsed.path.strip('/').split('/')
         if len(parts) >= 2:
             return 'github.com', parts[0], parts[1]
-    elif parsed.hostname and 'gitlab.' in parsed.hostname:
+    elif parsed.hostname and (parsed.hostname.startswith('gitlab.') or '.gitlab.' in parsed.hostname):
         parts = parsed.path.strip('/').split('/')
         if len(parts) >= 2:
             return parsed.hostname, parts[0], parts[1]
