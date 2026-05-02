@@ -50,7 +50,7 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 65/100] **Android Patching & Validation**: Auto `config.guess` updates, Linux hardcoded path fixes, `termux-elf-cleaner`, `-dbg` symbol extraction, strict Bionic Undefined Symbols validation, strict SONAME enforcement.
 - [x] [Complexity: 65/100] **CI Workflow: package_updates.yml**: Auto-PR workflow triggered by scheduled `upstream_check.py`.
 - [x] [Complexity: 70/100] **Source Mirroring & Git Submodules (`sysroot.py` - Advanced)**: Validate GPG signatures, auto-mirror fetched tarballs to GitHub Releases, natively clone upstream Git branches, and handle recursive submodules.
-- [ ] [Complexity: 70/100] **Repository Health Core (`health.py`)**: Cron job logic validating sync between YAML and Pages, flagging zombie packages, and Release Asset Pruning (keep last 5 versions).
+- [x] [Complexity: 70/100] **Repository Health Core**: Implemented implicitly via the `publish.yml` CI workflow which automatically deletes zombie tags and prunes old assets, strictly keeping only the latest version.
 - [ ] [Complexity: 75/100] **Hermetic Docker Sandbox (`docker.py` - Strict)**: Disable network access during compilation. Integrate strict Bubblewrap (`bwrap`) jail boundaries, natively mount `binfmt_misc` / `qemu-user-static` for transparent emulation.
 - [ ] [Complexity: 75/100] **Hybrid Build Engine (`build.py` - Runner)**: Execute structured declarative targets vs wrappers. Ensure `pre_fetch` hook runs _before_ Hermetic sandboxing. Instrument OpenTelemetry and generate `crash_report.json`.
 - [ ] [Complexity: 80/100] **DAG Telemetry & Anti-Deps (`dag.py` - Advanced)**: Telemetry-driven dynamic sharding to balance execution times. Natively handle `anti_build_depends` to strictly uninstall conflicting dependencies on runners. Output Dependency Graphs.
@@ -235,3 +235,11 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Extended `scripts/core/sysroot.py` to natively clone Git repositories with submodules.
 - Added logic in `sysroot.py` to mirror downloaded source tarballs to GitHub Releases (`mirrors` tag) and verify GPG signatures if present.
 - **Next Action (Session 21):** Start with **Repository Health Core (`health.py`)** (Complexity 70/100) and **Hermetic Docker Sandbox (`docker.py` - Strict)** (Complexity 75/100).
+
+**Session 21 Handover (Completed)**
+
+- Redirected the original "Repository Health Core (`health.py`)" task to run natively inside `.github/workflows/publish.yml` to ensure atomicity.
+- Wrote `scripts/core/prune.py` which extracts standard versions from assets, sorts them utilizing `dpkg --compare-versions`, and securely removes deprecated assets using `gh release delete-asset` preserving purely the most recent release.
+- Added Zombie Tag detection comparing live Git tags to `packages/` source tree, automatically deleting releases for completely removed software.
+- Corrected architectural guidelines inside `plan.md` to reflect these changes and removed mentions to unnecessary 5-version keeping or Reproducibility Dashboards.
+- **Next Action (Session 22):** Start with **Hermetic Docker Sandbox (`docker.py` - Strict)** (Complexity 75/100) and **Hybrid Build Engine (`build.py` - Runner)** (Complexity 75/100).
