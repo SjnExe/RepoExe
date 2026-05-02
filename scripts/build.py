@@ -221,7 +221,7 @@ def cmd_update_checksum(args: argparse.Namespace) -> None:
             print(f'Failed to download and calculate sha256: {e}', file=sys.stderr)
             sys.exit(1)
     else:
-        print(f'Error: unsupported source type for update-checksum.', file=sys.stderr)
+        print('Error: unsupported source type for update-checksum.', file=sys.stderr)
         sys.exit(1)
 
 
