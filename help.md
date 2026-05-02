@@ -55,8 +55,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 75/100] **Hybrid Build Engine (`build.py` - Runner)**: Execute structured declarative targets vs wrappers. Ensure `pre_fetch` hook runs _before_ Hermetic sandboxing. Instrument OpenTelemetry and generate `crash_report.json`.
 - [x] [Complexity: 80/100] **DAG Telemetry & Anti-Deps (`dag.py` - Advanced)**: Telemetry-driven dynamic sharding to balance execution times. Natively handle `anti_build_depends` to strictly uninstall conflicting dependencies on runners. Output Dependency Graphs.
 - [x] [Complexity: 80/100] **Ghost Dependency & ABI Detection**: Run `dpkg-shlibdeps` against `Depends` array to lint unused dependencies. Integrate `libabigail` validation for ABI breakage.
-- [ ] [Complexity: 85/100] **Static APT Generator (`debian.py` - APT)**: Natively implement Python-based custom static APT metadata generation (`Packages`, `Release`, `InRelease`) entirely replacing `aptly`. Also implement `APT pdiff` incremental generation and automated `.pdiff` pruning directly in the generator with a max limit of 256 diffs.
-- [ ] [Complexity: 85/100] **CI Workflow: build.yml (Exclusions & PR Mode)**: Implement `!{package}` exclusion syntax, PR Test Mode (no save caches), and automated downstream testing queue logic.
+- [x] [Complexity: 85/100] **Static APT Generator (`debian.py` - APT)**: Natively implement Python-based custom static APT metadata generation (`Packages`, `Release`, `InRelease`) entirely replacing `aptly`. Also implement `APT pdiff` incremental generation and automated `.pdiff` pruning directly in the generator with a max limit of 256 diffs.
+- [x] [Complexity: 85/100] **CI Workflow: build.yml (Exclusions & PR Mode)**: Implement `!{package}` exclusion syntax, PR Test Mode (no save caches), and automated downstream testing queue logic.
 - [ ] [Complexity: 90/100] **Alpine RSA Signature Appending (`apk.py` - Signing)**: Natively implement the complex logic to mathematically append Alpine RSA signatures to compiled `.apk` files and `APKINDEX.tar.gz`.
 - [ ] [Complexity: 95/100] **Auto-Revision & Downstream DAG Bumping (`dag.py` - Smart)**: Enable the orchestrator to automatically calculate revision bumps down the DAG when core upstream dependencies trigger rebuilds or ABI breaks.
 - [ ] [Complexity: 100/100] **Content-Addressable Hashing Engine**: Incorporate strict SHA256 "state hash" evaluation across package inputs (YAML, patches, source hash, downstream DAG state hashes) to aggressively skip redundant builds globally.
@@ -258,3 +258,9 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Added `detect_ghost_dependencies()` scanning compiled binaries via `readelf` against their `Depends` list to lint for unused packages.
 - Added `detect_abi_breakage()` checking the active build output's `.so` libraries against the prior GitHub release via `abidiff`, failing on incompatible breaks.
 - **Next Action (Session 24):** Start with **Static APT Generator (`debian.py` - APT)** (Complexity 85/100) and **CI Workflow: build.yml (Exclusions & PR Mode)** (Complexity 85/100).
+
+**Session 24 Handover (Completed)**
+
+- Implemented Static APT Generator (`debian.py` - APT) combining the newly built `deb` artifacts with the previous `Packages` state fetched from GitHub Pages. Implemented `pdiff` logic using `diff --ed` to minimize downstream bandwidth usage.
+- Implemented CI Workflow Exclusions Syntax (`!{package}`) and PR Mode. Reverse dependencies are now seamlessly detected via the `dag.py` module during PR builds to prevent breaking the downstream ecosystem. Cache logic separated into restore vs save components to ensure cache pollution does not happen during PR testing.
+- **Next Action (Session 25):** Start with **Alpine RSA Signature Appending (`apk.py` - Signing)** (Complexity 90/100) and **Auto-Revision & Downstream DAG Bumping (`dag.py` - Smart)** (Complexity 95/100).

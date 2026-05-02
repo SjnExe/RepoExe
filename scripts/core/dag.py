@@ -133,13 +133,41 @@ class DAG:
             f.write('}\n')
         print(f'Exported DAG Graphviz map to {output_path}')
 
-    def get_shards(self, target_packages: Optional[List[str]] = None, num_shards: int = 4) -> List[List[str]]:
+    def get_shards(
+        self,
+        target_packages: Optional[List[str]] = None,
+        excluded_packages: Optional[Set[str]] = None,
+        is_pr: bool = False,
+        num_shards: int = 4,
+    ) -> List[List[str]]:
         """Splits independent packages into parallel shards.
         If target_packages is provided, only shards the dependencies and the targets themselves.
         """
+        if excluded_packages is None:
+            excluded_packages = set()
+
         if target_packages is None:
             ordered_pkgs = [node.name for node in self.get_build_order()]
         else:
+            if is_pr:
+                # Add reverse dependencies to target_packages to ensure downstream packages aren't broken
+                additional_targets = set()
+                for t in target_packages:
+                    if t in self.nodes:
+                        # DFS on needed_by
+                        stack = [t]
+                        visited_rev = set()
+                        while stack:
+                            curr = stack.pop()
+                            if curr not in visited_rev:
+                                visited_rev.add(curr)
+                                if curr != t:
+                                    additional_targets.add(curr)
+                                for reverse_dep in self.nodes[curr].needed_by:
+                                    stack.append(reverse_dep)
+
+                target_packages.extend(list(additional_targets))
+
             # We want to build the union of all targets and their dependencies.
             # We must maintain topological order.
             ordered_pkgs = []
@@ -154,6 +182,12 @@ class DAG:
                 except ValueError:
                     # Ignore packages that are not found or excluded for this arch
                     pass
+
+        # Validate exclusions
+        if excluded_packages:
+            for pkg in ordered_pkgs:
+                if pkg in excluded_packages:
+                    raise ValueError(f"Excluded package '{pkg}' is a strict dependency of a package being built.")
 
         # We need to ensure that connected components (dependency chains)
         # stay in the same shard, because each shard runs on an isolated runner.

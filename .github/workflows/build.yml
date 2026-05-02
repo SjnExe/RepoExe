@@ -55,6 +55,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          enable-cache-save: ${{ github.event_name != 'pull_request' }}
           cache-dependency-glob: 'scripts/uv.lock'
 
       - name: Determine changed packages
@@ -71,6 +72,7 @@ jobs:
             HEAD_COMMIT=${{ github.event.pull_request.head.sha }}
             CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BASE_COMMIT" "$HEAD_COMMIT" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
             echo "packages=${CHANGED}" >> "$GITHUB_OUTPUT"
+            echo "is_pr=true" >> "$GITHUB_OUTPUT"
           else
             BEFORE="${{ github.event.before }}"
             AFTER="${{ github.event.after }}"
@@ -98,19 +100,35 @@ jobs:
           dag = DAG("../packages", arch)
 
           changed_pkgs_str = sys.argv[1]
+          is_pr = sys.argv[2] == "true" if len(sys.argv) > 2 else False
+
           target_packages = None
+          excluded_packages = set()
+
           if changed_pkgs_str.strip():
-              target_packages = changed_pkgs_str.split()
+              tokens = changed_pkgs_str.split()
+              target_packages = []
+              for token in tokens:
+                  if token.startswith("!"):
+                      excluded_packages.add(token[1:])
+                  else:
+                      target_packages.append(token)
 
           try:
-              shards = dag.get_shards(target_packages=target_packages, num_shards=4)
+              shards = dag.get_shards(
+                  target_packages=target_packages,
+                  excluded_packages=excluded_packages,
+                  is_pr=is_pr,
+                  num_shards=4
+              )
           except Exception as e:
               print(f"Failed to generate shards: {e}", file=sys.stderr)
-              shards = []
+              sys.exit(1)
+
 
           print(json.dumps([{"shard": i, "packages": " ".join(shard)} for i, shard in enumerate(shards) if shard]))
           PY_EOF
-          SHARDS_JSON=$(uv run python sharding_script.py "${{ steps.pkgs.outputs.packages }}")
+          SHARDS_JSON=$(uv run python sharding_script.py "${{ steps.pkgs.outputs.packages }}" "${{ steps.pkgs.outputs.is_pr }}")
           echo "shards=${SHARDS_JSON}" >> "$GITHUB_OUTPUT"
 
   build:
@@ -131,6 +149,29 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+
+      - name: Configure sccache
+        uses: mozilla-actions/sccache-action@v0.0.6
+        with:
+          version: 'v0.8.1'
+
+      - name: sccache cache restore
+        uses: actions/cache/restore@v4
+        if: github.event_name == 'pull_request'
+        with:
+          path: /home/runner/.cache/sccache
+          key: ${{ runner.os }}-sccache-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-${{ matrix.arch }}-
+
+      - name: sccache cache
+        uses: actions/cache@v4
+        if: github.event_name != 'pull_request'
+        with:
+          path: /home/runner/.cache/sccache
+          key: ${{ runner.os }}-sccache-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-${{ matrix.arch }}-
 
       - name: Log in to registry
         uses: docker/login-action@v4
