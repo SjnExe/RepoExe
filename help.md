@@ -51,8 +51,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 65/100] **CI Workflow: package_updates.yml**: Auto-PR workflow triggered by scheduled `upstream_check.py`.
 - [x] [Complexity: 70/100] **Source Mirroring & Git Submodules (`sysroot.py` - Advanced)**: Validate GPG signatures, auto-mirror fetched tarballs to GitHub Releases, natively clone upstream Git branches, and handle recursive submodules.
 - [x] [Complexity: 70/100] **Repository Health Core**: Implemented implicitly via the `publish.yml` CI workflow which automatically deletes zombie tags and prunes old assets, strictly keeping only the latest version.
-- [ ] [Complexity: 75/100] **Hermetic Docker Sandbox (`docker.py` - Strict)**: Disable network access during compilation. Integrate strict Bubblewrap (`bwrap`) jail boundaries, natively mount `binfmt_misc` / `qemu-user-static` for transparent emulation.
-- [ ] [Complexity: 75/100] **Hybrid Build Engine (`build.py` - Runner)**: Execute structured declarative targets vs wrappers. Ensure `pre_fetch` hook runs _before_ Hermetic sandboxing. Instrument OpenTelemetry and generate `crash_report.json`.
+- [x] [Complexity: 75/100] **Hermetic Docker Sandbox (`docker.py` - Strict)**: Disable network access during compilation. Integrate strict Bubblewrap (`bwrap`) jail boundaries, natively mount `binfmt_misc` / `qemu-user-static` for transparent emulation.
+- [x] [Complexity: 75/100] **Hybrid Build Engine (`build.py` - Runner)**: Execute structured declarative targets vs wrappers. Ensure `pre_fetch` hook runs _before_ Hermetic sandboxing. Instrument OpenTelemetry and generate `crash_report.json`.
 - [ ] [Complexity: 80/100] **DAG Telemetry & Anti-Deps (`dag.py` - Advanced)**: Telemetry-driven dynamic sharding to balance execution times. Natively handle `anti_build_depends` to strictly uninstall conflicting dependencies on runners. Output Dependency Graphs.
 - [ ] [Complexity: 80/100] **Ghost Dependency & ABI Detection**: Run `dpkg-shlibdeps` against `Depends` array to lint unused dependencies. Integrate `libabigail` validation for ABI breakage.
 - [ ] [Complexity: 85/100] **Static APT Generator (`debian.py` - APT)**: Natively implement Python-based custom static APT metadata generation (`Packages`, `Release`, `InRelease`) entirely replacing `aptly`. Also implement `APT pdiff` incremental generation and automated `.pdiff` pruning directly in the generator with a max limit of 256 diffs.
@@ -243,3 +243,11 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Added Zombie Tag detection comparing live Git tags to `packages/` source tree, automatically deleting releases for completely removed software.
 - Corrected architectural guidelines inside `plan.md` to reflect these changes and removed mentions to unnecessary 5-version keeping or Reproducibility Dashboards.
 - **Next Action (Session 22):** Start with **Hermetic Docker Sandbox (`docker.py` - Strict)** (Complexity 75/100) and **Hybrid Build Engine (`build.py` - Runner)** (Complexity 75/100).
+
+**Session 22 Handover (Completed)**
+
+- Evaluated and simplified complex features with the user. Removed `crash_report.json`, OpenTelemetry bloat, and `bwrap` as unnecessary complications for our specific containerized approach.
+- Opted to configure QEMU via host-level setups (e.g., `docker/setup-qemu-action`) rather than injecting `binfmt_misc` natively inside unprivileged Docker containers, massively reducing complexity.
+- Implemented **Hermetic Docker Sandbox (`docker.py` - Strict)** by enforcing `--network=none` isolation securely inside `DockerRunner`.
+- Implemented **Hybrid Build Engine (`build.py` - Runner)** to evaluate, format, and execute declarative `phases` from `build.yml` locally via `phase_name.sh` temporary scripts directly into the Docker sandbox, maintaining hermetic constraints where appropriate.
+- **Next Action (Session 23):** Start with **DAG Telemetry & Anti-Deps (`dag.py` - Advanced)** (Complexity 80/100) and **Ghost Dependency & ABI Detection** (Complexity 80/100).
