@@ -122,6 +122,31 @@ class DAG:
 
         return build_order
 
+    def export_telemetry(self, shards: List[List[str]], output_path: str = 'telemetry.json') -> None:
+        """Exports DAG sharding and build order telemetry to a JSON file."""
+        import json
+
+        telemetry = {
+            'total_packages': len(self.nodes),
+            'arch': self.arch,
+            'shards': {f'shard_{i}': shard for i, shard in enumerate(shards)},
+            'dependencies': {name: list(node.deps) for name, node in self.nodes.items()},
+        }
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(telemetry, f, indent=2)
+        print(f'Exported DAG telemetry to {output_path}')
+
+    def export_graphviz(self, output_path: str = 'dag.dot') -> None:
+        """Exports the DAG to a Graphviz .dot file."""
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write('digraph G {\n')
+            f.write('  node [shape=box];\n')
+            for name, node in self.nodes.items():
+                for dep in node.deps:
+                    f.write(f'  "{dep}" -> "{name}";\n')
+            f.write('}\n')
+        print(f'Exported DAG Graphviz map to {output_path}')
+
     def get_shards(self, target_packages: Optional[List[str]] = None, num_shards: int = 4) -> List[List[str]]:
         """Splits independent packages into parallel shards.
         If target_packages is provided, only shards the dependencies and the targets themselves.

@@ -54,6 +54,8 @@ packages-cache/
 logs/
 crash_report.json
 *.deb
+telemetry.json
+dag.dot
 *.apk
 *.pkg.tar.zst
 *.db

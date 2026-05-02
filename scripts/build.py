@@ -178,6 +178,19 @@ export LDFLAGS="-L$PREFIX/lib"
             print(f"Error: Phase '{phase_name}' failed with return code {result.returncode}", file=sys.stderr)
             sys.exit(1)
 
+    if pkg.anti_build_depends:
+        print(f'\n[{pkg.name}] Uninstalling conflicting anti-dependencies...')
+        anti_deps_str = ' '.join(pkg.anti_build_depends)
+        # We need to run this as root in the docker container to uninstall packages
+        # Since our DockerRunner defaults to builder user, we use sudo inside the phase script.
+        # However, apt-get is used for the base environment. We'll generate a special script.
+        anti_deps_script = f"""#!/bin/bash
+set -e
+sudo apt-get remove -y {anti_deps_str} || true
+sudo apt-get autoremove -y || true
+"""
+        run_phase('anti_deps', anti_deps_script, network_disabled=False)
+
     # 1. pre_fetch (Network Enabled)
     run_phase('pre_fetch', pkg.phases.get('pre_fetch', ''), network_disabled=False)
 
@@ -273,6 +286,16 @@ def cmd_update_checksum(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_telemetry(args: argparse.Namespace) -> None:
+    packages_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'packages'))
+    from core.dag import DAG
+
+    dag = DAG(packages_dir, args.arch)
+    shards = dag.get_shards()
+    dag.export_telemetry(shards)
+    dag.export_graphviz()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description='RepoExe Orchestrator')
     subparsers = parser.add_subparsers(dest='command', required=True, help='Subcommand to run')
@@ -283,6 +306,10 @@ def main() -> None:
 
     # list
     subparsers.add_parser('list', help='List all packages')
+
+    # telemetry
+    parser_telemetry = subparsers.add_parser('telemetry', help='Generate DAG telemetry and Graphviz dot files')
+    parser_telemetry.add_argument('--arch', default='aarch64', help='Target architecture (default: aarch64)')
 
     # clean
     subparsers.add_parser('clean', help='Clean Docker environment')
@@ -311,6 +338,8 @@ def main() -> None:
         cmd_info(args)
     elif args.command == 'list':
         cmd_list(args)
+    elif args.command == 'telemetry':
+        cmd_telemetry(args)
     elif args.command == 'clean':
         cmd_clean(args)
     elif args.command == 'revbump':
