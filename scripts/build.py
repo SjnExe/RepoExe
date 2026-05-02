@@ -131,13 +131,61 @@ def cmd_build(args: argparse.Namespace) -> None:
         print('Evaluation complete. Build is necessary (cache miss logic not implemented yet).')
         return
 
-    print(f'Building {pkg.name}... (Actual build logic not yet implemented)')
-    print('Note: Packager generation is available, but hermetic build hooks are pending implementation.')
-    # When build logic is complete, it will produce a destdir and output_dir to call these:
-    # from core.packagers.debian import build_deb
-    # build_deb(pkg, destdir, output_dir, arch=args.arch)
-    # build_pacman(pkg, destdir, output_dir)
-    # build_apk(pkg, destdir, output_dir)
+    print(f'Building {pkg.name} for architecture {args.arch}...')
+
+    import stat
+    from core.docker import DockerRunner, DockerConfig
+    import core.properties as props
+
+    # props is module
+    docker_cfg = DockerConfig()
+    runner = DockerRunner(docker_cfg)
+
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    build_dir = os.path.join(repo_root, '.build', args.pkg)
+    os.makedirs(build_dir, exist_ok=True)
+
+    def run_phase(phase_name: str, script_content: str, network_disabled: bool):
+        if not script_content or not script_content.strip():
+            return
+
+        print(f'\n[{pkg.name}] Executing phase: {phase_name} (Hermetic: {network_disabled})')
+
+        script_header = f'''#!/bin/bash
+set -e
+export PREFIX="{props.PREFIX}"
+export TERMUX_PREFIX="{props.PREFIX}"
+export CFLAGS="-I$PREFIX/include"
+export LDFLAGS="-L$PREFIX/lib"
+'''
+        full_script = script_header + script_content
+
+        script_path = os.path.join(build_dir, f'phase_{phase_name}.sh')
+        with open(script_path, 'w') as f:
+            f.write(full_script)
+
+        os.chmod(script_path, os.stat(script_path).st_mode | stat.S_IEXEC)
+
+        # Calculate the relative path from the repo root to the script
+        rel_script_path = os.path.relpath(script_path, repo_root)
+
+        # Run inside docker
+        # The working directory inside docker is /home/builder/RepoExe
+        container_script_path = f'./{rel_script_path}'
+
+        result = runner.run([container_script_path], capture_output=False, network_disabled=network_disabled)
+        if result.returncode != 0:
+            print(f"Error: Phase '{phase_name}' failed with return code {result.returncode}", file=sys.stderr)
+            sys.exit(1)
+
+    # 1. pre_fetch (Network Enabled)
+    run_phase('pre_fetch', pkg.phases.get('pre_fetch', ''), network_disabled=False)
+
+    # All subsequent phases are hermetic (Network Disabled)
+    for phase in ['pre_configure', 'configure', 'make', 'install', 'post_install']:
+        run_phase(phase, pkg.phases.get(phase, ''), network_disabled=True)
+
+    print(f'\n[{pkg.name}] Build phases completed successfully.')
 
 
 def cmd_revbump(args: argparse.Namespace) -> None:
