@@ -1,5 +1,3 @@
-import pytest
-from pathlib import Path
 from core.prune import sort_debian_versions
 
 
