@@ -29,8 +29,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 30/100] **CI Workflow: cache-prune.yml**: Handled. GitHub natively manages action caches via LRU. GHCR pruning logic should be integrated into the upcoming `docker.yml` workflow as a specific step instead of creating a separate workflow.
 - [x] [Complexity: 35/100] **CI Workflow: security-scan.yml**: Integrate `osv-scanner` or `pip-audit` to proactively scan dependencies for known vulnerabilities.
 - [x] [Complexity: 35/100] **CI Workflow: free-space.sh**: Implement hyper-fast `rm -rf` logic for massive unused toolchains on GitHub Host VMs.
-- [ ] [Complexity: 40/100] **Version Normalization (`parser.py` - Versions)**: Strictly strip `v` prefixes, parse Epochs (`1:`), and translate upstream revisions/tags into PM-specific dialects (`+r4` for Debian, `.r4` for Pacman, `_p4` for Alpine).
-- [ ] [Complexity: 40/100] **CLI Subcommands (`build.py` - CLI)**: Wire basic subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag.
+- [x] [Complexity: 40/100] **Version Normalization (`parser.py` - Versions)**: Strictly strip `v` prefixes, parse Epochs (`1:`), and translate upstream revisions/tags into PM-specific dialects (`+r4` for Debian, `.r4` for Pacman, `_p4` for Alpine).
+- [x] [Complexity: 40/100] **CLI Subcommands (`build.py` - CLI)**: Wire basic subcommands `info`, `list`, `clean`, `init` for interactive scaffolding, and `--dry-run` flag.
 - [x] [Complexity: 40/100] **Test Execution Sandbox (`test.py`)**: Execute tests strictly inside PRoot (downloaded and set up natively by Docker) to simulate Android Termux, implementing Flaky Test Isolation.
 - [x] [Complexity: 40/100] **Migrate: libandroid-tools**: Split into granular sub-packages (`libbase`, `libcutils`, etc.) using logic from `backup/` directory. Embed legacy `source.sh` logic natively into `build.yml` lifecycle hooks.
 - [x] [Complexity: 45/100] **Native Toolchains (`toolchains/native.py`)**: Select NDK compilers based on arch, inject `PREFIX` into `CFLAGS`/`LDFLAGS`, implement CMake/Meson/Autotools wrappers, and generate `android.toolchain.cmake`.
@@ -48,8 +48,8 @@ The tasks are sorted below strictly by their complexity score (easiest to hardes
 - [x] [Complexity: 60/100] **Implicit Cleanup Standards (`debian.py` - Cleanup)**: Auto-cache trimming, permissions normalization, ghost directory pruning, `-glibc` dynamic suffixing, and auto `-doc`/`-locale` Smart Subpackages.
 - [x] [Complexity: 60/100] **Migrate: aapt, aapt2, zipalign, aidl**: Implement "Local Source Building" for deprecated `aapt` (in `packages/aapt/src/`) applying standard bloat-free patches directly. Use upstream sources and native `build.yml` hooks for actively maintained `aapt2`, `zipalign`, and `aidl`.
 - [x] [Complexity: 65/100] **Android Patching & Validation**: Auto `config.guess` updates, Linux hardcoded path fixes, `termux-elf-cleaner`, `-dbg` symbol extraction, strict Bionic Undefined Symbols validation, strict SONAME enforcement.
-- [ ] [Complexity: 65/100] **CI Workflow: package_updates.yml**: Auto-PR workflow triggered by scheduled `upstream_check.py`.
-- [ ] [Complexity: 70/100] **Source Mirroring & Git Submodules (`sysroot.py` - Advanced)**: Validate GPG signatures, auto-mirror fetched tarballs to GitHub Releases, natively clone upstream Git branches, and handle recursive submodules.
+- [x] [Complexity: 65/100] **CI Workflow: package_updates.yml**: Auto-PR workflow triggered by scheduled `upstream_check.py`.
+- [x] [Complexity: 70/100] **Source Mirroring & Git Submodules (`sysroot.py` - Advanced)**: Validate GPG signatures, auto-mirror fetched tarballs to GitHub Releases, natively clone upstream Git branches, and handle recursive submodules.
 - [ ] [Complexity: 70/100] **Repository Health Core (`health.py`)**: Cron job logic validating sync between YAML and Pages, flagging zombie packages, and Release Asset Pruning (keep last 5 versions).
 - [ ] [Complexity: 75/100] **Hermetic Docker Sandbox (`docker.py` - Strict)**: Disable network access during compilation. Integrate strict Bubblewrap (`bwrap`) jail boundaries, natively mount `binfmt_misc` / `qemu-user-static` for transparent emulation.
 - [ ] [Complexity: 75/100] **Hybrid Build Engine (`build.py` - Runner)**: Execute structured declarative targets vs wrappers. Ensure `pre_fetch` hook runs _before_ Hermetic sandboxing. Instrument OpenTelemetry and generate `crash_report.json`.
@@ -226,3 +226,12 @@ _Write a short summary below when ending a session so the next AI agent knows ex
 - Implemented debug symbol extraction via `llvm-objcopy` with automated `-dbg` subpackage bundling inside `debian.py`, `pacman.py`, and `apk.py`.
 - Enforced SONAME validation and Bionic undefined symbol checking.
 - Next Action (Session 20): Start with **CI Workflow: package_updates.yml** (Complexity 65/100) and **Source Mirroring & Git Submodules (`sysroot.py` - Advanced)** (Complexity 70/100).
+
+**Session 20 Handover (Completed)**
+
+- Updated `parser.py` and `build.py` to fix incomplete tasks from a previous session (Epoch parsing, `revbump` and `update-checksum` CLI subcommands).
+- Created `scripts/core/upstream_check.py` to ping GitHub, GitLab, and Repology APIs.
+- Implemented `.github/workflows/package_updates.yml` to automatically create PRs for available package updates.
+- Extended `scripts/core/sysroot.py` to natively clone Git repositories with submodules.
+- Added logic in `sysroot.py` to mirror downloaded source tarballs to GitHub Releases (`mirrors` tag) and verify GPG signatures if present.
+- **Next Action (Session 21):** Start with **Repository Health Core (`health.py`)** (Complexity 70/100) and **Hermetic Docker Sandbox (`docker.py` - Strict)** (Complexity 75/100).

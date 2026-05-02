@@ -132,9 +132,14 @@ class BuildYml(BaseModel):
     @field_validator('version')
     @classmethod
     def version_must_not_start_with_v(cls, v: str) -> str:
+        epoch = ''
+        if ':' in v:
+            parts = v.split(':', 1)
+            epoch = parts[0] + ':'
+            v = parts[1]
         if v.startswith('v'):
-            return v[1:]
-        return v
+            return epoch + v[1:]
+        return epoch + v
 
     @property
     def deb_version(self) -> str:
@@ -142,6 +147,12 @@ class BuildYml(BaseModel):
         import re
 
         version = self.version
+        epoch = ''
+        if ':' in version:
+            parts = version.split(':', 1)
+            epoch = parts[0] + ':'
+            version = parts[1]
+
         tag_match = re.search(r'([-_])([a-zA-Z]+)(\d*)$', version)
         if tag_match:
             sep = tag_match.group(1)
@@ -152,7 +163,7 @@ class BuildYml(BaseModel):
                 version = version.replace(orig, f'+{tag}{num}')
             elif tag in ('rc', 'alpha', 'beta', 'pre'):
                 version = version.replace(orig, f'~{tag}{num}')
-        return f'{version}-{self.revision}'
+        return f'{epoch}{version}-{self.revision}'
 
     @property
     def pacman_version(self) -> str:
@@ -160,6 +171,12 @@ class BuildYml(BaseModel):
         import re
 
         version = self.version
+        epoch = ''
+        if ':' in version:
+            parts = version.split(':', 1)
+            epoch = parts[0] + ':'
+            version = parts[1]
+
         tag_match = re.search(r'([-_])([a-zA-Z]+)(\d*)$', version)
         if tag_match:
             sep = tag_match.group(1)
@@ -170,7 +187,7 @@ class BuildYml(BaseModel):
 
         # Pacman versions cannot contain hyphens
         version = version.replace('-', '.')
-        return f'{version}-{self.revision}'
+        return f'{epoch}{version}-{self.revision}'
 
     @property
     def apk_version(self) -> str:
@@ -178,6 +195,12 @@ class BuildYml(BaseModel):
         import re
 
         version = self.version
+        epoch = ''
+        if ':' in version:
+            parts = version.split(':', 1)
+            epoch = parts[0] + ':'
+            version = parts[1]
+
         tag_match = re.search(r'([-_])([a-zA-Z]+)(\d*)$', version)
         if tag_match:
             sep = tag_match.group(1)
@@ -188,7 +211,7 @@ class BuildYml(BaseModel):
                 version = version.replace(orig, f'_p{num}')
             elif tag in ('rc', 'alpha', 'beta', 'pre', 'cvs', 'svn', 'git', 'hg'):
                 version = version.replace(orig, f'_{tag}{num}')
-        return f'{version}-r{self.revision}'
+        return f'{epoch}{version}-r{self.revision}'
 
     @field_validator('license')
     @classmethod
