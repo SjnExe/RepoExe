@@ -245,9 +245,6 @@ def generate_apk_metadata(output_dir: str, arch: str = 'aarch64') -> None:
 
     pkginfos = []
     for apk_path in apk_files:
-        with open(apk_path, 'rb') as f:
-            data = f.read()
-
         try:
             with tarfile.open(apk_path, 'r:gz', ignore_zeros=True) as tar:
                 names = tar.getnames()
