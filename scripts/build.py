@@ -295,6 +295,7 @@ def cmd_telemetry(args: argparse.Namespace) -> None:
     dag.export_telemetry(shards)
     dag.export_graphviz()
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description='RepoExe Orchestrator')
     subparsers = parser.add_subparsers(dest='command', required=True, help='Subcommand to run')

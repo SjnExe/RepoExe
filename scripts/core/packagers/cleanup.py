@@ -387,8 +387,7 @@ def detect_ghost_dependencies(target_dir: str, pkg: 'BuildYml') -> None:
     # dpkg-shlibdeps -O outputs shlibs:Depends=...
     try:
         output = subprocess.check_output(
-            ['dpkg-shlibdeps', '-O', '--ignore-missing-info'] + elf_files,
-            stderr=subprocess.DEVNULL, text=True
+            ['dpkg-shlibdeps', '-O', '--ignore-missing-info'] + elf_files, stderr=subprocess.DEVNULL, text=True
         )
         if 'shlibs:Depends=' in output:
             depends_str = output.split('shlibs:Depends=')[1].strip()
@@ -409,12 +408,14 @@ def detect_ghost_dependencies(target_dir: str, pkg: 'BuildYml') -> None:
             for dep in all_declared_deps:
                 base = dep.replace('-dev', '').replace('lib', '')
                 if base not in dpkg_deps_base:
-                    print(f"Warning: Package '{pkg.name}' declares dependency '{dep}', but dpkg-shlibdeps could not find it used.")
+                    print(
+                        f"Warning: Package '{pkg.name}' declares dependency '{dep}', but dpkg-shlibdeps could not find it used."
+                    )
 
     except FileNotFoundError:
-        pass # dpkg-dev not installed
+        pass  # dpkg-dev not installed
     except subprocess.CalledProcessError:
-        pass # dpkg-shlibdeps can fail if libraries aren't found in standard paths
+        pass  # dpkg-shlibdeps can fail if libraries aren't found in standard paths
 
 
 def detect_abi_breakage(target_dir: str, pkg: 'BuildYml') -> None:
@@ -447,7 +448,8 @@ def detect_abi_breakage(target_dir: str, pkg: 'BuildYml') -> None:
         # Let's try to query just by the package name tag first.
         result = subprocess.run(
             ['gh', 'release', 'view', pkg.name, '--json', 'assets', '--jq', '.assets[].name'],
-            capture_output=True, text=True
+            capture_output=True,
+            text=True,
         )
         if result.returncode != 0:
             return  # No previous release found
@@ -467,8 +469,7 @@ def detect_abi_breakage(target_dir: str, pkg: 'BuildYml') -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             deb_path = os.path.join(tmpdir, deb_asset)
             download_result = subprocess.run(
-                ['gh', 'release', 'download', pkg.name, '-p', deb_asset, '-D', tmpdir],
-                capture_output=True
+                ['gh', 'release', 'download', pkg.name, '-p', deb_asset, '-D', tmpdir], capture_output=True
             )
             if download_result.returncode != 0:
                 return
@@ -488,24 +489,23 @@ def detect_abi_breakage(target_dir: str, pkg: 'BuildYml') -> None:
                 if os.path.exists(old_so):
                     try:
                         # run abidiff
-                        abidiff_result = subprocess.run(
-                            ['abidiff', old_so, new_so],
-                            capture_output=True, text=True
-                        )
+                        abidiff_result = subprocess.run(['abidiff', old_so, new_so], capture_output=True, text=True)
                         # abidiff returns 0 if ABI is identical, >0 if changes or errors
                         # 1 means ABI changes. 2 means incompatible changes.
                         if abidiff_result.returncode != 0:
-                            print(f"\n[ABI Breakage Detection] WARNING: ABI changes detected in {basename}!")
+                            print(f'\n[ABI Breakage Detection] WARNING: ABI changes detected in {basename}!')
                             print(abidiff_result.stdout)
                             # To strictly enforce, we could raise an error here if returncode is >= 4
                             # For now, we will fail if we detect a change and it's an incompatible change.
                             # Bit 0 (1): leaf changes. Bit 1 (2): incompatible changes.
                             if abidiff_result.returncode & 2:
-                                raise ValueError(f"Incompatible ABI breakage detected in {basename}! You must bump the downstream dependent packages or the package name/SONAME.")
+                                raise ValueError(
+                                    f'Incompatible ABI breakage detected in {basename}! You must bump the downstream dependent packages or the package name/SONAME.'
+                                )
                     except FileNotFoundError:
-                        pass # abidiff not installed
+                        pass  # abidiff not installed
     except FileNotFoundError:
-        pass # gh CLI not installed
+        pass  # gh CLI not installed
 
 
 def run_all_cleanups(target_dir: str, pkg: 'BuildYml' = None) -> None:

@@ -130,25 +130,22 @@ class DAG:
             'total_packages': len(self.nodes),
             'arch': self.arch,
             'shards': {f'shard_{i}': shard for i, shard in enumerate(shards)},
-            'dependencies': {
-                name: list(node.deps)
-                for name, node in self.nodes.items()
-            }
+            'dependencies': {name: list(node.deps) for name, node in self.nodes.items()},
         }
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(telemetry, f, indent=2)
-        print(f"Exported DAG telemetry to {output_path}")
+        print(f'Exported DAG telemetry to {output_path}')
 
     def export_graphviz(self, output_path: str = 'dag.dot') -> None:
         """Exports the DAG to a Graphviz .dot file."""
         with open(output_path, 'w', encoding='utf-8') as f:
-            f.write("digraph G {\n")
-            f.write("  node [shape=box];\n")
+            f.write('digraph G {\n')
+            f.write('  node [shape=box];\n')
             for name, node in self.nodes.items():
                 for dep in node.deps:
                     f.write(f'  "{dep}" -> "{name}";\n')
-            f.write("}\n")
-        print(f"Exported DAG Graphviz map to {output_path}")
+            f.write('}\n')
+        print(f'Exported DAG Graphviz map to {output_path}')
 
     def get_shards(self, target_packages: Optional[List[str]] = None, num_shards: int = 4) -> List[List[str]]:
         """Splits independent packages into parallel shards.
