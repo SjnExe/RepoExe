@@ -265,9 +265,269 @@ Description: {pkg.description} ({subpkg_type})
 
 
 def generate_apt_metadata(output_dir: str, component: str = 'main', arch: str = 'aarch64') -> None:
-    """Generates Packages, Release, and InRelease files statically."""
-    # This is a stub for the static APT generator.
-    # It would normally iterate over all .deb files in output_dir, extract their control files,
-    # generate the Packages file, compress it, then generate the Release file with checksums,
-    # and finally sign it using GPG to create InRelease.
-    pass
+    """Generates Packages, Release, and InRelease files statically.
+    Also implements incremental Pdiff generation.
+    """
+    import hashlib
+    from glob import glob
+
+    dists_dir = os.path.join(output_dir, 'dists', 'stable')
+    binary_dir = os.path.join(dists_dir, component, f'binary-{arch}')
+    os.makedirs(binary_dir, exist_ok=True)
+
+    packages_path = os.path.join(binary_dir, 'Packages')
+
+    # Check for existing Packages to do pdiff
+    existing_packages_content = None
+    if os.path.exists(packages_path):
+        with open(packages_path, 'r', encoding='utf-8') as f:
+            existing_packages_content = f.read()
+
+    # 1. Generate Packages file by extracting control files from all .deb files in output_dir
+    deb_files = glob(os.path.join(output_dir, f'*_{arch}.deb')) + glob(os.path.join(output_dir, '*_all.deb'))
+
+    new_packages_dict = {}
+
+    for deb in sorted(deb_files):
+        # Extract control file from the .deb using dpkg-deb
+        try:
+            result = subprocess.run(['dpkg-deb', '-f', deb], capture_output=True, text=True, check=True)
+            control_data = result.stdout.strip()
+
+            # Parse package name to use as key
+            pkg_name = None
+            for line in control_data.split('\n'):
+                if line.startswith('Package:'):
+                    pkg_name = line.split(':', 1)[1].strip()
+                    break
+
+            if not pkg_name:
+                continue
+
+            # Need to append Filename, Size, SHA256, etc.
+            filename = os.path.relpath(deb, output_dir)
+            size = os.path.getsize(deb)
+
+            with open(deb, 'rb') as f:
+                sha256 = hashlib.sha256(f.read()).hexdigest()
+
+            control_data += f'\nFilename: {filename}\nSize: {size}\nSHA256: {sha256}\n\n'
+            new_packages_dict[pkg_name] = control_data
+        except subprocess.CalledProcessError as e:
+            print(f'Error extracting control from {deb}: {e}')
+
+    packages_content = ''
+    # Merge with existing
+    if existing_packages_content:
+        # We need to split existing_packages_content by paragraphs
+        paragraphs = existing_packages_content.strip().split('\n\n')
+        for p in paragraphs:
+            if not p.strip():
+                continue
+            pkg_name = None
+            for line in p.split('\n'):
+                if line.startswith('Package:'):
+                    pkg_name = line.split(':', 1)[1].strip()
+                    break
+            if pkg_name:
+                if pkg_name in new_packages_dict:
+                    # New package replaces old package
+                    packages_content += new_packages_dict[pkg_name]
+                    del new_packages_dict[pkg_name]
+                else:
+                    # Keep old package
+                    packages_content += p + '\n\n'
+
+    # Add any remaining new packages
+    for pkg_name, data in new_packages_dict.items():
+        packages_content += data
+
+    with open(packages_path, 'w', encoding='utf-8') as f:
+        f.write(packages_content)
+
+    # Compress Packages
+    subprocess.run(['gzip', '-k', '-f', packages_path], check=True)
+    subprocess.run(['xz', '-k', '-f', packages_path], check=True)
+
+    # 2. Pdiff Generation
+    if existing_packages_content is not None and existing_packages_content != packages_content:
+        _generate_pdiff(binary_dir, existing_packages_content, packages_content)
+
+    # 3. Generate Release file
+    release_path = os.path.join(dists_dir, 'Release')
+    _generate_release(dists_dir, release_path, component, arch)
+
+    # 4. Sign Release file (InRelease)
+    _sign_release(release_path)
+
+
+def _generate_pdiff(binary_dir: str, old_content: str, new_content: str) -> None:
+    import tempfile
+    import datetime
+    import hashlib
+
+    diff_dir = os.path.join(binary_dir, 'Packages.diff')
+    os.makedirs(diff_dir, exist_ok=True)
+
+    with (
+        tempfile.NamedTemporaryFile(mode='w', delete=False) as old_f,
+        tempfile.NamedTemporaryFile(mode='w', delete=False) as new_f,
+    ):
+        old_f.write(old_content)
+        new_f.write(new_content)
+        old_path = old_f.name
+        new_path = new_f.name
+
+    diff_name = datetime.datetime.utcnow().strftime('%Y-%m-%d-%H%M.%S')
+    patch_path = os.path.join(diff_dir, diff_name)
+
+    # Generate ed-style diff
+    subprocess.run(['diff', '--ed', old_path, new_path], stdout=open(patch_path, 'w'))
+    subprocess.run(['gzip', '-9', '-k', '-f', patch_path], check=True)
+
+    # Clean up temp files
+    os.remove(old_path)
+    os.remove(new_path)
+
+    # Update Index file
+    index_path = os.path.join(diff_dir, 'Index')
+
+    old_sha1 = hashlib.sha1(old_content.encode('utf-8')).hexdigest()
+    old_size = len(old_content.encode('utf-8'))
+
+    new_sha1 = hashlib.sha1(new_content.encode('utf-8')).hexdigest()
+    new_size = len(new_content.encode('utf-8'))
+
+    # Load existing Index if any
+    history = []
+    if os.path.exists(index_path):
+        with open(index_path, 'r') as f:
+            lines = f.read().splitlines()
+            in_history = False
+            for line in lines:
+                if line.startswith('SHA1-History:'):
+                    in_history = True
+                    continue
+                if line.startswith('SHA1-Patches:'):
+                    in_history = False
+                    continue
+                if in_history and line.startswith(' '):
+                    parts = line.strip().split()
+                    if len(parts) == 3:
+                        history.append({'sha1': parts[0], 'size': parts[1], 'name': parts[2]})
+
+    # Prune history to max 255 items (so adding new makes 256)
+    history = history[-255:]
+    history.append({'sha1': old_sha1, 'size': str(old_size), 'name': diff_name})
+
+    # Prune old patch files not in history
+    valid_names = {h['name'] for h in history}
+    for file in os.listdir(diff_dir):
+        if file != 'Index' and not file.endswith('.gz') and file not in valid_names:
+            os.remove(os.path.join(diff_dir, file))
+            if os.path.exists(os.path.join(diff_dir, f'{file}.gz')):
+                os.remove(os.path.join(diff_dir, f'{file}.gz'))
+
+    with open(index_path, 'w') as f:
+        f.write('SHA1-Current: {} {}\n'.format(new_sha1, new_size))
+        f.write('SHA1-History:\n')
+        for h in history:
+            f.write(' {} {} {}\n'.format(h['sha1'], h['size'], h['name']))
+        f.write('SHA1-Patches:\n')
+        # For simplicity, patches just list the patch file's sha1 and size
+        for h in history:
+            # Re-read or calculate patch sha1 if needed. Here we assume the patch name corresponds to the patch.
+            p_path = os.path.join(diff_dir, h['name'])
+            # Since we download old patches as .gz from pages, the raw patch may not exist locally unless generated now.
+            # But the APT Index specifies the size and hash of the uncompressed patch.
+            # Actually, standard Pdiff requires the hash of the uncompressed patch.
+            # If we don't have it, we should probably gzip -d it temporarily.
+            p_sha1 = None
+            p_size = None
+            if os.path.exists(p_path):
+                with open(p_path, 'rb') as pf:
+                    p_sha1 = hashlib.sha1(pf.read()).hexdigest()
+                p_size = os.path.getsize(p_path)
+            elif os.path.exists(p_path + '.gz'):
+                import gzip
+
+                with gzip.open(p_path + '.gz', 'rb') as pf:
+                    uncompressed = pf.read()
+                    p_sha1 = hashlib.sha1(uncompressed).hexdigest()
+                    p_size = len(uncompressed)
+
+            if p_sha1 is not None and p_size is not None:
+                f.write(' {} {} {}\n'.format(p_sha1, p_size, h['name']))
+
+
+def _generate_release(dists_dir: str, release_path: str, component: str, arch: str) -> None:
+    import hashlib
+    import datetime
+
+    date_str = datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S UTC')
+
+    release_content = [
+        'Origin: RepoExe',
+        'Label: RepoExe',
+        'Suite: stable',
+        'Codename: stable',
+        f'Date: {date_str}',
+        f'Architectures: {arch}',
+        f'Components: {component}',
+        'Description: RepoExe package repository',
+        'MD5Sum:',
+    ]
+
+    md5_lines = []
+    sha1_lines = []
+    sha256_lines = []
+
+    for root, _, files in os.walk(dists_dir):
+        for file in files:
+            if file in ['Release', 'InRelease']:
+                continue
+
+            filepath = os.path.join(root, file)
+            relpath = os.path.relpath(filepath, dists_dir)
+
+            with open(filepath, 'rb') as f:
+                data = f.read()
+                size = len(data)
+                md5 = hashlib.md5(data).hexdigest()
+                sha1 = hashlib.sha1(data).hexdigest()
+                sha256 = hashlib.sha256(data).hexdigest()
+
+            md5_lines.append(f' {md5} {size} {relpath}')
+            sha1_lines.append(f' {sha1} {size} {relpath}')
+            sha256_lines.append(f' {sha256} {size} {relpath}')
+
+    release_content.extend(md5_lines)
+    release_content.append('SHA1:')
+    release_content.extend(sha1_lines)
+    release_content.append('SHA256:')
+    release_content.extend(sha256_lines)
+
+    with open(release_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(release_content) + '\n')
+
+
+def _sign_release(release_path: str) -> None:
+    gpg_key_path = os.path.join('scripts', 'keys', 'repoexe.gpg')
+
+    if not os.path.exists(gpg_key_path):
+        print('Warning: GPG key not found at scripts/keys/repoexe.gpg, skipping repository signing.')
+        return
+
+    inrelease_path = os.path.join(os.path.dirname(release_path), 'InRelease')
+
+    # Import key if needed
+    subprocess.run(['gpg', '--import', gpg_key_path], check=False, stderr=subprocess.DEVNULL)
+
+    # Delete old InRelease if exists
+    if os.path.exists(inrelease_path):
+        os.remove(inrelease_path)
+
+    # Sign
+    # We might not know the exact key ID, so we sign with the default or all imported keys.
+    # --clearsign creates InRelease
+    subprocess.run(['gpg', '--clearsign', '--digest-algo', 'SHA512', '-o', inrelease_path, release_path], check=True)
