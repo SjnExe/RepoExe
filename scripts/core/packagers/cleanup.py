@@ -405,7 +405,6 @@ def detect_ghost_dependencies(target_dir: str, pkg: 'BuildYml') -> None:
 
             # Heuristic map since Android/Termux packages don't always perfectly match Debian
             dpkg_deps_base = {d.replace('-dev', '').replace('lib', '') for d in dpkg_deps}
-            declared_deps_base = {d.replace('-dev', '').replace('lib', '') for d in all_declared_deps}
 
             for dep in all_declared_deps:
                 base = dep.replace('-dev', '').replace('lib', '')
@@ -438,7 +437,6 @@ def detect_abi_breakage(target_dir: str, pkg: 'BuildYml') -> None:
         return
 
     import tempfile
-    import shutil
 
     # To get the latest release, we'll try to use gh CLI to download the latest deb
     # If gh is not available or there is no previous release, we skip gracefully.
