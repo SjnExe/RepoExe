@@ -37,7 +37,7 @@ jobs:
       publish_decision: ${{ steps.decision.outputs.publish_decision }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Set publish decision
@@ -142,7 +142,7 @@ jobs:
         shard: ${{ fromJson(needs.prepare.outputs.shards) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Free Disk Space
         uses: ./.github/actions/free-space
@@ -151,12 +151,12 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Configure sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        uses: mozilla-actions/sccache-action@v0.0.10
         with:
           version: 'v0.8.1'
 
       - name: sccache cache restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         if: github.event_name == 'pull_request'
         with:
           path: /home/runner/.cache/sccache
@@ -165,7 +165,7 @@ jobs:
             ${{ runner.os }}-sccache-${{ matrix.arch }}-
 
       - name: sccache cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         if: github.event_name != 'pull_request'
         with:
           path: /home/runner/.cache/sccache
