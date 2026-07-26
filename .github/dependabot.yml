@@ -11,6 +11,7 @@ updates:
       all-actions:
         patterns:
           - '*'
+
   - package-ecosystem: 'pip'
     directory: '/scripts'
     schedule:
