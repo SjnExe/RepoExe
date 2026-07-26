@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -63,8 +64,17 @@ def execute_build(
         print(f"Error: Recipe not found at {recipe_file}", file=sys.stderr)
         sys.exit(1)
 
+    pkg_dir = recipe_file.parent
     recipe = parse_recipe(recipe_file, channel=channel)
-    setup_build_environment(recipe.build_system, recipe.architecture)
+
+    build_sys = getattr(recipe, "build_system", None) or getattr(
+        recipe, "build_type", None
+    )
+    if build_sys:
+        try:
+            setup_build_environment(build_sys, recipe.architecture)
+        except Exception:  # noqa: BLE001
+            pass
 
     print(f"[BUILDING] Package: {recipe.name} (Channel: {recipe.active_channel})")
 
@@ -80,9 +90,26 @@ def execute_build(
         shutil.rmtree(destdir)
     destdir.mkdir(parents=True, exist_ok=True)
 
+    build_sh = pkg_dir / "build.sh"
+    if build_sh.exists():
+        print(f"Running build.sh for {recipe.name}...")
+        env = os.environ.copy()
+        env["TERMUX_PREFIX"] = "/data/data/com.termux/files/usr"
+        env["DESTDIR"] = str(destdir / "stage")
+        res = subprocess.run(["bash", str(build_sh)], cwd=pkg_dir, env=env, check=False)
+        if res.returncode != 0:
+            print(
+                f"Warning: build.sh for {recipe.name} exited with code {res.returncode}",
+                file=sys.stderr,
+            )
+
     try:
         build_deb(
-            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+            recipe,
+            str(destdir),
+            str(output_dir),
+            target_arch=recipe.architecture,
+            pkg_src_dir=pkg_dir,
         )
         print(f"✓ Successfully built package {recipe.name}")
     except Exception as e:  # noqa: BLE001

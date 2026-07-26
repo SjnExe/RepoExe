@@ -1,6 +1,7 @@
 import gzip
 import hashlib
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -27,14 +28,26 @@ def generate_control_file(recipe: PackageRecipe) -> str:
     return "\n".join(control_lines) + "\n"
 
 
-def prepare_debian_dir(recipe: PackageRecipe, build_dir: Path) -> Path:
-    """Prepares DEBIAN staging folder and writes control file."""
+def prepare_debian_dir(
+    recipe: PackageRecipe, build_dir: Path, pkg_src_dir: Path | None = None
+) -> Path:
+    """Prepares DEBIAN staging folder, copies payload files, and writes control file."""
     stage_dir = build_dir / "stage"
     debian_dir = stage_dir / "DEBIAN"
     debian_dir.mkdir(parents=True, exist_ok=True)
 
     control_content = generate_control_file(recipe)
     (debian_dir / "control").write_text(control_content, encoding="utf-8")
+
+    if pkg_src_dir and pkg_src_dir.exists():
+        for item in pkg_src_dir.iterdir():
+            if item.name in ("build.yml", "build.sh", "subpackages"):
+                continue
+            target = stage_dir / item.name
+            if item.is_dir():
+                shutil.copytree(item, target, dirs_exist_ok=True)
+            else:
+                shutil.copy2(item, target)
 
     return stage_dir
 
@@ -44,13 +57,14 @@ def build_deb(
     destdir: str,
     output_dir: str,
     target_arch: str = "aarch64",
+    pkg_src_dir: Path | None = None,
 ) -> Path:
     """Builds a .deb package from staging/recipe."""
     build_path = Path(destdir)
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    stage_dir = prepare_debian_dir(recipe, build_path)
+    stage_dir = prepare_debian_dir(recipe, build_path, pkg_src_dir=pkg_src_dir)
 
     version_str = (
         f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
