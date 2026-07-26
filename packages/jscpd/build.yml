@@ -1,6 +1,6 @@
 name: jscpd
-version: 0.1.0
-revision: 1
+version: 5.0.12
+revision: 0
 architecture: aarch64
 description: Copy/paste detector for programming code (static Rust ARM64 build)
 license: MIT
