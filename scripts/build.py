@@ -56,7 +56,7 @@ def run_health_check(packages_dir: Path) -> None:
 
 
 def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
-    """Ensures required toolchains (cargo, go, etc.) are available in PATH."""
+    """Ensures required cross-compilation toolchains are installed."""
     extra_paths = [
         "/root/.cargo/bin",
         "/home/builder/.cargo/bin",
@@ -69,25 +69,48 @@ def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
     env["PATH"] = curr_path
     os.environ["PATH"] = curr_path
 
-    if build_sys == "cargo" and not shutil.which("rustup", path=env["PATH"]):
-        print("Installing Rust toolchain via rustup (supports Edition 2024)...")
-        subprocess.run(
-            "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable",
-            shell=True,
-            check=False,
-        )
-        for p in ["/root/.cargo/bin", "/home/builder/.cargo/bin"]:
-            if Path(p).exists() and p not in env["PATH"]:
-                env["PATH"] = f"{p}:{env['PATH']}"
-                os.environ["PATH"] = env["PATH"]
+    if build_sys == "cargo":
+        if not shutil.which("rustup", path=env["PATH"]):
+            print("Installing Rust toolchain via rustup...")
+            subprocess.run(
+                "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable",
+                shell=True,
+                check=False,
+            )
+            for p in ["/root/.cargo/bin", "/home/builder/.cargo/bin"]:
+                if Path(p).exists() and p not in env["PATH"]:
+                    env["PATH"] = f"{p}:{env['PATH']}"
+                    os.environ["PATH"] = env["PATH"]
 
-    if build_sys == "go" and not shutil.which("go", path=env["PATH"]):
-        print("Go toolchain not found. Installing via apt...")
-        subprocess.run(["apt-get", "update", "-qq"], check=False)
+        print("Ensuring aarch64-unknown-linux-musl Rust target is installed...")
         subprocess.run(
-            ["apt-get", "install", "-yq", "--no-install-recommends", "golang"],
+            ["rustup", "target", "add", "aarch64-unknown-linux-musl"],
             check=False,
+            env=env,
         )
+
+    if build_sys == "go":
+        go_bin = shutil.which("go", path=env["PATH"])
+        needs_go_install = True
+        if go_bin:
+            try:
+                res = subprocess.run(
+                    [go_bin, "version"], capture_output=True, text=True, check=False
+                )
+                if "go1.2" in res.stdout or "go1.3" in res.stdout:
+                    needs_go_install = False
+            except Exception:  # noqa: BLE001
+                pass
+
+        if needs_go_install:
+            print("Installing latest official Go release (go1.24.0)...")
+            subprocess.run(
+                "curl -fsSL https://go.dev/dl/go1.24.0.linux-amd64.tar.gz | tar -C /usr/local -xz",
+                shell=True,
+                check=False,
+            )
+            env["PATH"] = f"/usr/local/go/bin:{env['PATH']}"
+            os.environ["PATH"] = env["PATH"]
 
 
 def execute_build(
