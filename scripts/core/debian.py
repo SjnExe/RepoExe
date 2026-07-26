@@ -60,7 +60,7 @@ def build_deb(
     deb_path = out_path / deb_filename
 
     cmd = ["dpkg-deb", "--build", "-Zzstd", str(stage_dir), str(deb_path)]
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if res.returncode != 0:
         cmd = ["dpkg-deb", "--build", str(stage_dir), str(deb_path)]
         subprocess.run(cmd, check=True, capture_output=True, text=True)

@@ -29,7 +29,7 @@ def list_packages(packages_dir: Path) -> None:
                 )
                 channels_str = ", ".join(ch_list)
                 print(f"  • {recipe.name:<12} v{recipe.version:<8} [{channels_str}]")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"  • {pkg_dir.name:<12} [INVALID: {e}]")
 
 
@@ -64,7 +64,7 @@ def execute_build(
         sys.exit(1)
 
     recipe = parse_recipe(recipe_file, channel=channel)
-    env = setup_build_environment(recipe.build_system, recipe.architecture)
+    setup_build_environment(recipe.build_system, recipe.architecture)
 
     print(f"[BUILDING] Package: {recipe.name} (Channel: {recipe.active_channel})")
 
@@ -85,7 +85,7 @@ def execute_build(
             recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
         )
         print(f"✓ Successfully built package {recipe.name}")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Build failed for {recipe.name}: {e}", file=sys.stderr)
         sys.exit(1)
 
