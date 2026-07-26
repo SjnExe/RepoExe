@@ -7,6 +7,9 @@ license: MIT
 homepage: https://github.com/SjnExe/RepoExe
 maintainer: SjnExe
 
+auto_update: true
+update_strategy: github_tag
+
 build_system: cargo
 source_url: https://github.com/vv-bogdanov/jscpd-rs/archive/refs/heads/main.tar.gz
 

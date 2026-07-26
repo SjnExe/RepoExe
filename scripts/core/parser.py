@@ -12,6 +12,7 @@ class ChannelOverride(BaseModel):
     sha256: str | None = None
     auto_update: bool | None = None
     update_strategy: str | None = None
+    custom_update_cmd: str | None = None
     patches: list[str] | None = None
     phases: dict[str, str] | None = None
     vars: dict[str, str] | None = None
@@ -29,8 +30,9 @@ class PackageRecipe(BaseModel):
     build_system: str = "custom"
     source_url: str | None = None
     sha256: str | None = None
-    auto_update: bool = True
-    update_strategy: str = "auto"
+    auto_update: bool = False
+    update_strategy: str | None = None
+    custom_update_cmd: str | None = None
     patches: list[str] = Field(default_factory=list)
     phases: dict[str, str] = Field(default_factory=dict)
     vars: dict[str, str] = Field(default_factory=dict)
@@ -48,7 +50,6 @@ class PackageRecipe(BaseModel):
         override = self.channels[channel_name]
         data = self.model_dump()
 
-        # Merge override fields if present
         if override.version is not None:
             data["version"] = override.version
         if override.revision is not None:
@@ -59,6 +60,10 @@ class PackageRecipe(BaseModel):
             data["sha256"] = override.sha256
         if override.auto_update is not None:
             data["auto_update"] = override.auto_update
+        if override.update_strategy is not None:
+            data["update_strategy"] = override.update_strategy
+        if override.custom_update_cmd is not None:
+            data["custom_update_cmd"] = override.custom_update_cmd
         if override.patches is not None:
             data["patches"] = override.patches
         if override.phases is not None:

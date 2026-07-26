@@ -1,5 +1,7 @@
 import contextlib
 import re
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -37,14 +39,13 @@ def fetch_github_tag(owner: str, repo: str) -> str | None:
             if isinstance(data, list):
                 for item in data:
                     tag = item.get("name", "").lstrip("v")
-                    # Ignore alpha, beta, rc tags unless explicitly desired
                     if tag and not re.search(r"(alpha|beta|rc|dev)", tag, re.IGNORECASE):
                         return tag
     return None
 
 
 def fetch_pypi_version(package_name: str) -> str | None:
-    """Queries PyPI JSON API for the latest published wheel/sdist release version."""
+    """Queries PyPI JSON API for the latest published release version."""
     url = f"https://pypi.org/pypi/{package_name}/json"
     with contextlib.suppress(
         requests.RequestException, ValueError, KeyError, TypeError
@@ -55,29 +56,73 @@ def fetch_pypi_version(package_name: str) -> str | None:
     return None
 
 
+def fetch_custom_update(recipe: Any) -> str | None:
+    """Executes a custom update command or hook script to resolve the latest version."""
+    custom_cmd = getattr(recipe, "custom_update_cmd", None)
+    if custom_cmd:
+        with contextlib.suppress(subprocess.SubprocessError, OSError):
+            res = subprocess.run(
+                custom_cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                return res.stdout.strip()
+
+    updaters_dir = Path(__file__).parent.parent / "updaters"
+    custom_script = updaters_dir / f"{recipe.name}.py"
+    if custom_script.exists():
+        with contextlib.suppress(subprocess.SubprocessError, OSError):
+            res = subprocess.run(
+                [sys.executable, str(custom_script)],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                return res.stdout.strip()
+
+    return None
+
+
 def resolve_latest_version(recipe: Any) -> str | None:
-    """Dynamically routes update detection based on package source and strategy."""
-    strategy = getattr(recipe, "update_strategy", "auto")
+    """Dynamically routes update detection based on explicit update_strategy."""
+    strategy = getattr(recipe, "update_strategy", None)
     src_url = getattr(recipe, "source_url", "") or ""
 
-    if "github.com" in src_url:
+    if not strategy or strategy == "auto":
+        print(
+            f"⚠️ [{recipe.name}] auto_update is enabled but update_strategy is invalid or set to 'auto'. "
+            "Please specify an explicit strategy ('github_release', 'github_tag', 'pypi', or 'custom')."
+        )
+        return None
+
+    if strategy in ("github_release", "github_tag"):
+        if "github.com" not in src_url:
+            print(
+                f"⚠️ [{recipe.name}] Strategy '{strategy}' requires a valid github.com source_url."
+            )
+            return None
         parts = src_url.split("/")
         idx = parts.index("github.com")
         if len(parts) > idx + 2:
             owner, repo = parts[idx + 1], parts[idx + 2]
-
             if strategy == "github_release":
                 return fetch_github_release(owner, repo)
             if strategy == "github_tag":
                 return fetch_github_tag(owner, repo)
 
-            # Default 'auto' strategy: check release first, fallback to tags
-            rel_ver = fetch_github_release(owner, repo)
-            return rel_ver if rel_ver else fetch_github_tag(owner, repo)
-
-    if strategy == "pypi" or "pypi.org" in src_url or "pythonhosted.org" in src_url:
+    if strategy == "pypi":
         return fetch_pypi_version(recipe.name)
 
+    if strategy == "custom":
+        return fetch_custom_update(recipe)
+
+    print(f"⚠️ [{recipe.name}] Unknown update_strategy: '{strategy}'.")
     return None
 
 
@@ -99,7 +144,6 @@ def check_package_channel_updates(packages_dir: Path) -> None:
                 recipe = parse_recipe(recipe_file, channel=ch)
 
                 if not recipe.auto_update:
-                    print(f"[{recipe.name}@{ch}] Auto-update disabled. Skipping.")
                     continue
 
                 latest_ver = resolve_latest_version(recipe)
