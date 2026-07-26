@@ -5,7 +5,7 @@
 set -e
 
 REPO_URL="https://SjnExe.github.io/RepoExe"
-GPG_KEY_URL="${REPO_URL}/repoexe.gpg"
+GPG_KEY_URL="${REPO_URL}/repoexe.asc"
 RSA_KEY_URL="${REPO_URL}/repoexe.rsa.pub"
 PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
 
@@ -49,7 +49,7 @@ echo "=== RepoExe Setup ==="
 if [ $MODE_APT -eq 1 ]; then
     if command -v apt >/dev/null 2>&1; then
         echo "[*] Configuring APT repository..."
-        KEY_PATH="${PREFIX}/etc/apt/trusted.gpg.d/repoexe.gpg"
+        KEY_PATH="${PREFIX}/etc/apt/trusted.gpg.d/repoexe.asc"
         LIST_PATH="${PREFIX}/etc/apt/sources.list.d/repoexe.list"
 
         mkdir -p "${PREFIX}/etc/apt/trusted.gpg.d" "${PREFIX}/etc/apt/sources.list.d"

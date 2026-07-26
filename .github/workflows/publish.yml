@@ -152,6 +152,9 @@ jobs:
               print(f"Generating APT metadata for {arch}...")
               generate_apt_metadata(output_dir, component='main', arch=arch)
 
+          from core.debian import generate_release_file
+          generate_release_file(output_dir, suite='stable', component='main')
+
           os.makedirs("../site/apt", exist_ok=True)
           os.system("cp -r apt_staging/dists ../site/apt/")
 
@@ -212,6 +215,12 @@ jobs:
           </html>
           HTML_EOF
 
+                    # Export public keys to site root
+          if [ -f "scripts/keys/repoexe.gpg" ]; then
+            gpg --import scripts/keys/repoexe.gpg 2>/dev/null || true
+            gpg --armor --export > ../site/repoexe.asc || true
+            cp ../site/repoexe.asc ../site/repoexe.gpg || true
+          fi
           echo "Metadata generation executed."
 
       - name: Setup Pages

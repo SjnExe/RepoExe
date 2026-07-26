@@ -123,3 +123,71 @@ def generate_apt_metadata(
 
     with gzip.open(f"{packages_path}.gz", "wb") as f_gz:
         f_gz.write(packages_content.encode("utf-8"))
+
+
+def generate_release_file(
+    output_dir: str, suite: str = "stable", component: str = "main"
+) -> None:
+    """Generates APT Release, InRelease, and Release.gpg metadata files."""
+    dists_dir = os.path.join(output_dir, "dists", suite)
+    os.makedirs(dists_dir, exist_ok=True)
+    release_path = os.path.join(dists_dir, "Release")
+
+    arches = set()
+    file_entries = []
+
+    for root, _, files in os.walk(dists_dir):
+        for file in files:
+            if file in ("Packages", "Packages.gz"):
+                full_path = os.path.join(root, file)
+                rel_path = os.path.relpath(full_path, dists_dir)
+
+                for p in rel_path.split(os.sep):
+                    if p.startswith("binary-"):
+                        arches.add(p.replace("binary-", ""))
+
+                data = Path(full_path).read_bytes()
+                size = len(data)
+                sha256 = hashlib.sha256(data).hexdigest()
+                file_entries.append(f" {sha256} {size} {rel_path}")
+
+    arch_str = " ".join(sorted(arches)) or "aarch64"
+
+    release_content = (
+        f"Origin: RepoExe\n"
+        f"Label: RepoExe\n"
+        f"Suite: {suite}\n"
+        f"Codename: {suite}\n"
+        f"Architectures: {arch_str}\n"
+        f"Components: {component}\n"
+        f"Description: RepoExe Package Repository\n"
+        f"SHA256:\n" + "\n".join(file_entries) + "\n"
+    )
+
+    with open(release_path, "w", encoding="utf-8") as f:
+        f.write(release_content)
+
+    key_path = Path("keys/repoexe.gpg")
+    if not key_path.exists():
+        key_path = Path("scripts/keys/repoexe.gpg")
+
+    if key_path.exists():
+        subprocess.run(
+            ["gpg", "--import", str(key_path)], capture_output=True, check=False
+        )
+        subprocess.run(
+            [
+                "gpg",
+                "--clearsign",
+                "-o",
+                os.path.join(dists_dir, "InRelease"),
+                release_path,
+            ],
+            capture_output=True,
+            check=False,
+        )
+        subprocess.run(
+            ["gpg", "-abs", "-o", os.path.join(dists_dir, "Release.gpg"), release_path],
+            capture_output=True,
+            check=False,
+        )
