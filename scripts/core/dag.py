@@ -5,7 +5,7 @@ from core.parser import PackageRecipe, parse_recipe
 
 class DependencyGraph:
     def __init__(self, packages_dir: Path):
-        self.packages_dir = packages_dir
+        self.packages_dir = Path(packages_dir)
         self.recipes: dict[str, PackageRecipe] = {}
         self._load_recipes()
 
