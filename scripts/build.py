@@ -88,19 +88,80 @@ def execute_build(
     if destdir.exists():
         shutil.rmtree(destdir)
     destdir.mkdir(parents=True, exist_ok=True)
+    stage_dir = destdir / "stage"
+    stage_dir.mkdir(parents=True, exist_ok=True)
+
+    work_dir = pkg_dir
+    src_url = getattr(recipe, "source_url", None)
+    if src_url:
+        archive_path = destdir / "source.tar.gz"
+        src_extract_dir = destdir / "src"
+        src_extract_dir.mkdir(parents=True, exist_ok=True)
+
+        print(f"Downloading source from {src_url}...")
+        res = subprocess.run(
+            ["curl", "-sSL", str(src_url), "-o", str(archive_path)], check=False
+        )
+        if res.returncode == 0 and archive_path.exists():
+            print("Extracting source archive...")
+            subprocess.run(
+                [
+                    "tar",
+                    "-xf",
+                    str(archive_path),
+                    "-C",
+                    str(src_extract_dir),
+                    "--strip-components=1",
+                ],
+                check=False,
+            )
+            work_dir = src_extract_dir
+
+    env = os.environ.copy()
+    env["DESTDIR"] = str(stage_dir)
+    env["PREFIX"] = "/data/data/com.termux/files/usr"
+    env["TERMUX_PREFIX"] = "/data/data/com.termux/files/usr"
 
     build_sh = pkg_dir / "build.sh"
     if build_sh.exists():
         print(f"Running build.sh for {recipe.name}...")
-        env = os.environ.copy()
-        env["TERMUX_PREFIX"] = "/data/data/com.termux/files/usr"
-        env["DESTDIR"] = str(destdir / "stage")
         res = subprocess.run(["bash", str(build_sh)], cwd=pkg_dir, env=env, check=False)
         if res.returncode != 0:
             print(
                 f"Warning: build.sh for {recipe.name} exited with code {res.returncode}",
                 file=sys.stderr,
             )
+
+    phases = getattr(recipe, "phases", None)
+    make_cmd = None
+    install_cmd = None
+    if isinstance(phases, dict):
+        make_cmd = phases.get("make")
+        install_cmd = phases.get("install")
+    elif phases is not None:
+        make_cmd = getattr(phases, "make", None)
+        install_cmd = getattr(phases, "install", None)
+
+    if make_cmd:
+        print(f"Executing make phase for {recipe.name}...")
+        res = subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
+        if res.returncode != 0:
+            print(
+                f"Error: make phase failed with code {res.returncode}", file=sys.stderr
+            )
+            sys.exit(1)
+
+    if install_cmd:
+        print(f"Executing install phase for {recipe.name}...")
+        res = subprocess.run(
+            install_cmd, shell=True, cwd=work_dir, env=env, check=False
+        )
+        if res.returncode != 0:
+            print(
+                f"Error: install phase failed with code {res.returncode}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     try:
         build_deb(
