@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: 'Packages to build (e.g. "all", "all@all", "tsc", "tsc@v1", "tsc@latest jscpd@beta")'
+        description: 'Target packages (e.g. "all", "all !tsc", "all@all !jscpd@v1", "tsc@latest")'
         required: true
         default: 'all'
       publish_repo:
@@ -88,7 +88,62 @@ jobs:
           TARGET_INPUT: ${{ steps.pkgs.outputs.targets }}
         run: |
           cd scripts
-          uv run python -c "import os, json; from pathlib import Path; from core.parser import parse_recipe; pkgs_dir = Path('../packages'); raw_input = os.environ.get('TARGET_INPUT', 'all').strip() or 'all'; all_pkg_dirs = sorted([d.name for d in pkgs_dir.iterdir() if d.is_dir() and (d / 'build.yml').exists()]); targets = []; [targets.append(f'{p}:{ch}') for token in raw_input.split() for pkg, ch in [(token.split('@', 1) if '@' in token else (token, 'latest'))] for p in (all_pkg_dirs if pkg == 'all' else [pkg]) if (pkgs_dir / p).exists() for ch in ([c for c in (list(parse_recipe(pkgs_dir / p / 'build.yml', channel='latest').channels.keys()) if parse_recipe(pkgs_dir / p / 'build.yml', channel='latest').channels else ['latest'])] if ch == 'all' else [ch])]; seen = set(); unique = [t for t in targets if not (t in seen or seen.add(t))]; shards = [[] for _ in range(4)]; [shards[i % 4].append(t) for i, t in enumerate(unique)]; print(json.dumps([{'shard': i, 'packages': ' '.join(s)} for i, s in enumerate(shards) if s]))" > shards.json
+          uv run python - << 'PYEOF_INNER' > shards.json
+          import os, json
+          from pathlib import Path
+          from core.parser import parse_recipe
+
+          pkgs_dir = Path('../packages')
+          raw_input = os.environ.get('TARGET_INPUT', 'all').strip() or 'all'
+          all_pkg_dirs = sorted([d.name for d in pkgs_dir.iterdir() if d.is_dir() and (d / 'build.yml').exists()])
+
+          def get_channels(pkg_name):
+              recipe_path = pkgs_dir / pkg_name / 'build.yml'
+              if not recipe_path.exists():
+                  return ['latest']
+              try:
+                  recipe = parse_recipe(recipe_path, channel='latest')
+                  return list(recipe.channels.keys()) if recipe.channels else ['latest']
+              except Exception:
+                  return ['latest']
+
+          incl_tokens, excl_tokens = [], []
+          for token in raw_input.split():
+              if token.startswith('!'):
+                  excl_tokens.append(token[1:])
+              else:
+                  incl_tokens.append(token)
+
+          if not incl_tokens:
+              incl_tokens = ['all']
+
+          candidates = set()
+          for token in incl_tokens:
+              pkg, ch = token.split('@', 1) if '@' in token else (token, 'latest')
+              target_pkgs = all_pkg_dirs if pkg == 'all' else [pkg]
+              for p in target_pkgs:
+                  if not (pkgs_dir / p).exists():
+                      continue
+                  target_chs = get_channels(p) if ch == 'all' else [ch]
+                  for c in target_chs:
+                      candidates.add((p, c))
+
+          excluded = set()
+          for token in excl_tokens:
+              pkg, ch = token.split('@', 1) if '@' in token else (token, None)
+              target_pkgs = all_pkg_dirs if pkg == 'all' else [pkg]
+              for (p, c) in list(candidates):
+                  if p in target_pkgs:
+                      if ch is None or ch == 'all' or c == ch:
+                          excluded.add((p, c))
+
+          final_targets = [f"{p}:{c}" for (p, c) in sorted(candidates - excluded)]
+          shards = [[] for _ in range(4)]
+          for i, target in enumerate(final_targets):
+              shards[i % 4].append(target)
+
+          print(json.dumps([{'shard': i, 'packages': ' '.join(s)} for i, s in enumerate(shards) if s]))
+          PYEOF_INNER
           echo "shards=$(cat shards.json)" >> "$GITHUB_OUTPUT"
 
   build:

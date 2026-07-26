@@ -106,7 +106,7 @@ jobs:
           cd scripts
           uv run python core/prune.py
 
-      - name: Generate Static Metadata
+      - name: Generate Static Metadata and Pages Assets
         run: |
           cd scripts
           uv sync
@@ -164,6 +164,49 @@ jobs:
 
           mkdir -p ../site/pacman
           mkdir -p ../site/alpine
+
+          # Copy install script to site root and /install endpoint
+          INSTALL_SCRIPT=""
+          if [ -f "../install.sh" ]; then INSTALL_SCRIPT="../install.sh";
+          elif [ -f "install.sh" ]; then INSTALL_SCRIPT="install.sh";
+          elif [ -f "scripts/install.sh" ]; then INSTALL_SCRIPT="scripts/install.sh";
+          fi
+
+          if [ -n "$INSTALL_SCRIPT" ]; then
+            cp "$INSTALL_SCRIPT" ../site/install
+            cp "$INSTALL_SCRIPT" ../site/install.sh
+            echo "Installed installer script to site/install"
+          fi
+
+          # Create basic index.html landing page
+          cat << 'HTML_EOF' > ../site/index.html
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>RepoExe Package Repository</title>
+              <style>
+                  body { font-family: monospace; background: #0d1117; color: #c9d1d9; padding: 2rem; line-height: 1.6; }
+                  h1 { color: #58a6ff; }
+                  code { background: #161b22; padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid #30363d; display: block; margin: 1rem 0; word-break: break-all; }
+                  a { color: #58a6ff; text-decoration: none; }
+              </style>
+          </head>
+          <body>
+              <h1>RepoExe Repository</h1>
+              <p>Custom Termux package repository for native Android binaries.</p>
+              <h3>Quick Install</h3>
+              <code>curl -sL https://sjnexe.github.io/RepoExe/install | sh</code>
+              <h3>Endpoints</h3>
+              <ul>
+                  <li><a href="apt/dists/stable/main/binary-aarch64/Packages">APT Packages (aarch64)</a></li>
+                  <li><a href="install">Install Script</a></li>
+              </ul>
+          </body>
+          </html>
+          HTML_EOF
+
           echo "Metadata generation executed."
 
       - name: Setup Pages

@@ -28,20 +28,24 @@ If you are an AI agent or maintainer looking to modify the build infrastructure,
 ## Security
 
 If you discover a security vulnerability within RepoExe, please refer to our Security Policy in `SECURITY.md`.
-## 🚀
 
 ## 🚀 Installation
 
 RepoExe provides native binaries for Android terminal environments across multiple package managers and ecosystems.
 
 ### 1. Termux / APT (Default)
+```shell
 curl -sL https://SjnExe.github.io/RepoExe/install | sh
-
+```
 ### 2. NPM Scope (@repoexe)
+```shell
 curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --npm
-
+```
 ### 3. Python Wheels / Pip
+```shell
 curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --pip
-
+```
 ### 4. All Package Repositories
+```bash
 curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --all
+``` 
