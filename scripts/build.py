@@ -99,7 +99,7 @@ def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
                 )
                 if "go1.2" in res.stdout or "go1.3" in res.stdout:
                     needs_go_install = False
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001, S110
                 pass
 
         if needs_go_install:
