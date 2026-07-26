@@ -7,8 +7,19 @@ from typing import Any
 
 import requests
 import yaml
+from packaging.version import InvalidVersion, Version
 
 from core.parser import parse_recipe
+
+
+def extract_semver(tag_name: str) -> Version | None:
+    """Extracts and parses a clean SemVer from tag strings (e.g. 'v5.0.12' -> Version('5.0.12'))."""
+    clean_tag = tag_name.strip()
+    match = re.search(r"v?(\d+\.\d+(?:\.\d+)?(?:-[\w.]+)?)$", clean_tag)
+    if match:
+        with contextlib.suppress(InvalidVersion):
+            return Version(match.group(1))
+    return None
 
 
 def fetch_github_release(owner: str, repo: str) -> str | None:
@@ -20,16 +31,17 @@ def fetch_github_release(owner: str, repo: str) -> str | None:
     ):
         res = requests.get(url, headers=headers, timeout=10)
         if res.status_code == 200:
-            tag = res.json().get("tag_name", "").lstrip("v")
-            if tag:
-                return tag
+            raw_tag = res.json().get("tag_name", "")
+            parsed = extract_semver(raw_tag)
+            if parsed:
+                return str(parsed)
     return None
 
 
 def fetch_github_tag(owner: str, repo: str) -> str | None:
-    """Queries GitHub Tags API for projects that publish via git tags instead of releases."""
+    """Queries GitHub Tags API, parses all valid SemVer tags, and returns the highest version."""
     headers = {"User-Agent": "RepoExe-Orchestrator"}
-    url = f"https://api.github.com/repos/{owner}/{repo}/tags?per_page=10"
+    url = f"https://api.github.com/repos/{owner}/{repo}/tags?per_page=100"
     with contextlib.suppress(
         requests.RequestException, ValueError, KeyError, TypeError
     ):
@@ -37,10 +49,17 @@ def fetch_github_tag(owner: str, repo: str) -> str | None:
         if res.status_code == 200:
             data = res.json()
             if isinstance(data, list):
+                valid_versions: list[Version] = []
                 for item in data:
-                    tag = item.get("name", "").lstrip("v")
-                    if tag and not re.search(r"(alpha|beta|rc|dev)", tag, re.IGNORECASE):
-                        return tag
+                    raw_name = item.get("name", "")
+                    if re.search(r"(alpha|beta|rc|dev|test)", raw_name, re.IGNORECASE):
+                        continue
+                    parsed = extract_semver(raw_name)
+                    if parsed:
+                        valid_versions.append(parsed)
+
+                if valid_versions:
+                    return str(max(valid_versions))
     return None
 
 
@@ -52,7 +71,10 @@ def fetch_pypi_version(package_name: str) -> str | None:
     ):
         res = requests.get(url, timeout=10)
         if res.status_code == 200:
-            return res.json().get("info", {}).get("version")
+            raw_ver = res.json().get("info", {}).get("version", "")
+            parsed = extract_semver(raw_ver)
+            if parsed:
+                return str(parsed)
     return None
 
 
@@ -147,7 +169,19 @@ def check_package_channel_updates(packages_dir: Path) -> None:
                     continue
 
                 latest_ver = resolve_latest_version(recipe)
-                if latest_ver and latest_ver != recipe.version:
+                if not latest_ver:
+                    continue
+
+                current_parsed = extract_semver(recipe.version)
+                latest_parsed = extract_semver(latest_ver)
+
+                # Strict SemVer comparison: latest_version MUST be strictly greater than current_version
+                if current_parsed and latest_parsed:
+                    if latest_parsed > current_parsed:
+                        print(
+                            f"Update available for {recipe.name}@{ch}: {recipe.version} -> {latest_ver}"
+                        )
+                elif latest_ver != recipe.version:
                     print(
                         f"Update available for {recipe.name}@{ch}: {recipe.version} -> {latest_ver}"
                     )

@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Micro-modular Python orchestrator for RepoExe"
 requires-python = ">=3.10"
 dependencies = [
+    "packaging>=24.0",
     "pydantic>=2.7.0",
     "pyyaml>=6.0.1",
     "requests>=2.31.0",
