@@ -23,7 +23,7 @@ def main() -> None:
         try:
             recipe = parse_recipe(recipe_path, channel="latest")
             return list(recipe.channels.keys()) if recipe.channels else ["latest"]
-        except Exception:
+        except Exception:  # noqa: BLE001
             return ["latest"]
 
     incl_tokens, excl_tokens = [], []
@@ -52,9 +52,8 @@ def main() -> None:
         pkg, ch = token.split("@", 1) if "@" in token else (token, None)
         target_pkgs = all_pkg_dirs if pkg == "all" else [pkg]
         for p, c in list(candidates):
-            if p in target_pkgs:
-                if ch is None or ch == "all" or c == ch:
-                    excluded.add((p, c))
+            if p in target_pkgs and (ch is None or ch == "all" or c == ch):
+                excluded.add((p, c))
 
     final_targets = [f"{p}:{c}" for (p, c) in sorted(candidates - excluded)]
     shards: list[list[str]] = [[] for _ in range(4)]

@@ -134,7 +134,8 @@ jobs:
               -w /home/builder/RepoExe \
               "ghcr.io/$OWNER/repoexe-builder:latest" sleep infinity
 
-            docker exec repoexe-daemon bash -c '
+            docker exec -u 0 repoexe-daemon bash -c '
+              chmod -R 777 /home/builder/RepoExe
               for target in ${{ matrix.shard.packages }} ; do
                 pkg=$(echo "$target" | cut -d: -f1)
                 ch=$(echo "$target" | cut -d: -f2)
