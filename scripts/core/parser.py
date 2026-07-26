@@ -11,6 +11,7 @@ class ChannelOverride(BaseModel):
     source_url: str | None = None
     sha256: str | None = None
     auto_update: bool | None = None
+    update_strategy: str | None = None
     patches: list[str] | None = None
     phases: dict[str, str] | None = None
     vars: dict[str, str] | None = None
@@ -29,6 +30,7 @@ class PackageRecipe(BaseModel):
     source_url: str | None = None
     sha256: str | None = None
     auto_update: bool = True
+    update_strategy: str = "auto"
     patches: list[str] = Field(default_factory=list)
     phases: dict[str, str] = Field(default_factory=dict)
     vars: dict[str, str] = Field(default_factory=dict)

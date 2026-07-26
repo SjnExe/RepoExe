@@ -1,5 +1,7 @@
-import sys
+import contextlib
+import re
 from pathlib import Path
+from typing import Any
 
 import requests
 import yaml
@@ -7,43 +9,86 @@ import yaml
 from core.parser import parse_recipe
 
 
-def get_latest_upstream_version(owner: str, repo: str) -> str | None:
+def fetch_github_release(owner: str, repo: str) -> str | None:
+    """Queries GitHub Releases API for the latest published release tag."""
     headers = {"User-Agent": "RepoExe-Orchestrator"}
-
-    # 1. Try Releases API
-    rel_url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
-    try:
-        res = requests.get(rel_url, headers=headers, timeout=10)
+    url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
+    with contextlib.suppress(
+        requests.RequestException, ValueError, KeyError, TypeError
+    ):
+        res = requests.get(url, headers=headers, timeout=10)
         if res.status_code == 200:
             tag = res.json().get("tag_name", "").lstrip("v")
             if tag:
                 return tag
-    except Exception:  # noqa: BLE001
-        pass
+    return None
 
-    # 2. Fallback to Tags API
-    tags_url = f"https://api.github.com/repos/{owner}/{repo}/tags?per_page=1"
-    try:
-        res = requests.get(tags_url, headers=headers, timeout=10)
+
+def fetch_github_tag(owner: str, repo: str) -> str | None:
+    """Queries GitHub Tags API for projects that publish via git tags instead of releases."""
+    headers = {"User-Agent": "RepoExe-Orchestrator"}
+    url = f"https://api.github.com/repos/{owner}/{repo}/tags?per_page=10"
+    with contextlib.suppress(
+        requests.RequestException, ValueError, KeyError, TypeError
+    ):
+        res = requests.get(url, headers=headers, timeout=10)
         if res.status_code == 200:
             data = res.json()
-            if isinstance(data, list) and len(data) > 0:
-                tag = data[0].get("name", "").lstrip("v")
-                if tag:
-                    return tag
-    except Exception:  # noqa: BLE001
-        pass
+            if isinstance(data, list):
+                for item in data:
+                    tag = item.get("name", "").lstrip("v")
+                    # Ignore alpha, beta, rc tags unless explicitly desired
+                    if tag and not re.search(r"(alpha|beta|rc|dev)", tag, re.IGNORECASE):
+                        return tag
+    return None
+
+
+def fetch_pypi_version(package_name: str) -> str | None:
+    """Queries PyPI JSON API for the latest published wheel/sdist release version."""
+    url = f"https://pypi.org/pypi/{package_name}/json"
+    with contextlib.suppress(
+        requests.RequestException, ValueError, KeyError, TypeError
+    ):
+        res = requests.get(url, timeout=10)
+        if res.status_code == 200:
+            return res.json().get("info", {}).get("version")
+    return None
+
+
+def resolve_latest_version(recipe: Any) -> str | None:
+    """Dynamically routes update detection based on package source and strategy."""
+    strategy = getattr(recipe, "update_strategy", "auto")
+    src_url = getattr(recipe, "source_url", "") or ""
+
+    if "github.com" in src_url:
+        parts = src_url.split("/")
+        idx = parts.index("github.com")
+        if len(parts) > idx + 2:
+            owner, repo = parts[idx + 1], parts[idx + 2]
+
+            if strategy == "github_release":
+                return fetch_github_release(owner, repo)
+            if strategy == "github_tag":
+                return fetch_github_tag(owner, repo)
+
+            # Default 'auto' strategy: check release first, fallback to tags
+            rel_ver = fetch_github_release(owner, repo)
+            return rel_ver if rel_ver else fetch_github_tag(owner, repo)
+
+    if strategy == "pypi" or "pypi.org" in src_url or "pythonhosted.org" in src_url:
+        return fetch_pypi_version(recipe.name)
 
     return None
 
 
 def check_package_channel_updates(packages_dir: Path) -> None:
+    """Audits all defined packages and channels for available upstream updates."""
     for pkg_dir in sorted(packages_dir.iterdir()):
         recipe_file = pkg_dir / "build.yml"
         if not (pkg_dir.is_dir() and recipe_file.exists()):
             continue
 
-        try:
+        with contextlib.suppress(Exception):
             raw = yaml.safe_load(recipe_file.read_text(encoding="utf-8"))
             channels = raw.get("channels", {})
             channel_names = list(channels.keys()) if channels else ["latest"]
@@ -57,22 +102,11 @@ def check_package_channel_updates(packages_dir: Path) -> None:
                     print(f"[{recipe.name}@{ch}] Auto-update disabled. Skipping.")
                     continue
 
-                if not recipe.source_url or "github.com" not in recipe.source_url:
-                    continue
-
-                parts = recipe.source_url.split("/")
-                if "github.com" in parts:
-                    idx = parts.index("github.com")
-                    owner, repo = parts[idx + 1], parts[idx + 2]
-
-                    latest_ver = get_latest_upstream_version(owner, repo)
-                    if latest_ver and latest_ver != recipe.version:
-                        print(
-                            f"Update available for {recipe.name}@{ch}: {recipe.version} -> {latest_ver}"
-                        )
-
-        except Exception as e:  # noqa: BLE001
-            print(f"[{pkg_dir.name}] Error checking updates: {e}", file=sys.stderr)
+                latest_ver = resolve_latest_version(recipe)
+                if latest_ver and latest_ver != recipe.version:
+                    print(
+                        f"Update available for {recipe.name}@{ch}: {recipe.version} -> {latest_ver}"
+                    )
 
 
 if __name__ == "__main__":
