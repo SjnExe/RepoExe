@@ -55,6 +55,37 @@ def run_health_check(packages_dir: Path) -> None:
     print(f"Valid Package Recipes : {report['valid_packages']}")
 
 
+def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
+    """Ensures required toolchains (cargo, go, etc.) are available in PATH."""
+    extra_paths = [
+        "/root/.cargo/bin",
+        "/home/builder/.cargo/bin",
+        "/usr/local/go/bin",
+    ]
+    curr_path = env.get("PATH", os.environ.get("PATH", ""))
+    for p in extra_paths:
+        if Path(p).exists() and p not in curr_path:
+            curr_path = f"{p}:{curr_path}"
+    env["PATH"] = curr_path
+    os.environ["PATH"] = curr_path
+
+    if build_sys == "cargo" and not shutil.which("cargo", path=env["PATH"]):
+        print("Cargo/Rust toolchain not found. Installing via apt...")
+        subprocess.run(["apt-get", "update", "-qq"], check=False)
+        subprocess.run(
+            ["apt-get", "install", "-yq", "--no-install-recommends", "cargo", "rustc"],
+            check=False,
+        )
+
+    if build_sys == "go" and not shutil.which("go", path=env["PATH"]):
+        print("Go toolchain not found. Installing via apt...")
+        subprocess.run(["apt-get", "update", "-qq"], check=False)
+        subprocess.run(
+            ["apt-get", "install", "-yq", "--no-install-recommends", "golang"],
+            check=False,
+        )
+
+
 def execute_build(
     package_path: Path,
     channel: str = "latest",
@@ -68,12 +99,14 @@ def execute_build(
     pkg_dir = recipe_file.parent
     recipe = parse_recipe(recipe_file, channel=channel)
 
+    env = os.environ.copy()
     build_sys = getattr(recipe, "build_system", None) or getattr(
         recipe, "build_type", None
     )
     if build_sys:
         with contextlib.suppress(Exception):
             setup_build_environment(build_sys, recipe.architecture)
+        ensure_toolchains_installed(build_sys, env)
 
     print(f"[BUILDING] Package: {recipe.name} (Channel: {recipe.active_channel})")
 
@@ -100,27 +133,40 @@ def execute_build(
 
         print(f"Downloading source from {src_url}...")
         res = subprocess.run(
-            ["curl", "-sSL", str(src_url), "-o", str(archive_path)], check=False
+            ["curl", "-fsSL", str(src_url), "-o", str(archive_path)], check=False
         )
-        if res.returncode == 0 and archive_path.exists():
-            print("Extracting source archive...")
-            subprocess.run(
-                [
-                    "tar",
-                    "-xf",
-                    str(archive_path),
-                    "-C",
-                    str(src_extract_dir),
-                    "--strip-components=1",
-                ],
-                check=False,
+        if res.returncode != 0 or not archive_path.exists():
+            print(
+                f"Error: Failed to download source archive from {src_url}",
+                file=sys.stderr,
             )
-            work_dir = src_extract_dir
+            sys.exit(1)
 
-    env = os.environ.copy()
+        print("Extracting source archive...")
+        res_tar = subprocess.run(
+            [
+                "tar",
+                "-xf",
+                str(archive_path),
+                "-C",
+                str(src_extract_dir),
+                "--strip-components=1",
+            ],
+            check=False,
+        )
+        if res_tar.returncode != 0:
+            print("Error: Failed to extract source archive", file=sys.stderr)
+            sys.exit(1)
+
+        work_dir = src_extract_dir
+
     env["DESTDIR"] = str(stage_dir)
     env["PREFIX"] = "/data/data/com.termux/files/usr"
     env["TERMUX_PREFIX"] = "/data/data/com.termux/files/usr"
+
+    recipe_vars = getattr(recipe, "vars", None)
+    if isinstance(recipe_vars, dict):
+        env.update(recipe_vars)
 
     build_sh = pkg_dir / "build.sh"
     if build_sh.exists():
@@ -147,7 +193,8 @@ def execute_build(
         res = subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
         if res.returncode != 0:
             print(
-                f"Error: make phase failed with code {res.returncode}", file=sys.stderr
+                f"Error: make phase failed with code {res.returncode}",
+                file=sys.stderr,
             )
             sys.exit(1)
 

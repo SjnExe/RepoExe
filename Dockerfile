@@ -23,6 +23,7 @@ RUN \
   && apt-get update \
   && apt-get install -yq --no-install-recommends \
     eatmydata sudo curl git ca-certificates aria2 fuse-overlayfs unzip patch \
+    golang rustc cargo build-essential \
   && eatmydata apt-get -yq upgrade
 
 # Install sccache for distributed compiler caching
