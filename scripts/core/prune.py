@@ -1,4 +1,4 @@
-import contextlib
+import concurrent.futures
 import json
 import subprocess
 from pathlib import Path
@@ -15,14 +15,10 @@ def identify_outdated_assets(
     metadata: dict[str, Any] | None = None,
     pkg_name: str = "",
 ) -> list[dict[str, Any]]:
-    """
-    Identifies outdated release assets on a tag by whitelisting active package versions.
-    Any asset not matching the current version/revision or state_hash is flagged for deletion.
-    """
+    """Identifies outdated release assets on a tag by whitelisting active package versions."""
     to_delete = []
     whitelist = set()
 
-    # Extract target metadata fields
     if metadata:
         pkg_name = metadata.get("name", pkg_name)
         ver = metadata.get("version", "")
@@ -54,61 +50,60 @@ def identify_outdated_assets(
 
 
 def prune_release_tags() -> None:
-    """Iterates through GitHub release tags and prunes outdated build assets."""
-    # Locate repository paths
+    """Iterates through GitHub release tags and prunes outdated build assets using parallel API calls."""
     scripts_dir = Path(__file__).parent.parent
     repo_root = (
         scripts_dir.parent if (scripts_dir.parent / "packages").exists() else Path.cwd()
     )
     pkgs_dir = repo_root / "packages"
-    artifacts_dir = repo_root / "artifacts"
 
-    # Fetch release tags using GitHub CLI
-    res = subprocess.run(
-        ["gh", "release", "list", "--limit", "1000", "--json", "tagName"],
+    # Get active repository info
+    repo_res = subprocess.run(
+        ["gh", "repo", "view", "--json", "name,owner"],
         capture_output=True,
         text=True,
         check=False,
     )
-    if res.returncode != 0 or not res.stdout.strip():
-        print("No release tags found or gh CLI unauthenticated.")
+    if repo_res.returncode != 0:
+        print("⚠️ gh CLI unauthenticated or not inside git repository.")
         return
 
     try:
-        tags_data = json.loads(res.stdout)
-        tags = [t["tagName"] for t in tags_data if "tagName" in t]
+        repo_info = json.loads(repo_res.stdout)
+        owner = repo_info["owner"]["login"]
+        repo_name = repo_info["name"]
     except Exception as e:  # noqa: BLE001
-        print(f"Failed to parse release tags: {e}")
+        print(f"Failed to parse repo info: {e}")
         return
 
-    for tag in tags:
-        print(f"\n🔍 [PRUNE] Inspecting tag: {tag}")
-        if "@" not in tag:
+    # Single high-speed API request for all release metadata
+    releases_res = subprocess.run(
+        ["gh", "api", f"repos/{owner}/{repo_name}/releases?per_page=100"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if releases_res.returncode != 0:
+        print(f"Failed to fetch releases: {releases_res.stderr}")
+        return
+
+    try:
+        releases = json.loads(releases_res.stdout)
+    except Exception as e:  # noqa: BLE001
+        print(f"Failed to parse releases JSON: {e}")
+        return
+
+    deletion_tasks = []
+
+    for release in releases:
+        tag = release.get("tag_name", "")
+        assets = release.get("assets", [])
+        if "@" not in tag or not assets:
             continue
 
         pkg, channel = tag.split("@", 1)
         recipe_path = pkgs_dir / pkg / "build.yml"
 
-        # Fetch current assets on the tag
-        view_res = subprocess.run(
-            ["gh", "release", "view", tag, "--json", "assets"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if view_res.returncode != 0:
-            continue
-
-        try:
-            assets = json.loads(view_res.stdout).get("assets", [])
-        except Exception:  # noqa: BLE001
-            assets = []
-
-        if not assets:
-            print(f"Tag {tag} has no assets.")
-            continue
-
-        # Load metadata from recipe or tag artifact
         metadata = None
         if recipe_path.exists():
             try:
@@ -122,32 +117,48 @@ def prune_release_tags() -> None:
             except Exception as e:  # noqa: BLE001
                 print(f"Could not parse recipe for {pkg}: {e}")
 
-        meta_file = artifacts_dir / f"{tag}_metadata.json"
-        if not metadata and meta_file.exists():
-            with contextlib.suppress(Exception):
-                metadata = json.loads(meta_file.read_text(encoding="utf-8"))
-
         outdated = identify_outdated_assets(assets, metadata=metadata, pkg_name=pkg)
 
-        if not outdated:
-            print(f"✓ All assets on tag '{tag}' are up to date.")
-            continue
-
         for asset in outdated:
+            asset_id = asset.get("id")
             asset_name = asset.get("name")
-            if not asset_name:
-                continue
-            print(
-                f"🗑️ Deleting outdated asset '{asset_name}' from release tag '{tag}'..."
-            )
-            del_res = subprocess.run(
-                ["gh", "release", "delete-asset", tag, asset_name, "-y"],
-                check=False,
-            )
-            if del_res.returncode == 0:
-                print(f"✓ Successfully deleted {asset_name}")
-            else:
-                print(f"⚠️ Failed to delete {asset_name}")
+            if asset_id and asset_name:
+                deletion_tasks.append((tag, asset_name, asset_id, owner, repo_name))
+
+    if not deletion_tasks:
+        print("✓ All release assets are up to date! Nothing to prune.")
+        return
+
+    print(f"🗑️ Found {len(deletion_tasks)} outdated asset(s) to prune...")
+
+    def delete_asset(
+        task: tuple[str, str, int, str, str],
+    ) -> tuple[str, bool, str]:
+        tag, name, asset_id, repo_owner, repo = task
+        res = subprocess.run(
+            [
+                "gh",
+                "api",
+                "--method",
+                "DELETE",
+                f"repos/{repo_owner}/{repo}/releases/assets/{asset_id}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode == 0:
+            return (f"✓ [{tag}] Deleted {name}", True, "")
+        return (f"❌ [{tag}] Failed to delete {name}", False, res.stderr)
+
+    # Delete outdated assets in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        results = list(executor.map(delete_asset, deletion_tasks))
+
+    for msg, success, err in results:
+        print(msg)
+        if not success and err:
+            print(f"   Error detail: {err.strip()}")
 
 
 if __name__ == "__main__":

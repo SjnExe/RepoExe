@@ -1,3 +1,4 @@
+import concurrent.futures
 import gzip
 import hashlib
 import os
@@ -60,7 +61,7 @@ def build_deb(
     target_arch: str = "aarch64",
     pkg_src_dir: Path | None = None,
 ) -> Path:
-    """Builds a .deb package from staging/recipe."""
+    """Builds a .deb package from staging/recipe using fast zstd compression."""
     build_path = Path(destdir)
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
@@ -74,7 +75,7 @@ def build_deb(
     deb_filename = f"{recipe.name}_{version_str}_{arch}.deb"
     deb_path = out_path / deb_filename
 
-    cmd = ["dpkg-deb", "--build", "-Zzstd", str(stage_dir), str(deb_path)]
+    cmd = ["dpkg-deb", "--build", "-Zzstd", "-z1", str(stage_dir), str(deb_path)]
     res = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if res.returncode != 0:
         cmd = ["dpkg-deb", "--build", str(stage_dir), str(deb_path)]
@@ -83,40 +84,48 @@ def build_deb(
     return deb_path
 
 
+def _process_single_deb(deb_file: Path) -> str | None:
+    """Worker function to extract control metadata and hash a .deb package in parallel."""
+    try:
+        res = subprocess.run(
+            ["dpkg-deb", "-f", str(deb_file)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        control_info = res.stdout.strip()
+
+        content = deb_file.read_bytes()
+        size = len(content)
+        md5 = hashlib.md5(content).hexdigest()
+        sha256 = hashlib.sha256(content).hexdigest()
+
+        return (
+            f"{control_info}\nFilename: {deb_file.name}\nSize: {size}\n"
+            f"MD5sum: {md5}\nSHA256: {sha256}\n\n"
+        )
+    except (subprocess.CalledProcessError, OSError):
+        return None
+
+
 def generate_apt_metadata(
     output_dir: str, component: str = "main", arch: str = "aarch64"
 ) -> None:
-    """Generates APT Packages index and compressed variants for a given architecture."""
+    """Generates APT Packages index concurrently for all deb archives in output_dir."""
     binary_dir = os.path.join(
         output_dir, "dists", "stable", component, f"binary-{arch}"
     )
     os.makedirs(binary_dir, exist_ok=True)
 
     packages_path = os.path.join(binary_dir, "Packages")
+    deb_files = sorted(Path(output_dir).glob("*.deb"))
+
     packages_entries = []
-
-    for deb_file in sorted(Path(output_dir).glob("*.deb")):
-        try:
-            res = subprocess.run(
-                ["dpkg-deb", "-f", str(deb_file)],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            control_info = res.stdout.strip()
-
-            content = deb_file.read_bytes()
-            size = len(content)
-            md5 = hashlib.md5(content).hexdigest()
-            sha256 = hashlib.sha256(content).hexdigest()
-
-            file_entry = (
-                f"{control_info}\nFilename: {deb_file.name}\nSize: {size}\n"
-                f"MD5sum: {md5}\nSHA256: {sha256}\n\n"
-            )
-            packages_entries.append(file_entry)
-        except (subprocess.CalledProcessError, OSError):
-            continue
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = executor.map(_process_single_deb, deb_files)
+        for entry in results:
+            if entry:
+                packages_entries.append(entry)
 
     packages_content = "".join(packages_entries)
     with open(packages_path, "w", encoding="utf-8") as f:
