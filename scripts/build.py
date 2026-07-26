@@ -123,7 +123,7 @@ def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
                 pass
 
         if needs_go_install:
-            print("Installing latest official Go release (go1.24.0)...")
+            print("Installing latest official Go release (go1.24.1)...")
             subprocess.run(
                 "curl -fsSL https://go.dev/dl/go1.24.1.linux-amd64.tar.gz | tar -C /usr/local -xz",
                 shell=True,
