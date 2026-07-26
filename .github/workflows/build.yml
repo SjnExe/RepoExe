@@ -75,16 +75,14 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             if [ "${{ github.event.inputs.packages }}" == "@all" ]; then
-              echo "packages=$(find packages -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | tr '
-' ' ')" >> "$GITHUB_OUTPUT"
+              echo "packages=$(find packages -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
             else
               echo "packages=${{ github.event.inputs.packages }}" >> "$GITHUB_OUTPUT"
             fi
           elif [ "${{ github.event_name }}" == "pull_request" ]; then
             BASE_COMMIT=${{ github.event.pull_request.base.sha }}
             HEAD_COMMIT=${{ github.event.pull_request.head.sha }}
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BASE_COMMIT" "$HEAD_COMMIT" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '
-' ' ')
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BASE_COMMIT" "$HEAD_COMMIT" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
             echo "packages=${CHANGED}" >> "$GITHUB_OUTPUT"
             echo "is_pr=true" >> "$GITHUB_OUTPUT"
           else
@@ -96,22 +94,44 @@ jobs:
                AFTER="HEAD"
             fi
 
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BEFORE" "$AFTER" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '
-' ' ')
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BEFORE" "$AFTER" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
             echo "packages=${CHANGED}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Generate Shards
         id: sharding
+        env:
+          CHANGED_PKGS: ${{ steps.pkgs.outputs.packages }}
+          IS_PR: ${{ steps.pkgs.outputs.is_pr }}
         run: |
           cd scripts
-          uv run python -c "import json, sys; from core.dag import DependencyGraph; dag = DependencyGraph('../packages'); changed_pkgs_str = '${{ steps.pkgs.outputs.packages }}'; is_pr = '${{ steps.pkgs.outputs.is_pr }}' == 'true'; tokens = changed_pkgs_str.split() if changed_pkgs_str.strip() else []; target_packages = [t for t in tokens if not t.startswith('!')] if tokens else None; excluded_packages = {t[1:] for t in tokens if t.startswith('!')}; shards = dag.get_shards(target_packages=target_packages, excluded_packages=excluded_packages, is_pr=is_pr, num_shards=4); print(json.dumps([{'shard': i, 'packages': ' '.join(s)} for i, s in enumerate(shards) if s]))" > shards.json
+          uv run python - << 'PYEOF' > shards.json
+          import os, json
+          from core.dag import DependencyGraph
+
+          dag = DependencyGraph('../packages')
+          changed_pkgs_str = os.environ.get('CHANGED_PKGS', '')
+          is_pr = os.environ.get('IS_PR') == 'true'
+
+          tokens = changed_pkgs_str.split() if changed_pkgs_str.strip() else []
+          target_packages = [t for t in tokens if not t.startswith('!')] if tokens else None
+          excluded_packages = {t[1:] for t in tokens if t.startswith('!')}
+
+          shards = dag.get_shards(
+              target_packages=target_packages,
+              excluded_packages=excluded_packages,
+              is_pr=is_pr,
+              num_shards=4
+          )
+
+          print(json.dumps([{'shard': i, 'packages': ' '.join(s)} for i, s in enumerate(shards) if s]))
+          PYEOF
           echo "shards=$(cat shards.json)" >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare
     runs-on: ubuntu-latest
-    if: ${{ needs.prepare.outputs.shards != '[]' && needs.prepare.outputs.shards != '' }}
+    if: needs.prepare.outputs.shards != '[]' && needs.prepare.outputs.shards != ''
     strategy:
       fail-fast: false
       matrix:
@@ -146,7 +166,10 @@ jobs:
           if [ -n "${{ matrix.shard.packages }}" ]; then
             OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
 
-            docker run -d --name repoexe-daemon               -v ${{ github.workspace }}:/home/builder/RepoExe               -w /home/builder/RepoExe               "ghcr.io/$OWNER/repoexe-builder:latest" sleep infinity
+            docker run -d --name repoexe-daemon \
+              -v ${{ github.workspace }}:/home/builder/RepoExe \
+              -w /home/builder/RepoExe \
+              "ghcr.io/$OWNER/repoexe-builder:latest" sleep infinity
 
             docker exec repoexe-daemon bash -c '
               for pkg in ${{ matrix.shard.packages }} ; do
@@ -167,16 +190,28 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
+          MATRIX_PACKAGES: ${{ matrix.shard.packages }}
         run: |
-          CH="${{ needs.prepare.outputs.channel }}"
-
-          for pkg in ${{ matrix.shard.packages }}; do
+          for pkg in $MATRIX_PACKAGES; do
             if [ ! -d "packages/$pkg" ]; then
               continue
             fi
 
-            TAG="${pkg}@${CH}"
-            META_JSON=$(uv --project scripts run python -c "from scripts.core.parser import parse_recipe; from pathlib import Path; import json; r = parse_recipe(Path('packages/$pkg/build.yml'), channel='$CH'); print(json.dumps({'name': r.name, 'version': r.version, 'revision': r.revision, 'channel': r.active_channel, 'state_hash': r.state_hash}))")
+            TAG="${pkg}@${CHANNEL}"
+            META_JSON=$(uv --project scripts run python - << 'PYEOF'
+          import sys, json, os
+          from pathlib import Path
+          from scripts.core.parser import parse_recipe
+
+          pkg = os.environ.get('pkg', '')
+          ch = os.environ.get('CHANNEL', 'latest')
+          recipe_path = Path(f'packages/{pkg}/build.yml')
+          if recipe_path.exists():
+              r = parse_recipe(recipe_path, channel=ch)
+              print(json.dumps({'name': r.name, 'version': r.version, 'revision': r.revision, 'channel': r.active_channel, 'state_hash': r.state_hash}))
+          PYEOF
+            )
 
             PKG_VER=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['version'])")
             PKG_REV=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['revision'])")
@@ -188,10 +223,8 @@ jobs:
               FULL_VER="${PKG_VER}"
             fi
 
-            TITLE="${pkg} v${FULL_VER} [${CH}]"
-            NOTES="Automated build for ${pkg}@${CH}"$'
-'"- **Commit:** ${{ github.sha }}"$'
-'"- **State Hash:** ${STATE_HASH}"
+            TITLE="${pkg} v${FULL_VER} [${CHANNEL}]"
+            NOTES="Automated build for ${pkg}@${CHANNEL}"$'\n'"- **Commit:** ${{ github.sha }}"$'\n'"- **State Hash:** ${STATE_HASH}"
 
             gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
             gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" || true
