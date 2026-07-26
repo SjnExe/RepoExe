@@ -75,14 +75,16 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             if [ "${{ github.event.inputs.packages }}" == "@all" ]; then
-              echo "packages=$(find packages -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+              echo "packages=$(find packages -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | tr '
+' ' ')" >> "$GITHUB_OUTPUT"
             else
               echo "packages=${{ github.event.inputs.packages }}" >> "$GITHUB_OUTPUT"
             fi
           elif [ "${{ github.event_name }}" == "pull_request" ]; then
             BASE_COMMIT=${{ github.event.pull_request.base.sha }}
             HEAD_COMMIT=${{ github.event.pull_request.head.sha }}
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BASE_COMMIT" "$HEAD_COMMIT" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BASE_COMMIT" "$HEAD_COMMIT" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '
+' ' ')
             echo "packages=${CHANGED}" >> "$GITHUB_OUTPUT"
             echo "is_pr=true" >> "$GITHUB_OUTPUT"
           else
@@ -94,7 +96,8 @@ jobs:
                AFTER="HEAD"
             fi
 
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BEFORE" "$AFTER" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BEFORE" "$AFTER" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '
+' ' ')
             echo "packages=${CHANGED}" >> "$GITHUB_OUTPUT"
           fi
 
@@ -143,10 +146,7 @@ jobs:
           if [ -n "${{ matrix.shard.packages }}" ]; then
             OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
 
-            docker run -d --name repoexe-daemon \
-              -v ${{ github.workspace }}:/home/builder/RepoExe \
-              -w /home/builder/RepoExe \
-              "ghcr.io/$OWNER/repoexe-builder:latest" sleep infinity
+            docker run -d --name repoexe-daemon               -v ${{ github.workspace }}:/home/builder/RepoExe               -w /home/builder/RepoExe               "ghcr.io/$OWNER/repoexe-builder:latest" sleep infinity
 
             docker exec repoexe-daemon bash -c '
               for pkg in ${{ matrix.shard.packages }} ; do
@@ -182,8 +182,16 @@ jobs:
             PKG_REV=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['revision'])")
             STATE_HASH=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['state_hash'])")
 
-            TITLE="${pkg} v${PKG_VER}-${PKG_REV} [${CH}]"
-            NOTES="Automated build for ${pkg}@${CH}"$'\n'"- **Commit:** ${{ github.sha }}"$'\n'"- **State Hash:** ${STATE_HASH}"
+            if [ "$PKG_REV" -gt 0 ] 2>/dev/null; then
+              FULL_VER="${PKG_VER}-${PKG_REV}"
+            else
+              FULL_VER="${PKG_VER}"
+            fi
+
+            TITLE="${pkg} v${FULL_VER} [${CH}]"
+            NOTES="Automated build for ${pkg}@${CH}"$'
+'"- **Commit:** ${{ github.sha }}"$'
+'"- **State Hash:** ${STATE_HASH}"
 
             gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
             gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" || true
@@ -192,8 +200,8 @@ jobs:
             gh release upload "$TAG" metadata.json --clobber || true
 
             UPLOAD_FILES=""
-            if ls output/*_${{ matrix.arch }}.deb 1> /dev/null 2>&1; then
-              UPLOAD_FILES="output/*_${{ matrix.arch }}.deb"
+            if ls output/*.deb 1> /dev/null 2>&1; then
+              UPLOAD_FILES=$(ls output/*.deb)
             fi
 
             if [ -n "$UPLOAD_FILES" ]; then
