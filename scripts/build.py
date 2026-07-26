@@ -56,7 +56,7 @@ def run_health_check(packages_dir: Path) -> None:
 
 
 def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
-    """Ensures required cross-compilation toolchains are installed."""
+    """Ensures required cross-compilation toolchains and linkers are installed."""
     extra_paths = [
         "/root/.cargo/bin",
         "/home/builder/.cargo/bin",
@@ -87,6 +87,26 @@ def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
             ["rustup", "target", "add", "aarch64-unknown-linux-musl"],
             check=False,
             env=env,
+        )
+
+        if not shutil.which("aarch64-linux-gnu-gcc"):
+            print("Installing aarch64 cross-linker via apt...")
+            subprocess.run(["apt-get", "update", "-qq"], check=False)
+            subprocess.run(
+                [
+                    "apt-get",
+                    "install",
+                    "-yq",
+                    "--no-install-recommends",
+                    "gcc-aarch64-linux-gnu",
+                    "libc6-dev-arm64-cross",
+                ],
+                check=False,
+            )
+
+        env["CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER"] = "aarch64-linux-gnu-gcc"
+        os.environ["CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER"] = (
+            "aarch64-linux-gnu-gcc"
         )
 
     if build_sys == "go":

@@ -1,6 +1,6 @@
 name: tsc
 version: 0.1.0
-revision: 1
+revision: 2
 architecture: aarch64
 description: Fast TypeScript compiler written in Go with Seccomp sandbox patches
 license: Apache-2.0
@@ -14,6 +14,7 @@ vars:
   GOOS: "android"
   GOARCH: "arm64"
   CGO_ENABLED: "0"
+  GOTOOLCHAIN: "local"
 
 phases:
   configure: |
