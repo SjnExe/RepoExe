@@ -102,35 +102,7 @@ jobs:
         id: sharding
         run: |
           cd scripts
-          uv run python -c "
-          import json, sys
-          from core.dag import DependencyGraph
-
-          dag = DependencyGraph('../packages')
-          changed_pkgs_str = '${{ steps.pkgs.outputs.packages }}'
-          is_pr = '${{ steps.pkgs.outputs.is_pr }}' == 'true'
-
-          target_packages = None
-          excluded_packages = set()
-
-          if changed_pkgs_str.strip():
-              tokens = changed_pkgs_str.split()
-              target_packages = []
-              for token in tokens:
-                  if token.startswith('!'):
-                      excluded_packages.add(token[1:])
-                  else:
-                      target_packages.append(token)
-
-          shards = dag.get_shards(
-              target_packages=target_packages,
-              excluded_packages=excluded_packages,
-              is_pr=is_pr,
-              num_shards=4
-          )
-
-          print(json.dumps([{'shard': i, 'packages': ' '.join(shard)} for i, shard in enumerate(shards) if shard]))
-          " > shards.json
+          uv run python -c "import json, sys; from core.dag import DependencyGraph; dag = DependencyGraph('../packages'); changed_pkgs_str = '${{ steps.pkgs.outputs.packages }}'; is_pr = '${{ steps.pkgs.outputs.is_pr }}' == 'true'; tokens = changed_pkgs_str.split() if changed_pkgs_str.strip() else []; target_packages = [t for t in tokens if not t.startswith('!')] if tokens else None; excluded_packages = {t[1:] for t in tokens if t.startswith('!')}; shards = dag.get_shards(target_packages=target_packages, excluded_packages=excluded_packages, is_pr=is_pr, num_shards=4); print(json.dumps([{'shard': i, 'packages': ' '.join(s)} for i, s in enumerate(shards) if s]))" > shards.json
           echo "shards=$(cat shards.json)" >> "$GITHUB_OUTPUT"
 
   build:
@@ -204,13 +176,7 @@ jobs:
             fi
 
             TAG="${pkg}@${CH}"
-            META_JSON=$(uv --project scripts run python -c "
-            from scripts.core.parser import parse_recipe
-            from pathlib import Path
-            import json
-            r = parse_recipe(Path('packages/$pkg/build.yml'), channel='$CH')
-            print(json.dumps({'name': r.name, 'version': r.version, 'revision': r.revision, 'channel': r.active_channel, 'state_hash': r.state_hash}))
-            ")
+            META_JSON=$(uv --project scripts run python -c "from scripts.core.parser import parse_recipe; from pathlib import Path; import json; r = parse_recipe(Path('packages/$pkg/build.yml'), channel='$CH'); print(json.dumps({'name': r.name, 'version': r.version, 'revision': r.revision, 'channel': r.active_channel, 'state_hash': r.state_hash}))")
 
             PKG_VER=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['version'])")
             PKG_REV=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['revision'])")
