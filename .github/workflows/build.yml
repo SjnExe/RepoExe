@@ -237,9 +237,9 @@ jobs:
             fi
 
             TITLE="${pkg} v${FULL_VER} [${ch}]"
-            NOTES="Automated build for ${pkg}@${ch}"$'
-'"- **Commit:** ${{ github.sha }}"$'
-'"- **State Hash:** ${STATE_HASH}"
+            NOTES="Automated build for ${pkg}@${ch}
+- **Commit:** ${{ github.sha }}
+- **State Hash:** ${STATE_HASH}"
 
             gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
             gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" || true

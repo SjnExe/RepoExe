@@ -6,7 +6,7 @@ A scalable, multi-format package repository providing custom tools and standalon
 
 To automatically install this custom repository on your device, run:
 
-```shell
+```bash
 curl -sL https://SjnExe.github.io/RepoExe/install | sh
 ```
 
@@ -34,15 +34,15 @@ If you discover a security vulnerability within RepoExe, please refer to our Sec
 RepoExe provides native binaries for Android terminal environments across multiple package managers and ecosystems.
 
 ### 1. Termux / APT (Default)
-```shell
+```bash
 curl -sL https://SjnExe.github.io/RepoExe/install | sh
 ```
 ### 2. NPM Scope (@repoexe)
-```shell
+```bash
 curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --npm
 ```
 ### 3. Python Wheels / Pip
-```shell
+```bash
 curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --pip
 ```
 ### 4. All Package Repositories
