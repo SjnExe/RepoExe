@@ -85,9 +85,8 @@ class DockerRunner:
         """Executes a command synchronously inside the docker container."""
         full_cmd = self.build_command(cmd)
 
-        # If hermetic mode is explicitly requested, drop network
+        # Network enabled by default to allow toolchain and dependency resolution
         if network_disabled:
-            # We insert --network=none before the image name
             image_idx = full_cmd.index(self.config.image)
             full_cmd.insert(image_idx, "--network=none")
 
