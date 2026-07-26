@@ -1,6 +1,6 @@
 name: tsc
 version: 0.1.0
-revision: 3
+revision: 4
 architecture: aarch64
 description: Fast TypeScript compiler written in Go with Seccomp sandbox patches
 license: Apache-2.0
@@ -14,27 +14,8 @@ vars:
   GOOS: "android"
   GOARCH: "arm64"
   CGO_ENABLED: "0"
-  GOTOOLCHAIN: "local"
 
 phases:
-  configure: |
-    echo "Patching go.mod to remove tool and ignore blocks for local Go compatibility..."
-    python3 -c '
-    path = "go.mod"
-    lines = open(path).readlines()
-    new_lines = []
-    skip = False
-    for line in lines:
-        if line.strip().startswith("tool (") or line.strip().startswith("ignore ("):
-            skip = True
-            continue
-        if skip and line.strip().startswith(")"):
-            skip = False
-            continue
-        if not skip:
-            new_lines.append(line)
-    open(path, "w").writelines(new_lines)
-    '
   make: |
     go build -ldflags="-s -w" -o tsc ./cmd/tsc || go build -ldflags="-s -w" -o tsc ./cmd/tsgo || go build -ldflags="-s -w" -o tsc .
   install: |
