@@ -1,0 +1,23 @@
+name: tsc
+version: 0.1.0
+revision: 0
+architecture: aarch64
+description: Fast TypeScript compiler written in Go with Seccomp sandbox patches
+license: Apache-2.0
+homepage: https://github.com/SjnExe/RepoExe
+maintainer: SjnExe
+
+build_system: go
+source_url: https://github.com/typescript-go/typescript-go/archive/refs/tags/v0.1.0.tar.gz
+sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+vars:
+  CGO_ENABLED: "0"
+
+phases:
+  configure: |
+    echo "Configuring Go build environment for ARM64..."
+  make: |
+    go build -ldflags="-s -w" -o tsc ./cmd/tsc
+  install: |
+    install -Dm755 tsc "${DESTDIR}${PREFIX}/bin/tsc"

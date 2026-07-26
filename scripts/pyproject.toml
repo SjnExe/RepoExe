@@ -1,39 +1,26 @@
 [project]
-name = "RepoExe"
+name = "repoexe-orchestrator"
 version = "0.1.0"
 description = "Micro-modular Python orchestrator for RepoExe"
-readme = "../README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
-    "pycryptodome>=3.23.0",
-    "pydantic",
-    "pytest",
-    "pytest-cov",
-    "PyYAML",
+    "pydantic>=2.7.0",
+    "pyyaml>=6.0.1",
+    "requests>=2.31.0",
 ]
-
-[project.scripts]
-repoexe = "core.build:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.ruff]
-line-length = 120
-target-version = "py313"
-
-[tool.mypy]
-python_version = "3.13"
-strict = true
-warn_return_any = true
-warn_unused_configs = true
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-
 [tool.hatch.build.targets.wheel]
-packages = ["core"]
+packages = ["."]
 
-[tool.ruff.format]
-quote-style = 'single'
+[tool.uv]
+link-mode = "symlink"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.10.0",
+    "pytest>=8.0.0",
+]

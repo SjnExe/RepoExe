@@ -65,3 +65,5 @@ InRelease
 # pytest
 .coverage
 .pytest_cache/
+
+*.pyc
