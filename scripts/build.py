@@ -110,27 +110,17 @@ def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
         )
 
     if build_sys == "go":
-        go_bin = shutil.which("go", path=env["PATH"])
-        needs_go_install = True
-        if go_bin:
-            try:
-                res = subprocess.run(
-                    [go_bin, "version"], capture_output=True, text=True, check=False
-                )
-                if "go1.2" in res.stdout or "go1.3" in res.stdout:
-                    needs_go_install = False
-            except Exception:  # noqa: BLE001, S110
-                pass
-
-        if needs_go_install:
-            print("Installing latest official Go release (go1.24.1)...")
+        go_local_bin = Path("/usr/local/go/bin/go")
+        if not go_local_bin.exists():
+            print("Installing Go 1.24.1 directly to /usr/local/go...")
             subprocess.run(
                 "curl -fsSL https://go.dev/dl/go1.24.1.linux-amd64.tar.gz | tar -C /usr/local -xz",
                 shell=True,
                 check=False,
             )
-            env["PATH"] = f"/usr/local/go/bin:{env['PATH']}"
-            os.environ["PATH"] = env["PATH"]
+
+        env["PATH"] = f"/usr/local/go/bin:{env['PATH']}"
+        os.environ["PATH"] = env["PATH"]
 
 
 def execute_build(
