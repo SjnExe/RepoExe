@@ -3,6 +3,7 @@ import hashlib
 import os
 import shutil
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
 from core.parser import PackageRecipe
@@ -155,6 +156,7 @@ def generate_release_file(
 
     release_content = (
         f"Origin: RepoExe\n"
+        f"Date: {datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S UTC')}\n"
         f"Label: RepoExe\n"
         f"Suite: {suite}\n"
         f"Codename: {suite}\n"
