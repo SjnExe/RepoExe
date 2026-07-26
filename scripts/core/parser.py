@@ -1,20 +1,19 @@
 import hashlib
 import json
-import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field, field_validator
+
+from pydantic import BaseModel, Field
 
 
 class ChannelOverride(BaseModel):
-    version: Optional[str] = None
-    revision: Optional[int] = None
-    source_url: Optional[str] = None
-    sha256: Optional[str] = None
-    auto_update: Optional[bool] = None
-    patches: Optional[List[str]] = None
-    phases: Optional[Dict[str, str]] = None
-    vars: Optional[Dict[str, str]] = None
+    version: str | None = None
+    revision: int | None = None
+    source_url: str | None = None
+    sha256: str | None = None
+    auto_update: bool | None = None
+    patches: list[str] | None = None
+    phases: dict[str, str] | None = None
+    vars: dict[str, str] | None = None
 
 
 class PackageRecipe(BaseModel):
@@ -27,13 +26,13 @@ class PackageRecipe(BaseModel):
     homepage: str = ""
     maintainer: str = "SjnExe"
     build_system: str = "custom"
-    source_url: Optional[str] = None
-    sha256: Optional[str] = None
+    source_url: str | None = None
+    sha256: str | None = None
     auto_update: bool = True
-    patches: List[str] = Field(default_factory=list)
-    phases: Dict[str, str] = Field(default_factory=dict)
-    vars: Dict[str, str] = Field(default_factory=dict)
-    channels: Dict[str, ChannelOverride] = Field(default_factory=dict)
+    patches: list[str] = Field(default_factory=list)
+    phases: dict[str, str] = Field(default_factory=dict)
+    vars: dict[str, str] = Field(default_factory=dict)
+    channels: dict[str, ChannelOverride] = Field(default_factory=dict)
     active_channel: str = "latest"
     state_hash: str = ""
 
@@ -46,7 +45,7 @@ class PackageRecipe(BaseModel):
 
         override = self.channels[channel_name]
         data = self.model_dump()
-        
+
         # Merge override fields if present
         if override.version is not None:
             data["version"] = override.version
@@ -89,6 +88,7 @@ class PackageRecipe(BaseModel):
 
 def parse_recipe(recipe_path: Path, channel: str = "latest") -> PackageRecipe:
     import yaml
+
     if not recipe_path.exists():
         raise FileNotFoundError(f"Recipe file not found: {recipe_path}")
 

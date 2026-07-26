@@ -1,9 +1,10 @@
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
+
 from core.parser import parse_recipe
 
 
-def audit_repository_health(packages_dir: Path) -> Dict[str, Any]:
+def audit_repository_health(packages_dir: Path) -> dict[str, Any]:
     """Audits packages directory for validity and computes ecosystem metrics."""
     total_packages = 0
     valid_packages = 0
@@ -17,8 +18,10 @@ def audit_repository_health(packages_dir: Path) -> Dict[str, Any]:
             try:
                 recipe = parse_recipe(recipe_file)
                 valid_packages += 1
-                build_systems[recipe.build_system] = build_systems.get(recipe.build_system, 0) + 1
-            except Exception as e:
+                build_systems[recipe.build_system] = (
+                    build_systems.get(recipe.build_system, 0) + 1
+                )
+            except Exception as e:  # noqa: BLE001  # noqa: BLE001
                 invalid_packages.append({"package": pkg_dir.name, "error": str(e)})
 
     return {

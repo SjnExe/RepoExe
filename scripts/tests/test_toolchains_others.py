@@ -1,42 +1,42 @@
+from core.properties import PREFIX
 from core.toolchains.golang import GolangToolchain
 from core.toolchains.python import PythonToolchain
 from core.toolchains.rust import RustToolchain
 from core.toolchains.swift import SwiftToolchain
 from core.toolchains.zig import ZigToolchain
-from core.properties import PREFIX
 
 
 def test_golang_toolchain():
-    tc = GolangToolchain('aarch64')
-    env = tc.get_env({'CC': 'myclang'})
-    assert env['GOOS'] == 'android'
-    assert env['GOARCH'] == 'arm64'
-    assert env['CGO_ENABLED'] == '1'
-    assert env['CC'] == 'myclang'
+    tc = GolangToolchain("aarch64")
+    env = tc.get_env({"CC": "myclang"})
+    assert env["GOOS"] == "android"
+    assert env["GOARCH"] == "arm64"
+    assert env["CGO_ENABLED"] == "1"
+    assert env["CC"] == "myclang"
 
 
 def test_python_toolchain():
-    tc = PythonToolchain('aarch64')
+    tc = PythonToolchain("aarch64")
     env = tc.get_env()
-    assert env['PYTHONDONTWRITEBYTECODE'] == '1'
-    assert PREFIX in env['PYTHONPATH']
+    assert env["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert PREFIX in env["PYTHONPATH"]
 
 
 def test_rust_toolchain():
-    tc = RustToolchain('aarch64')
-    env = tc.get_env({'CC': 'myclang'})
-    assert env['CARGO_TARGET_NAME'] == 'aarch64-linux-android'
-    assert env['CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER'] == 'myclang'
+    tc = RustToolchain("aarch64")
+    env = tc.get_env({"CC": "myclang"})
+    assert env["CARGO_TARGET_NAME"] == "aarch64-linux-android"
+    assert env["CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"] == "myclang"
 
 
 def test_swift_toolchain():
-    tc = SwiftToolchain('aarch64')
+    tc = SwiftToolchain("aarch64")
     args = tc.get_swift_args()
-    assert '-target' in args
-    assert 'aarch64-unknown-linux-android' in args
+    assert "-target" in args
+    assert "aarch64-unknown-linux-android" in args
 
 
 def test_zig_toolchain():
-    tc = ZigToolchain('aarch64')
+    tc = ZigToolchain("aarch64")
     args = tc.get_zig_args()
-    assert '-Dtarget=aarch64-linux-android' in args
+    assert "-Dtarget=aarch64-linux-android" in args

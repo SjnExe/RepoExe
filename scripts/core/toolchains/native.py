@@ -7,16 +7,16 @@ def generate_cmake_toolchain(arch: str, ndk_path: str, output_path: str) -> str:
     """Generates an android.toolchain.cmake file strictly targeting the architecture."""
     # Maps internal arch to Android API/CMake ABI standards
     abi_map = {
-        'aarch64': 'arm64-v8a',
-        'arm': 'armeabi-v7a',
-        'x86_64': 'x86_64',
-        'i686': 'x86',
+        "aarch64": "arm64-v8a",
+        "arm": "armeabi-v7a",
+        "x86_64": "x86_64",
+        "i686": "x86",
     }
     abi = abi_map.get(arch)
     if not abi:
-        raise ValueError(f'Unsupported architecture for CMake generation: {arch}')
+        raise ValueError(f"Unsupported architecture for CMake generation: {arch}")
 
-    api_level = '24'  # Default minimum API level
+    api_level = "24"  # Default minimum API level
 
     # We enforce Ninja backend and CMAKE_INSTALL_PREFIX
     cmake_content = f"""
@@ -37,8 +37,8 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 """
-    with open(output_path, 'w') as f:
-        f.write(cmake_content.strip() + '\n')
+    with open(output_path, "w") as f:
+        f.write(cmake_content.strip() + "\n")
     return output_path
 
 
@@ -46,65 +46,65 @@ class NativeToolchain:
     def __init__(self, arch: str, build_multilib: bool = False):
         self.arch = arch
         self.build_multilib = build_multilib
-        self.ndk_path = os.environ.get('NDK', '/opt/android-ndk')
-        self.api_level = '24'
+        self.ndk_path = os.environ.get("NDK", "/opt/android-ndk")
+        self.api_level = "24"
         self._setup_target()
 
     def _setup_target(self):
         # Handle multilib logic (compiling 32-bit on 64-bit target)
         if self.build_multilib:
-            if self.arch == 'aarch64':
-                self.target_arch = 'arm'
-            elif self.arch == 'x86_64':
-                self.target_arch = 'i686'
+            if self.arch == "aarch64":
+                self.target_arch = "arm"
+            elif self.arch == "x86_64":
+                self.target_arch = "i686"
             else:
                 self.target_arch = self.arch
         else:
             self.target_arch = self.arch
 
         target_triple_map = {
-            'aarch64': 'aarch64-linux-android',
-            'arm': 'armv7a-linux-androideabi',
-            'x86_64': 'x86_64-linux-android',
-            'i686': 'i686-linux-android',
+            "aarch64": "aarch64-linux-android",
+            "arm": "armv7a-linux-androideabi",
+            "x86_64": "x86_64-linux-android",
+            "i686": "i686-linux-android",
         }
         self.target_triple = target_triple_map.get(self.target_arch)
         if not self.target_triple:
-            raise ValueError(f'Unsupported target architecture: {self.target_arch}')
+            raise ValueError(f"Unsupported target architecture: {self.target_arch}")
 
-        self.clang_target = f'{self.target_triple}{self.api_level}'
+        self.clang_target = f"{self.target_triple}{self.api_level}"
 
     def get_env(self) -> dict:
         """Returns standard C/C++ environment variables injected with PREFIX paths."""
-        llvm_bin = f'{self.ndk_path}/toolchains/llvm/prebuilt/linux-x86_64/bin'
+        llvm_bin = f"{self.ndk_path}/toolchains/llvm/prebuilt/linux-x86_64/bin"
 
         env = {
-            'CC': f'{llvm_bin}/{self.clang_target}-clang',
-            'CXX': f'{llvm_bin}/{self.clang_target}-clang++',
-            'CPP': f'{llvm_bin}/{self.clang_target}-clang -E',
-            'AR': f'{llvm_bin}/llvm-ar',
-            'AS': f'{llvm_bin}/{self.clang_target}-clang',
-            'LD': f'{llvm_bin}/ld.lld',
-            'RANLIB': f'{llvm_bin}/llvm-ranlib',
-            'STRIP': f'{llvm_bin}/llvm-strip',
-            'NM': f'{llvm_bin}/llvm-nm',
-            'OBJCOPY': f'{llvm_bin}/llvm-objcopy',
-            'OBJDUMP': f'{llvm_bin}/llvm-objdump',
-            'READELF': f'{llvm_bin}/llvm-readelf',
+            "CC": f"{llvm_bin}/{self.clang_target}-clang",
+            "CXX": f"{llvm_bin}/{self.clang_target}-clang++",
+            "CPP": f"{llvm_bin}/{self.clang_target}-clang -E",
+            "AR": f"{llvm_bin}/llvm-ar",
+            "AS": f"{llvm_bin}/{self.clang_target}-clang",
+            "LD": f"{llvm_bin}/ld.lld",
+            "RANLIB": f"{llvm_bin}/llvm-ranlib",
+            "STRIP": f"{llvm_bin}/llvm-strip",
+            "NM": f"{llvm_bin}/llvm-nm",
+            "OBJCOPY": f"{llvm_bin}/llvm-objcopy",
+            "OBJDUMP": f"{llvm_bin}/llvm-objdump",
+            "READELF": f"{llvm_bin}/llvm-readelf",
             # Fortran/Flang support
-            'FC': f'{llvm_bin}/flang',
-            'F77': f'{llvm_bin}/flang',
-            'F90': f'{llvm_bin}/flang',
-            'CFLAGS': f'-I{PREFIX}/include -O2 -fPIC',
-            'CXXFLAGS': f'-I{PREFIX}/include -O2 -fPIC',
-            'CPPFLAGS': f'-I{PREFIX}/include',
-            'LDFLAGS': f'-L{PREFIX}/lib -Wl,-rpath={PREFIX}/lib',
-            'PKG_CONFIG_PATH': f'{PREFIX}/lib/pkgconfig:{PREFIX}/share/pkgconfig',
-            'PKG_CONFIG_LIBDIR': f'{PREFIX}/lib/pkgconfig',
-            'PREFIX': PREFIX,
-            'CMAKE_INSTALL_PREFIX': PREFIX,
+            "FC": f"{llvm_bin}/flang",
+            "F77": f"{llvm_bin}/flang",
+            "F90": f"{llvm_bin}/flang",
+            "CFLAGS": f"-I{PREFIX}/include -O2 -fPIC",
+            "CXXFLAGS": f"-I{PREFIX}/include -O2 -fPIC",
+            "CPPFLAGS": f"-I{PREFIX}/include",
+            "LDFLAGS": f"-L{PREFIX}/lib -Wl,-rpath={PREFIX}/lib",
+            "PKG_CONFIG_PATH": f"{PREFIX}/lib/pkgconfig:{PREFIX}/share/pkgconfig",
+            "PKG_CONFIG_LIBDIR": f"{PREFIX}/lib/pkgconfig",
+            "PREFIX": PREFIX,
+            "CMAKE_INSTALL_PREFIX": PREFIX,
             # We standardize ninja
-            'CMAKE_GENERATOR': 'Ninja',
+            "CMAKE_GENERATOR": "Ninja",
         }
         return env
 
@@ -112,25 +112,25 @@ class NativeToolchain:
         """Returns standard CMake execution arguments ensuring deterministic generation."""
         # We write the generated toolchain to the build dir
         os.makedirs(build_dir, exist_ok=True)
-        toolchain_file = os.path.join(build_dir, 'android.toolchain.cmake')
+        toolchain_file = os.path.join(build_dir, "android.toolchain.cmake")
         generate_cmake_toolchain(self.target_arch, self.ndk_path, toolchain_file)
 
         args = [
-            f'-DCMAKE_TOOLCHAIN_FILE={toolchain_file}',
-            '-GNinja',
-            f'-DCMAKE_INSTALL_PREFIX={PREFIX}',
-            '-DCMAKE_BUILD_TYPE=Release',
-            '-DBUILD_TESTING=OFF',
+            f"-DCMAKE_TOOLCHAIN_FILE={toolchain_file}",
+            "-GNinja",
+            f"-DCMAKE_INSTALL_PREFIX={PREFIX}",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DBUILD_TESTING=OFF",
         ]
         return args
 
     def get_meson_args(self) -> list[str]:
         """Returns standard Meson arguments."""
         args = [
-            f'--prefix={PREFIX}',
-            '--libdir=lib',
-            '--buildtype=release',
-            '--default-library=shared',
-            '--cross-file=android_cross_file.txt',  # Expecting generation in sysroot or similar
+            f"--prefix={PREFIX}",
+            "--libdir=lib",
+            "--buildtype=release",
+            "--default-library=shared",
+            "--cross-file=android_cross_file.txt",  # Expecting generation in sysroot or similar
         ]
         return args

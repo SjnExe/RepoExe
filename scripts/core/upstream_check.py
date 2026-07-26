@@ -1,7 +1,8 @@
-import json
 import sys
-import requests
 from pathlib import Path
+
+import requests
+
 from core.parser import parse_recipe
 
 
@@ -14,6 +15,7 @@ def check_package_channel_updates(packages_dir: Path) -> None:
         try:
             # Parse base recipe to read defined channels
             import yaml
+
             raw = yaml.safe_load(recipe_file.read_text(encoding="utf-8"))
             channels = raw.get("channels", {})
             channel_names = list(channels.keys()) if channels else ["latest"]
@@ -22,7 +24,7 @@ def check_package_channel_updates(packages_dir: Path) -> None:
 
             for ch in channel_names:
                 recipe = parse_recipe(recipe_file, channel=ch)
-                
+
                 # Per-Channel Toggle Check!
                 if not recipe.auto_update:
                     print(f"[{recipe.name}@{ch}] Auto-update disabled. Skipping.")
@@ -36,17 +38,25 @@ def check_package_channel_updates(packages_dir: Path) -> None:
                 parts = recipe.source_url.split("/")
                 if "github.com" in parts:
                     idx = parts.index("github.com")
-                    owner, repo = parts[idx+1], parts[idx+2]
-                    
-                    api_url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
-                    res = requests.get(api_url, headers={"User-Agent": "RepoExe-Orchestrator"}, timeout=10)
+                    owner, repo = parts[idx + 1], parts[idx + 2]
+
+                    api_url = (
+                        f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
+                    )
+                    res = requests.get(
+                        api_url,
+                        headers={"User-Agent": "RepoExe-Orchestrator"},
+                        timeout=10,
+                    )
                     if res.status_code == 200:
                         data = res.json()
                         tag_name = data.get("tag_name", "").lstrip("v")
                         if tag_name and tag_name != recipe.version:
-                            print(f"Update available for {recipe.name}@{ch}: {recipe.version} -> {tag_name}")
+                            print(
+                                f"Update available for {recipe.name}@{ch}: {recipe.version} -> {tag_name}"
+                            )
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # noqa: BLE001
             print(f"[{pkg_dir.name}] Error checking updates: {e}", file=sys.stderr)
 
 

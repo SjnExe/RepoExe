@@ -1,13 +1,17 @@
 from pathlib import Path
-from core.parser import parse_recipe
-from core.debian import generate_control_file
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+from pathlib import Path
+
 from core.dag import DependencyGraph
-from core.prune import identify_outdated_assets
+from core.debian import generate_control_file
 from core.health import audit_repository_health
+from core.parser import parse_recipe
+from core.prune import identify_outdated_assets
 
 
 def test_parser_tsc():
-    recipe = parse_recipe(Path("packages/tsc/build.yml"))
+    recipe = parse_recipe(REPO_ROOT / Path("packages/tsc/build.yml"))
     assert recipe.name == "tsc"
     assert recipe.version == "0.1.0"
     assert recipe.build_system == "go"
@@ -15,14 +19,14 @@ def test_parser_tsc():
 
 
 def test_parser_jscpd():
-    recipe = parse_recipe(Path("packages/jscpd/build.yml"))
+    recipe = parse_recipe(REPO_ROOT / Path("packages/jscpd/build.yml"))
     assert recipe.name == "jscpd"
     assert recipe.version == "0.1.0"
     assert recipe.build_system == "cargo"
 
 
 def test_debian_control_generation():
-    recipe = parse_recipe(Path("packages/tsc/build.yml"))
+    recipe = parse_recipe(REPO_ROOT / Path("packages/tsc/build.yml"))
     control = generate_control_file(recipe)
     assert "Package: tsc" in control
     assert "Version: 0.1.0" in control
@@ -31,7 +35,7 @@ def test_debian_control_generation():
 
 
 def test_dag_resolution():
-    dag = DependencyGraph(Path("packages"))
+    dag = DependencyGraph(REPO_ROOT / Path("packages"))
     order = dag.resolve_build_order()
     assert "tsc" in order
     assert "jscpd" in order
@@ -48,7 +52,7 @@ def test_prune_assets():
 
 
 def test_health_audit():
-    report = audit_repository_health(Path("packages"))
+    report = audit_repository_health(REPO_ROOT / Path("packages"))
     assert report["total_packages"] == 3
     assert report["valid_packages"] == 3
     assert len(report["invalid_packages"]) == 0

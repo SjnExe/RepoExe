@@ -1,5 +1,3 @@
-from pathlib import Path
-
 PREFIX = "/data/data/com.termux/files/usr"
 HOME = "/data/data/com.termux/files/home"
 TERMUX_PREFIX = PREFIX

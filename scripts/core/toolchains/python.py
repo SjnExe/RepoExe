@@ -15,11 +15,11 @@ class PythonToolchain:
         """Returns Python environment variables for cross-compilation."""
         env = {
             # Typically for Python we need to set PYTHONPATH to search the target PREFIX
-            'PYTHONPATH': f'{PREFIX}/lib/python3.11/site-packages',  # We can make version dynamic later
+            "PYTHONPATH": f"{PREFIX}/lib/python3.11/site-packages",  # We can make version dynamic later
             # Avoid writing pyc files during build which can have wrong permissions/paths
-            'PYTHONDONTWRITEBYTECODE': '1',
+            "PYTHONDONTWRITEBYTECODE": "1",
             # Prevent pip from complaining about root/prefix
-            'PIP_NO_WARN_SCRIPT_LOCATION': '0',
-            'PIP_DISABLE_PIP_VERSION_CHECK': '1',
+            "PIP_NO_WARN_SCRIPT_LOCATION": "0",
+            "PIP_DISABLE_PIP_VERSION_CHECK": "1",
         }
         return env
