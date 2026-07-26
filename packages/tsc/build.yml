@@ -1,6 +1,6 @@
 name: tsc
 version: 0.1.0
-revision: 5
+revision: 6
 architecture: aarch64
 description: Fast TypeScript compiler written in Go with Seccomp sandbox patches
 license: Apache-2.0
@@ -16,10 +16,9 @@ vars:
   CGO_ENABLED: "0"
 
 phases:
-  configure: |
-    echo "Updating go.mod SDK version to 1.24 to match container runtime..."
-    go mod edit -go=1.24
   make: |
+    echo "Updating go.mod SDK version to 1.24..."
+    go mod edit -go=1.24
     go build -ldflags="-s -w" -o tsc ./cmd/tsc || go build -ldflags="-s -w" -o tsc ./cmd/tsgo || go build -ldflags="-s -w" -o tsc .
   install: |
     install -Dm755 tsc "${DESTDIR}${PREFIX}/bin/tsc"
