@@ -30,3 +30,28 @@ class DependencyGraph:
             visit(pkg)
 
         return order
+
+    def get_shards(
+        self,
+        target_packages: list[str] | None = None,
+        excluded_packages: set[str] | None = None,
+        is_pr: bool = False,
+        num_shards: int = 4,
+    ) -> list[list[str]]:
+        """Splits target packages into balanced matrix shards for CI workflow runners."""
+        if target_packages:
+            pkgs = [p for p in target_packages if (self.packages_dir / p).exists()]
+        else:
+            pkgs = sorted([d.name for d in self.packages_dir.iterdir() if d.is_dir()])
+
+        if excluded_packages:
+            pkgs = [p for p in pkgs if p not in excluded_packages]
+
+        if not pkgs:
+            return []
+
+        shards: list[list[str]] = [[] for _ in range(num_shards)]
+        for idx, pkg in enumerate(pkgs):
+            shards[idx % num_shards].append(pkg)
+
+        return [s for s in shards if s]
