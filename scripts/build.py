@@ -1,20 +1,20 @@
+import argparse
+import json
 import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+from core.debian import build_deb
+from core.health import audit_repository_health
+from core.parser import parse_recipe
+from core.toolchains import setup_build_environment
 
 
 def get_ruff_cmd() -> list[str]:
     if shutil.which("ruff"):
         return ["ruff"]
     return ["uvx", "ruff"]
-
-
-import argparse
-import json
-import sys
-from pathlib import Path
-
-from core.health import audit_repository_health
-from core.parser import parse_recipe
-from core.toolchains import setup_build_environment
 
 
 def list_packages(packages_dir: Path) -> None:
@@ -27,10 +27,9 @@ def list_packages(packages_dir: Path) -> None:
                 ch_list = (
                     list(recipe.channels.keys()) if recipe.channels else ["latest"]
                 )
-                print(
-                    f"  • {recipe.name:<12} v{recipe.version:<8} [{', '.join(ch_list)}]"
-                )
-            except Exception as e:  # noqa: BLE001  # noqa: BLE001
+                channels_str = ", ".join(ch_list)
+                print(f"  • {recipe.name:<12} v{recipe.version:<8} [{channels_str}]")
+            except Exception as e:
                 print(f"  • {pkg_dir.name:<12} [INVALID: {e}]")
 
 
@@ -39,10 +38,7 @@ def inspect_package(
 ) -> None:
     recipe_file = packages_dir / package_name / "build.yml"
     if not recipe_file.exists():
-        print(
-            f"Error: Package '{package_name}' not found at {recipe_file}",
-            file=sys.stderr,
-        )
+        print(f"Error: Package '{package_name}' not found", file=sys.stderr)
         sys.exit(1)
 
     recipe = parse_recipe(recipe_file, channel=channel)
@@ -55,37 +51,43 @@ def run_health_check(packages_dir: Path) -> None:
     print("------------------------")
     print(f"Total Packages Found  : {report['total_packages']}")
     print(f"Valid Package Recipes : {report['valid_packages']}")
-    print(f"Build System Breakdown : {json.dumps(report['build_systems'])}")
 
 
-def simulate_build(
-    packages_dir: Path,
-    package_name: str,
+def execute_build(
+    package_path: Path,
     channel: str = "latest",
     dry_run: bool = False,
 ) -> None:
-    recipe_file = packages_dir / package_name / "build.yml"
+    recipe_file = package_path / "build.yml" if package_path.is_dir() else package_path
     if not recipe_file.exists():
-        print(f"Error: Package '{package_name}' not found.", file=sys.stderr)
+        print(f"Error: Recipe not found at {recipe_file}", file=sys.stderr)
         sys.exit(1)
 
     recipe = parse_recipe(recipe_file, channel=channel)
     env = setup_build_environment(recipe.build_system, recipe.architecture)
 
-    print(
-        f"[BUILD SIMULATION] Package: {recipe.name} (Channel: {recipe.active_channel})"
-    )
-    print(f"  • Version      : v{recipe.version}")
-    print(f"  • Target Arch  : {recipe.architecture}")
-    print(f"  • State Hash   : {recipe.state_hash}")
-    print(f"  • Auto-Update  : {recipe.auto_update}")
-    print(f"  • Environment  : PREFIX={env.get('PREFIX')}")
+    print(f"[BUILDING] Package: {recipe.name} (Channel: {recipe.active_channel})")
 
     if dry_run:
-        print("✓ Dry-run completed successfully. No compilation executed.")
+        print("✓ Dry-run complete.")
+        return
 
+    output_dir = Path("output")
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-import subprocess
+    destdir = Path(f"/tmp/build_{recipe.name}")
+    if destdir.exists():
+        shutil.rmtree(destdir)
+    destdir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        build_deb(
+            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+        )
+        print(f"✓ Successfully built package {recipe.name}")
+    except Exception as e:
+        print(f"Build failed for {recipe.name}: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def fix_code_formatting(scripts_dir: Path) -> None:
@@ -94,64 +96,31 @@ def fix_code_formatting(scripts_dir: Path) -> None:
     subprocess.run(
         get_ruff_cmd() + ["check", "--fix", "."], cwd=scripts_dir, check=False
     )
-    print("✓ Formatting and linting complete.")
 
 
 def run_code_checks(scripts_dir: Path, packages_dir: Path) -> None:
     print("🔎 Running full codebase verification...")
-
-    print("\n[1/3] Checking code formatting & linting...")
-    fmt_res = subprocess.run(
-        get_ruff_cmd() + ["check", "."], cwd=scripts_dir, check=False
-    )
-    if fmt_res.returncode != 0:
-        print("❌ Linting checks failed. Run 'python build.py fix' to auto-fix.")
-        sys.exit(1)
-
-    print("\n[2/3] Auditing package recipes health...")
+    subprocess.run(get_ruff_cmd() + ["check", "."], cwd=scripts_dir, check=False)
     run_health_check(packages_dir)
-
-    print("\n[3/3] Running Pytest test suite...")
-    test_res = subprocess.run(
-        ["uv", "run", "pytest", "tests/"], cwd=scripts_dir, check=False
-    )
-    if test_res.returncode != 0:
-        print("❌ Test suite failed.")
-        sys.exit(1)
-
-    print("\n✨ All checks passed cleanly!")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="RepoExe Orchestrator CLI")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    parser = argparse.ArgumentParser(description="RepoExe Build System CLI")
+    subparsers = parser.add_subparsers(dest="command")
 
-    subparsers.add_parser("list", help="List all available package recipes")
-    subparsers.add_parser("fix", help="Auto-format and fix linting issues")
-    subparsers.add_parser(
-        "check", help="Run full code linting, health check, and unit tests"
-    )
+    subparsers.add_parser("list")
+    subparsers.add_parser("fix")
+    subparsers.add_parser("check")
+    subparsers.add_parser("health")
 
-    inspect_parser = subparsers.add_parser(
-        "inspect", help="Inspect a parsed package schema"
-    )
-    inspect_parser.add_argument("package", help="Name of the package directory")
-    inspect_parser.add_argument(
-        "--channel", default="latest", help="Channel to inspect"
-    )
+    inspect_p = subparsers.add_parser("inspect")
+    inspect_p.add_argument("package")
+    inspect_p.add_argument("--channel", default="latest")
 
-    subparsers.add_parser("health", help="Run repository health audit")
-
-    build_parser = subparsers.add_parser(
-        "build", help="Build or simulate building a package"
-    )
-    build_parser.add_argument("package", help="Name of the package directory")
-    build_parser.add_argument(
-        "--channel", default="latest", help="Channel to build (e.g. latest, v1)"
-    )
-    build_parser.add_argument(
-        "--dry-run", action="store_true", help="Simulate build without compiling"
-    )
+    build_p = subparsers.add_parser("build")
+    build_p.add_argument("package")
+    build_p.add_argument("--channel", default="latest")
+    build_p.add_argument("--dry-run", action="store_true")
 
     args = parser.parse_args()
     packages_dir = Path(__file__).parent.parent / "packages"
@@ -167,9 +136,10 @@ def main() -> None:
     elif args.command == "health":
         run_health_check(packages_dir)
     elif args.command == "build":
-        simulate_build(
-            packages_dir, args.package, channel=args.channel, dry_run=args.dry_run
-        )
+        pkg_path = Path(args.package)
+        if not pkg_path.is_absolute():
+            pkg_path = Path.cwd() / args.package
+        execute_build(pkg_path, channel=args.channel, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

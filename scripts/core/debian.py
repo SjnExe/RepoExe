@@ -18,7 +18,7 @@ def generate_control_file(recipe: PackageRecipe) -> str:
         f"Version: {version_str}",
         f"Architecture: {recipe.architecture}",
         f"Maintainer: {recipe.maintainer or 'SjnExe'}",
-        f"Description: {recipe.description}",
+        f"Description: {recipe.description or 'RepoExe package'}",
     ]
 
     if recipe.homepage:
@@ -37,6 +37,35 @@ def prepare_debian_dir(recipe: PackageRecipe, build_dir: Path) -> Path:
     (debian_dir / "control").write_text(control_content, encoding="utf-8")
 
     return stage_dir
+
+
+def build_deb(
+    recipe: PackageRecipe,
+    destdir: str,
+    output_dir: str,
+    target_arch: str = "aarch64",
+) -> Path:
+    """Builds a .deb package from staging/recipe."""
+    build_path = Path(destdir)
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    stage_dir = prepare_debian_dir(recipe, build_path)
+
+    version_str = (
+        f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
+    )
+    arch = recipe.architecture or target_arch
+    deb_filename = f"{recipe.name}_{version_str}_{arch}.deb"
+    deb_path = out_path / deb_filename
+
+    cmd = ["dpkg-deb", "--build", "-Zzstd", str(stage_dir), str(deb_path)]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        cmd = ["dpkg-deb", "--build", str(stage_dir), str(deb_path)]
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+    return deb_path
 
 
 def generate_apt_metadata(
@@ -66,7 +95,10 @@ def generate_apt_metadata(
             md5 = hashlib.md5(content).hexdigest()
             sha256 = hashlib.sha256(content).hexdigest()
 
-            file_entry = f"{control_info}\nFilename: {deb_file.name}\nSize: {size}\nMD5sum: {md5}\nSHA256: {sha256}\n\n"
+            file_entry = (
+                f"{control_info}\nFilename: {deb_file.name}\nSize: {size}\n"
+                f"MD5sum: {md5}\nSHA256: {sha256}\n\n"
+            )
             packages_entries.append(file_entry)
         except (subprocess.CalledProcessError, OSError):
             continue
