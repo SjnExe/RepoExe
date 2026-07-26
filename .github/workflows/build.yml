@@ -105,27 +105,7 @@ jobs:
           IS_PR: ${{ steps.pkgs.outputs.is_pr }}
         run: |
           cd scripts
-          uv run python - << 'PYEOF' > shards.json
-          import os, json
-          from core.dag import DependencyGraph
-
-          dag = DependencyGraph('../packages')
-          changed_pkgs_str = os.environ.get('CHANGED_PKGS', '')
-          is_pr = os.environ.get('IS_PR') == 'true'
-
-          tokens = changed_pkgs_str.split() if changed_pkgs_str.strip() else []
-          target_packages = [t for t in tokens if not t.startswith('!')] if tokens else None
-          excluded_packages = {t[1:] for t in tokens if t.startswith('!')}
-
-          shards = dag.get_shards(
-              target_packages=target_packages,
-              excluded_packages=excluded_packages,
-              is_pr=is_pr,
-              num_shards=4
-          )
-
-          print(json.dumps([{'shard': i, 'packages': ' '.join(s)} for i, s in enumerate(shards) if s]))
-          PYEOF
+          uv run python -c "import os, json; from core.dag import DependencyGraph; dag = DependencyGraph('../packages'); changed_pkgs_str = os.environ.get('CHANGED_PKGS', ''); is_pr = os.environ.get('IS_PR') == 'true'; tokens = changed_pkgs_str.split() if changed_pkgs_str.strip() else []; target_packages = [t for t in tokens if not t.startswith('!')] if tokens else None; excluded_packages = {t[1:] for t in tokens if t.startswith('!')}; shards = dag.get_shards(target_packages=target_packages, excluded_packages=excluded_packages, is_pr=is_pr, num_shards=4); print(json.dumps([{'shard': i, 'packages': ' '.join(s)} for i, s in enumerate(shards) if s]))" > shards.json
           echo "shards=$(cat shards.json)" >> "$GITHUB_OUTPUT"
 
   build:
@@ -198,20 +178,10 @@ jobs:
               continue
             fi
 
+            export PKG_NAME="$pkg"
             TAG="${pkg}@${CHANNEL}"
-            META_JSON=$(uv --project scripts run python - << 'PYEOF'
-          import sys, json, os
-          from pathlib import Path
-          from scripts.core.parser import parse_recipe
 
-          pkg = os.environ.get('pkg', '')
-          ch = os.environ.get('CHANNEL', 'latest')
-          recipe_path = Path(f'packages/{pkg}/build.yml')
-          if recipe_path.exists():
-              r = parse_recipe(recipe_path, channel=ch)
-              print(json.dumps({'name': r.name, 'version': r.version, 'revision': r.revision, 'channel': r.active_channel, 'state_hash': r.state_hash}))
-          PYEOF
-            )
+            META_JSON=$(uv --project scripts run python -c "import os, json; from pathlib import Path; from core.parser import parse_recipe; pkg = os.environ['PKG_NAME']; ch = os.environ.get('CHANNEL', 'latest'); recipe_path = Path(f'packages/{pkg}/build.yml'); r = parse_recipe(recipe_path, channel=ch); print(json.dumps({'name': r.name, 'version': r.version, 'revision': r.revision, 'channel': r.active_channel, 'state_hash': r.state_hash}))")
 
             PKG_VER=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['version'])")
             PKG_REV=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['revision'])")
