@@ -1,138 +1,27 @@
-#!/bin/bash
-# Universal RepoExe Installation Script
-# Supports: APT (.deb), NPM, Pip (.whl), Pacman, APK
-
+#!/bin/sh
 set -e
 
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 REPO_URL="https://SjnExe.github.io/RepoExe"
-GPG_KEY_URL="${REPO_URL}/repoexe.asc"
-RSA_KEY_URL="${REPO_URL}/repoexe.rsa.pub"
-PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
-
-MODE_APT=0
-MODE_NPM=0
-MODE_PIP=0
-MODE_PACMAN=0
-MODE_APK=0
-
-# Default to APT if no flags are passed
-if [ $# -eq 0 ]; then
-    MODE_APT=1
-fi
-
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --apt|--deb)     MODE_APT=1 ;;
-        --npm)          MODE_NPM=1 ;;
-        --pip|--wheel)  MODE_PIP=1 ;;
-        --pacman)       MODE_PACMAN=1 ;;
-        --apk)          MODE_APK=1 ;;
-        --all)
-            MODE_APT=1
-            MODE_NPM=1
-            MODE_PIP=1
-            MODE_PACMAN=1
-            MODE_APK=1
-            ;;
-        *)
-            echo "Unknown flag: $1"
-            echo "Usage: curl -sL ${REPO_URL}/install | sh -s -- [--apt|--npm|--pip|--pacman|--apk|--all]"
-            exit 1
-            ;;
-    esac
-    shift
-done
+KEY_ASC="${PREFIX}/etc/apt/trusted.gpg.d/repoexe.asc"
+KEY_GPG_OLD="${PREFIX}/etc/apt/trusted.gpg.d/repoexe.gpg"
+SOURCES_LIST="${PREFIX}/etc/apt/sources.list.d/repoexe.list"
 
 echo "=== RepoExe Setup ==="
+echo "[*] Configuring APT repository..."
 
-# --- APT Setup ---
-if [ $MODE_APT -eq 1 ]; then
-    if command -v apt >/dev/null 2>&1; then
-        echo "[*] Configuring APT repository..."
-        KEY_PATH="${PREFIX}/etc/apt/trusted.gpg.d/repoexe.asc"
-        LIST_PATH="${PREFIX}/etc/apt/sources.list.d/repoexe.list"
+# Remove stale/unsupported .gpg key file if it exists from previous runs
+rm -f "$KEY_GPG_OLD"
 
-        mkdir -p "${PREFIX}/etc/apt/trusted.gpg.d" "${PREFIX}/etc/apt/sources.list.d"
-        curl -sLo "$KEY_PATH" "$GPG_KEY_URL" || true
-        echo "deb [signed-by=${KEY_PATH}] ${REPO_URL}/apt stable main" > "$LIST_PATH"
+mkdir -p "${PREFIX}/etc/apt/trusted.gpg.d"
+mkdir -p "${PREFIX}/etc/apt/sources.list.d"
 
-        APT_CMD=$(command -v pkg || echo "apt")
-        $APT_CMD update -y
-        echo "✓ APT repository enabled."
-    else
-        echo "[!] Warning: 'apt' not found. Skipping APT setup."
-    fi
-fi
+echo "[*] Fetching GPG public key..."
+curl -sL "${REPO_URL}/repoexe.asc" -o "$KEY_ASC"
 
-# --- NPM Setup ---
-if [ $MODE_NPM -eq 1 ]; then
-    echo "[*] Configuring NPM scope (@repoexe)..."
-    NPMRC="${HOME}/.npmrc"
-    touch "$NPMRC"
-    if ! grep -q "@repoexe:registry" "$NPMRC"; then
-        echo "@repoexe:registry=${REPO_URL}/npm/" >> "$NPMRC"
-    fi
-    echo "✓ NPM scope (@repoexe) configured in ${NPMRC}"
-fi
+echo "[*] Adding repository source..."
+echo "deb [arch=aarch64] ${REPO_URL}/apt stable main" > "$SOURCES_LIST"
 
-# --- PIP / Wheel Setup ---
-if [ $MODE_PIP -eq 1 ]; then
-    echo "[*] Configuring Pip extra-index-url..."
-    PIP_CONF_DIR="${HOME}/.config/pip"
-    PIP_CONF="${PIP_CONF_DIR}/pip.conf"
-    mkdir -p "$PIP_CONF_DIR"
-    touch "$PIP_CONF"
-
-    if ! grep -q "extra-index-url" "$PIP_CONF"; then
-        echo "[global]" >> "$PIP_CONF"
-        echo "extra-index-url = ${REPO_URL}/wheels/" >> "$PIP_CONF"
-    elif ! grep -q "${REPO_URL}/wheels/" "$PIP_CONF"; then
-        sed -i "/extra-index-url/s|$| ${REPO_URL}/wheels/|" "$PIP_CONF"
-    fi
-    echo "✓ Pip extra-index-url configured in ${PIP_CONF}"
-fi
-
-# --- Pacman Setup ---
-if [ $MODE_PACMAN -eq 1 ]; then
-    if command -v pacman >/dev/null 2>&1; then
-        echo "[*] Configuring Pacman repository..."
-        PACMAN_CONF="${PREFIX}/etc/pacman.conf"
-        KEY_PATH="${PREFIX}/etc/pacman.d/repoexe.gpg"
-
-        mkdir -p "${PREFIX}/etc/pacman.d"
-        curl -sLo "$KEY_PATH" "$GPG_KEY_URL" || true
-
-        if ! grep -q "\[repoexe\]" "$PACMAN_CONF" 2>/dev/null; then
-            echo -e "\n[repoexe]\nServer = ${REPO_URL}/pacman/\$arch" >> "$PACMAN_CONF"
-            pacman-key --add "$KEY_PATH" 2>/dev/null || true
-            pacman-key --lsign-key repoexe 2>/dev/null || true
-        fi
-        pacman -Sy
-        echo "✓ Pacman repository enabled."
-    else
-        echo "[!] Warning: 'pacman' not found. Skipping Pacman setup."
-    fi
-fi
-
-# --- APK Setup ---
-if [ $MODE_APK -eq 1 ]; then
-    if command -v apk >/dev/null 2>&1; then
-        echo "[*] Configuring APK repository..."
-        KEYS_DIR="${PREFIX}/etc/apk/keys"
-        REPOS_FILE="${PREFIX}/etc/apk/repositories"
-
-        mkdir -p "$KEYS_DIR" "${PREFIX}/etc/apk"
-        curl -sLo "${KEYS_DIR}/repoexe.rsa.pub" "$RSA_KEY_URL" || true
-
-        touch "$REPOS_FILE"
-        if ! grep -q "${REPO_URL}/alpine" "$REPOS_FILE"; then
-            echo "${REPO_URL}/alpine/main" >> "$REPOS_FILE"
-        fi
-        apk update
-        echo "✓ APK repository enabled."
-    else
-        echo "[!] Warning: 'apk' not found. Skipping APK setup."
-    fi
-fi
-
-echo "=== Setup Completed Successfully ==="
+echo "[*] Updating APT package lists..."
+apt update
+echo "✓ RepoExe repository configured successfully!"
