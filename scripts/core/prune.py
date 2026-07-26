@@ -1,3 +1,4 @@
+import contextlib
 import json
 import subprocess
 from pathlib import Path
@@ -76,7 +77,7 @@ def prune_release_tags() -> None:
     try:
         tags_data = json.loads(res.stdout)
         tags = [t["tagName"] for t in tags_data if "tagName" in t]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Failed to parse release tags: {e}")
         return
 
@@ -100,7 +101,7 @@ def prune_release_tags() -> None:
 
         try:
             assets = json.loads(view_res.stdout).get("assets", [])
-        except Exception:
+        except Exception:  # noqa: BLE001
             assets = []
 
         if not assets:
@@ -118,15 +119,13 @@ def prune_release_tags() -> None:
                     "revision": recipe.revision,
                     "state_hash": recipe.state_hash,
                 }
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"Could not parse recipe for {pkg}: {e}")
 
         meta_file = artifacts_dir / f"{tag}_metadata.json"
         if not metadata and meta_file.exists():
-            try:
+            with contextlib.suppress(Exception):
                 metadata = json.loads(meta_file.read_text(encoding="utf-8"))
-            except Exception:
-                pass
 
         outdated = identify_outdated_assets(assets, metadata=metadata, pkg_name=pkg)
 
