@@ -1,153 +1,55 @@
-import urllib.request
-import urllib.error
 import json
-from typing import Optional, Tuple
-import time
+import sys
+import requests
+from pathlib import Path
+from core.parser import parse_recipe
 
 
-def get_latest_github_release(owner: str, repo: str) -> Optional[str]:
-    url = f'https://api.github.com/repos/{owner}/{repo}/releases/latest'
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    try:
-        with urllib.request.urlopen(req) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            return data.get('tag_name')
-    except urllib.error.URLError:
-        return None
+def check_package_channel_updates(packages_dir: Path) -> None:
+    for pkg_dir in sorted(packages_dir.iterdir()):
+        recipe_file = pkg_dir / "build.yml"
+        if not (pkg_dir.is_dir() and recipe_file.exists()):
+            continue
+
+        try:
+            # Parse base recipe to read defined channels
+            import yaml
+            raw = yaml.safe_load(recipe_file.read_text(encoding="utf-8"))
+            channels = raw.get("channels", {})
+            channel_names = list(channels.keys()) if channels else ["latest"]
+            if "latest" not in channel_names:
+                channel_names.append("latest")
+
+            for ch in channel_names:
+                recipe = parse_recipe(recipe_file, channel=ch)
+                
+                # Per-Channel Toggle Check!
+                if not recipe.auto_update:
+                    print(f"[{recipe.name}@{ch}] Auto-update disabled. Skipping.")
+                    continue
+
+                if not recipe.source_url or "github.com" not in recipe.source_url:
+                    continue
+
+                # Query GitHub API for releases
+                # Example source_url: https://github.com/owner/repo/archive/refs/tags/v0.1.0.tar.gz
+                parts = recipe.source_url.split("/")
+                if "github.com" in parts:
+                    idx = parts.index("github.com")
+                    owner, repo = parts[idx+1], parts[idx+2]
+                    
+                    api_url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
+                    res = requests.get(api_url, headers={"User-Agent": "RepoExe-Orchestrator"}, timeout=10)
+                    if res.status_code == 200:
+                        data = res.json()
+                        tag_name = data.get("tag_name", "").lstrip("v")
+                        if tag_name and tag_name != recipe.version:
+                            print(f"Update available for {recipe.name}@{ch}: {recipe.version} -> {tag_name}")
+
+        except Exception as e:
+            print(f"[{pkg_dir.name}] Error checking updates: {e}", file=sys.stderr)
 
 
-def get_latest_github_tag(owner: str, repo: str) -> Optional[str]:
-    url = f'https://api.github.com/repos/{owner}/{repo}/tags'
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    try:
-        with urllib.request.urlopen(req) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            if data and len(data) > 0:
-                return data[0].get('name')
-    except urllib.error.URLError:
-        return None
-
-
-def get_latest_gitlab_release(domain: str, project_id: str) -> Optional[str]:
-    import urllib.parse
-
-    url = f'https://{domain}/api/v4/projects/{urllib.parse.quote(project_id, safe="")}/releases'
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    try:
-        with urllib.request.urlopen(req) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            if data and len(data) > 0:
-                return data[0].get('tag_name')
-    except urllib.error.URLError:
-        return None
-
-
-def get_latest_repology_version(project: str) -> Optional[str]:
-    url = f'https://repology.org/api/v1/project/{project}'
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    try:
-        with urllib.request.urlopen(req) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            # Look for newest version
-            newest = None
-            for item in data:
-                status = item.get('status')
-                if status == 'newest':
-                    newest = item.get('version')
-                    break
-            return newest
-    except urllib.error.URLError:
-        return None
-
-
-def extract_repo_info(url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    """Returns domain, owner, repo."""
-    import re
-
-    # Match github.com/owner/repo or gitlab.com/owner/repo
-    m = re.match(
-        r'^https?://(?:www\.)?(github\.com|gitlab\.com|gitlab\.gnome\.org|gitlab\.freedesktop\.org)/([^/]+)/([^/]+)',
-        url,
-    )
-    if m:
-        return m.group(1), m.group(2), m.group(3)
-    return None, None, None
-
-
-def check_package_update(pkg_name: str, pkg_dir: str) -> bool:
-    import os
-    import yaml
-
-    build_yml_path = os.path.join(pkg_dir, 'build.yml')
-    if not os.path.exists(build_yml_path):
-        return False
-
-    with open(build_yml_path, 'r', encoding='utf-8') as f:
-        data = yaml.safe_load(f)
-
-    if not data or not data.get('auto_update', False):
-        return False
-
-    current_version = data.get('version')
-    homepage = data.get('homepage', '')
-    source = data.get('source')
-
-    url_to_check = homepage
-    if isinstance(source, list) and len(source) > 0:
-        url_to_check = source[0].get('url', homepage)
-
-    domain, owner, repo = extract_repo_info(url_to_check)
-    latest_version = None
-
-    if domain in ('github.com', 'www.github.com'):
-        latest_version = get_latest_github_release(owner, repo)
-        if not latest_version:
-            latest_version = get_latest_github_tag(owner, repo)
-    elif domain and 'gitlab.' in domain:
-        project_id = f'{owner}/{repo}'
-        latest_version = get_latest_gitlab_release(domain, project_id)
-
-    if not latest_version:
-        # Fallback to repology using package name
-        latest_version = get_latest_repology_version(pkg_name)
-        time.sleep(1)  # Rate limit repology
-
-    if latest_version:
-        # normalize
-        if latest_version.startswith('v'):
-            latest_version = latest_version[1:]
-
-        if latest_version != current_version:
-            print(f'Update available for {pkg_name}: {current_version} -> {latest_version}')
-            return True
-
-    return False
-
-
-def main():
-    import os
-    import sys
-
-    packages_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'packages'))
-    if not os.path.exists(packages_dir):
-        print(f'Packages dir not found: {packages_dir}')
-        sys.exit(1)
-
-    updates_found = []
-
-    for entry in os.listdir(packages_dir):
-        pkg_dir = os.path.join(packages_dir, entry)
-        if os.path.isdir(pkg_dir):
-            if check_package_update(entry, pkg_dir):
-                updates_found.append(entry)
-
-    if updates_found:
-        print(f'\nFound updates for: {", ".join(updates_found)}')
-        sys.exit(0)  # In CI, 0 means success (we can run the update tasks)
-    else:
-        print('\nNo updates found.')
-        sys.exit(0)
-
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    pkgs_dir = Path(__file__).parent.parent.parent / "packages"
+    check_package_channel_updates(pkgs_dir)
