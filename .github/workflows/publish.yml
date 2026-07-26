@@ -31,7 +31,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Try to download the artifact from the triggering workflow
           if [ "${{ github.event_name }}" != "workflow_run" ]; then
             echo "should_publish=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -40,7 +39,6 @@ jobs:
           RUN_ID="${{ github.event.workflow_run.id }}"
           echo "Checking run $RUN_ID for publish_decision artifact..."
 
-          # gh run download doesn't fail cleanly if no artifacts exist sometimes, so we list first
           ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts --jq '.artifacts[].name' || true)
 
           if echo "$ARTIFACTS" | grep -q "publish_decision"; then
@@ -84,12 +82,7 @@ jobs:
           TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
           for tag in $TAGS; do
             echo "Processing tag $tag..."
-            # We can download just the metadata.json instead of all files
             gh release download "$tag" --dir artifacts --pattern "metadata.json" || echo "No metadata found in $tag"
-
-            # To serve packages using GitHub release asset URLs, the index generation logic
-            # will need to know the download URLs of the assets.
-            # We can dump the asset list and URLs.
             gh release view "$tag" --json assets > "artifacts/${tag}_assets.json" || true
           done
 
@@ -117,24 +110,15 @@ jobs:
         run: |
           cd scripts
           uv sync
-          # Integrate metadata generation with python orchestrator
-          cat << 'PY_EOF' > generate_meta.py
-          import os
-          from core.packagers.debian import generate_apt_metadata
-
-          PY_EOF
 
           mkdir -p ../site/apt
 
-          # Fetch the existing Packages files from GitHub Pages (or the site) so that we can do Pdiff
-          # Since the site is hosted on gh-pages branch or deployed via Pages, we can curl it.
           echo "Attempting to fetch previous Packages files to allow Pdiff generation..."
           for arch in aarch64 arm x86_64 i686 riscv64 wasm32-wasi; do
-            mkdir -p "apt_staging/dists/stable/main/binary-$arch"
+            mkdir -p "apt_staging/dists/stable/main/binary-$arch/Packages.diff"
             curl -sL --fail "https://sjnexe.github.io/RepoExe/apt/dists/stable/main/binary-$arch/Packages" > "apt_staging/dists/stable/main/binary-$arch/Packages" || true
-            curl -sL --fail "https://sjnexe.github.io/RepoExe/apt/dists/stable/main/binary-$arch/Packages.diff/Index" > "apt_staging/dists/stable/main/binary-$arch/Packages.diff/Index" --create-dirs || true
+            curl -sL --fail "https://sjnexe.github.io/RepoExe/apt/dists/stable/main/binary-$arch/Packages.diff/Index" > "apt_staging/dists/stable/main/binary-$arch/Packages.diff/Index" || true
 
-            # also fetch old patches if present so we don't lose them when pruning
             if [ -f "apt_staging/dists/stable/main/binary-$arch/Packages.diff/Index" ]; then
                PATCHES=$(grep "^ " "apt_staging/dists/stable/main/binary-$arch/Packages.diff/Index" | awk '{print $3}' | sort -u)
                for p in $PATCHES; do
@@ -145,37 +129,32 @@ jobs:
             fi
           done
 
-          # Find all deb files in artifacts and copy them to a staging dir for APT
-          find ../artifacts -name "*.deb" -exec cp {} apt_staging/ \;
+          find ../artifacts -name "*.deb" -exec cp {} apt_staging/ \; 2>/dev/null || true
 
           cat << 'PY_EOF' > generate_meta.py
           import os
           import glob
           import shutil
-          from core.packagers.debian import generate_apt_metadata
+          from core.debian import generate_apt_metadata
 
           output_dir = "apt_staging"
-          # Get unique architectures
           deb_files = glob.glob(os.path.join(output_dir, "*.deb"))
           arches = set()
           for f in deb_files:
-              # Filename format: name_version_arch.deb
               arch = f.split('_')[-1].replace('.deb', '')
               if arch != 'all':
                   arches.add(arch)
 
           if not arches:
-              arches.add('aarch64') # Default fallback
+              arches.add('aarch64')
 
           for arch in arches:
               print(f"Generating APT metadata for {arch}...")
               generate_apt_metadata(output_dir, component='main', arch=arch)
 
-          # Move everything to site
           os.makedirs("../site/apt", exist_ok=True)
           os.system("cp -r apt_staging/dists ../site/apt/")
 
-          # Copy .deb packages too to the root of apt
           for deb in glob.glob(os.path.join(output_dir, "*.deb")):
               shutil.copy(deb, "../site/apt/")
 
