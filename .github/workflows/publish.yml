@@ -221,6 +221,13 @@ jobs:
             gpg --armor --export > ../site/repoexe.asc || true
             cp ../site/repoexe.asc ../site/repoexe.gpg || true
           fi
+                    # Export binary and ascii public keys to site root
+          if [ -f "scripts/keys/repoexe.gpg" ]; then
+            gpg --import scripts/keys/repoexe.gpg 2>/dev/null || true
+            gpg --export > ../site/repoexe.gpg
+            gpg --armor --export > ../site/repoexe.asc
+            echo "✓ Exported repoexe.gpg and repoexe.asc to site/"
+          fi
           echo "Metadata generation executed."
 
       - name: Setup Pages

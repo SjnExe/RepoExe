@@ -3,24 +3,25 @@ set -e
 
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 REPO_URL="https://SjnExe.github.io/RepoExe"
-KEY_ASC="${PREFIX}/etc/apt/trusted.gpg.d/repoexe.asc"
-KEY_GPG_OLD="${PREFIX}/etc/apt/trusted.gpg.d/repoexe.gpg"
+KEYRING_DIR="${PREFIX}/etc/apt/keyrings"
+KEY_FILE="${KEYRING_DIR}/repoexe.gpg"
 SOURCES_LIST="${PREFIX}/etc/apt/sources.list.d/repoexe.list"
 
 echo "=== RepoExe Setup ==="
 echo "[*] Configuring APT repository..."
 
-# Remove stale/unsupported .gpg key file if it exists from previous runs
-rm -f "$KEY_GPG_OLD"
+# Remove old legacy key locations
+rm -f "${PREFIX}/etc/apt/trusted.gpg.d/repoexe.gpg"
+rm -f "${PREFIX}/etc/apt/trusted.gpg.d/repoexe.asc"
 
-mkdir -p "${PREFIX}/etc/apt/trusted.gpg.d"
+mkdir -p "$KEYRING_DIR"
 mkdir -p "${PREFIX}/etc/apt/sources.list.d"
 
 echo "[*] Fetching GPG public key..."
-curl -sL "${REPO_URL}/repoexe.asc" -o "$KEY_ASC"
+curl -sL "${REPO_URL}/repoexe.gpg" -o "$KEY_FILE"
 
 echo "[*] Adding repository source..."
-echo "deb [arch=aarch64] ${REPO_URL}/apt stable main" > "$SOURCES_LIST"
+echo "deb [arch=aarch64 signed-by=${KEY_FILE}] ${REPO_URL}/apt stable main" > "$SOURCES_LIST"
 
 echo "[*] Updating APT package lists..."
 apt update
