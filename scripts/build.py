@@ -112,9 +112,9 @@ def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
     if build_sys == "go":
         go_local_bin = Path("/usr/local/go/bin/go")
         if not go_local_bin.exists():
-            print("Installing Go 1.24.1 directly to /usr/local/go...")
+            print("Installing Go 1.26.0 directly to /usr/local/go...")
             subprocess.run(
-                "curl -fsSL https://go.dev/dl/go1.24.1.linux-amd64.tar.gz | tar -C /usr/local -xz",
+                "curl -fsSL https://go.dev/dl/go1.26.0.linux-amd64.tar.gz | tar -C /usr/local -xz",
                 shell=True,
                 check=False,
             )
