@@ -1,3 +1,4 @@
+import atexit
 import os
 import signal
 import subprocess
@@ -61,9 +62,9 @@ class DockerRunner:
             docker_cmd.append("--security-opt=seccomp=unconfined")
 
         if os.path.exists(self.config.apparmor_profile):
-            # Typically AppArmor profiles need to be loaded into the host kernel first,
-            # but we pass the arg for completeness based on specs.
-            docker_cmd.append(f"--security-opt=apparmor={self.config.apparmor_profile}")
+            docker_cmd.append(
+                f"--security-opt=apparmor={os.path.abspath(self.config.apparmor_profile)}"
+            )
         else:
             docker_cmd.append("--security-opt=apparmor=unconfined")
 
@@ -115,8 +116,6 @@ class DockerBackgroundExec:
         self.container_name = container_name
         self.process: subprocess.Popen | None = None
 
-        import atexit
-
         atexit.register(self.stop)
 
     def start(self, network_disabled: bool = False) -> None:
@@ -142,7 +141,9 @@ class DockerBackgroundExec:
             docker_cmd.append("--security-opt=seccomp=unconfined")
 
         if os.path.exists(self.config.apparmor_profile):
-            docker_cmd.append(f"--security-opt=apparmor={self.config.apparmor_profile}")
+            docker_cmd.append(
+                f"--security-opt=apparmor={os.path.abspath(self.config.apparmor_profile)}"
+            )
         else:
             docker_cmd.append("--security-opt=apparmor=unconfined")
 
@@ -196,11 +197,7 @@ class DockerBackgroundExec:
         )
 
     def stop(self) -> None:
-        container_name = getattr(
-            self.config,
-            "container_name",
-            getattr(self.config, "name", "repoexe-daemon"),
-        )
+        container_name = getattr(self, "container_name", "repoexe-daemon")
         try:
             subprocess.run(
                 ["docker", "stop", container_name],

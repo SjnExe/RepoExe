@@ -69,9 +69,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Fetching untagged versions..."
-          VERSION_IDS=$(gh api -H "Accept: application/vnd.github+json"             "/users/${{ env.OWNER }}/packages/container/repoexe-builder/versions"             --jq '.[] | select(.metadata.container.tags | length == 0) | .id' 2>/dev/null || true)
+          VERSION_IDS=$(gh api -H "Accept: application/vnd.github+json" \
+            "/users/${{ env.OWNER }}/packages/container/repoexe-builder/versions" \
+            --jq '.[] | select(.metadata.container.tags | length == 0) | .id' 2>/dev/null \
+            || gh api -H "Accept: application/vnd.github+json" \
+            "/orgs/${{ env.OWNER }}/packages/container/repoexe-builder/versions" \
+            --jq '.[] | select(.metadata.container.tags | length == 0) | .id' 2>/dev/null || true)
 
           for ID in $VERSION_IDS; do
             echo "Deleting untagged version ID: $ID"
-            gh api --method DELETE -H "Accept: application/vnd.github+json"               "/users/${{ env.OWNER }}/packages/container/repoexe-builder/versions/$ID" || true
+            gh api --method DELETE -H "Accept: application/vnd.github+json" \
+              "/users/${{ env.OWNER }}/packages/container/repoexe-builder/versions/$ID" 2>/dev/null \
+              || gh api --method DELETE -H "Accept: application/vnd.github+json" \
+              "/orgs/${{ env.OWNER }}/packages/container/repoexe-builder/versions/$ID" 2>/dev/null || true
           done

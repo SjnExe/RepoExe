@@ -20,8 +20,6 @@ RUN \
   && apt-get install -yq --no-install-recommends locales apt-utils \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \
-  && sed -i 's@http://archive.ubuntu.com/ubuntu/@mirror://mirrors.ubuntu.com/mirrors.txt@g' /etc/apt/sources.list.d/ubuntu.sources \
-  && sed -i 's@http://security.ubuntu.com/ubuntu/@mirror://mirrors.ubuntu.com/mirrors.txt@g' /etc/apt/sources.list.d/ubuntu.sources \
   && apt-get update \
   && apt-get install -yq --no-install-recommends \
     eatmydata sudo curl git ca-certificates aria2 fuse-overlayfs unzip patch \
@@ -58,6 +56,7 @@ COPY scripts/ndk-patches/langinfo.h /tmp/ndk-patches/langinfo.h
 COPY scripts/ndk-patches/libintl.h /tmp/ndk-patches/libintl.h
 RUN cd ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot \
   && for patch in /tmp/ndk-patches/${TERMUX_NDK_VERSION}/*.patch; do \
+       [ -f "$patch" ] || continue; \
        sed -i "s|@TERMUX_PREFIX@|/data/data/com.termux/files/usr|g" "$patch"; \
        sed -i "s|@TERMUX_HOME@|/data/data/com.termux/files/home|g" "$patch"; \
        patch --no-backup-if-mismatch -p1 < "$patch"; \
@@ -84,7 +83,6 @@ RUN userdel -r ubuntu || true \
   && chown -R builder:builder /data/data/com.termux
 
 # Install modern tools for Python and formatting
-# We install nodejs and npm to get prettier, shellcheck for bash scripts
 RUN \
   --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache \
   --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib \
@@ -101,7 +99,7 @@ WORKDIR /home/builder
 # Install uv (astral-sh/uv) directly without piping to shell during runtime
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Add uv to PATH (if necessary)
+# Add uv to PATH
 ENV PATH="/home/builder/.local/bin:${PATH}"
 
 # Install Python 3.13, ruff, and mypy via uv
@@ -111,5 +109,5 @@ RUN uv python install 3.13 \
 
 ENV REPO_ROOT=/home/builder/RepoExe
 
-# We expect this to be mounted with '-v $PWD:/home/builder/RepoExe'
+# Mount target
 WORKDIR /home/builder/RepoExe
