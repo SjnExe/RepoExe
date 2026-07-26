@@ -167,15 +167,20 @@ jobs:
 
           # Copy install script to site root and /install endpoint
           INSTALL_SCRIPT=""
-          if [ -f "../install.sh" ]; then INSTALL_SCRIPT="../install.sh";
+          if [ -f "site/install" ]; then INSTALL_SCRIPT="site/install";
+          elif [ -f "../scripts/site/install" ]; then INSTALL_SCRIPT="../scripts/site/install";
+          elif [ -f "../install.sh" ]; then INSTALL_SCRIPT="../install.sh";
           elif [ -f "install.sh" ]; then INSTALL_SCRIPT="install.sh";
-          elif [ -f "scripts/install.sh" ]; then INSTALL_SCRIPT="scripts/install.sh";
           fi
 
           if [ -n "$INSTALL_SCRIPT" ]; then
             cp "$INSTALL_SCRIPT" ../site/install
             cp "$INSTALL_SCRIPT" ../site/install.sh
-            echo "Installed installer script to site/install"
+            touch ../site/.nojekyll
+            echo "✓ Installed installer script to site/install"
+          else
+            echo "Error: Installer script not found!" >&2
+            exit 1
           fi
 
           # Create basic index.html landing page
