@@ -20,7 +20,8 @@ class ProotTestRunner:
         print(f'[{package_name}] Running tests in PRoot sandbox...')
 
         # We construct a bash script from the test_commands snippet
-        script_path = f'/tmp/test_{package_name}.sh'
+        import tempfile
+        script_path = f'{tempfile.gettempdir()}/test_{package_name}.sh'
         with open(script_path, 'w') as f:
             f.write('#!/bin/bash\n')
             f.write('set -e\n')
@@ -33,7 +34,7 @@ class ProotTestRunner:
         # To strictly isolate the environment, we use an empty rootfs and bind
         # only essential directories (prefix, home, dev, proc, sys) to prevent
         # access to the builder's source tree and other host files.
-        empty_root = '/tmp/empty_rootfs_for_proot'
+        empty_root = f'{tempfile.gettempdir()}/empty_rootfs_for_proot'
         os.makedirs(empty_root, exist_ok=True)
 
         proot_cmd = [

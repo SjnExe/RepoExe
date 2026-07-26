@@ -1,3 +1,4 @@
+import shutil
 import os
 import signal
 import subprocess
@@ -170,8 +171,12 @@ class DockerBackgroundExec:
         )
 
     def stop(self) -> None:
-        """Stops the background container."""
-        print(f'\n[DockerBackgroundExec] Stopping background container {self.container_name}...')
-        subprocess.run(
-            ['docker', 'stop', self.container_name], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
+        container_name = getattr(self.config, "container_name", getattr(self.config, "name", "repoexe-daemon"))
+        try:
+            subprocess.run(
+                ["docker", "stop", container_name],
+                check=True,
+                capture_output=True,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass

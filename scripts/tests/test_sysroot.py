@@ -1,8 +1,9 @@
+import tempfile
 from core.sysroot import Sysroot
 
 
 def test_hash_string():
-    sysroot = Sysroot(sysroot_dir='/tmp/sysroot_test')
+    sysroot = Sysroot(sysroot_dir=f'{tempfile.gettempdir()}/sysroot_test')
     h = sysroot._hash_string('test')
     assert len(h) == 64
 
