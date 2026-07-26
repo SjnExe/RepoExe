@@ -1,3 +1,12 @@
+import shutil
+
+
+def get_ruff_cmd() -> list[str]:
+    if shutil.which("ruff"):
+        return ["ruff"]
+    return ["uvx", "ruff"]
+
+
 import argparse
 import json
 import sys
@@ -81,9 +90,9 @@ import subprocess
 
 def fix_code_formatting(scripts_dir: Path) -> None:
     print("🧹 Running automatic code formatting and lint fixes...")
-    subprocess.run(["uv", "run", "ruff", "format", "."], cwd=scripts_dir, check=False)
+    subprocess.run(get_ruff_cmd() + ["format", "."], cwd=scripts_dir, check=False)
     subprocess.run(
-        ["uv", "run", "ruff", "check", "--fix", "."], cwd=scripts_dir, check=False
+        get_ruff_cmd() + ["check", "--fix", "."], cwd=scripts_dir, check=False
     )
     print("✓ Formatting and linting complete.")
 
@@ -93,7 +102,7 @@ def run_code_checks(scripts_dir: Path, packages_dir: Path) -> None:
 
     print("\n[1/3] Checking code formatting & linting...")
     fmt_res = subprocess.run(
-        ["uv", "run", "ruff", "check", "."], cwd=scripts_dir, check=False
+        get_ruff_cmd() + ["check", "."], cwd=scripts_dir, check=False
     )
     if fmt_res.returncode != 0:
         print("❌ Linting checks failed. Run 'python build.py fix' to auto-fix.")
