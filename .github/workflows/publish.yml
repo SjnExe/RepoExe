@@ -83,7 +83,7 @@ jobs:
           for tag in $TAGS; do
             echo "Processing tag $tag..."
             gh release download "$tag" --dir artifacts --pattern "*.deb" || echo "No .deb found in $tag"
-            gh release download "$tag" --dir artifacts --pattern "metadata.json" || echo "No metadata found in $tag"
+            gh release download "$tag" --dir artifacts --pattern "metadata.json" --output "artifacts/${tag}_metadata.json" || echo "No metadata found in $tag"
             gh release view "$tag" --json assets > "artifacts/${tag}_assets.json" || true
           done
 
