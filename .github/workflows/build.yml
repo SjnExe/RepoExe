@@ -150,6 +150,7 @@ jobs:
             '
 
             docker rm -f repoexe-daemon
+            sudo chown -R $USER:$USER .
           fi
 
       - name: Upload to GitHub Releases
@@ -201,6 +202,8 @@ jobs:
             if [ -n "$UPLOAD_FILES" ]; then
               echo "Uploading $UPLOAD_FILES to release $TAG..."
               gh release upload "$TAG" $UPLOAD_FILES --clobber
+            else
+              echo "Warning: No .deb packages found in output/ for $pkg"
             fi
           done
 
