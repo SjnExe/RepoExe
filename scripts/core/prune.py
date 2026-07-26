@@ -6,27 +6,40 @@ def identify_outdated_assets(
 ) -> list[dict[str, Any]]:
     """
     Identifies older package build assets on a channel release tag
-    that do not match the exact target version or state_hash.
+    that do not match the target version or state_hash.
     """
     to_delete = []
+
+    # Normalize valid target versions (e.g., both '5.0.12' and '5.0.12-0')
+    valid_versions = {target_version}
+    if "-" in target_version and target_version.endswith("-0"):
+        valid_versions.add(target_version.rsplit("-", 1)[0])
+    elif "-" not in target_version:
+        valid_versions.add(f"{target_version}-0")
+
     for asset in assets:
         name = asset.get("name", "")
         if name == "metadata.json":
             continue
 
-        # Extract version component between underscores: <pkg>_<version>_<arch>.<ext>
+        # Extract version component: <pkg>_<version>_<arch>.<ext>
         parts = name.split("_")
-        if len(parts) >= 3:
-            asset_version = parts[1]
-            if asset_version != target_version:
+        if len(parts) >= 2:
+            asset_ver = parts[1].split(".deb")[0]
+            if asset_ver not in valid_versions:
                 to_delete.append(asset)
                 continue
 
-        if f"_{target_version}_" not in name:
+        # Fallback boundary checks
+        matches_version = any(
+            f"_{v}_" in name or f"_{v}." in name for v in valid_versions
+        )
+        if not matches_version:
             to_delete.append(asset)
             continue
 
-        if target_state_hash and target_state_hash not in name and ".hash." in name:
+        # Check hash files
+        if target_state_hash and ".hash." in name and target_state_hash not in name:
             to_delete.append(asset)
 
     return to_delete
