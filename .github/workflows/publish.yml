@@ -215,18 +215,25 @@ jobs:
           </html>
           HTML_EOF
 
-                    # Export public keys to site root
-          if [ -f "scripts/keys/repoexe.gpg" ]; then
-            gpg --import scripts/keys/repoexe.gpg 2>/dev/null || true
-            gpg --armor --export > ../site/repoexe.asc || true
-            cp ../site/repoexe.asc ../site/repoexe.gpg || true
+          # Export binary and ascii public keys to site root
+          KEY_SRC=""
+          if [ -f "keys/repoexe.gpg" ]; then KEY_SRC="keys/repoexe.gpg";
+          elif [ -f "scripts/keys/repoexe.gpg" ]; then KEY_SRC="scripts/keys/repoexe.gpg";
           fi
-                    # Export binary and ascii public keys to site root
-          if [ -f "scripts/keys/repoexe.gpg" ]; then
-            gpg --import scripts/keys/repoexe.gpg 2>/dev/null || true
-            gpg --export > ../site/repoexe.gpg
-            gpg --armor --export > ../site/repoexe.asc
+
+          if [ -n "$KEY_SRC" ]; then
+            gpg --batch --import "$KEY_SRC" 2>/dev/null || true
+            gpg --batch --export > ../site/repoexe.gpg
+            gpg --batch --armor --export > ../site/repoexe.asc
             echo "✓ Exported repoexe.gpg and repoexe.asc to site/"
+          else
+            echo "Error: GPG key file not found!" >&2
+            exit 1
+          fi
+
+          if [ ! -s "../site/repoexe.gpg" ]; then
+            echo "Error: ../site/repoexe.gpg is missing or empty after export!" >&2
+            exit 1
           fi
           echo "Metadata generation executed."
 
