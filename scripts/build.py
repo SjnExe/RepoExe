@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import json
 import os
 import shutil
@@ -107,10 +108,8 @@ def execute_build(
         recipe, "build_type", None
     )
     if build_sys:
-        try:
+        with contextlib.suppress(Exception):
             setup_build_environment(build_sys, recipe.architecture)
-        except Exception:  # noqa: BLE001
-            pass
         ensure_toolchains_installed(build_sys, env)
 
     print(f"[BUILDING] Package: {recipe.name} (Channel: {recipe.active_channel})")
