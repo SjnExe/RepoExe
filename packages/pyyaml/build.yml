@@ -1,5 +1,5 @@
 name: pyyaml
-version: 6.0.2
+version: "6.0.3"
 revision: 0
 architecture: aarch64
 description: Canonical YAML parser and emitter for Python
@@ -9,11 +9,12 @@ maintainer: SjnExe
 
 auto_update: true
 update_strategy: pypi
-source_url: https://files.pythonhosted.org/packages/source/P/PyYAML/PyYAML-6.0.2.tar.gz
+source_url: https://files.pythonhosted.org/packages/source/p/pyyaml/pyyaml-6.0.2.tar.gz
 
 build_system: custom
 phases:
   make: |
+    python3 -m pip wheel . --no-deps -w output/ || true
     python3 -m pip install --target="${DESTDIR}${PREFIX}/lib/python3.11/site-packages" . --no-deps || true
   install: |
     echo "Installed pyyaml site-packages"
