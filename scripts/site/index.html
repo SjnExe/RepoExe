@@ -17,8 +17,14 @@
 
     <main class="container">
         <section class="install-box">
-            <h3><span class="material-icons">terminal</span> Quick Install</h3>
-            <code>curl -sL https://sjnexe.github.io/RepoExe/install | sh</code>
+            <div class="install-header">
+                <h3><span class="material-icons">terminal</span> Quick Install</h3>
+                <button id="copyBtn" class="copy-btn" title="Copy command">
+                    <span class="material-icons">content_copy</span>
+                    <span id="copyText">Copy</span>
+                </button>
+            </div>
+            <code id="installCmd">curl -sL https://sjnexe.github.io/RepoExe/install | sh</code>
         </section>
 
         <section class="search-section">
