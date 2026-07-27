@@ -1,5 +1,7 @@
-import os, json, shutil
+import json
+import shutil
 from pathlib import Path
+
 
 def generate_npm_index(output_dir: str):
     npm_dir = Path(output_dir) / "npm"
@@ -14,4 +16,6 @@ def generate_npm_index(output_dir: str):
         if tgz != dest:
             shutil.copy2(tgz, dest)
         meta = {"name": name, "versions": {}}
-        (pkg_dir / "package.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        (pkg_dir / "package.json").write_text(
+            json.dumps(meta, indent=2), encoding="utf-8"
+        )
