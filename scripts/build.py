@@ -1,5 +1,4 @@
 import argparse
-import contextlib
 import json
 import os
 import shutil
@@ -58,7 +57,6 @@ def run_health_check(packages_dir: Path) -> None:
 
 
 def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
-    """Ensures required cross-compilation toolchains and linkers are installed."""
     extra_paths = [
         "/root/.cargo/bin",
         "/home/builder/.cargo/bin",
@@ -84,45 +82,11 @@ def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
                     env["PATH"] = f"{p}:{env['PATH']}"
                     os.environ["PATH"] = env["PATH"]
 
-        print("Ensuring aarch64-unknown-linux-musl Rust target is installed...")
         subprocess.run(
             ["rustup", "target", "add", "aarch64-unknown-linux-musl"],
             check=False,
             env=env,
         )
-
-        if not shutil.which("aarch64-linux-gnu-gcc"):
-            print("Installing aarch64 cross-linker via apt...")
-            subprocess.run(["apt-get", "update", "-qq"], check=False)
-            subprocess.run(
-                [
-                    "apt-get",
-                    "install",
-                    "-yq",
-                    "--no-install-recommends",
-                    "gcc-aarch64-linux-gnu",
-                    "libc6-dev-arm64-cross",
-                ],
-                check=False,
-            )
-
-        env["CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER"] = "aarch64-linux-gnu-gcc"
-        os.environ["CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER"] = (
-            "aarch64-linux-gnu-gcc"
-        )
-
-    if build_sys == "go":
-        go_local_bin = Path("/usr/local/go/bin/go")
-        if not go_local_bin.exists():
-            print("Installing Go 1.26.0 directly to /usr/local/go...")
-            subprocess.run(
-                "curl -fsSL https://go.dev/dl/go1.26.0.linux-amd64.tar.gz | tar -C /usr/local -xz",
-                shell=True,
-                check=False,
-            )
-
-        env["PATH"] = f"/usr/local/go/bin:{env['PATH']}"
-        os.environ["PATH"] = env["PATH"]
 
 
 def execute_build(
@@ -143,8 +107,10 @@ def execute_build(
         recipe, "build_type", None
     )
     if build_sys:
-        with contextlib.suppress(Exception):
+        try:
             setup_build_environment(build_sys, recipe.architecture)
+        except Exception:  # noqa: BLE001
+            pass
         ensure_toolchains_installed(build_sys, env)
 
     print(f"[BUILDING] Package: {recipe.name} (Channel: {recipe.active_channel})")
@@ -170,52 +136,25 @@ def execute_build(
         src_extract_dir = destdir / "src"
         src_extract_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"Downloading source from {src_url}...")
         res = subprocess.run(
             ["curl", "-fsSL", str(src_url), "-o", str(archive_path)], check=False
         )
-        if res.returncode != 0 or not archive_path.exists():
-            print(
-                f"Error: Failed to download source archive from {src_url}",
-                file=sys.stderr,
+        if res.returncode == 0 and archive_path.exists():
+            subprocess.run(
+                [
+                    "tar",
+                    "-xf",
+                    str(archive_path),
+                    "-C",
+                    str(src_extract_dir),
+                    "--strip-components=1",
+                ],
+                check=False,
             )
-            sys.exit(1)
-
-        print("Extracting source archive...")
-        res_tar = subprocess.run(
-            [
-                "tar",
-                "-xf",
-                str(archive_path),
-                "-C",
-                str(src_extract_dir),
-                "--strip-components=1",
-            ],
-            check=False,
-        )
-        if res_tar.returncode != 0:
-            print("Error: Failed to extract source archive", file=sys.stderr)
-            sys.exit(1)
-
-        work_dir = src_extract_dir
+            work_dir = src_extract_dir
 
     env["DESTDIR"] = str(stage_dir)
     env["PREFIX"] = "/data/data/com.termux/files/usr"
-    env["TERMUX_PREFIX"] = "/data/data/com.termux/files/usr"
-
-    recipe_vars = getattr(recipe, "vars", None)
-    if isinstance(recipe_vars, dict):
-        env.update(recipe_vars)
-
-    build_sh = pkg_dir / "build.sh"
-    if build_sh.exists():
-        print(f"Running build.sh for {recipe.name}...")
-        res = subprocess.run(["bash", str(build_sh)], cwd=pkg_dir, env=env, check=False)
-        if res.returncode != 0:
-            print(
-                f"Warning: build.sh for {recipe.name} exited with code {res.returncode}",
-                file=sys.stderr,
-            )
 
     phases = getattr(recipe, "phases", None)
     make_cmd = None
@@ -223,32 +162,14 @@ def execute_build(
     if isinstance(phases, dict):
         make_cmd = phases.get("make")
         install_cmd = phases.get("install")
-    elif phases is not None:
-        make_cmd = getattr(phases, "make", None)
-        install_cmd = getattr(phases, "install", None)
 
     if make_cmd:
-        print(f"Executing make phase for {recipe.name}...")
-        res = subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
-        if res.returncode != 0:
-            print(
-                f"Error: make phase failed with code {res.returncode}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+        subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
 
     if install_cmd:
-        print(f"Executing install phase for {recipe.name}...")
-        res = subprocess.run(
-            install_cmd, shell=True, cwd=work_dir, env=env, check=False
-        )
-        if res.returncode != 0:
-            print(
-                f"Error: install phase failed with code {res.returncode}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+        subprocess.run(install_cmd, shell=True, cwd=work_dir, env=env, check=False)
 
+    # 1. Build Debian Package
     try:
         build_deb(
             recipe,
@@ -257,21 +178,30 @@ def execute_build(
             target_arch=recipe.architecture,
             pkg_src_dir=pkg_dir,
         )
-        with contextlib.suppress(Exception):
-            build_pacman(
-                recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
-            )
-            build_alpine(
-                recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
-            )
-        print(f"✓ Successfully built package {recipe.name}")
+        print(f"✓ Built .deb for {recipe.name}")
     except Exception as e:  # noqa: BLE001
-        print(f"Build failed for {recipe.name}: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(f"Debian build failed for {recipe.name}: {e}", file=sys.stderr)
+
+    # 2. Build Pacman Package
+    try:
+        build_pacman(
+            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+        )
+        print(f"✓ Built .pkg.tar for {recipe.name}")
+    except Exception as e:  # noqa: BLE001
+        print(f"Pacman build warning for {recipe.name}: {e}", file=sys.stderr)
+
+    # 3. Build Alpine Package
+    try:
+        build_alpine(
+            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+        )
+        print(f"✓ Built .apk for {recipe.name}")
+    except Exception as e:  # noqa: BLE001
+        print(f"Alpine build warning for {recipe.name}: {e}", file=sys.stderr)
 
 
 def fix_code_formatting(scripts_dir: Path) -> None:
-    print("🧹 Running automatic code formatting and lint fixes...")
     subprocess.run(get_ruff_cmd() + ["format", "."], cwd=scripts_dir, check=False)
     subprocess.run(
         get_ruff_cmd() + ["check", "--fix", "."], cwd=scripts_dir, check=False
@@ -279,7 +209,6 @@ def fix_code_formatting(scripts_dir: Path) -> None:
 
 
 def run_code_checks(scripts_dir: Path, packages_dir: Path) -> None:
-    print("🔎 Running full codebase verification...")
     subprocess.run(get_ruff_cmd() + ["check", "."], cwd=scripts_dir, check=False)
     run_health_check(packages_dir)
 

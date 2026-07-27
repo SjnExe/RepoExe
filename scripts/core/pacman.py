@@ -6,7 +6,10 @@ from core.parser import PackageRecipe
 
 
 def build_pacman(
-    recipe: PackageRecipe, destdir: str, output_dir: str, target_arch: str = "aarch64"
+    recipe: PackageRecipe,
+    destdir: str,
+    output_dir: str,
+    target_arch: str = "aarch64",
 ) -> Path:
     stage_dir = Path(destdir) / "stage"
     out_path = Path(output_dir)
@@ -25,23 +28,54 @@ def build_pacman(
         else f"{recipe.version}-1"
     )
 
-    pkginfo = f"pkgname = {recipe.name}\npkgver = {version_str}\npkgdesc = {recipe.description or 'RepoExe package'}\nurl = {recipe.homepage or 'https://github.com/SjnExe/RepoExe'}\narch = {pkg_arch}\nlicense = {recipe.license or 'MIT'}\n"
-    (stage_dir / ".PKGINFO").write_text(pkginfo, encoding="utf-8")
+    pkginfo_lines = [
+        f"pkgname = {recipe.name}",
+        f"pkgver = {version_str}",
+        f"pkgdesc = {recipe.description or 'RepoExe package'}",
+        f"url = {recipe.homepage or 'https://github.com/SjnExe/RepoExe'}",
+        f"arch = {pkg_arch}",
+        f"license = {recipe.license or 'MIT'}",
+    ]
+    (stage_dir / ".PKGINFO").write_text(
+        "\n".join(pkginfo_lines) + "\n", encoding="utf-8"
+    )
 
     filename = f"{recipe.name}-{version_str}-{pkg_arch}.pkg.tar.zst"
     tar_path = out_path / filename
 
     if shutil.which("zstd"):
         res = subprocess.run(
-            ["tar", "--zstd", "-cf", str(tar_path), "-C", str(stage_dir), "."],
+            [
+                "tar",
+                "--exclude=DEBIAN",
+                "--zstd",
+                "-cf",
+                str(tar_path),
+                "-C",
+                str(stage_dir),
+                ".",
+            ],
             capture_output=True,
+            text=True,
             check=False,
         )
         if res.returncode == 0 and tar_path.exists():
             return tar_path
 
-    fallback_path = out_path / f"{recipe.name}-{version_str}-{pkg_arch}.pkg.tar.gz"
+    fallback_filename = f"{recipe.name}-{version_str}-{pkg_arch}.pkg.tar.gz"
+    fallback_path = out_path / fallback_filename
     subprocess.run(
-        ["tar", "-czf", str(fallback_path), "-C", str(stage_dir), "."], check=False
+        [
+            "tar",
+            "--exclude=DEBIAN",
+            "-czf",
+            str(fallback_path),
+            "-C",
+            str(stage_dir),
+            ".",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
     )
     return fallback_path

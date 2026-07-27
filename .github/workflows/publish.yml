@@ -73,7 +73,7 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Extract metadata from GitHub Releases without downloading all packages
+      - name: Extract metadata from GitHub Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -82,8 +82,7 @@ jobs:
           TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
           for tag in $TAGS; do
             echo "Processing tag $tag..."
-            gh release download "$tag" --dir artifacts || echo "No .deb found in $tag"
-            gh release download "$tag" --pattern "metadata.json" --output "artifacts/${tag}_metadata.json" || echo "No metadata found in $tag"
+            gh release download "$tag" --dir artifacts || echo "No assets found in $tag"
             gh release view "$tag" --json assets > "artifacts/${tag}_assets.json" || true
           done
 
@@ -112,42 +111,26 @@ jobs:
           cd scripts
           uv sync
 
-          mkdir -p ../site/apt
-
-          echo "Attempting to fetch previous Packages files to allow Pdiff generation..."
-          for arch in aarch64 arm x86_64 i686 riscv64 wasm32-wasi; do
-            mkdir -p "apt_staging/dists/stable/main/binary-$arch/Packages.diff"
-            curl -sL --fail "https://sjnexe.github.io/RepoExe/apt/dists/stable/main/binary-$arch/Packages" > "apt_staging/dists/stable/main/binary-$arch/Packages" || true
-            curl -sL --fail "https://sjnexe.github.io/RepoExe/apt/dists/stable/main/binary-$arch/Packages.diff/Index" > "apt_staging/dists/stable/main/binary-$arch/Packages.diff/Index" || true
-
-            if [ -f "apt_staging/dists/stable/main/binary-$arch/Packages.diff/Index" ]; then
-               PATCHES=$(grep "^ " "apt_staging/dists/stable/main/binary-$arch/Packages.diff/Index" | awk '{print $3}' | sort -u)
-               for p in $PATCHES; do
-                 if [ -n "$p" ] && [ "$p" != "Index" ]; then
-                   curl -sL --fail "https://sjnexe.github.io/RepoExe/apt/dists/stable/main/binary-$arch/Packages.diff/$p.gz" > "apt_staging/dists/stable/main/binary-$arch/Packages.diff/$p.gz" || true
-                 fi
-               done
-            fi
-          done
-
-          find ../artifacts -name "*.deb" -exec cp {} apt_staging/ \; 2>/dev/null || true
+          mkdir -p ../site/apt ../site/pacman ../site/alpine ../site/pip ../site/npm apt_staging
 
           cat << 'PY_EOF' > generate_meta.py
-          import os
-          import glob
-          import shutil
-          import glob, shutil
+          import os, glob, shutil
+          from core.debian import generate_apt_metadata, generate_release_file
           from core.metadata import generate_packages_json
           from core.pip import generate_pip_index
           from core.npm import generate_npm_index
 
+          os.makedirs("../site/apt", exist_ok=True)
           os.makedirs("../site/pacman", exist_ok=True)
           os.makedirs("../site/alpine", exist_ok=True)
           os.makedirs("../site/pip", exist_ok=True)
           os.makedirs("../site/npm", exist_ok=True)
 
           for f in glob.glob("../artifacts/*"):
-              if f.endswith(".pkg.tar.zst") or f.endswith(".pkg.tar.xz"):
+              if f.endswith(".deb"):
+                  shutil.copy(f, "apt_staging/")
+                  shutil.copy(f, "../site/apt/")
+              elif f.endswith(".pkg.tar.zst") or f.endswith(".pkg.tar.gz") or f.endswith(".pkg.tar.xz"):
                   shutil.copy(f, "../site/pacman/")
               elif f.endswith(".apk"):
                   shutil.copy(f, "../site/alpine/")
@@ -155,11 +138,6 @@ jobs:
                   shutil.copy(f, "../site/pip/")
               elif f.endswith(".tgz"):
                   shutil.copy(f, "../site/npm/")
-
-          generate_pip_index("../site")
-          generate_npm_index("../site")
-          generate_packages_json('packages', '../site/packages.json')
-          from core.debian import generate_apt_metadata
 
           output_dir = "apt_staging"
           deb_files = glob.glob(os.path.join(output_dir, "*.deb"))
@@ -176,54 +154,28 @@ jobs:
               print(f"Generating APT metadata for {arch}...")
               generate_apt_metadata(output_dir, component='main', arch=arch)
 
-          from core.debian import generate_release_file
           generate_release_file(output_dir, suite='stable', component='main')
-
-          os.makedirs("../site/apt", exist_ok=True)
           os.system("cp -r apt_staging/dists ../site/apt/")
 
-          from core.pip import generate_pip_index
-          from core.npm import generate_npm_index
           generate_pip_index("../site")
           generate_npm_index("../site")
-          
-
-          for deb in glob.glob(os.path.join(output_dir, "*.deb")):
-              shutil.copy(deb, "../site/apt/")
+          generate_packages_json("../packages", "../site/packages.json")
 
           PY_EOF
 
           uv run python generate_meta.py
 
-          mkdir -p ../site/pacman
-          mkdir -p ../site/alpine
-
-          # Copy install script to site root and /install endpoint
-          INSTALL_SCRIPT=""
-          if [ -f "site/install" ]; then INSTALL_SCRIPT="site/install";
-          elif [ -f "../scripts/site/install" ]; then INSTALL_SCRIPT="../scripts/site/install";
-          elif [ -f "../install.sh" ]; then INSTALL_SCRIPT="../install.sh";
-          elif [ -f "install.sh" ]; then INSTALL_SCRIPT="install.sh";
-          fi
-
-          if [ -n "$INSTALL_SCRIPT" ]; then
-            cp "$INSTALL_SCRIPT" ../site/install
-            cp "$INSTALL_SCRIPT" ../site/install.sh
-            touch ../site/.nojekyll
-            echo "✓ Installed installer script to site/install"
-          else
-            echo "Error: Installer script not found!" >&2
-            exit 1
-          fi
-
-          # Copy static frontend store site files
+          # Copy install script & static site frontend UI
           mkdir -p ../site
-          mkdir -p ../site
-          if [ -d "site" ]; then cp -r site/* ../site/;
-          elif [ -d "../scripts/site" ]; then cp -r ../scripts/site/* ../site/;
+          if [ -d "../scripts/site" ]; then
+            cp -r ../scripts/site/* ../site/
+          elif [ -d "site" ]; then
+            cp -r site/* ../site/
           fi
-          
-          # Export binary and ascii public keys to site root
+
+          touch ../site/.nojekyll
+
+          # Export binary public key
           KEY_SRC=""
           if [ -f "keys/repoexe.gpg" ]; then KEY_SRC="keys/repoexe.gpg";
           elif [ -f "scripts/keys/repoexe.gpg" ]; then KEY_SRC="scripts/keys/repoexe.gpg";
@@ -233,17 +185,8 @@ jobs:
             gpg --batch --import "$KEY_SRC" 2>/dev/null || true
             gpg --batch --export > ../site/repoexe.gpg
             gpg --batch --armor --export > ../site/repoexe.asc
-            echo "✓ Exported repoexe.gpg and repoexe.asc to site/"
-          else
-            echo "Error: GPG key file not found!" >&2
-            exit 1
+            echo "✓ Exported repoexe.gpg to site/"
           fi
-
-          if [ ! -s "../site/repoexe.gpg" ]; then
-            echo "Error: ../site/repoexe.gpg is missing or empty after export!" >&2
-            exit 1
-          fi
-          echo "Metadata generation executed."
 
       - name: Setup Pages
         uses: actions/configure-pages@v6

@@ -203,7 +203,7 @@ jobs:
               echo "Uploading $UPLOAD_FILES to release $TAG..."
               gh release upload "$TAG" $UPLOAD_FILES --clobber
             else
-              echo "Warning: No .deb packages found in output/ for $pkg"
+              echo "Warning: No packages found in output/ for $pkg"
             fi
           done
 

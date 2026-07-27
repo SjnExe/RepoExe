@@ -5,7 +5,10 @@ from core.parser import PackageRecipe
 
 
 def build_alpine(
-    recipe: PackageRecipe, destdir: str, output_dir: str, target_arch: str = "aarch64"
+    recipe: PackageRecipe,
+    destdir: str,
+    output_dir: str,
+    target_arch: str = "aarch64",
 ) -> Path:
     stage_dir = Path(destdir) / "stage"
     out_path = Path(output_dir)
@@ -19,13 +22,25 @@ def build_alpine(
         else f"{recipe.version}-r0"
     )
 
-    pkginfo = f"pkgname = {recipe.name}\npkgver = {version_str}\npkgdesc = {recipe.description or 'RepoExe package'}\nurl = {recipe.homepage or 'https://github.com/SjnExe/RepoExe'}\narch = {pkg_arch}\nlicense = {recipe.license or 'MIT'}\n"
-    (stage_dir / ".PKGINFO").write_text(pkginfo, encoding="utf-8")
+    pkginfo_lines = [
+        f"pkgname = {recipe.name}",
+        f"pkgver = {version_str}",
+        f"pkgdesc = {recipe.description or 'RepoExe package'}",
+        f"url = {recipe.homepage or 'https://github.com/SjnExe/RepoExe'}",
+        f"arch = {pkg_arch}",
+        f"license = {recipe.license or 'MIT'}",
+    ]
+    (stage_dir / ".PKGINFO").write_text(
+        "\n".join(pkginfo_lines) + "\n", encoding="utf-8"
+    )
 
     filename = f"{recipe.name}-{version_str}.apk"
     apk_path = out_path / filename
 
     subprocess.run(
-        ["tar", "-czf", str(apk_path), "-C", str(stage_dir), "."], check=False
+        ["tar", "--exclude=DEBIAN", "-czf", str(apk_path), "-C", str(stage_dir), "."],
+        check=True,
+        capture_output=True,
+        text=True,
     )
     return apk_path
