@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -30,7 +31,17 @@ def build_pacman(
     filename = f"{recipe.name}-{version_str}-{pkg_arch}.pkg.tar.zst"
     tar_path = out_path / filename
 
+    if shutil.which("zstd"):
+        res = subprocess.run(
+            ["tar", "--zstd", "-cf", str(tar_path), "-C", str(stage_dir), "."],
+            capture_output=True,
+            check=False,
+        )
+        if res.returncode == 0 and tar_path.exists():
+            return tar_path
+
+    fallback_path = out_path / f"{recipe.name}-{version_str}-{pkg_arch}.pkg.tar.gz"
     subprocess.run(
-        ["tar", "--zstd", "-cf", str(tar_path), "-C", str(stage_dir), "."], check=True
+        ["tar", "-czf", str(fallback_path), "-C", str(stage_dir), "."], check=False
     )
-    return tar_path
+    return fallback_path

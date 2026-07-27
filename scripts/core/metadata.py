@@ -14,6 +14,9 @@ def generate_packages_json(
     )
 
     pkgs_path = Path(packages_dir) if packages_dir else repo_root / "packages"
+    if not pkgs_path.exists() and (repo_root / "packages").exists():
+        pkgs_path = repo_root / "packages"
+
     out_path = (
         Path(output_file) if output_file else repo_root / "site" / "packages.json"
     )
