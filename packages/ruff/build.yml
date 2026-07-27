@@ -1,5 +1,5 @@
 name: ruff
-version: 0.9.0
+version: "0.16.0"
 revision: 0
 architecture: aarch64
 description: Fast Python linter and code formatter written in Rust
