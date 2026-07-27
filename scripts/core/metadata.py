@@ -1,3 +1,4 @@
+import contextlib
 import json
 from pathlib import Path
 
@@ -5,10 +6,17 @@ from core.parser import parse_recipe
 
 
 def generate_packages_json(
-    packages_dir: str = "packages", output_file: str = "site/packages.json"
+    packages_dir: str | Path | None = None, output_file: str | Path | None = None
 ):
-    pkgs_path = Path(packages_dir)
-    out_path = Path(output_file)
+    scripts_dir = Path(__file__).resolve().parent.parent
+    repo_root = (
+        scripts_dir.parent if (scripts_dir.parent / "packages").exists() else Path.cwd()
+    )
+
+    pkgs_path = Path(packages_dir) if packages_dir else repo_root / "packages"
+    out_path = (
+        Path(output_file) if output_file else repo_root / "site" / "packages.json"
+    )
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     items = []
@@ -16,7 +24,7 @@ def generate_packages_json(
         for pkg_dir in sorted(pkgs_path.iterdir()):
             recipe_file = pkg_dir / "build.yml"
             if pkg_dir.is_dir() and recipe_file.exists():
-                try:
+                with contextlib.suppress(Exception):
                     recipe = parse_recipe(recipe_file)
                     formats = ["apt", "pacman", "apk"]
                     if recipe.name in ["uv", "ruff", "pydantic", "pyyaml"]:
@@ -36,11 +44,9 @@ def generate_packages_json(
                                 "license": recipe.license or "MIT",
                             }
                         )
-                except Exception:
-                    pass
 
     out_path.write_text(json.dumps(items, indent=2), encoding="utf-8")
-    print(f"✓ Successfully generated {output_file} with {len(items)} package entries.")
+    print(f"✓ Successfully generated {out_path} with {len(items)} package entries.")
 
 
 if __name__ == "__main__":

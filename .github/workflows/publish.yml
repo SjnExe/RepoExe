@@ -137,7 +137,7 @@ jobs:
           import glob
           import shutil
           from core.metadata import generate_packages_json
-          generate_packages_json('packages', '../site/packages.json')
+          generate_packages_json()
           from core.debian import generate_apt_metadata
 
           output_dir = "apt_staging"
