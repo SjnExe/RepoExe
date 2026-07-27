@@ -218,6 +218,7 @@ jobs:
 
           # Copy static frontend store site files
           mkdir -p ../site
+          mkdir -p ../site
           if [ -d "site" ]; then cp -r site/* ../site/;
           elif [ -d "../scripts/site" ]; then cp -r ../scripts/site/* ../site/;
           fi

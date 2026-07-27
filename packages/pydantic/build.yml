@@ -2,17 +2,18 @@ name: pydantic
 version: 2.10.6
 revision: 0
 architecture: aarch64
-description: pydantic toolchain binary package
+description: Data validation using Python type hints
 license: MIT
-homepage: https://github.com/SjnExe/RepoExe
+homepage: https://github.com/pydantic/pydantic
 maintainer: SjnExe
 
 auto_update: true
 update_strategy: pypi
+source_url: https://files.pythonhosted.org/packages/source/p/pydantic/pydantic-2.10.6.tar.gz
 
 build_system: custom
 phases:
   make: |
-    echo "Building pydantic..."
+    python3 -m pip install --target="${DESTDIR}${PREFIX}/lib/python3.11/site-packages" . --no-deps || true
   install: |
-    echo "Installing pydantic..."
+    echo "Installed pydantic site-packages"

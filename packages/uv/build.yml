@@ -2,17 +2,17 @@ name: uv
 version: 0.5.0
 revision: 0
 architecture: aarch64
-description: uv toolchain binary package
-license: MIT
-homepage: https://github.com/SjnExe/RepoExe
+description: Fast Python package installer and resolver written in Rust
+license: Apache-2.0
+homepage: https://github.com/astral-sh/uv
 maintainer: SjnExe
 
 auto_update: true
-update_strategy: pypi
+update_strategy: github_release
+source_url: https://github.com/astral-sh/uv/releases/download/0.5.0/uv-aarch64-unknown-linux-musl.tar.gz
 
 build_system: custom
 phases:
-  make: |
-    echo "Building uv..."
   install: |
-    echo "Installing uv..."
+    install -Dm755 uv "${DESTDIR}${PREFIX}/bin/uv"
+    install -Dm755 uvx "${DESTDIR}${PREFIX}/bin/uvx"
