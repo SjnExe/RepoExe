@@ -7,8 +7,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+from core.alpine import build_alpine
 from core.debian import build_deb
 from core.health import audit_repository_health
+from core.pacman import build_pacman
 from core.parser import parse_recipe
 from core.toolchains import setup_build_environment
 
