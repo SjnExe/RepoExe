@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RepoExe Package Store</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <h1><span class="material-icons">local_shipping</span> RepoExe Store</h1>
+            <p>Custom Android & Termux Binary Repository</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="install-box">
+            <h3><span class="material-icons">terminal</span> Quick Install</h3>
+            <code>curl -sL https://sjnexe.github.io/RepoExe/install | sh</code>
+        </section>
+
+        <section class="search-section">
+            <div class="search-bar">
+                <span class="material-icons">search</span>
+                <input type="text" id="searchInput" placeholder="Search packages (e.g. tsc, ruff, pydantic)...">
+            </div>
+            <div class="filters">
+                <button class="filter-btn active" data-format="all">All</button>
+                <button class="filter-btn" data-format="apt">APT (.deb)</button>
+                <button class="filter-btn" data-format="pacman">Pacman (.pkg)</button>
+                <button class="filter-btn" data-format="apk">Alpine (.apk)</button>
+                <button class="filter-btn" data-format="pip">PIP (PyPI)</button>
+                <button class="filter-btn" data-format="npm">NPM</button>
+            </div>
+        </section>
+
+        <section id="packageGrid" class="package-grid">
+            <p class="loading">Loading packages...</p>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

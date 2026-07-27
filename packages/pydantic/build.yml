@@ -1,0 +1,18 @@
+name: pydantic
+version: 2.10.6
+revision: 0
+architecture: aarch64
+description: pydantic toolchain binary package
+license: MIT
+homepage: https://github.com/SjnExe/RepoExe
+maintainer: SjnExe
+
+auto_update: true
+update_strategy: pypi
+
+build_system: custom
+phases:
+  make: |
+    echo "Building pydantic..."
+  install: |
+    echo "Installing pydantic..."

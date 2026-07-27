@@ -1,28 +1,44 @@
 #!/bin/sh
 set -e
 
-PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
-REPO_URL="https://SjnExe.github.io/RepoExe"
-KEYRING_DIR="${PREFIX}/etc/apt/keyrings"
-KEY_FILE="${KEYRING_DIR}/repoexe.gpg"
-SOURCES_LIST="${PREFIX}/etc/apt/sources.list.d/repoexe.list"
+echo "Installing RepoExe universal package installer..."
 
-echo "=== RepoExe Setup ==="
-echo "[*] Configuring APT repository..."
+INSTALL_NPM=0
+INSTALL_PIP=0
 
-# Remove old legacy key locations
-rm -f "${PREFIX}/etc/apt/trusted.gpg.d/repoexe.gpg"
-rm -f "${PREFIX}/etc/apt/trusted.gpg.d/repoexe.asc"
+for arg in "$@"; do
+  case $arg in
+    --npm) INSTALL_NPM=1 ;;
+    --pip) INSTALL_PIP=1 ;;
+    --all) INSTALL_NPM=1; INSTALL_PIP=1 ;;
+  esac
+done
 
-mkdir -p "$KEYRING_DIR"
-mkdir -p "${PREFIX}/etc/apt/sources.list.d"
+if command -v pkg >/dev/null 2>&1; then
+  echo "Detected Termux APT package manager."
+  curl -fsSL https://sjnexe.github.io/RepoExe/repoexe.gpg -o $PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg 2>/dev/null || true
+  echo "deb [arch=aarch64] https://sjnexe.github.io/RepoExe/apt stable main" > $PREFIX/etc/apt/sources.list.d/repoexe.list
+  pkg update -y
+elif command -v pacman >/dev/null 2>&1; then
+  echo "Detected Pacman package manager."
+  if ! grep -q "RepoExe" /etc/pacman.conf 2>/dev/null; then
+    echo -e "\n[repoexe]\nSigLevel = Optional TrustAll\nServer = https://sjnexe.github.io/RepoExe/pacman" >> /etc/pacman.conf
+  fi
+  pacman -Sy
+elif command -v apk >/dev/null 2>&1; then
+  echo "Detected Alpine APK package manager."
+  echo "https://sjnexe.github.io/RepoExe/alpine" >> /etc/apk/repositories
+  apk update
+fi
 
-echo "[*] Fetching GPG public key..."
-curl -sL "${REPO_URL}/repoexe.gpg" -o "$KEY_FILE"
+if [ "$INSTALL_PIP" -eq 1 ]; then
+  echo "Configuring PIP index..."
+  pip config set global.index-url https://sjnexe.github.io/RepoExe/pip/ 2>/dev/null || true
+fi
 
-echo "[*] Adding repository source..."
-echo "deb [arch=aarch64 signed-by=${KEY_FILE}] ${REPO_URL}/apt stable main" > "$SOURCES_LIST"
+if [ "$INSTALL_NPM" -eq 1 ]; then
+  echo "Configuring NPM registry..."
+  npm config set registry https://sjnexe.github.io/RepoExe/npm/ 2>/dev/null || true
+fi
 
-echo "[*] Updating APT package lists..."
-apt update
-echo "✓ RepoExe repository configured successfully!"
+echo "✓ RepoExe configured successfully!"

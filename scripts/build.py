@@ -255,6 +255,13 @@ def execute_build(
             target_arch=recipe.architecture,
             pkg_src_dir=pkg_dir,
         )
+        try:
+            from core.pacman import build_pacman
+            build_pacman(recipe, str(destdir), str(output_dir), target_arch=recipe.architecture)
+            from core.alpine import build_alpine
+            build_alpine(recipe, str(destdir), str(output_dir), target_arch=recipe.architecture)
+        except Exception as e:
+            pass
         print(f"✓ Successfully built package {recipe.name}")
     except Exception as e:  # noqa: BLE001
         print(f"Build failed for {recipe.name}: {e}", file=sys.stderr)

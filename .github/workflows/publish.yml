@@ -159,6 +159,12 @@ jobs:
           os.makedirs("../site/apt", exist_ok=True)
           os.system("cp -r apt_staging/dists ../site/apt/")
 
+          from core.pip import generate_pip_index
+          from core.npm import generate_npm_index
+          generate_pip_index("../site")
+          generate_npm_index("../site")
+          
+
           for deb in glob.glob(os.path.join(output_dir, "*.deb")):
               shutil.copy(deb, "../site/apt/")
 
@@ -187,35 +193,12 @@ jobs:
             exit 1
           fi
 
-          # Create basic index.html landing page
-          cat << 'HTML_EOF' > ../site/index.html
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>RepoExe Package Repository</title>
-              <style>
-                  body { font-family: monospace; background: #0d1117; color: #c9d1d9; padding: 2rem; line-height: 1.6; }
-                  h1 { color: #58a6ff; }
-                  code { background: #161b22; padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid #30363d; display: block; margin: 1rem 0; word-break: break-all; }
-                  a { color: #58a6ff; text-decoration: none; }
-              </style>
-          </head>
-          <body>
-              <h1>RepoExe Repository</h1>
-              <p>Custom Termux package repository for native Android binaries.</p>
-              <h3>Quick Install</h3>
-              <code>curl -sL https://sjnexe.github.io/RepoExe/install | sh</code>
-              <h3>Endpoints</h3>
-              <ul>
-                  <li><a href="apt/dists/stable/main/binary-aarch64/Packages">APT Packages (aarch64)</a></li>
-                  <li><a href="install">Install Script</a></li>
-              </ul>
-          </body>
-          </html>
-          HTML_EOF
-
+          # Copy static frontend store site files
+          mkdir -p ../site
+          if [ -d "site" ]; then cp -r site/* ../site/;
+          elif [ -d "../scripts/site" ]; then cp -r ../scripts/site/* ../site/;
+          fi
+          
           # Export binary and ascii public keys to site root
           KEY_SRC=""
           if [ -f "keys/repoexe.gpg" ]; then KEY_SRC="keys/repoexe.gpg";

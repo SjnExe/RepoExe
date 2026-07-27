@@ -166,10 +166,10 @@ class Sysroot:
 
     def _patch_config_scripts(self, src_dir: str) -> None:
         """Replaces config.guess and config.sub with our Android-compatible versions."""
-        # Find scripts/config.guess relative to this file
+        # Find scripts/configs/config.guess relative to this file
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        custom_guess = os.path.join(base_dir, "scripts", "config.guess")
-        custom_sub = os.path.join(base_dir, "scripts", "config.sub")
+        custom_guess = os.path.join(base_dir, "scripts", "configs", "config.guess")
+        custom_sub = os.path.join(base_dir, "scripts", "configs", "config.sub")
 
         if not os.path.exists(custom_guess) or not os.path.exists(custom_sub):
             logger.warning(
