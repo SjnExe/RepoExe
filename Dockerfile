@@ -17,11 +17,11 @@ RUN \
   && useradd -r -s /bin/false systemd-network \
   && useradd -r -s /bin/false systemd-resolve \
   && apt-get update \
-  && apt-get install -yq --no-install-recommends locales apt-utils \
+  && apt-get install -yq --no-install-recommends zstd locales apt-utils \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \
   && apt-get update \
-  && apt-get install -yq --no-install-recommends \
+  && apt-get install -yq --no-install-recommends zstd \
     eatmydata sudo curl git ca-certificates aria2 fuse-overlayfs unzip patch \
     golang rustc cargo build-essential \
   && eatmydata apt-get -yq upgrade
@@ -70,7 +70,7 @@ RUN cd ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot \
 RUN \
   --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache \
   --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib \
-  eatmydata apt-get install -yq --no-install-recommends \
+  eatmydata apt-get install -yq --no-install-recommends zstd \
     proot abigail-tools graphviz dpkg-dev
 
 RUN mkdir -p /data/data/com.termux/files/usr \
@@ -87,7 +87,7 @@ RUN userdel -r ubuntu || true \
 RUN \
   --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache \
   --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib \
-  eatmydata apt-get install -yq --no-install-recommends \
+  eatmydata apt-get install -yq --no-install-recommends zstd \
     nodejs npm shellcheck
 
 # Install prettier globally

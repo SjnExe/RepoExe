@@ -31,6 +31,6 @@ def build_pacman(
     tar_path = out_path / filename
 
     subprocess.run(
-        ["tar", "--zstd", "-cf", str(tar_path), "-C", str(stage_dir), "."], check=False
+        ["tar", "--zstd", "-cf", str(tar_path), "-C", str(stage_dir), "."], check=True
     )
     return tar_path

@@ -7,7 +7,10 @@ from core.parser import parse_recipe
 
 def main() -> None:
     pkgs_dir = Path("../packages")
-    raw_input = os.environ.get("TARGET_INPUT", "all").strip() or "all"
+    raw_input = os.environ.get("TARGET_INPUT", "").strip()
+    if not raw_input:
+        print(json.dumps([]))
+        return
     all_pkg_dirs = sorted(
         [
             d.name
