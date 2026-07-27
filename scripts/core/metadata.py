@@ -46,7 +46,7 @@ def generate_packages_json(
                         )
 
     out_path.write_text(json.dumps(items, indent=2), encoding="utf-8")
-    print(f"✓ Successfully generated {out_path} with {len(items)} package entries.")
+    print(f"✓ Generated {out_path} with {len(items)} package entries.")
 
 
 if __name__ == "__main__":

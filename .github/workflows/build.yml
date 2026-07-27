@@ -193,10 +193,10 @@ jobs:
             gh release upload "$TAG" metadata.json --clobber || true
 
             UPLOAD_FILES=""
-            if ls output/${pkg}*.deb 1> /dev/null 2>&1; then
-              UPLOAD_FILES=$(ls output/${pkg}*.deb)
-            elif ls output/*.deb 1> /dev/null 2>&1; then
-              UPLOAD_FILES=$(ls output/*.deb)
+            if ls output/${pkg}* 1> /dev/null 2>&1; then
+              UPLOAD_FILES=$(ls output/${pkg}*)
+            elif ls output/* 1> /dev/null 2>&1; then
+              UPLOAD_FILES=$(ls output/*)
             fi
 
             if [ -n "$UPLOAD_FILES" ]; then
