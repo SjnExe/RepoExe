@@ -1,10 +1,29 @@
 import concurrent.futures
 import json
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
 
 from core.parser import parse_recipe
+
+
+def sort_debian_versions(versions: list[str]) -> list[str]:
+    """Sorts Debian version strings handling optional epoch numbers (e.g., '1:1.0')."""
+
+    def parse_key(ver_str: str) -> tuple[int, list[int | str]]:
+        if ":" in ver_str:
+            epoch_str, rest = ver_str.split(":", 1)
+            epoch = int(epoch_str)
+        else:
+            epoch = 0
+            rest = ver_str
+        parts: list[int | str] = [
+            int(p) if p.isdigit() else p for p in re.split(r"(\d+)", rest) if p
+        ]
+        return (epoch, parts)
+
+    return sorted(versions, key=parse_key)
 
 
 def identify_outdated_assets(
