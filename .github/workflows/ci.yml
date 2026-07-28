@@ -3,17 +3,8 @@ name: CI Checks & Tests
 on:
   push:
     branches: [main]
-    paths:
-      - 'packages/**'
-      - 'scripts/**'
-      - 'Dockerfile'
-      - 'pyproject.toml'
   pull_request:
     branches: [main]
-    paths:
-      - 'packages/**'
-      - 'scripts/**'
-      - 'Dockerfile'
 
 concurrency:
   group: ci-${{ github.ref }}
