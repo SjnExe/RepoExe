@@ -1,3 +1,5 @@
+import hashlib
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -14,9 +16,16 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     wheel_name = f"{pkg_name}-{recipe.version}-py3-none-any.whl"
     wheel_path = out_path / wheel_name
 
-    # Create dummy wheel archive if pure binary or package
     wheel_build_dir = Path(destdir) / "wheel_build"
     wheel_build_dir.mkdir(parents=True, exist_ok=True)
+
+    if stage_dir.exists():
+        for item in stage_dir.iterdir():
+            target = wheel_build_dir / item.name
+            if item.is_dir():
+                shutil.copytree(item, target, dirs_exist_ok=True)
+            else:
+                shutil.copy2(item, target)
 
     dist_info = wheel_build_dir / f"{pkg_name}-{recipe.version}.dist-info"
     dist_info.mkdir(parents=True, exist_ok=True)
@@ -31,9 +40,59 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     )
 
     subprocess.run(
-        ["zip", "-r", str(wheel_path), "."],
+        ["zip", "-q", "-r", str(wheel_path), "."],
         cwd=wheel_build_dir,
         check=True,
         capture_output=True,
     )
     return wheel_path
+
+
+def generate_pip_index(output_dir: str | Path) -> None:
+    """Generates a PEP 503 compliant PyPI simple repository index with SHA256 checksums."""
+    base_dir = Path(output_dir)
+    pip_dir = base_dir / "pip"
+    pip_dir.mkdir(parents=True, exist_ok=True)
+
+    whl_files = list(base_dir.rglob("*.whl"))
+    packages: dict[str, list[Path]] = {}
+
+    for whl in whl_files:
+        raw_name = whl.name.split("-")[0].lower().replace("_", "-")
+        packages.setdefault(raw_name, []).append(whl)
+
+    root_links = []
+    for pkg_name in sorted(packages.keys()):
+        root_links.append(f'<li><a href="{pkg_name}/">{pkg_name}</a></li>')
+        pkg_page_dir = pip_dir / pkg_name
+        pkg_page_dir.mkdir(parents=True, exist_ok=True)
+
+        pkg_links = []
+        for whl_path in sorted(packages[pkg_name]):
+            dest_file = pkg_page_dir / whl_path.name
+            if whl_path != dest_file:
+                shutil.copy2(whl_path, dest_file)
+
+            file_bytes = dest_file.read_bytes()
+            sha256_hash = hashlib.sha256(file_bytes).hexdigest()
+            pkg_links.append(
+                f'<li><a href="{whl_path.name}#sha256={sha256_hash}">{whl_path.name}</a></li>'
+            )
+
+        page_html = (
+            "<!DOCTYPE html><html><head><title>Links for "
+            + pkg_name
+            + "</title></head><body><h1>Links for "
+            + pkg_name
+            + "</h1>"
+            + "".join(pkg_links)
+            + "</body></html>"
+        )
+        (pkg_page_dir / "index.html").write_text(page_html, encoding="utf-8")
+
+    index_html = (
+        "<!DOCTYPE html><html><head><title>Simple Index</title></head><body>"
+        + "".join(root_links)
+        + "</body></html>"
+    )
+    (pip_dir / "index.html").write_text(index_html, encoding="utf-8")
