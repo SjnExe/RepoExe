@@ -45,7 +45,9 @@ def test_prune_assets():
         {"id": 1, "name": "tsc_0.0.9_aarch64.deb"},
         {"id": 2, "name": "tsc_0.1.0_aarch64.deb"},
     ]
-    outdated = identify_outdated_assets(mock_assets, target_version="0.1.0")
+    outdated = identify_outdated_assets(
+        mock_assets, target_version="0.1.0", pkg_name="tsc"
+    )
     assert len(outdated) == 1
     assert outdated[0]["name"] == "tsc_0.0.9_aarch64.deb"
 
