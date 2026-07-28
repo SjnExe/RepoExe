@@ -6,9 +6,8 @@ from core.parser import parse_recipe
 
 
 def main() -> None:
-    # Resolve packages directory from root or scripts/ execution context
     repo_root = Path(__file__).resolve().parents[1]
-    pkgs_dir = repo_root / "packages"
+    pkgs_dir = repo_root / "pkg"
 
     raw_input = os.environ.get("TARGET_INPUT", "").strip()
     if not raw_input:

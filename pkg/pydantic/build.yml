@@ -7,9 +7,16 @@ license: MIT
 homepage: https://github.com/pydantic/pydantic
 maintainer: SjnExe
 
-auto_update: true
-update_strategy: pypi
-source_url: https://files.pythonhosted.org/packages/source/p/pydantic/pydantic-2.10.6.tar.gz
+formats:
+  - apt
+  - pip
+
+channels:
+  latest:
+    version: "2.13.4"
+    auto_update: true
+    update_strategy: pypi
+    source_url: https://files.pythonhosted.org/packages/source/p/pydantic/pydantic-2.10.6.tar.gz
 
 build_system: custom
 phases:

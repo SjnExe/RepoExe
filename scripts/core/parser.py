@@ -30,6 +30,8 @@ class PackageRecipe(BaseModel):
     build_system: str = "custom"
     source_url: str | None = None
     sha256: str | None = None
+    formats: list[str] = Field(default_factory=lambda: ["apt", "pacman", "apk"])
+    build_deps: list[str] = Field(default_factory=list)
     auto_update: bool = False
     update_strategy: str | None = None
     custom_update_cmd: str | None = None
@@ -84,6 +86,7 @@ class PackageRecipe(BaseModel):
             "architecture": self.architecture,
             "source_url": self.source_url,
             "sha256": self.sha256,
+            "formats": sorted(self.formats),
             "patches": self.patches,
             "phases": self.phases,
             "vars": self.vars,

@@ -5,20 +5,18 @@ on:
     branches:
       - main
     paths:
-      - 'packages/**'
+      - 'pkg/**'
       - 'scripts/**'
-      - 'Dockerfile'
   pull_request:
     branches:
       - main
     paths:
-      - 'packages/**'
+      - 'pkg/**'
       - 'scripts/**'
-      - 'Dockerfile'
   workflow_dispatch:
     inputs:
       packages:
-        description: 'Target packages (e.g. "all", "all !tsc", "tsc@latest")'
+        description: 'Target packages (e.g. "all", "tsc", "tsc@latest")'
         required: true
         default: 'all'
       publish_repo:
@@ -43,7 +41,7 @@ jobs:
       publish_decision: ${{ steps.decision.outputs.publish_decision }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -59,7 +57,7 @@ jobs:
           fi
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
@@ -71,7 +69,7 @@ jobs:
           elif [ "${{ github.event_name }}" == "pull_request" ]; then
             BASE_COMMIT=${{ github.event.pull_request.base.sha }}
             HEAD_COMMIT=${{ github.event.pull_request.head.sha }}
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BASE_COMMIT" "$HEAD_COMMIT" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BASE_COMMIT" "$HEAD_COMMIT" | grep '^pkg/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
             echo "targets=${CHANGED}" >> "$GITHUB_OUTPUT"
           else
             BEFORE="${{ github.event.before }}"
@@ -80,7 +78,7 @@ jobs:
                BEFORE="HEAD^1"
                AFTER="HEAD"
             fi
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BEFORE" "$AFTER" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BEFORE" "$AFTER" | grep '^pkg/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
             echo "targets=${CHANGED}" >> "$GITHUB_OUTPUT"
           fi
 
@@ -103,18 +101,18 @@ jobs:
         shard: ${{ fromJson(needs.prepare.outputs.shards) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -136,16 +134,16 @@ jobs:
             for target in ${{ matrix.shard.packages }} ; do
               pkg=$(echo "$target" | cut -d: -f1)
               ch=$(echo "$target" | cut -d: -f2)
-              [ -d "packages/$pkg" ] || continue
+              [ -d "pkg/$pkg" ] || continue
               echo "=== Building $pkg ($ch) ==="
-              uv run python scripts/build.py build "packages/$pkg" --channel "$ch"
+              uv run python scripts/build.py build "pkg/$pkg" --channel "$ch"
             done
           '
           docker rm -f repoexe-daemon
           sudo chown -R $USER:$USER .
 
       - name: Upload Build Artifacts for Testing
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: build-artifacts-shard-${{ matrix.shard.shard }}
           path: output/
@@ -170,11 +168,11 @@ jobs:
           for target in $MATRIX_PACKAGES; do
             pkg=$(echo "$target" | cut -d: -f1)
             ch=$(echo "$target" | cut -d: -f2)
-            [ -d "packages/$pkg" ] || continue
+            [ -d "pkg/$pkg" ] || continue
 
             TAG="${pkg}@${ch}"
             
-            META_JSON=$(uv run python -c "import os, json; from pathlib import Path; from core.parser import parse_recipe; pkg = '$pkg'; ch = '$ch'; recipe_path = Path(f'packages/{pkg}/build.yml'); r = parse_recipe(recipe_path, channel=ch); print(json.dumps({'name': r.name, 'version': r.version, 'revision': r.revision, 'channel': r.active_channel, 'state_hash': r.state_hash}))")
+            META_JSON=$(uv run python -c "import os, json; from pathlib import Path; from core.parser import parse_recipe; pkg = '$pkg'; ch = '$ch'; recipe_path = Path(f'pkg/{pkg}/build.yml'); r = parse_recipe(recipe_path, channel=ch); print(json.dumps({'name': r.name, 'version': r.version, 'revision': r.revision, 'channel': r.active_channel, 'state_hash': r.state_hash}))")
             
             PKG_VER=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['version'])")
             TITLE="${pkg} v${PKG_VER} [${ch}]"
@@ -196,7 +194,7 @@ jobs:
       - name: Save publish decision
         run: echo "true" > publish_decision.txt
       - name: Upload decision artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: publish_decision
           path: publish_decision.txt

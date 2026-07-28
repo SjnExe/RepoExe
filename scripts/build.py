@@ -21,11 +21,11 @@ def get_ruff_cmd() -> list[str]:
     return ["uvx", "ruff"]
 
 
-def list_packages(packages_dir: Path) -> None:
+def list_packages(pkg_dir: Path) -> None:
     print("Available packages:")
-    for pkg_dir in sorted(packages_dir.iterdir()):
-        recipe_file = pkg_dir / "build.yml"
-        if pkg_dir.is_dir() and recipe_file.exists():
+    for p_dir in sorted(pkg_dir.iterdir()):
+        recipe_file = p_dir / "build.yml"
+        if p_dir.is_dir() and recipe_file.exists():
             try:
                 recipe = parse_recipe(recipe_file, channel="latest")
                 ch_list = (
@@ -34,13 +34,11 @@ def list_packages(packages_dir: Path) -> None:
                 channels_str = ", ".join(ch_list)
                 print(f"  • {recipe.name:<12} v{recipe.version:<8} [{channels_str}]")
             except Exception as e:  # noqa: BLE001
-                print(f"  • {pkg_dir.name:<12} [INVALID: {e}]")
+                print(f"  • {p_dir.name:<12} [INVALID: {e}]")
 
 
-def inspect_package(
-    packages_dir: Path, package_name: str, channel: str = "latest"
-) -> None:
-    recipe_file = packages_dir / package_name / "build.yml"
+def inspect_package(pkg_dir: Path, package_name: str, channel: str = "latest") -> None:
+    recipe_file = pkg_dir / package_name / "build.yml"
     if not recipe_file.exists():
         print(f"Error: Package '{package_name}' not found", file=sys.stderr)
         sys.exit(1)
@@ -49,8 +47,8 @@ def inspect_package(
     print(json.dumps(recipe.model_dump(), indent=2))
 
 
-def run_health_check(packages_dir: Path) -> None:
-    report = audit_repository_health(packages_dir)
+def run_health_check(pkg_dir: Path) -> None:
+    report = audit_repository_health(pkg_dir)
     print("Repository Health Audit:")
     print("------------------------")
     print(f"Total Packages Found  : {report['total_packages']}")
@@ -168,36 +166,41 @@ def execute_build(
     if install_cmd:
         subprocess.run(install_cmd, shell=True, cwd=work_dir, env=env, check=False)
 
+    target_formats = getattr(recipe, "formats", ["apt", "pacman", "apk"])
+
     # 1. Build Debian Package
-    try:
-        build_deb(
-            recipe,
-            str(destdir),
-            str(output_dir),
-            target_arch=recipe.architecture,
-            pkg_src_dir=pkg_dir,
-        )
-        print(f"✓ Built .deb for {recipe.name}")
-    except Exception as e:  # noqa: BLE001
-        print(f"Debian build failed for {recipe.name}: {e}", file=sys.stderr)
+    if "apt" in target_formats:
+        try:
+            build_deb(
+                recipe,
+                str(destdir),
+                str(output_dir),
+                target_arch=recipe.architecture,
+                pkg_src_dir=pkg_dir,
+            )
+            print(f"✓ Built .deb for {recipe.name}")
+        except Exception as e:  # noqa: BLE001
+            print(f"Debian build failed for {recipe.name}: {e}", file=sys.stderr)
 
     # 2. Build Pacman Package
-    try:
-        build_pacman(
-            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
-        )
-        print(f"✓ Built .pkg.tar for {recipe.name}")
-    except Exception as e:  # noqa: BLE001
-        print(f"Pacman build warning for {recipe.name}: {e}", file=sys.stderr)
+    if "pacman" in target_formats:
+        try:
+            build_pacman(
+                recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+            )
+            print(f"✓ Built .pkg.tar for {recipe.name}")
+        except Exception as e:  # noqa: BLE001
+            print(f"Pacman build warning for {recipe.name}: {e}", file=sys.stderr)
 
     # 3. Build Alpine Package
-    try:
-        build_alpine(
-            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
-        )
-        print(f"✓ Built .apk for {recipe.name}")
-    except Exception as e:  # noqa: BLE001
-        print(f"Alpine build warning for {recipe.name}: {e}", file=sys.stderr)
+    if "apk" in target_formats:
+        try:
+            build_alpine(
+                recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+            )
+            print(f"✓ Built .apk for {recipe.name}")
+        except Exception as e:  # noqa: BLE001
+            print(f"Alpine build warning for {recipe.name}: {e}", file=sys.stderr)
 
 
 def fix_code_formatting(scripts_dir: Path) -> None:
@@ -207,9 +210,9 @@ def fix_code_formatting(scripts_dir: Path) -> None:
     )
 
 
-def run_code_checks(scripts_dir: Path, packages_dir: Path) -> None:
+def run_code_checks(scripts_dir: Path, pkg_dir: Path) -> None:
     subprocess.run(get_ruff_cmd() + ["check", "."], cwd=scripts_dir, check=False)
-    run_health_check(packages_dir)
+    run_health_check(pkg_dir)
 
 
 def main() -> None:
@@ -231,18 +234,18 @@ def main() -> None:
     build_p.add_argument("--dry-run", action="store_true")
 
     args = parser.parse_args()
-    packages_dir = Path(__file__).parent.parent / "packages"
+    pkg_dir = Path(__file__).parent.parent / "pkg"
 
     if args.command == "list":
-        list_packages(packages_dir)
+        list_packages(pkg_dir)
     elif args.command == "fix":
         fix_code_formatting(Path(__file__).parent)
     elif args.command == "check":
-        run_code_checks(Path(__file__).parent, packages_dir)
+        run_code_checks(Path(__file__).parent, pkg_dir)
     elif args.command == "inspect":
-        inspect_package(packages_dir, args.package, channel=args.channel)
+        inspect_package(pkg_dir, args.package, channel=args.channel)
     elif args.command == "health":
-        run_health_check(packages_dir)
+        run_health_check(pkg_dir)
     elif args.command == "build":
         pkg_path = Path(args.package)
         if not pkg_path.is_absolute():

@@ -15,7 +15,6 @@ def identify_outdated_assets(
     metadata: dict[str, Any] | None = None,
     pkg_name: str = "",
 ) -> list[dict[str, Any]]:
-    """Identifies outdated release assets on a tag by whitelisting active package versions."""
     to_delete = []
     whitelist = set()
 
@@ -50,14 +49,12 @@ def identify_outdated_assets(
 
 
 def prune_release_tags() -> None:
-    """Iterates through GitHub release tags and prunes outdated build assets using parallel API calls."""
     scripts_dir = Path(__file__).parent.parent
     repo_root = (
-        scripts_dir.parent if (scripts_dir.parent / "packages").exists() else Path.cwd()
+        scripts_dir.parent if (scripts_dir.parent / "pkg").exists() else Path.cwd()
     )
-    pkgs_dir = repo_root / "packages"
+    pkgs_dir = repo_root / "pkg"
 
-    # Get active repository info
     repo_res = subprocess.run(
         ["gh", "repo", "view", "--json", "name,owner"],
         capture_output=True,
@@ -76,7 +73,6 @@ def prune_release_tags() -> None:
         print(f"Failed to parse repo info: {e}")
         return
 
-    # Single high-speed API request for all release metadata
     releases_res = subprocess.run(
         ["gh", "api", f"repos/{owner}/{repo_name}/releases?per_page=100"],
         capture_output=True,
@@ -151,7 +147,6 @@ def prune_release_tags() -> None:
             return (f"✓ [{tag}] Deleted {name}", True, "")
         return (f"❌ [{tag}] Failed to delete {name}", False, res.stderr)
 
-    # Delete outdated assets in parallel
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         results = list(executor.map(delete_asset, deletion_tasks))
 

@@ -13,7 +13,6 @@ from core.parser import parse_recipe
 
 
 def extract_semver(tag_name: str) -> Version | None:
-    """Extracts and parses a clean SemVer from tag strings (e.g. 'v5.0.12' -> Version('5.0.12'))."""
     clean_tag = tag_name.strip()
     match = re.search(r"v?(\d+\.\d+(?:\.\d+)?(?:-[\w.]+)?)$", clean_tag)
     if match:
@@ -23,7 +22,6 @@ def extract_semver(tag_name: str) -> Version | None:
 
 
 def fetch_github_release(owner: str, repo: str) -> str | None:
-    """Queries GitHub Releases API for the latest published release tag."""
     headers = {"User-Agent": "RepoExe-Orchestrator"}
     url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
     with contextlib.suppress(
@@ -39,7 +37,6 @@ def fetch_github_release(owner: str, repo: str) -> str | None:
 
 
 def fetch_github_tag(owner: str, repo: str) -> str | None:
-    """Queries GitHub Tags API, parses all valid SemVer tags, and returns the highest version."""
     headers = {"User-Agent": "RepoExe-Orchestrator"}
     url = f"https://api.github.com/repos/{owner}/{repo}/tags?per_page=100"
     with contextlib.suppress(
@@ -64,7 +61,6 @@ def fetch_github_tag(owner: str, repo: str) -> str | None:
 
 
 def fetch_pypi_version(package_name: str) -> str | None:
-    """Queries PyPI JSON API for the latest published release version."""
     url = f"https://pypi.org/pypi/{package_name}/json"
     with contextlib.suppress(
         requests.RequestException, ValueError, KeyError, TypeError
@@ -79,7 +75,6 @@ def fetch_pypi_version(package_name: str) -> str | None:
 
 
 def fetch_custom_update(recipe: Any) -> str | None:
-    """Executes a custom update command or hook script to resolve the latest version."""
     custom_cmd = getattr(recipe, "custom_update_cmd", None)
     if custom_cmd:
         with contextlib.suppress(subprocess.SubprocessError, OSError):
@@ -112,22 +107,14 @@ def fetch_custom_update(recipe: Any) -> str | None:
 
 
 def resolve_latest_version(recipe: Any) -> str | None:
-    """Dynamically routes update detection based on explicit update_strategy."""
     strategy = getattr(recipe, "update_strategy", None)
     src_url = getattr(recipe, "source_url", "") or ""
 
     if not strategy or strategy == "auto":
-        print(
-            f"⚠️ [{recipe.name}] auto_update is enabled but update_strategy is invalid or set to 'auto'. "
-            "Please specify an explicit strategy ('github_release', 'github_tag', 'pypi', or 'custom')."
-        )
         return None
 
     if strategy in ("github_release", "github_tag"):
         if "github.com" not in src_url:
-            print(
-                f"⚠️ [{recipe.name}] Strategy '{strategy}' requires a valid github.com source_url."
-            )
             return None
         parts = src_url.split("/")
         idx = parts.index("github.com")
@@ -144,15 +131,13 @@ def resolve_latest_version(recipe: Any) -> str | None:
     if strategy == "custom":
         return fetch_custom_update(recipe)
 
-    print(f"⚠️ [{recipe.name}] Unknown update_strategy: '{strategy}'.")
     return None
 
 
-def check_package_channel_updates(packages_dir: Path) -> None:
-    """Audits all defined packages and channels for available upstream updates."""
-    for pkg_dir in sorted(packages_dir.iterdir()):
-        recipe_file = pkg_dir / "build.yml"
-        if not (pkg_dir.is_dir() and recipe_file.exists()):
+def check_package_channel_updates(pkg_dir: Path) -> None:
+    for p_dir in sorted(pkg_dir.iterdir()):
+        recipe_file = p_dir / "build.yml"
+        if not (p_dir.is_dir() and recipe_file.exists()):
             continue
 
         with contextlib.suppress(Exception):
@@ -175,7 +160,6 @@ def check_package_channel_updates(packages_dir: Path) -> None:
                 current_parsed = extract_semver(recipe.version)
                 latest_parsed = extract_semver(latest_ver)
 
-                # Strict SemVer comparison: latest_version MUST be strictly greater than current_version
                 if current_parsed and latest_parsed:
                     if latest_parsed > current_parsed:
                         print(
@@ -188,5 +172,5 @@ def check_package_channel_updates(packages_dir: Path) -> None:
 
 
 if __name__ == "__main__":
-    pkgs_dir = Path(__file__).parent.parent.parent / "packages"
-    check_package_channel_updates(pkgs_dir)
+    pkg_dir = Path(__file__).parent.parent.parent / "pkg"
+    check_package_channel_updates(pkg_dir)

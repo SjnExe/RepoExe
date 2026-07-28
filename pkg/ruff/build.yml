@@ -7,9 +7,18 @@ license: MIT
 homepage: https://github.com/astral-sh/ruff
 maintainer: SjnExe
 
-auto_update: true
-update_strategy: github_release
-source_url: https://github.com/astral-sh/ruff/releases/download/0.9.0/ruff-aarch64-unknown-linux-musl.tar.gz
+formats:
+  - apt
+  - pacman
+  - apk
+  - pip
+
+channels:
+  latest:
+    version: "0.16.0"
+    auto_update: true
+    update_strategy: github_release
+    source_url: https://github.com/astral-sh/ruff/releases/download/0.16.0/ruff-aarch64-unknown-linux-musl.tar.gz
 
 build_system: custom
 phases:

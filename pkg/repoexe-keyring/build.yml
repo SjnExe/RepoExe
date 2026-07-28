@@ -1,0 +1,23 @@
+name: repoexe-keyring
+version: "1.0"
+revision: 0
+architecture: aarch64
+description: RepoExe GPG Keyring
+license: MIT
+homepage: https://sjnexe.github.io/RepoExe/
+maintainer: SjnExe
+
+formats:
+  - apt
+  - pacman
+  - apk
+
+channels:
+  latest:
+    version: "1.0"
+    auto_update: false
+
+build_system: custom
+phases:
+  install: |
+    install -Dm600 scripts/repoexe.gpg $DESTDIR$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg

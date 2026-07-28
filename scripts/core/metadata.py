@@ -9,7 +9,7 @@ def generate_packages_json(
     packages_dir: str | Path | None = None, output_file: str | Path | None = None
 ) -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    pkgs_path = Path(packages_dir) if packages_dir else repo_root / "packages"
+    pkgs_path = Path(packages_dir) if packages_dir else repo_root / "pkg"
     out_path = (
         Path(output_file) if output_file else repo_root / "site" / "packages.json"
     )
@@ -22,11 +22,7 @@ def generate_packages_json(
             if pkg_dir.is_dir() and recipe_file.exists():
                 with contextlib.suppress(Exception):
                     recipe = parse_recipe(recipe_file)
-                    formats = ["apt", "pacman", "apk"]
-                    if recipe.build_system in ["python", "custom"]:
-                        formats.append("pip")
-                    if recipe.build_system in ["go", "cargo", "custom"]:
-                        formats.append("npm")
+                    formats = getattr(recipe, "formats", ["apt", "pacman", "apk"])
 
                     for fmt in sorted(set(formats)):
                         items.append(

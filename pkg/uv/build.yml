@@ -7,9 +7,18 @@ license: Apache-2.0
 homepage: https://github.com/astral-sh/uv
 maintainer: SjnExe
 
-auto_update: true
-update_strategy: github_release
-source_url: https://github.com/astral-sh/uv/releases/download/0.5.0/uv-aarch64-unknown-linux-musl.tar.gz
+formats:
+  - apt
+  - pacman
+  - apk
+  - pip
+
+channels:
+  latest:
+    version: "0.11.33"
+    auto_update: true
+    update_strategy: github_release
+    source_url: https://github.com/astral-sh/uv/releases/download/0.11.33/uv-aarch64-unknown-linux-musl.tar.gz
 
 build_system: custom
 phases:
