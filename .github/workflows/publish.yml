@@ -72,12 +72,18 @@ jobs:
           done
 
       - name: Generate Static Metadata and Repositories
+        env:
+          PYTHONPATH: scripts
         run: |
           uv sync
           mkdir -p site/apt site/pacman site/alpine site/pip site/npm apt_staging
 
           cat << 'PY_EOF' > generate_meta.py
-          import os, glob, shutil
+          import sys, os, glob, shutil
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path("scripts").resolve()))
+
           from core.debian import generate_apt_metadata, generate_release_file
           from core.metadata import generate_packages_json
           from core.pip import generate_pip_index
