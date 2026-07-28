@@ -1,69 +1,21 @@
-# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
 build/
-develop-eggs/
 dist/
 downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual environments
 venv/
 .venv/
-env/
-.env/
-
-# IDEs / Editors
-.idea/
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.swp
-*.swo
-
-# Docker
-.docker/
-
-# Output / Caches
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-site/site/ # Generated mkdocs output
 .sccache/
-
-# Build artifacts (RepoExe specific)
-.build-state/
-packages-cache/
-logs/
+output/
+artifacts/
+apt_staging/
 *.deb
-dag.dot
 *.apk
 *.pkg.tar.zst
-*.db
-APKINDEX.tar.gz
-Packages*
-Release*
-InRelease
-
-# pytest
-.coverage
-.pytest_cache/
-
-*.pyc
+*.whl
+*.tgz

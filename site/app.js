@@ -8,12 +8,12 @@ if (copyBtn) {
         navigator.clipboard.writeText(cmd).then(() => {
             const icon = copyBtn.querySelector(".material-icons");
             const text = document.getElementById("copyText");
-            icon.innerText = "check";
-            text.innerText = "Copied!";
+            if (icon) icon.innerText = "check";
+            if (text) text.innerText = "Copied!";
             copyBtn.classList.add("copied");
             setTimeout(() => {
-                icon.innerText = "content_copy";
-                text.innerText = "Copy";
+                if (icon) icon.innerText = "content_copy";
+                if (text) text.innerText = "Copy";
                 copyBtn.classList.remove("copied");
             }, 2000);
         });
@@ -24,7 +24,8 @@ async function loadPackages() {
     try {
         const response = await fetch("packages.json");
         if (!response.ok) throw new Error("Metadata file missing");
-        packagesData = await response.json();
+        const rawData = await response.json();
+        packagesData = Array.isArray(rawData) ? rawData : Object.values(rawData).flat();
         renderPackages();
     } catch (e) {
         document.getElementById("packageGrid").innerHTML = "<p class='loading'>No packages metadata available yet.</p>";
@@ -33,7 +34,8 @@ async function loadPackages() {
 
 function renderPackages() {
     const grid = document.getElementById("packageGrid");
-    const search = document.getElementById("searchInput").value.toLowerCase();
+    const searchInput = document.getElementById("searchInput");
+    const search = searchInput ? searchInput.value.toLowerCase() : "";
 
     const filtered = packagesData.filter(pkg => {
         const matchesSearch = pkg.name.toLowerCase().includes(search) || (pkg.description && pkg.description.toLowerCase().includes(search));
@@ -51,7 +53,7 @@ function renderPackages() {
             <div>
                 <div class="card-header">
                     <span class="card-title">${pkg.name}</span>
-                    <span class="badge">v${pkg.version}</span>
+                    <span class="badge">v${pkg.version}${pkg.revision > 0 ? '-' + pkg.revision : ''}</span>
                 </div>
                 <p class="card-desc">${pkg.description || "RepoExe compiled package"}</p>
             </div>
@@ -63,7 +65,8 @@ function renderPackages() {
     `).join("");
 }
 
-document.getElementById("searchInput").addEventListener("input", renderPackages);
+const searchEl = document.getElementById("searchInput");
+if (searchEl) searchEl.addEventListener("input", renderPackages);
 
 document.querySelectorAll(".filter-btn").forEach(btn => {
     btn.addEventListener("click", (e) => {

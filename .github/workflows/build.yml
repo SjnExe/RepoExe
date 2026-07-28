@@ -2,28 +2,26 @@ name: Build
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'packages/**'
       - 'scripts/**'
+      - 'Dockerfile'
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'packages/**'
       - 'scripts/**'
   workflow_dispatch:
     inputs:
       packages:
-        description: 'Target packages (e.g. "all", "all !tsc", "all@all !jscpd@v1", "tsc@latest")'
+        description: 'Target packages (e.g. "all", "tsc")'
         required: true
         default: 'all'
-      publish_repo:
-        description: 'Publish the built packages to the repository if successful'
-        required: false
-        type: boolean
-        default: true
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -34,61 +32,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       shards: ${{ steps.sharding.outputs.shards }}
-      publish_decision: ${{ steps.decision.outputs.publish_decision }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set publish decision
-        id: decision
-        run: |
-          if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            echo "publish_decision=true" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ inputs.publish_repo }}" == "true" ]; then
-            echo "publish_decision=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "publish_decision=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          cache-dependency-glob: 'scripts/uv.lock'
-
-      - name: Determine target packages and channels
-        id: pkgs
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "targets=${{ github.event.inputs.packages }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" == "pull_request" ]; then
-            BASE_COMMIT=${{ github.event.pull_request.base.sha }}
-            HEAD_COMMIT=${{ github.event.pull_request.head.sha }}
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BASE_COMMIT" "$HEAD_COMMIT" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
-            echo "targets=${CHANGED}" >> "$GITHUB_OUTPUT"
-            echo "is_pr=true" >> "$GITHUB_OUTPUT"
-          else
-            BEFORE="${{ github.event.before }}"
-            AFTER="${{ github.event.after }}"
-
-            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-               BEFORE="HEAD^1"
-               AFTER="HEAD"
-            fi
-
-            CHANGED=$(git diff-tree --no-commit-id --name-only -r "$BEFORE" "$AFTER" | grep '^packages/' | cut -d/ -f2 | sort -u | tr '\n' ' ')
-            echo "targets=${CHANGED}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Generate Shards
         id: sharding
-        env:
-          TARGET_INPUT: ${{ steps.pkgs.outputs.targets }}
         run: |
-          cd scripts
-          SHARDS_JSON=$(uv run python generate_shards.py)
+          SHARDS_JSON=$(uv run python scripts/generate_shards.py)
           echo "shards=$SHARDS_JSON" >> "$GITHUB_OUTPUT"
 
   build:
@@ -101,20 +55,12 @@ jobs:
         arch: [aarch64]
         shard: ${{ fromJson(needs.prepare.outputs.shards) }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          cache-dependency-glob: 'scripts/uv.lock'
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to registry
-        uses: docker/login-action@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -122,38 +68,27 @@ jobs:
 
       - name: Build Packages
         run: |
-          echo "Building targets for ${{ matrix.arch }} (Shard ${{ matrix.shard.shard }}): ${{ matrix.shard.packages }}"
           mkdir -p output
           chmod 777 output
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
 
-          if [ -n "${{ matrix.shard.packages }}" ]; then
-            OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          docker run -d --name repoexe-daemon \
+            -v ${{ github.workspace }}:/home/builder/RepoExe \
+            -w /home/builder/RepoExe \
+            "ghcr.io/$OWNER/repoexe-builder:latest" sleep infinity
 
-            docker run -d --name repoexe-daemon \
-              -v ${{ github.workspace }}:/home/builder/RepoExe \
-              -w /home/builder/RepoExe \
-              "ghcr.io/$OWNER/repoexe-builder:latest" sleep infinity
+          docker exec -u 0 repoexe-daemon bash -c '
+            chmod -R 777 /home/builder/RepoExe
+            for target in ${{ matrix.shard.packages }} ; do
+              pkg=$(echo "$target" | cut -d: -f1)
+              ch=$(echo "$target" | cut -d: -f2)
+              [ -d "packages/$pkg" ] || continue
+              uv run python scripts/build.py build "packages/$pkg" --channel "$ch"
+            done
+          '
+          docker rm -f repoexe-daemon
 
-            docker exec -u 0 repoexe-daemon bash -c '
-              chmod -R 777 /home/builder/RepoExe
-              for target in ${{ matrix.shard.packages }} ; do
-                pkg=$(echo "$target" | cut -d: -f1)
-                ch=$(echo "$target" | cut -d: -f2)
-
-                if [ ! -d "packages/$pkg" ]; then
-                  continue
-                fi
-
-                echo "Building $pkg (Channel: $ch)..."
-                uv --project scripts run python scripts/build.py build "packages/$pkg" --channel "$ch"
-              done
-            '
-
-            docker rm -f repoexe-daemon
-            sudo chown -R $USER:$USER .
-          fi
-
-      - name: Upload to GitHub Releases
+      - name: Upload Complete Release Assets
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -162,60 +97,17 @@ jobs:
           for target in $MATRIX_PACKAGES; do
             pkg=$(echo "$target" | cut -d: -f1)
             ch=$(echo "$target" | cut -d: -f2)
+            [ -d "packages/$pkg" ] || continue
 
-            if [ ! -d "packages/$pkg" ]; then
-              continue
-            fi
-
-            export PKG_NAME="$pkg"
-            export CHANNEL="$ch"
             TAG="${pkg}@${ch}"
+            TITLE="${pkg} [${ch}]"
+            
+            gh release create "$TAG" --title "$TITLE" --notes "Automated release build" || true
 
-            META_JSON=$(uv --project scripts run python -c "import os, json; from pathlib import Path; from core.parser import parse_recipe; pkg = os.environ['PKG_NAME']; ch = os.environ['CHANNEL']; recipe_path = Path(f'packages/{pkg}/build.yml'); r = parse_recipe(recipe_path, channel=ch); print(json.dumps({'name': r.name, 'version': r.version, 'revision': r.revision, 'channel': r.active_channel, 'state_hash': r.state_hash}))")
-
-            PKG_VER=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['version'])")
-            PKG_REV=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['revision'])")
-            STATE_HASH=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['state_hash'])")
-
-            if [ "$PKG_REV" -gt 0 ] 2>/dev/null; then
-              FULL_VER="${PKG_VER}-${PKG_REV}"
-            else
-              FULL_VER="${PKG_VER}"
-            fi
-
-            TITLE="${pkg} v${FULL_VER} [${ch}]"
-            NOTES=$(printf "Automated build for %s@%s\n- **Commit:** %s\n- **State Hash:** %s" "$pkg" "$ch" "${{ github.sha }}" "$STATE_HASH")
-
-            gh release create "$TAG" --title "$TITLE" --notes "$NOTES" || true
-            gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" || true
-
-            echo "$META_JSON" > metadata.json
-            gh release upload "$TAG" metadata.json --clobber || true
-
-            UPLOAD_FILES=""
-            if ls output/${pkg}* 1> /dev/null 2>&1; then
-              UPLOAD_FILES=$(ls output/${pkg}*)
-            elif ls output/* 1> /dev/null 2>&1; then
-              UPLOAD_FILES=$(ls output/*)
-            fi
-
-            if [ -n "$UPLOAD_FILES" ]; then
-              echo "Uploading $UPLOAD_FILES to release $TAG..."
-              gh release upload "$TAG" $UPLOAD_FILES --clobber
-            else
-              echo "Warning: No packages found in output/ for $pkg"
+            # Collect ALL produced package formats (.deb, .apk, .pkg.tar.zst, .whl, .tgz)
+            FILES=$(find output/ -type f \( -name "${pkg}*" -o -name "*${pkg}*" \))
+            if [ -n "$FILES" ]; then
+              echo "Uploading generated files for $pkg: $FILES"
+              gh release upload "$TAG" $FILES --clobber
             fi
           done
-
-  trigger_publish:
-    needs: [prepare, build]
-    runs-on: ubuntu-latest
-    if: always() && needs.prepare.outputs.publish_decision == 'true'
-    steps:
-      - name: Save publish decision
-        run: echo "true" > publish_decision.txt
-      - name: Upload decision artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: publish_decision
-          path: publish_decision.txt

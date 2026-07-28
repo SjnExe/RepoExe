@@ -7,12 +7,8 @@ from core.parser import parse_recipe
 
 def generate_packages_json(
     packages_dir: str | Path | None = None, output_file: str | Path | None = None
-):
-    scripts_dir = Path(__file__).resolve().parent.parent
-    repo_root = (
-        scripts_dir.parent if (scripts_dir.parent / "packages").exists() else Path.cwd()
-    )
-
+) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
     pkgs_path = Path(packages_dir) if packages_dir else repo_root / "packages"
     out_path = (
         Path(output_file) if output_file else repo_root / "site" / "packages.json"
@@ -27,21 +23,24 @@ def generate_packages_json(
                 with contextlib.suppress(Exception):
                     recipe = parse_recipe(recipe_file)
                     formats = ["apt", "pacman", "apk"]
-                    if recipe.name in ["uv", "ruff", "pydantic", "pyyaml"]:
+                    if recipe.build_system in ["python", "custom"]:
                         formats.append("pip")
-                    if recipe.name in ["tsc", "jscpd"]:
+                    if recipe.build_system in ["go", "cargo", "custom"]:
                         formats.append("npm")
 
-                    for fmt in formats:
+                    for fmt in sorted(set(formats)):
                         items.append(
                             {
                                 "name": recipe.name,
                                 "version": recipe.version,
+                                "revision": recipe.revision,
                                 "description": recipe.description
                                 or f"{recipe.name} binary package",
                                 "architecture": recipe.architecture or "aarch64",
                                 "format": fmt,
                                 "license": recipe.license or "MIT",
+                                "homepage": recipe.homepage
+                                or "https://github.com/SjnExe/RepoExe",
                             }
                         )
 
