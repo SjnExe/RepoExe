@@ -127,7 +127,7 @@ jobs:
 
           generate_pip_index("site")
           generate_npm_index("site")
-          generate_packages_json("packages", "site/packages.json")
+          generate_packages_json("pkg", "site/packages.json")
           PY_EOF
 
           uv run python generate_meta.py

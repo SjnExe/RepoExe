@@ -41,7 +41,7 @@ jobs:
       publish_decision: ${{ steps.decision.outputs.publish_decision }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -57,7 +57,7 @@ jobs:
           fi
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -101,18 +101,18 @@ jobs:
         shard: ${{ fromJson(needs.prepare.outputs.shards) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -143,7 +143,7 @@ jobs:
           sudo chown -R $USER:$USER .
 
       - name: Upload Build Artifacts for Testing
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-artifacts-shard-${{ matrix.shard.shard }}
           path: output/
@@ -194,7 +194,7 @@ jobs:
       - name: Save publish decision
         run: echo "true" > publish_decision.txt
       - name: Upload decision artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: publish_decision
           path: publish_decision.txt

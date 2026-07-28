@@ -39,7 +39,7 @@ RUN mkdir -p /opt \
   && rm -Rf ${NDK}/sources/cxx-stl/system
 
 # Apply NDK Patches
-COPY scripts/ndk-patches /tmp/ndk-patches
+COPY scripts/docker/ndk-patches /tmp/ndk-patches
 RUN cd ${NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot \
   && for patch in /tmp/ndk-patches/${TERMUX_NDK_VERSION}/*.patch; do \
        [ -f "$patch" ] || continue; \
