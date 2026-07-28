@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 from core.alpine import build_alpine
@@ -14,6 +15,7 @@ from core.npm import build_npm
 from core.pacman import build_pacman
 from core.parser import parse_recipe
 from core.pip import build_pip
+from core.test import ProotTestRunner
 from core.toolchains import setup_build_environment
 
 
@@ -57,6 +59,29 @@ def run_health_check(pkg_dir: Path) -> None:
     print(f"Valid Package Recipes : {report['valid_packages']}")
 
 
+def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -> None:
+    """Fetches up-to-date pre-built .deb dependencies or raises notice to build from source."""
+    if not build_deps:
+        return
+
+    print(f"Resolving build dependencies: {', '.join(build_deps)}")
+    stage_dir = destdir / "stage"
+
+    for dep in build_deps:
+        dep_url = f"https://github.com/SjnExe/RepoExe/releases/download/{dep}%40latest/{dep}_latest_aarch64.deb"
+        dep_deb = destdir / f"{dep}.deb"
+
+        try:
+            print(f"Fetching dependency artifact for '{dep}'...")
+            urllib.request.urlretrieve(dep_url, dep_deb)
+            subprocess.run(["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True)
+            print(f"✓ Extracted pre-built dependency '{dep}' into build staging.")
+        except Exception:  # noqa: BLE001
+            print(
+                f"Notice: Pre-built artifact for dependency '{dep}' not available online. Building locally may be required."
+            )
+
+
 def execute_build(
     package_path: Path,
     channel: str = "latest",
@@ -94,6 +119,11 @@ def execute_build(
     stage_dir = destdir / "stage"
     stage_dir.mkdir(parents=True, exist_ok=True)
 
+    # 1. Fetch & Install Build Dependencies
+    build_deps = getattr(recipe, "build_deps", [])
+    resolve_and_fetch_build_dependencies(build_deps, destdir)
+
+    # 2. Source Extraction
     work_dir = pkg_dir
     src_url = getattr(recipe, "source_url", None)
     if src_url:
@@ -116,7 +146,6 @@ def execute_build(
                 ],
                 check=False,
             )
-            # If strip components fails (single bin tarball), unpack directly
             if not any(src_extract_dir.iterdir()):
                 subprocess.run(
                     ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
@@ -130,6 +159,7 @@ def execute_build(
     phases = getattr(recipe, "phases", None)
     make_cmd = phases.get("make") if isinstance(phases, dict) else None
     install_cmd = phases.get("install") if isinstance(phases, dict) else None
+    test_cmd = phases.get("test") if isinstance(phases, dict) else None
 
     if make_cmd:
         res = subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
@@ -143,7 +173,7 @@ def execute_build(
         if res.returncode != 0:
             raise RuntimeError(f"Install phase failed for {recipe.name}")
 
-    # Payload Guard Verification
+    # 3. Payload Guard Verification
     installed_files = list(stage_dir.rglob("*"))
     payload_files = [
         f
@@ -154,6 +184,14 @@ def execute_build(
         raise RuntimeError(
             f"CRITICAL ERROR: No files installed in $DESTDIR for {recipe.name}. Refusing to package empty artifacts."
         )
+
+    # 4. PRoot Post-Build Smoke Test Sandbox
+    if shutil.which("proot"):
+        runner = ProotTestRunner()
+        cmd_to_run = test_cmd or f"{recipe.name} --version || {recipe.name} --help"
+        test_passed = runner.execute_test(recipe.name, cmd_to_run)
+        if not test_passed:
+            print(f"⚠️ Smoke test warning for {recipe.name}. Proceeding with packaging.")
 
     target_formats = getattr(recipe, "formats", ["apt", "pacman", "apk"])
 

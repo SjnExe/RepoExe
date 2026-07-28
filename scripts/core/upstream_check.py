@@ -74,6 +74,21 @@ def fetch_pypi_version(package_name: str) -> str | None:
     return None
 
 
+def fetch_npm_version(package_name: str) -> str | None:
+    """Queries NPM registry for the latest published package version."""
+    url = f"https://registry.npmjs.org/{package_name}/latest"
+    with contextlib.suppress(
+        requests.RequestException, ValueError, KeyError, TypeError
+    ):
+        res = requests.get(url, timeout=10)
+        if res.status_code == 200:
+            raw_ver = res.json().get("version", "")
+            parsed = extract_semver(raw_ver)
+            if parsed:
+                return str(parsed)
+    return None
+
+
 def fetch_custom_update(recipe: Any) -> str | None:
     custom_cmd = getattr(recipe, "custom_update_cmd", None)
     if custom_cmd:
@@ -127,6 +142,9 @@ def resolve_latest_version(recipe: Any) -> str | None:
 
     if strategy == "pypi":
         return fetch_pypi_version(recipe.name)
+
+    if strategy == "npm":
+        return fetch_npm_version(recipe.name)
 
     if strategy == "custom":
         return fetch_custom_update(recipe)
