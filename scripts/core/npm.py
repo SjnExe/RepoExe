@@ -7,7 +7,7 @@ from core.parser import PackageRecipe
 
 
 def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
-    """Builds a standard npm package tarball (.tgz) with post-install launcher support."""
+    """Builds a standard npm package tarball (.tgz) ensuring executable bit (0o755) permissions."""
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
@@ -40,17 +40,25 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         / recipe.name
     )
     if stage_bin.exists():
-        shutil.copy2(stage_bin, bin_dir / recipe.name)
+        bin_target = bin_dir / recipe.name
+        shutil.copy2(stage_bin, bin_target)
+        bin_target.chmod(0o755)
 
     tgz_path = out_path / f"{recipe.name}-{recipe.version}.tgz"
+
+    def set_exec_perms(tarinfo: tarfile.TarInfo) -> tarfile.TarInfo:
+        if "bin/" in tarinfo.name:
+            tarinfo.mode = 0o755
+        return tarinfo
+
     with tarfile.open(tgz_path, "w:gz") as tar:
-        tar.add(npm_pkg_dir.parent, arcname="")
+        tar.add(npm_pkg_dir.parent, arcname="", filter=set_exec_perms)
 
     return tgz_path
 
 
 def generate_npm_index(output_dir: str | Path) -> None:
-    """Generates standard NPM registry package manifests and handles multi-version dist-tags."""
+    """Generates standard NPM registry package manifests."""
     base_dir = Path(output_dir)
     npm_dir = base_dir / "npm"
     npm_dir.mkdir(parents=True, exist_ok=True)

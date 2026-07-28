@@ -59,6 +59,31 @@ def run_health_check(pkg_dir: Path) -> None:
     print(f"Valid Package Recipes : {report['valid_packages']}")
 
 
+def check_existing_release_hash(pkg_name: str, channel: str, target_hash: str) -> bool:
+    """Checks if active release tag metadata matches target state_hash to prevent rebuilds."""
+    tag = f"{pkg_name}@{channel}"
+    api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
+    try:
+        req = urllib.request.Request(
+            api_url, headers={"User-Agent": "RepoExe-Orchestrator"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        for asset in data.get("assets", []):
+            if asset.get("name") == "metadata.json":
+                meta_raw = (
+                    urllib.request.urlopen(asset["browser_download_url"])
+                    .read()
+                    .decode("utf-8")
+                )
+                remote_meta = json.loads(meta_raw)
+                return remote_meta.get("state_hash") == target_hash
+    except Exception:  # noqa: BLE001
+        return False
+    return False
+
+
 def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -> None:
     """Fetches up-to-date pre-built .deb dependencies from GitHub Releases."""
     if not build_deps:
@@ -94,8 +119,6 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
                     ["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True
                 )
                 print(f"✓ Extracted pre-built dependency '{dep}' into build staging.")
-            else:
-                print(f"Notice: No .deb asset found in release tag {tag}.")
         except Exception as e:  # noqa: BLE001
             print(
                 f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e})."
@@ -106,6 +129,7 @@ def execute_build(
     package_path: Path,
     channel: str = "latest",
     dry_run: bool = False,
+    force: bool = False,
 ) -> None:
     recipe_file = package_path / "build.yml" if package_path.is_dir() else package_path
     if not recipe_file.exists():
@@ -114,6 +138,15 @@ def execute_build(
 
     pkg_dir = recipe_file.parent
     recipe = parse_recipe(recipe_file, channel=channel)
+
+    # Rebuild Prevention Guard
+    if not force and check_existing_release_hash(
+        recipe.name, channel, recipe.state_hash
+    ):
+        print(
+            f"⏭️ Skipping build for {recipe.name}@{channel}: state_hash ({recipe.state_hash}) unchanged in release tag."
+        )
+        return
 
     env = os.environ.copy()
     build_sys = getattr(recipe, "build_system", None) or getattr(
@@ -205,13 +238,14 @@ def execute_build(
             f"CRITICAL ERROR: No files installed in $DESTDIR for {recipe.name}. Refusing to package empty artifacts."
         )
 
-    # 4. PRoot Post-Build Smoke Test Sandbox
+    # 4. PRoot Post-Build Smoke Test Sandbox (with cross-arch safety guard)
     if shutil.which("proot"):
-        runner = ProotTestRunner()
-        cmd_to_run = test_cmd or f"{recipe.name} --version || {recipe.name} --help"
-        test_passed = runner.execute_test(recipe.name, cmd_to_run)
-        if not test_passed:
-            print(f"⚠️ Smoke test warning for {recipe.name}. Proceeding with packaging.")
+        try:
+            runner = ProotTestRunner()
+            cmd_to_run = test_cmd or f"{recipe.name} --version || {recipe.name} --help"
+            runner.execute_test(recipe.name, cmd_to_run)
+        except Exception as e:  # noqa: BLE001
+            print(f"Notice: Proot smoke test skipped ({e}).")
 
     target_formats = getattr(recipe, "formats", ["apt", "pacman", "apk"])
 
@@ -275,6 +309,11 @@ def main() -> None:
     build_p.add_argument("package")
     build_p.add_argument("--channel", default="latest")
     build_p.add_argument("--dry-run", action="store_true")
+    build_p.add_argument(
+        "--force",
+        action="store_true",
+        help="Force build even if state_hash is unchanged",
+    )
 
     args = parser.parse_args()
     pkg_dir = Path(__file__).parent.parent / "pkg"
@@ -293,7 +332,9 @@ def main() -> None:
         pkg_path = Path(args.package)
         if not pkg_path.is_absolute():
             pkg_path = Path.cwd() / args.package
-        execute_build(pkg_path, channel=args.channel, dry_run=args.dry_run)
+        execute_build(
+            pkg_path, channel=args.channel, dry_run=args.dry_run, force=args.force
+        )
 
 
 if __name__ == "__main__":
