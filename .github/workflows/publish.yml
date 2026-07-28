@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       test_only:
-        description: 'Test Mode: Build packages but skip publishing to the repository.'
+        description: 'Test Mode: Skip publishing to Pages'
         required: false
         type: boolean
         default: false
@@ -17,7 +17,6 @@ permissions:
   contents: write
   pages: write
   id-token: write
-  packages: write
 
 jobs:
   check-decision:
@@ -37,15 +36,11 @@ jobs:
           fi
 
           RUN_ID="${{ github.event.workflow_run.id }}"
-          echo "Checking run $RUN_ID for publish_decision artifact..."
-
           ARTIFACTS=$(gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts --jq '.artifacts[].name' || true)
 
           if echo "$ARTIFACTS" | grep -q "publish_decision"; then
-            echo "Publish decision artifact found."
             echo "should_publish=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Publish decision artifact NOT found. Skipping publish."
             echo "should_publish=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -59,59 +54,27 @@ jobs:
       )
 
     steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
+      - uses: actions/checkout@v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v5
         with:
-          version: 'latest'
-
-      - name: Setup Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.13'
+          enable-cache: true
 
       - name: Extract metadata from GitHub Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p artifacts
-          echo "Fetching all release tags"
           TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
           for tag in $TAGS; do
-            echo "Processing tag $tag..."
-            gh release download "$tag" --dir artifacts || echo "No assets found in $tag"
-            gh release view "$tag" --json assets > "artifacts/${tag}_assets.json" || true
+            gh release download "$tag" --dir artifacts || true
           done
 
-      - name: Inject Signing Keys
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          ALPINE_PRIVATE_KEY: ${{ secrets.ALPINE_PRIVATE_KEY }}
+      - name: Generate Static Metadata and Repositories
         run: |
-          mkdir -p scripts/keys
-          if [ -n "$GPG_PRIVATE_KEY" ]; then
-            echo "$GPG_PRIVATE_KEY" > scripts/keys/repoexe.gpg
-          fi
-          if [ -n "$ALPINE_PRIVATE_KEY" ]; then
-            echo "$ALPINE_PRIVATE_KEY" > scripts/keys/repoexe.rsa
-          fi
-
-      - name: Prune Old Assets and Zombie Tags
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cd scripts
-          uv run python core/prune.py
-
-      - name: Generate Static Metadata and Pages Assets
-        run: |
-          cd scripts
           uv sync
-
-          mkdir -p ../site/apt ../site/pacman ../site/alpine ../site/pip ../site/npm apt_staging
+          mkdir -p site/apt site/pacman site/alpine site/pip site/npm apt_staging
 
           cat << 'PY_EOF' > generate_meta.py
           import os, glob, shutil
@@ -120,24 +83,24 @@ jobs:
           from core.pip import generate_pip_index
           from core.npm import generate_npm_index
 
-          os.makedirs("../site/apt", exist_ok=True)
-          os.makedirs("../site/pacman", exist_ok=True)
-          os.makedirs("../site/alpine", exist_ok=True)
-          os.makedirs("../site/pip", exist_ok=True)
-          os.makedirs("../site/npm", exist_ok=True)
+          os.makedirs("site/apt", exist_ok=True)
+          os.makedirs("site/pacman", exist_ok=True)
+          os.makedirs("site/alpine", exist_ok=True)
+          os.makedirs("site/pip", exist_ok=True)
+          os.makedirs("site/npm", exist_ok=True)
 
-          for f in glob.glob("../artifacts/*"):
+          for f in glob.glob("artifacts/*"):
               if f.endswith(".deb"):
                   shutil.copy(f, "apt_staging/")
-                  shutil.copy(f, "../site/apt/")
-              elif f.endswith(".pkg.tar.zst") or f.endswith(".pkg.tar.gz") or f.endswith(".pkg.tar.xz"):
-                  shutil.copy(f, "../site/pacman/")
+                  shutil.copy(f, "site/apt/")
+              elif f.endswith(".pkg.tar.zst") or f.endswith(".pkg.tar.gz"):
+                  shutil.copy(f, "site/pacman/")
               elif f.endswith(".apk"):
-                  shutil.copy(f, "../site/alpine/")
+                  shutil.copy(f, "site/alpine/")
               elif f.endswith(".whl"):
-                  shutil.copy(f, "../site/pip/")
+                  shutil.copy(f, "site/pip/")
               elif f.endswith(".tgz"):
-                  shutil.copy(f, "../site/npm/")
+                  shutil.copy(f, "site/npm/")
 
           output_dir = "apt_staging"
           deb_files = glob.glob(os.path.join(output_dir, "*.deb"))
@@ -151,53 +114,27 @@ jobs:
               arches.add('aarch64')
 
           for arch in arches:
-              print(f"Generating APT metadata for {arch}...")
               generate_apt_metadata(output_dir, component='main', arch=arch)
 
           generate_release_file(output_dir, suite='stable', component='main')
-          os.system("cp -r apt_staging/dists ../site/apt/")
+          os.system("cp -r apt_staging/dists site/apt/")
 
-          generate_pip_index("../site")
-          generate_npm_index("../site")
-          generate_packages_json("../packages", "../site/packages.json")
-
+          generate_pip_index("site")
+          generate_npm_index("site")
+          generate_packages_json("packages", "site/packages.json")
           PY_EOF
 
           uv run python generate_meta.py
-
-          # Copy install script & static site frontend UI
-          mkdir -p ../site
-          if [ -d "../scripts/site" ]; then
-            cp -r ../scripts/site/* ../site/
-          elif [ -d "site" ]; then
-            cp -r site/* ../site/
-          fi
-
-          touch ../site/.nojekyll
-
-          # Export binary public key
-          KEY_SRC=""
-          if [ -f "keys/repoexe.gpg" ]; then KEY_SRC="keys/repoexe.gpg";
-          elif [ -f "scripts/keys/repoexe.gpg" ]; then KEY_SRC="scripts/keys/repoexe.gpg";
-          fi
-
-          if [ -n "$KEY_SRC" ]; then
-            gpg --batch --import "$KEY_SRC" 2>/dev/null || true
-            gpg --batch --export > ../site/repoexe.gpg
-            gpg --batch --armor --export > ../site/repoexe.asc
-            echo "✓ Exported repoexe.gpg to site/"
-          fi
+          touch site/.nojekyll
 
       - name: Setup Pages
-        uses: actions/configure-pages@v6
-        with:
-          enablement: true
+        uses: actions/configure-pages@v5
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: 'site'
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4

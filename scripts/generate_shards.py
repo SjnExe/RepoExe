@@ -6,11 +6,15 @@ from core.parser import parse_recipe
 
 
 def main() -> None:
-    pkgs_dir = Path("../packages")
+    # Resolve packages directory from root or scripts/ execution context
+    repo_root = Path(__file__).resolve().parents[1]
+    pkgs_dir = repo_root / "packages"
+
     raw_input = os.environ.get("TARGET_INPUT", "").strip()
     if not raw_input:
         print(json.dumps([]))
         return
+
     all_pkg_dirs = sorted(
         [
             d.name
