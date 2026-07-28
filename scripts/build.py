@@ -10,8 +10,10 @@ from pathlib import Path
 from core.alpine import build_alpine
 from core.debian import build_deb
 from core.health import audit_repository_health
+from core.npm import build_npm
 from core.pacman import build_pacman
 from core.parser import parse_recipe
+from core.pip import build_pip
 from core.toolchains import setup_build_environment
 
 
@@ -55,39 +57,6 @@ def run_health_check(pkg_dir: Path) -> None:
     print(f"Valid Package Recipes : {report['valid_packages']}")
 
 
-def ensure_toolchains_installed(build_sys: str, env: dict[str, str]) -> None:
-    extra_paths = [
-        "/root/.cargo/bin",
-        "/home/builder/.cargo/bin",
-        "/usr/local/go/bin",
-    ]
-    curr_path = env.get("PATH", os.environ.get("PATH", ""))
-    for p in extra_paths:
-        if Path(p).exists() and p not in curr_path:
-            curr_path = f"{p}:{curr_path}"
-    env["PATH"] = curr_path
-    os.environ["PATH"] = curr_path
-
-    if build_sys == "cargo":
-        if not shutil.which("rustup", path=env["PATH"]):
-            print("Installing Rust toolchain via rustup...")
-            subprocess.run(
-                "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable",
-                shell=True,
-                check=False,
-            )
-            for p in ["/root/.cargo/bin", "/home/builder/.cargo/bin"]:
-                if Path(p).exists() and p not in env["PATH"]:
-                    env["PATH"] = f"{p}:{env['PATH']}"
-                    os.environ["PATH"] = env["PATH"]
-
-        subprocess.run(
-            ["rustup", "target", "add", "aarch64-unknown-linux-musl"],
-            check=False,
-            env=env,
-        )
-
-
 def execute_build(
     package_path: Path,
     channel: str = "latest",
@@ -108,7 +77,6 @@ def execute_build(
     if build_sys:
         with contextlib.suppress(Exception):
             setup_build_environment(build_sys, recipe.architecture)
-        ensure_toolchains_installed(build_sys, env)
 
     print(f"[BUILDING] Package: {recipe.name} (Channel: {recipe.active_channel})")
 
@@ -134,9 +102,9 @@ def execute_build(
         src_extract_dir.mkdir(parents=True, exist_ok=True)
 
         res = subprocess.run(
-            ["curl", "-fsSL", str(src_url), "-o", str(archive_path)], check=False
+            ["curl", "-fsSL", str(src_url), "-o", str(archive_path)], check=True
         )
-        if res.returncode == 0 and archive_path.exists():
+        if archive_path.exists():
             subprocess.run(
                 [
                     "tar",
@@ -148,59 +116,76 @@ def execute_build(
                 ],
                 check=False,
             )
+            # If strip components fails (single bin tarball), unpack directly
+            if not any(src_extract_dir.iterdir()):
+                subprocess.run(
+                    ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
+                    check=True,
+                )
             work_dir = src_extract_dir
 
     env["DESTDIR"] = str(stage_dir)
     env["PREFIX"] = "/data/data/com.termux/files/usr"
 
     phases = getattr(recipe, "phases", None)
-    make_cmd = None
-    install_cmd = None
-    if isinstance(phases, dict):
-        make_cmd = phases.get("make")
-        install_cmd = phases.get("install")
+    make_cmd = phases.get("make") if isinstance(phases, dict) else None
+    install_cmd = phases.get("install") if isinstance(phases, dict) else None
 
     if make_cmd:
-        subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
+        res = subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
+        if res.returncode != 0:
+            raise RuntimeError(f"Make phase failed for {recipe.name}")
 
     if install_cmd:
-        subprocess.run(install_cmd, shell=True, cwd=work_dir, env=env, check=False)
+        res = subprocess.run(
+            install_cmd, shell=True, cwd=work_dir, env=env, check=False
+        )
+        if res.returncode != 0:
+            raise RuntimeError(f"Install phase failed for {recipe.name}")
+
+    # Payload Guard Verification
+    installed_files = list(stage_dir.rglob("*"))
+    payload_files = [
+        f
+        for f in installed_files
+        if f.is_file() and "DEBIAN" not in f.parts and ".PKGINFO" not in f.name
+    ]
+    if not payload_files:
+        raise RuntimeError(
+            f"CRITICAL ERROR: No files installed in $DESTDIR for {recipe.name}. Refusing to package empty artifacts."
+        )
 
     target_formats = getattr(recipe, "formats", ["apt", "pacman", "apk"])
 
-    # 1. Build Debian Package
     if "apt" in target_formats:
-        try:
-            build_deb(
-                recipe,
-                str(destdir),
-                str(output_dir),
-                target_arch=recipe.architecture,
-                pkg_src_dir=pkg_dir,
-            )
-            print(f"✓ Built .deb for {recipe.name}")
-        except Exception as e:  # noqa: BLE001
-            print(f"Debian build failed for {recipe.name}: {e}", file=sys.stderr)
+        build_deb(
+            recipe,
+            str(destdir),
+            str(output_dir),
+            target_arch=recipe.architecture,
+            pkg_src_dir=pkg_dir,
+        )
+        print(f"✓ Built .deb for {recipe.name}")
 
-    # 2. Build Pacman Package
     if "pacman" in target_formats:
-        try:
-            build_pacman(
-                recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
-            )
-            print(f"✓ Built .pkg.tar for {recipe.name}")
-        except Exception as e:  # noqa: BLE001
-            print(f"Pacman build warning for {recipe.name}: {e}", file=sys.stderr)
+        build_pacman(
+            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+        )
+        print(f"✓ Built .pkg.tar for {recipe.name}")
 
-    # 3. Build Alpine Package
     if "apk" in target_formats:
-        try:
-            build_alpine(
-                recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
-            )
-            print(f"✓ Built .apk for {recipe.name}")
-        except Exception as e:  # noqa: BLE001
-            print(f"Alpine build warning for {recipe.name}: {e}", file=sys.stderr)
+        build_alpine(
+            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+        )
+        print(f"✓ Built .apk for {recipe.name}")
+
+    if "pip" in target_formats:
+        build_pip(recipe, str(destdir), str(output_dir))
+        print(f"✓ Built .whl for {recipe.name}")
+
+    if "npm" in target_formats:
+        build_npm(recipe, str(destdir), str(output_dir))
+        print(f"✓ Built .tgz for {recipe.name}")
 
 
 def fix_code_formatting(scripts_dir: Path) -> None:

@@ -177,7 +177,16 @@ jobs:
             PKG_VER=$(echo "$META_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['version'])")
             TITLE="${pkg} v${PKG_VER} [${ch}]"
 
+            # Create or update release
             gh release create "$TAG" --title "$TITLE" --notes "Automated release build for $pkg@$ch" || true
+
+            # Delete ALL existing assets on tag before uploading new build artifacts to prevent stale versions lingering
+            EXISTING_ASSETS=$(gh release view "$TAG" --json assets --jq '.assets[].name' || true)
+            for asset in $EXISTING_ASSETS; do
+              echo "Purging old release asset: $asset from $TAG..."
+              gh release delete-asset "$TAG" "$asset" -y || true
+            done
+
             echo "$META_JSON" > output/metadata.json
 
             FILES=$(find output/ -type f \( -name "${pkg}*" -o -name "*${pkg}*" -o -name "metadata.json" \))

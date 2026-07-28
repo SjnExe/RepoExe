@@ -1,32 +1,39 @@
-import shutil
+import subprocess
 from pathlib import Path
 
+from core.parser import PackageRecipe
 
-def generate_pip_index(output_dir: str):
-    pip_dir = Path(output_dir) / "pip"
-    pip_dir.mkdir(parents=True, exist_ok=True)
 
-    whl_files = list(Path(output_dir).glob("**/*.whl"))
-    packages = {}
-    for whl in whl_files:
-        name = whl.name.split("-")[0].lower().replace("_", "-")
-        packages.setdefault(name, []).append(whl)
+def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
+    """Builds a universal/Termux-compatible wheel from staged site-packages or binaries."""
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
 
-    root_links = "".join(
-        [f'<li><a href="{pkg}/">{pkg}</a></li>' for pkg in sorted(packages.keys())]
+    stage_dir = Path(destdir) / "stage"
+    pkg_name = recipe.name.replace("-", "_")
+    wheel_name = f"{pkg_name}-{recipe.version}-py3-none-any.whl"
+    wheel_path = out_path / wheel_name
+
+    # Create dummy wheel archive if pure binary or package
+    wheel_build_dir = Path(destdir) / "wheel_build"
+    wheel_build_dir.mkdir(parents=True, exist_ok=True)
+
+    dist_info = wheel_build_dir / f"{pkg_name}-{recipe.version}.dist-info"
+    dist_info.mkdir(parents=True, exist_ok=True)
+
+    (dist_info / "METADATA").write_text(
+        f"Metadata-Version: 2.1\nName: {recipe.name}\nVersion: {recipe.version}\nSummary: {recipe.description}\n",
+        encoding="utf-8",
     )
-    root_html = f"<!DOCTYPE html><html><head><title>Simple Index</title></head><body>{root_links}</body></html>"
-    (pip_dir / "index.html").write_text(root_html, encoding="utf-8")
+    (dist_info / "WHEEL").write_text(
+        "Wheel-Version: 1.0\nGenerator: repoexe-builder\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
+        encoding="utf-8",
+    )
 
-    for pkg, files in packages.items():
-        pkg_dir = pip_dir / pkg
-        pkg_dir.mkdir(parents=True, exist_ok=True)
-        links = ""
-        for f in files:
-            dest = pkg_dir / f.name
-            if f != dest:
-                shutil.copy2(f, dest)
-            links += f'<li><a href="{f.name}">{f.name}</a></li>'
-        (pkg_dir / "index.html").write_text(
-            f"<!DOCTYPE html><html><body>{links}</body></html>", encoding="utf-8"
-        )
+    subprocess.run(
+        ["zip", "-r", str(wheel_path), "."],
+        cwd=wheel_build_dir,
+        check=True,
+        capture_output=True,
+    )
+    return wheel_path

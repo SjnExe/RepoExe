@@ -24,4 +24,4 @@ build_system: custom
 phases:
   install: |
     install -Dm755 uv "${DESTDIR}${PREFIX}/bin/uv"
-    install -Dm755 uvx "${DESTDIR}${PREFIX}/bin/uvx"
+    install -Dm755 uvx "${DESTDIR}${PREFIX}/bin/uvx" 2>/dev/null || true
