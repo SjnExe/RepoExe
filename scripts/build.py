@@ -60,7 +60,7 @@ def run_health_check(pkg_dir: Path) -> None:
 
 
 def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -> None:
-    """Fetches up-to-date pre-built .deb dependencies or raises notice to build from source."""
+    """Fetches up-to-date pre-built .deb dependencies from GitHub Releases."""
     if not build_deps:
         return
 
@@ -68,17 +68,37 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
     stage_dir = destdir / "stage"
 
     for dep in build_deps:
-        dep_url = f"https://github.com/SjnExe/RepoExe/releases/download/{dep}%40latest/{dep}_latest_aarch64.deb"
-        dep_deb = destdir / f"{dep}.deb"
+        tag = f"{dep}@latest"
+        api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
 
         try:
-            print(f"Fetching dependency artifact for '{dep}'...")
-            urllib.request.urlretrieve(dep_url, dep_deb)
-            subprocess.run(["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True)
-            print(f"✓ Extracted pre-built dependency '{dep}' into build staging.")
-        except Exception:  # noqa: BLE001
+            req = urllib.request.Request(
+                api_url, headers={"User-Agent": "RepoExe-Orchestrator"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                rel_data = json.loads(resp.read().decode("utf-8"))
+
+            deb_asset = None
+            for asset in rel_data.get("assets", []):
+                if asset.get("name", "").endswith(".deb"):
+                    deb_asset = asset
+                    break
+
+            if deb_asset:
+                download_url = deb_asset["browser_download_url"]
+                dep_deb = destdir / deb_asset["name"]
+                print(f"Fetching pre-built dependency '{dep}' from {download_url}...")
+                urllib.request.urlretrieve(download_url, dep_deb)
+
+                subprocess.run(
+                    ["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True
+                )
+                print(f"✓ Extracted pre-built dependency '{dep}' into build staging.")
+            else:
+                print(f"Notice: No .deb asset found in release tag {tag}.")
+        except Exception as e:  # noqa: BLE001
             print(
-                f"Notice: Pre-built artifact for dependency '{dep}' not available online. Building locally may be required."
+                f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e})."
             )
 
 
