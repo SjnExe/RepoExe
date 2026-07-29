@@ -1,6 +1,6 @@
 # RepoExe Package Recipe Schema Specification (`build.yml`)
 
-Every package in RepoExe is defined using a declarative `build.yml` file located in `packages/<pkg_name>/build.yml`.
+Every package in RepoExe is defined using a declarative `build.yml` file located in `pkg/<pkg_name>/build.yml`.
 
 ## 1. Top-Level Recipe Schema
 

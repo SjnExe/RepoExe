@@ -1,1 +1,255 @@
-[]
+[
+  {
+    "name": "jscpd",
+    "version": "5.0.12",
+    "revision": 0,
+    "description": "Copy/paste detector for programming code (static Rust ARM64 build)",
+    "architecture": "aarch64",
+    "format": "apk",
+    "license": "MIT",
+    "homepage": "https://github.com/SjnExe/RepoExe",
+    "verified_built": false
+  },
+  {
+    "name": "jscpd",
+    "version": "5.0.12",
+    "revision": 0,
+    "description": "Copy/paste detector for programming code (static Rust ARM64 build)",
+    "architecture": "aarch64",
+    "format": "apt",
+    "license": "MIT",
+    "homepage": "https://github.com/SjnExe/RepoExe",
+    "verified_built": false
+  },
+  {
+    "name": "jscpd",
+    "version": "5.0.12",
+    "revision": 0,
+    "description": "Copy/paste detector for programming code (static Rust ARM64 build)",
+    "architecture": "aarch64",
+    "format": "npm",
+    "license": "MIT",
+    "homepage": "https://github.com/SjnExe/RepoExe",
+    "verified_built": false
+  },
+  {
+    "name": "jscpd",
+    "version": "5.0.12",
+    "revision": 0,
+    "description": "Copy/paste detector for programming code (static Rust ARM64 build)",
+    "architecture": "aarch64",
+    "format": "pacman",
+    "license": "MIT",
+    "homepage": "https://github.com/SjnExe/RepoExe",
+    "verified_built": false
+  },
+  {
+    "name": "pydantic",
+    "version": "2.13.4",
+    "revision": 0,
+    "description": "Data validation using Python type hints",
+    "architecture": "aarch64",
+    "format": "apt",
+    "license": "MIT",
+    "homepage": "https://github.com/pydantic/pydantic",
+    "verified_built": false
+  },
+  {
+    "name": "pydantic",
+    "version": "2.13.4",
+    "revision": 0,
+    "description": "Data validation using Python type hints",
+    "architecture": "aarch64",
+    "format": "pip",
+    "license": "MIT",
+    "homepage": "https://github.com/pydantic/pydantic",
+    "verified_built": false
+  },
+  {
+    "name": "pyyaml",
+    "version": "6.0.3",
+    "revision": 0,
+    "description": "Canonical YAML parser and emitter for Python",
+    "architecture": "aarch64",
+    "format": "apt",
+    "license": "MIT",
+    "homepage": "https://github.com/yaml/pyyaml",
+    "verified_built": false
+  },
+  {
+    "name": "pyyaml",
+    "version": "6.0.3",
+    "revision": 0,
+    "description": "Canonical YAML parser and emitter for Python",
+    "architecture": "aarch64",
+    "format": "pip",
+    "license": "MIT",
+    "homepage": "https://github.com/yaml/pyyaml",
+    "verified_built": false
+  },
+  {
+    "name": "repoexe-keyring",
+    "version": "1.0",
+    "revision": 0,
+    "description": "RepoExe GPG Keyring",
+    "architecture": "aarch64",
+    "format": "apk",
+    "license": "MIT",
+    "homepage": "https://sjnexe.github.io/RepoExe/",
+    "verified_built": false
+  },
+  {
+    "name": "repoexe-keyring",
+    "version": "1.0",
+    "revision": 0,
+    "description": "RepoExe GPG Keyring",
+    "architecture": "aarch64",
+    "format": "apt",
+    "license": "MIT",
+    "homepage": "https://sjnexe.github.io/RepoExe/",
+    "verified_built": false
+  },
+  {
+    "name": "repoexe-keyring",
+    "version": "1.0",
+    "revision": 0,
+    "description": "RepoExe GPG Keyring",
+    "architecture": "aarch64",
+    "format": "pacman",
+    "license": "MIT",
+    "homepage": "https://sjnexe.github.io/RepoExe/",
+    "verified_built": false
+  },
+  {
+    "name": "ruff",
+    "version": "0.16.0",
+    "revision": 0,
+    "description": "Fast Python linter and code formatter written in Rust",
+    "architecture": "aarch64",
+    "format": "apk",
+    "license": "MIT",
+    "homepage": "https://github.com/astral-sh/ruff",
+    "verified_built": false
+  },
+  {
+    "name": "ruff",
+    "version": "0.16.0",
+    "revision": 0,
+    "description": "Fast Python linter and code formatter written in Rust",
+    "architecture": "aarch64",
+    "format": "apt",
+    "license": "MIT",
+    "homepage": "https://github.com/astral-sh/ruff",
+    "verified_built": false
+  },
+  {
+    "name": "ruff",
+    "version": "0.16.0",
+    "revision": 0,
+    "description": "Fast Python linter and code formatter written in Rust",
+    "architecture": "aarch64",
+    "format": "pacman",
+    "license": "MIT",
+    "homepage": "https://github.com/astral-sh/ruff",
+    "verified_built": false
+  },
+  {
+    "name": "ruff",
+    "version": "0.16.0",
+    "revision": 0,
+    "description": "Fast Python linter and code formatter written in Rust",
+    "architecture": "aarch64",
+    "format": "pip",
+    "license": "MIT",
+    "homepage": "https://github.com/astral-sh/ruff",
+    "verified_built": false
+  },
+  {
+    "name": "tsc",
+    "version": "7.0.2",
+    "revision": 0,
+    "description": "Fast TypeScript compiler written in Go with Seccomp sandbox patches",
+    "architecture": "aarch64",
+    "format": "apk",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/SjnExe/RepoExe",
+    "verified_built": false
+  },
+  {
+    "name": "tsc",
+    "version": "7.0.2",
+    "revision": 0,
+    "description": "Fast TypeScript compiler written in Go with Seccomp sandbox patches",
+    "architecture": "aarch64",
+    "format": "apt",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/SjnExe/RepoExe",
+    "verified_built": false
+  },
+  {
+    "name": "tsc",
+    "version": "7.0.2",
+    "revision": 0,
+    "description": "Fast TypeScript compiler written in Go with Seccomp sandbox patches",
+    "architecture": "aarch64",
+    "format": "npm",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/SjnExe/RepoExe",
+    "verified_built": false
+  },
+  {
+    "name": "tsc",
+    "version": "7.0.2",
+    "revision": 0,
+    "description": "Fast TypeScript compiler written in Go with Seccomp sandbox patches",
+    "architecture": "aarch64",
+    "format": "pacman",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/SjnExe/RepoExe",
+    "verified_built": false
+  },
+  {
+    "name": "uv",
+    "version": "0.11.33",
+    "revision": 0,
+    "description": "Fast Python package installer and resolver written in Rust",
+    "architecture": "aarch64",
+    "format": "apk",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/astral-sh/uv",
+    "verified_built": false
+  },
+  {
+    "name": "uv",
+    "version": "0.11.33",
+    "revision": 0,
+    "description": "Fast Python package installer and resolver written in Rust",
+    "architecture": "aarch64",
+    "format": "apt",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/astral-sh/uv",
+    "verified_built": false
+  },
+  {
+    "name": "uv",
+    "version": "0.11.33",
+    "revision": 0,
+    "description": "Fast Python package installer and resolver written in Rust",
+    "architecture": "aarch64",
+    "format": "pacman",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/astral-sh/uv",
+    "verified_built": false
+  },
+  {
+    "name": "uv",
+    "version": "0.11.33",
+    "revision": 0,
+    "description": "Fast Python package installer and resolver written in Rust",
+    "architecture": "aarch64",
+    "format": "pip",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/astral-sh/uv",
+    "verified_built": false
+  }
+]

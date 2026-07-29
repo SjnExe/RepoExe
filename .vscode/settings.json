@@ -1,6 +1,6 @@
 {
   "yaml.schemas": {
-    "docs/SCHEMA.json": ["packages/**/build.yml", "docs/standard/build.yml"]
+    "docs/SCHEMA.json": ["pkg/**/build.yml", "docs/standard/build.yml"]
   },
   "yaml.customTags": ["!include scalar"],
   "editor.formatOnSave": true,

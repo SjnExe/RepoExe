@@ -56,12 +56,12 @@ jobs:
               git checkout -b "$BRANCH_NAME"
 
               if [ "$CHANNEL" == "latest" ]; then
-                sed -i "s/^version: .*/version: \"$NEW\"/" "packages/$PKG/build.yml"
-                sed -i "s/^revision: .*/revision: 0/" "packages/$PKG/build.yml"
+                sed -i "s/^version: .*/version: \"$NEW\"/" "pkg/$PKG/build.yml"
+                sed -i "s/^revision: .*/revision: 0/" "pkg/$PKG/build.yml"
               else
                 python3 -c "
                 import yaml
-                p = 'packages/$PKG/build.yml'
+                p = 'pkg/$PKG/build.yml'
                 with open(p, 'r') as f:
                     d = yaml.safe_load(f)
                 if 'channels' in d and '$CHANNEL' in d['channels']:
@@ -74,7 +74,7 @@ jobs:
 
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
-              git add "packages/$PKG/build.yml"
+              git add "pkg/$PKG/build.yml"
               git commit -m "feat($PKG): update $CHANNEL channel to $NEW"
 
               git push origin "$BRANCH_NAME"
