@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   validate:
-    name: PR & Quality Verification
+    name: Validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code

@@ -36,7 +36,7 @@ permissions:
 
 jobs:
   audit:
-    name: Audit & Unit Tests
+    name: Audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -62,7 +62,7 @@ jobs:
           pytest scripts/tests/
 
   generate-matrix:
-    name: Generate Target Matrix
+    name: Matrix
     needs: audit
     runs-on: ubuntu-latest
     outputs:
@@ -169,8 +169,22 @@ jobs:
             done
           fi
 
+
+  build-status:
+    name: Build Status
+    needs: [generate-matrix, build-package]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Matrix Results
+        run: |
+          if [ "${{ needs.build-package.result }}" = "failure" ] || [ "${{ needs.build-package.result }}" = "cancelled" ]; then
+            exit 1
+          fi
+          echo "All matrix targets built successfully or skipped."
+
   publish-site:
-    name: Build Indexes & Deploy Pages
+    name: Deploy
     needs: [generate-matrix, build-package]
     if: always() && needs.generate-matrix.outputs.should_publish == 'true' && needs.audit.result == 'success' && (needs.build-package.result == 'success' || needs.build-package.result == 'failure' || needs.build-package.result == 'skipped')
     runs-on: ubuntu-latest
