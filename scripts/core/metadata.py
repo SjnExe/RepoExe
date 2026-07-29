@@ -71,7 +71,7 @@ def generate_packages_json(
                             "license": recipe.license or "MIT",
                             "homepage": recipe.homepage
                             or "https://github.com/SjnExe/RepoExe",
-                            "formats": sorted(list(set(formats))),
+                            "formats": sorted(set(formats)),
                             "channels": channels_list,
                             "verified_built": any(
                                 recipe.name in f for f in available_files
