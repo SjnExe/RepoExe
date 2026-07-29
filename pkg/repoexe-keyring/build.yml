@@ -20,4 +20,4 @@ channels:
 build_system: custom
 phases:
   install: |
-    install -Dm600 scripts/repoexe.gpg $DESTDIR$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg
+    install -Dm600 repoexe.gpg "$DESTDIR$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg"
