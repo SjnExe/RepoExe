@@ -72,3 +72,5 @@ RUN uv python install 3.13 \
 
 ENV REPO_ROOT=/home/builder/RepoExe
 WORKDIR /home/builder/RepoExe
+
+RUN python3 -m pip install --break-system-packages pyyaml pydantic pytest ruff 2>/dev/null || pip install pyyaml pydantic pytest ruff 2>/dev/null || true
