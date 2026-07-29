@@ -81,7 +81,7 @@ jobs:
 
               git push origin "$BRANCH_NAME"
               gh pr create --title "feat($PKG@$CHANNEL): update to $NEW" --body "Automated update for channel **$CHANNEL** from $OLD to $NEW" --base main --head "$BRANCH_NAME"
-              gh pr merge "" --auto --squash
+              gh pr merge "$BRANCH_NAME" --auto --squash
 
               git checkout main
             fi

@@ -8,7 +8,7 @@ ENV LANG=en_US.UTF-8
 RUN apt-get update && apt-get install -yq --no-install-recommends \
     zstd locales apt-utils eatmydata sudo curl git ca-certificates aria2 \
     unzip patch golang rustc cargo build-essential nodejs npm shellcheck \
-    proot abigail-tools graphviz dpkg-dev \
+    proot abigail-tools graphviz dpkg-dev python3-pip python3-yaml python3-pydantic \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \
   && npm install -g prettier@latest \
@@ -73,4 +73,4 @@ RUN uv python install 3.13 \
 ENV REPO_ROOT=/home/builder/RepoExe
 WORKDIR /home/builder/RepoExe
 
-RUN python3 -m pip install --break-system-packages pyyaml pydantic pytest ruff 2>/dev/null || pip install pyyaml pydantic pytest ruff 2>/dev/null || true
+RUN python3 -m pip install --break-system-packages --no-cache-dir pyyaml pydantic pytest ruff
