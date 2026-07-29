@@ -5,6 +5,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      skip_build:
+        description: 'Skip package compilation and only rebuild/publish site'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: "pages"
@@ -36,16 +42,15 @@ jobs:
           pip install pytest ruff pydantic pyyaml
 
       - name: Code Quality & Health Audit
-        run: |
-          python scripts/build.py check
+        run: python scripts/build.py check
 
       - name: Run Pytest
-        run: |
-          pytest
+        run: pytest
 
-  build-and-deploy:
-    name: Build Packages & Deploy Site
+  build-packages:
+    name: Build Packages
     needs: audit-and-test
+    if: ${{ !inputs.skip_build }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -88,33 +93,52 @@ jobs:
                 pkg_name=$(echo "$filename" | cut -d'_' -f1 | cut -d'-' -f1)
                 tag="${pkg_name}@latest"
                 
-                # Ensure Release Tag Exists
                 gh release create "$tag" --title "$pkg_name (latest)" --notes "Automated release build for $pkg_name" 2>/dev/null || true
-                
-                # Upload compiled asset to GitHub Release tag
                 gh release upload "$tag" "$file" --clobber
               fi
             done
           fi
 
-          # Prune outdated release assets
           python -c "
           from core.prune import prune_release_tags
           prune_release_tags()
           " || echo "Notice: Release pruning step completed."
 
-      - name: Generate Repository Indexes & Manifests
+  publish-site:
+    name: Generate Indexes & Deploy Pages
+    needs: [audit-and-test, build-packages]
+    if: always() && (needs.audit-and-test.result == 'success') && (needs.build-packages.result == 'success' || needs.build-packages.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh
+          pip install pydantic pyyaml
+
+      - name: Download All Release Artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p site
+          mkdir -p artifacts
+          TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
+          for tag in $TAGS; do
+            gh release download "$tag" --dir artifacts || true
+          done
+
+      - name: Build Full Site & Repository Indexes
+        run: |
           python -c "
-          from core.pip import generate_pip_index
-          from core.npm import generate_npm_index
-          from core.index_gen import prepare_site_assets
-          generate_pip_index('site')
-          generate_npm_index('site')
-          prepare_site_assets('site')
+          from core.index_gen import prepare_site
+          prepare_site('site', 'artifacts')
           "
 
       - name: Setup GitHub Pages
