@@ -10,7 +10,7 @@ def generate_packages_json(
     output_file: str | Path | None = None,
     artifacts_dir: str | Path | None = None,
 ) -> None:
-    """Generates site/packages.json by inspecting built artifacts and recipe specs."""
+    """Generates site/packages.json by inspecting package recipes and channel tracks."""
     repo_root = Path(__file__).resolve().parents[2]
     pkgs_path = Path(pkg_dir) if pkg_dir else repo_root / "pkg"
     out_path = (
@@ -34,24 +34,50 @@ def generate_packages_json(
                     recipe = parse_recipe(recipe_file)
                     formats = getattr(recipe, "formats", ["apt", "pacman", "apk"])
 
-                    for fmt in sorted(set(formats)):
-                        items.append(
+                    # Aggregate channel versions
+                    channels_list = []
+                    ch_names = (
+                        list(recipe.channels.keys()) if recipe.channels else ["latest"]
+                    )
+                    if "latest" not in ch_names and recipe.channels:
+                        ch_names.insert(0, "latest")
+
+                    for ch in ch_names:
+                        with contextlib.suppress(Exception):
+                            ch_recipe = recipe.get_channel_recipe(ch)
+                            channels_list.append(
+                                {
+                                    "name": ch,
+                                    "version": ch_recipe.version,
+                                    "revision": ch_recipe.revision,
+                                }
+                            )
+
+                    if not channels_list:
+                        channels_list.append(
                             {
-                                "name": recipe.name,
+                                "name": "latest",
                                 "version": recipe.version,
                                 "revision": recipe.revision,
-                                "description": recipe.description
-                                or f"{recipe.name} binary package",
-                                "architecture": recipe.architecture or "aarch64",
-                                "format": fmt,
-                                "license": recipe.license or "MIT",
-                                "homepage": recipe.homepage
-                                or "https://github.com/SjnExe/RepoExe",
-                                "verified_built": any(
-                                    recipe.name in f for f in available_files
-                                ),
                             }
                         )
+
+                    items.append(
+                        {
+                            "name": recipe.name,
+                            "description": recipe.description
+                            or f"{recipe.name} binary package",
+                            "architecture": recipe.architecture or "aarch64",
+                            "license": recipe.license or "MIT",
+                            "homepage": recipe.homepage
+                            or "https://github.com/SjnExe/RepoExe",
+                            "formats": sorted(list(set(formats))),
+                            "channels": channels_list,
+                            "verified_built": any(
+                                recipe.name in f for f in available_files
+                            ),
+                        }
+                    )
 
     out_path.write_text(json.dumps(items, indent=2), encoding="utf-8")
     print(f"✓ Generated {out_path} with {len(items)} package entries.")

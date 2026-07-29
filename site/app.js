@@ -25,7 +25,7 @@ async function loadPackages() {
         const response = await fetch("packages.json");
         if (!response.ok) throw new Error("Metadata file missing");
         const rawData = await response.json();
-        packagesData = Array.isArray(rawData) ? rawData : Object.values(rawData).flat();
+        packagesData = Array.isArray(rawData) ? rawData : [];
         renderPackages();
     } catch (e) {
         document.getElementById("packageGrid").innerHTML = "<p class='loading'>No packages metadata available yet.</p>";
@@ -38,8 +38,9 @@ function renderPackages() {
     const search = searchInput ? searchInput.value.toLowerCase() : "";
 
     const filtered = packagesData.filter(pkg => {
-        const matchesSearch = pkg.name.toLowerCase().includes(search) || (pkg.description && pkg.description.toLowerCase().includes(search));
-        const matchesFormat = activeFormat === "all" || pkg.format === activeFormat;
+        const matchesSearch = pkg.name.toLowerCase().includes(search) || 
+                              (pkg.description && pkg.description.toLowerCase().includes(search));
+        const matchesFormat = activeFormat === "all" || (pkg.formats && pkg.formats.includes(activeFormat));
         return matchesSearch && matchesFormat;
     });
 
@@ -48,21 +49,33 @@ function renderPackages() {
         return;
     }
 
-    grid.innerHTML = filtered.map(pkg => `
-        <div class="card">
-            <div>
-                <div class="card-header">
-                    <span class="card-title">${pkg.name}</span>
-                    <span class="badge">v${pkg.version}${pkg.revision > 0 ? '-' + pkg.revision : ''}</span>
+    grid.innerHTML = filtered.map(pkg => {
+        const channelsHtml = (pkg.channels || []).map(ch => {
+            const verStr = `v${ch.version}${ch.revision > 0 ? '-' + ch.revision : ''}`;
+            return `<span class="channel-badge"><span class="channel-name">${ch.name}:</span> ${verStr}</span>`;
+        }).join(" ");
+
+        const formatsHtml = (pkg.formats || []).map(fmt => {
+            const isActive = activeFormat === fmt ? "format-tag active" : "format-tag";
+            return `<span class="${isActive}">${fmt.toUpperCase()}</span>`;
+        }).join(" ");
+
+        return `
+            <div class="card">
+                <div>
+                    <div class="card-header">
+                        <span class="card-title">${pkg.name}</span>
+                        <div class="channels-container">${channelsHtml}</div>
+                    </div>
+                    <p class="card-desc">${pkg.description || "RepoExe compiled package"}</p>
                 </div>
-                <p class="card-desc">${pkg.description || "RepoExe compiled package"}</p>
+                <div class="card-meta">
+                    <div class="formats-container">${formatsHtml}</div>
+                    <span class="arch-tag">Arch: ${pkg.architecture || "aarch64"}</span>
+                </div>
             </div>
-            <div class="card-meta">
-                <span>Format: <strong>${(pkg.format || "apt").toUpperCase()}</strong></span>
-                <span>Arch: ${pkg.architecture || "aarch64"}</span>
-            </div>
-        </div>
-    `).join("");
+        `;
+    }).join("");
 }
 
 const searchEl = document.getElementById("searchInput");

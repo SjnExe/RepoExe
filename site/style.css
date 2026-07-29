@@ -25,9 +25,15 @@ code { background: #0d1117; color: #7ee787; padding: 0.75rem 1rem; border-radius
 
 .package-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
 .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; }
-.card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
-.card-title { font-size: 1.1rem; color: #58a6ff; font-weight: 600; }
-.badge { background: #238636; color: #fff; font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 12px; font-weight: 500; }
+.card-header { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.5rem; }
+.card-title { font-size: 1.15rem; color: #58a6ff; font-weight: 600; }
+.channels-container { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.channel-badge { background: #21262d; border: 1px solid #30363d; color: #3fb950; font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 12px; font-weight: 500; font-family: monospace; }
+.channel-name { color: #8b949e; font-weight: 400; font-family: sans-serif; }
 .card-desc { color: #8b949e; font-size: 0.875rem; margin-bottom: 1rem; flex-grow: 1; }
-.card-meta { font-size: 0.8rem; color: #8b949e; border-top: 1px solid #21262d; padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center; }
-.card-meta a { color: #58a6ff; text-decoration: none; display: flex; align-items: center; gap: 0.2rem; }
+.card-meta { font-size: 0.8rem; color: #8b949e; border-top: 1px solid #21262d; padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.formats-container { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.format-tag { font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #21262d; color: #8b949e; border: 1px solid #30363d; }
+.format-tag.active { background: #1f6feb; color: #ffffff; border-color: #1f6feb; }
+.arch-tag { font-size: 0.75rem; color: #8b949e; }
+.loading { grid-column: 1 / -1; text-align: center; color: #8b949e; padding: 2rem 0; }
