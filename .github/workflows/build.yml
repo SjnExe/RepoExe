@@ -105,6 +105,7 @@ jobs:
           fi
 
           python -c "
+          import sys; sys.path.insert(0, 'scripts')
           from core.prune import prune_release_tags
           prune_release_tags()
           " || echo "Notice: Release pruning step completed."
@@ -139,17 +140,9 @@ jobs:
             gh release download "$tag" --dir artifacts || true
           done
 
-            - name: Import GPG Signing Key
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: |
-          if [ -n "$GPG_PRIVATE_KEY" ]; then
-            echo "$GPG_PRIVATE_KEY" | gpg --batch --import || echo "Notice: GPG private key import failed."
-          else
-            echo "Notice: GPG_PRIVATE_KEY secret is not set. APT release files will remain unsigned."
-          fi
-
       - name: Build Full Site & Repository Indexes
+        env:
+          PYTHONPATH: scripts
         run: |
           python -c "
           from core.index_gen import prepare_site
