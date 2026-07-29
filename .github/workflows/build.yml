@@ -6,8 +6,18 @@ on:
       - main
   workflow_dispatch:
     inputs:
+      packages:
+        description: 'Target specs (e.g. "all@all", "all@latest", "tsc@latest", "!jscpd")'
+        required: false
+        type: string
+        default: 'all@all'
+      publish:
+        description: 'Publish release assets & update GitHub Pages site'
+        required: false
+        type: boolean
+        default: true
       skip_build:
-        description: 'Skip package compilation and only rebuild/publish site'
+        description: 'Skip compilation step and re-index existing releases'
         required: false
         type: boolean
         default: false
@@ -22,112 +32,158 @@ permissions:
   id-token: write
 
 jobs:
-  audit-and-test:
+  audit:
     name: Audit & Unit Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - name: Install uv & Dependencies
+      - name: Install Dependencies
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           uv pip install --system -r pyproject.toml || true
           pip install pytest ruff pydantic pyyaml
 
-      - name: Code Quality & Health Audit
-        run: python scripts/build.py check
+      - name: Health Check & Tests
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python scripts/build.py check
+          pytest scripts/tests/
 
-      - name: Run Pytest
-        run: pytest
-
-  build-packages:
-    name: Build Packages
-    needs: audit-and-test
-    if: ${{ !inputs.skip_build }}
+  generate-matrix:
+    name: Generate Target Matrix
+    needs: audit
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      should_publish: ${{ steps.decision.outputs.should_publish }}
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+      - name: Checkout Code
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - name: Install Toolchains & Build Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh
-          pip install pydantic pyyaml
+      - name: Install Dependencies
+        run: pip install pydantic pyyaml
 
-      - name: Build Modified Packages
+      - name: Determine Publish Decision
+        id: decision
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ] && [ "${{ inputs.publish }}" != "false" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate Matrix
+        id: matrix
+        env:
+          TARGET_INPUT: ${{ inputs.packages || 'all@all' }}
+          PYTHONPATH: scripts
+        run: |
+          MATRIX_JSON=$(python scripts/generate_shards.py)
+          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+
+  build-package:
+    name: "${{ matrix.package }}@${{ matrix.channel }}"
+    needs: [generate-matrix]
+    if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Free Disk Space
+        uses: ./.github/actions/free-space
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Package inside Docker Container
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+          HEAVY: ${{ matrix.heavy }}
+          SHOULD_PUBLISH: ${{ needs.generate-matrix.outputs.should_publish }}
         run: |
           mkdir -p output
-          for pkg_dir in pkg/*; do
-            if [ -d "$pkg_dir" ] && [ -f "$pkg_dir/build.yml" ]; then
-              pkg_name=$(basename "$pkg_dir")
-              echo "Building $pkg_name..."
-              python scripts/build.py build "$pkg_dir" || echo "Notice: Build step completed or skipped for $pkg_name"
-            fi
-          done
+          OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
 
-      - name: Publish Release Assets & Prune Stale Files
+          if [ "$HEAVY" == "true" ]; then
+            sudo swapon --show || true
+          fi
+
+          docker run --rm \
+            -v ${{ github.workspace }}:/home/builder/RepoExe \
+            -w /home/builder/RepoExe \
+            -e GH_TOKEN="$GH_TOKEN" \
+            -e PYTHONPATH="scripts" \
+            "ghcr.io/$OWNER/repoexe-builder:latest" \
+            python3 scripts/build.py build "pkg/$PKG_NAME" --channel "$CHANNEL"
+
+      - name: Publish Release Tag & Artifacts
+        if: ${{ needs.generate-matrix.outputs.should_publish == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
         run: |
+          TAG="${PKG_NAME}@${CHANNEL}"
+          gh release create "$TAG" --title "$PKG_NAME ($CHANNEL)" --notes "Automated build for $TAG" 2>/dev/null || true
+
           if [ -d "output" ] && [ "$(ls -A output)" ]; then
             for file in output/*; do
               if [ -f "$file" ]; then
                 filename=$(basename "$file")
-                pkg_name=$(echo "$filename" | cut -d'_' -f1 | cut -d'-' -f1)
-                tag="${pkg_name}@latest"
-                
-                gh release create "$tag" --title "$pkg_name (latest)" --notes "Automated release build for $pkg_name" 2>/dev/null || true
-                
                 if [[ "$filename" == *"_metadata.json" ]]; then
-                  gh release upload "$tag" "$file#metadata.json" --clobber
+                  gh release upload "$TAG" "$file#metadata.json" --clobber
                 else
-                  gh release upload "$tag" "$file" --clobber
+                  gh release upload "$TAG" "$file" --clobber
                 fi
               fi
             done
           fi
 
-          python -c "
-          import sys; sys.path.insert(0, 'scripts')
-          from core.prune import prune_release_tags
-          prune_release_tags()
-          " || echo "Notice: Release pruning step completed."
-
   publish-site:
-    name: Generate Indexes & Deploy Pages
-    needs: [audit-and-test, build-packages]
-    if: always() && (needs.audit-and-test.result == 'success') && (needs.build-packages.result == 'success' || needs.build-packages.result == 'skipped')
+    name: Build Indexes & Deploy Pages
+    needs: [generate-matrix, build-package]
+    if: always() && needs.generate-matrix.outputs.should_publish == 'true' && needs.audit.result == 'success' && (needs.build-package.result == 'success' || needs.build-package.result == 'failure' || needs.build-package.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - name: Install Tools
+      - name: Install Build Tools & GPG
         run: |
           sudo apt-get update
-          sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh
+          sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
           pip install pydantic pyyaml
 
       - name: Download All Release Artifacts
@@ -139,6 +195,16 @@ jobs:
           for tag in $TAGS; do
             gh release download "$tag" --dir artifacts || true
           done
+
+      - name: Import GPG Private Key for Repository Signing
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import || echo "Notice: GPG key import failed."
+          else
+            echo "Notice: GPG_PRIVATE_KEY secret is omitted; repository metadata will remain unsigned."
+          fi
 
       - name: Build Full Site & Repository Indexes
         env:
@@ -153,10 +219,20 @@ jobs:
         uses: actions/configure-pages@v6
 
       - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: 'site'
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+      - name: Prune Outdated Release Tag Assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: scripts
+        run: |
+          python -c "
+          from core.prune import prune_release_tags
+          prune_release_tags()
+          " || echo "Notice: Release asset pruning completed."

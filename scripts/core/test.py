@@ -1,53 +1,35 @@
-"""Test execution sandbox for RepoExe using PRoot."""
-
 import os
+import platform
+import shutil
 import subprocess
+import tempfile
+from pathlib import Path
 
-from core.properties import PREFIX
+from core.properties import HOME, PREFIX
 
 
 class ProotTestRunner:
-    """Executes package tests inside a strict PRoot sandbox."""
+    """Executes package tests inside a strict PRoot + QEMU sandbox."""
 
-    def __init__(
-        self, prefix: str = PREFIX, home: str = "/data/data/com.termux/files/home"
-    ):
+    def __init__(self, prefix: str = PREFIX, home: str = HOME):
         self.prefix = prefix
         self.home = home
 
-    def execute_test(
-        self, package_name: str, test_commands: str, max_retries: int = 3
-    ) -> bool:
-        """
-        Executes a test snippet using PRoot.
-        Features 'Flaky Test Isolation' by retrying up to max_retries.
-        """
-        print(f"[{package_name}] Running tests in PRoot sandbox...")
+    def execute_test(self, package_name: str, test_commands: str) -> bool:
+        print(f"[{package_name}] Running tests in PRoot + QEMU sandbox...")
 
-        # We construct a bash script from the test_commands snippet
-        import tempfile
+        script_path = Path(tempfile.gettempdir()) / f"test_{package_name}.sh"
+        script_path.write_text(f"#!/bin/bash\nset -e\n{test_commands}\n", encoding="utf-8")
+        script_path.chmod(0o755)
 
-        script_path = f"{tempfile.gettempdir()}/test_{package_name}.sh"
-        with open(script_path, "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write("set -e\n")
-            f.write(test_commands + "\n")
-
-        os.chmod(script_path, 0o755)
-
-        # Build PRoot command
-        # It binds the host's actual prefix to the simulated Termux prefix
-        # To strictly isolate the environment, we use an empty rootfs and bind
-        # only essential directories (prefix, home, dev, proc, sys) to prevent
-        # access to the builder's source tree and other host files.
-        empty_root = f"{tempfile.gettempdir()}/empty_rootfs_for_proot"
-        os.makedirs(empty_root, exist_ok=True)
+        empty_root = Path(tempfile.gettempdir()) / "empty_rootfs_for_proot"
+        empty_root.mkdir(parents=True, exist_ok=True)
 
         proot_cmd = [
             "proot",
             "-r",
-            empty_root,
-            "-0",  # Fake root privilege might be needed for proot isolated roots
+            str(empty_root),
+            "-0",
             "-b",
             "/dev",
             "-b",
@@ -55,33 +37,25 @@ class ProotTestRunner:
             "-b",
             "/sys",
             "-b",
-            f"{self.prefix}:{self.prefix}",  # Bind mount the prefix explicitly
+            f"{self.prefix}:{self.prefix}",
             "-b",
             f"{self.home}:{self.home}",
             "-w",
-            self.home,  # Working directory is the simulated home
-            "--kill-on-exit",
-            f"{self.prefix}/bin/bash",
-            script_path,
+            self.home,
         ]
 
-        attempt = 1
-        while attempt <= max_retries:
-            try:
-                subprocess.run(
-                    proot_cmd,
-                    check=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                )
-                print(f"[{package_name}] Tests passed on attempt {attempt}.")
-                return True
-            except subprocess.CalledProcessError as e:
-                print(
-                    f"[{package_name}] Tests failed on attempt {attempt}:\n{e.stdout}"
-                )
-                attempt += 1
+        # Cross-Architecture Emulation Guard for x86_64 runners testing aarch64
+        host_arch = platform.machine().lower()
+        if host_arch in ("x86_64", "amd64") and shutil.which("qemu-aarch64-static"):
+            proot_cmd.extend(["-q", "qemu-aarch64-static"])
 
-        print(f"[{package_name}] Tests failed after {max_retries} attempts.")
-        return False
+        proot_cmd.extend(["--kill-on-exit", f"{self.prefix}/bin/bash", str(script_path)])
+
+        res = subprocess.run(proot_cmd, capture_output=True, text=True, check=False)
+        if res.returncode == 0:
+            print(f"✓ [{package_name}] Smoke test passed successfully.")
+            return True
+
+        err_msg = f"Smoke test failed for {package_name}:\nSTDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}"
+        print(f"❌ {err_msg}")
+        raise RuntimeError(err_msg)

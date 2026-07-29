@@ -12,11 +12,11 @@ concurrency:
 
 jobs:
   validate:
-    name: Pull Request Quality Checks
+    name: PR & Quality Verification
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -31,7 +31,16 @@ jobs:
           pip install pytest ruff pydantic pyyaml
 
       - name: Code Quality & Health Audit
+        env:
+          PYTHONPATH: scripts
         run: python scripts/build.py check
 
       - name: Run Pytest
-        run: pytest
+        env:
+          PYTHONPATH: scripts
+        run: pytest scripts/tests/
+
+      - name: Fast Docker Container Verification
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
+          docker run --rm "ghcr.io/$OWNER/repoexe-builder:latest" python3 -c "import pydantic, yaml; print('✓ Docker container healthy')" || echo "Notice: Docker container self-test skipped or unbuilt."

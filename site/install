@@ -6,7 +6,7 @@ echo "Configuring RepoExe universal Android/Termux repository environment..."
 # 1. APT Configuration
 if command -v pkg >/dev/null 2>&1 || [ -d "$PREFIX/etc/apt" ]; then
   echo "Setting up APT repository..."
-    rm -f $PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg
+  rm -f $PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg
   curl -fsSL https://sjnexe.github.io/RepoExe/repoexe.gpg -o $PREFIX/etc/apt/trusted.gpg.d/repoexe.asc 2>/dev/null || true
   echo "deb [arch=aarch64] https://sjnexe.github.io/RepoExe/apt stable main" > $PREFIX/etc/apt/sources.list.d/repoexe.list
   pkg update -y 2>/dev/null || true
@@ -34,12 +34,13 @@ fi
 echo "Setting up global Python Extra Index URL..."
 mkdir -p ~/.config/pip
 if ! grep -q "extra-index-url" ~/.config/pip/pip.conf 2>/dev/null; then
-  cat << 'PIP_EOF' >> ~/.config/pip/pip.conf
+  cat << PIP_EOF >> ~/.config/pip/pip.conf
 [global]
 extra-index-url = https://sjnexe.github.io/RepoExe/pip/
 PIP_EOF
 fi
 
+[ -f ~/.bashrc ] || touch ~/.bashrc
 for rc in ~/.bashrc ~/.zshrc; do
   if [ -f "$rc" ] && ! grep -q "UV_EXTRA_INDEX_URL" "$rc"; then
     echo 'export UV_EXTRA_INDEX_URL="https://sjnexe.github.io/RepoExe/pip/"' >> "$rc"
