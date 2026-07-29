@@ -6,11 +6,7 @@ echo "Configuring RepoExe universal Android/Termux repository environment..."
 # 1. APT Configuration
 if command -v pkg >/dev/null 2>&1 || [ -d "$PREFIX/etc/apt" ]; then
   echo "Setting up APT repository..."
-  if command -v gpg >/dev/null 2>&1; then
-    curl -fsSL https://sjnexe.github.io/RepoExe/repoexe.gpg | gpg --dearmor -o $PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg 2>/dev/null || true
-  else
-    curl -fsSL https://sjnexe.github.io/RepoExe/repoexe.gpg -o $PREFIX/etc/apt/trusted.gpg.d/repoexe.asc 2>/dev/null || true
-  fi
+  curl -fsSL https://sjnexe.github.io/RepoExe/repoexe.gpg -o $PREFIX/etc/apt/trusted.gpg.d/repoexe.asc 2>/dev/null || true
   echo "deb [arch=aarch64] https://sjnexe.github.io/RepoExe/apt stable main" > $PREFIX/etc/apt/sources.list.d/repoexe.list
   pkg update -y 2>/dev/null || true
 fi

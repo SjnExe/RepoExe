@@ -20,7 +20,7 @@ def test_parser_tsc():
 def test_parser_jscpd():
     recipe = parse_recipe(REPO_ROOT / Path("pkg/jscpd/build.yml"))
     assert recipe.name == "jscpd"
-    assert recipe.version == "5.0.12"
+    assert recipe.version == "5.0.14"
     assert recipe.build_system == "cargo"
 
 
