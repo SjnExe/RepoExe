@@ -14,7 +14,7 @@
     "channels": [
       {
         "name": "latest",
-        "version": "5.0.12",
+        "version": "5.0.14",
         "revision": 0
       }
     ],
