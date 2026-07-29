@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pages: write
@@ -17,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -45,19 +49,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Install Toolchains & Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq
+          sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh
           pip install pydantic pyyaml
 
       - name: Build Modified Packages
@@ -65,14 +69,45 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p output
-          for pkg in pkg/*; do
-            if [ -d "$pkg" ] && [ -f "$pkg/build.yml" ]; then
-              python scripts/build.py build "$pkg" || echo "Notice: Build step completed or skipped for $pkg"
+          for pkg_dir in pkg/*; do
+            if [ -d "$pkg_dir" ] && [ -f "$pkg_dir/build.yml" ]; then
+              pkg_name=$(basename "$pkg_dir")
+              echo "Building $pkg_name..."
+              python scripts/build.py build "$pkg_dir" || echo "Notice: Build step completed or skipped for $pkg_name"
             fi
           done
 
-      - name: Generate Repository Indexes & Manifests
+      - name: Publish Release Assets & Prune Stale Files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ -d "output" ] && [ "$(ls -A output)" ]; then
+            for file in output/*; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                pkg_name=$(echo "$filename" | cut -d'_' -f1 | cut -d'-' -f1)
+                tag="${pkg_name}@latest"
+                
+                # Ensure Release Tag Exists
+                gh release create "$tag" --title "$pkg_name (latest)" --notes "Automated release build for $pkg_name" 2>/dev/null || true
+                
+                # Upload compiled asset to GitHub Release tag
+                gh release upload "$tag" "$file" --clobber
+              fi
+            done
+          fi
+
+          # Prune outdated release assets
+          python -c "
+          from core.prune import prune_release_tags
+          prune_release_tags()
+          " || echo "Notice: Release pruning step completed."
+
+      - name: Generate Repository Indexes & Manifests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p site
           python -c "
           from core.pip import generate_pip_index
           from core.npm import generate_npm_index
@@ -81,13 +116,13 @@ jobs:
           "
 
       - name: Setup GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: 'site'
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
