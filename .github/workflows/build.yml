@@ -94,7 +94,12 @@ jobs:
                 tag="${pkg_name}@latest"
                 
                 gh release create "$tag" --title "$pkg_name (latest)" --notes "Automated release build for $pkg_name" 2>/dev/null || true
-                gh release upload "$tag" "$file" --clobber
+                
+                if [[ "$filename" == *"_metadata.json" ]]; then
+                  gh release upload "$tag" "$file#metadata.json" --clobber
+                else
+                  gh release upload "$tag" "$file" --clobber
+                fi
               fi
             done
           fi

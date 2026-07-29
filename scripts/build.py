@@ -238,7 +238,7 @@ def execute_build(
             f"CRITICAL ERROR: No files installed in $DESTDIR for {recipe.name}. Refusing to package empty artifacts."
         )
 
-    # 4. PRoot Post-Build Smoke Test Sandbox (with cross-arch safety guard)
+    # 4. PRoot Post-Build Smoke Test Sandbox
     if shutil.which("proot"):
         try:
             runner = ProotTestRunner()
@@ -278,6 +278,19 @@ def execute_build(
     if "npm" in target_formats:
         build_npm(recipe, str(destdir), str(output_dir))
         print(f"✓ Built .tgz for {recipe.name}")
+
+    # 5. Write metadata asset for rebuild prevention
+    meta = {
+        "name": recipe.name,
+        "version": recipe.version,
+        "revision": recipe.revision,
+        "architecture": recipe.architecture,
+        "state_hash": recipe.state_hash,
+        "channel": recipe.active_channel,
+    }
+    (output_dir / f"{recipe.name}_metadata.json").write_text(
+        json.dumps(meta, indent=2), encoding="utf-8"
+    )
 
 
 def fix_code_formatting(scripts_dir: Path) -> None:
