@@ -178,9 +178,9 @@ def generate_release_file(
     with open(release_path, "w", encoding="utf-8") as f:
         f.write(release_content)
 
-    key_path = Path("keys/repoexe.gpg")
+    key_path = Path("scripts/repoexe.gpg")
     if not key_path.exists():
-        key_path = Path("scripts/keys/repoexe.gpg")
+        key_path = Path("repoexe.gpg")
 
     if key_path.exists():
         subprocess.run(
