@@ -111,8 +111,10 @@ jobs:
           python -c "
           from core.pip import generate_pip_index
           from core.npm import generate_npm_index
+          from core.index_gen import prepare_site_assets
           generate_pip_index('site')
           generate_npm_index('site')
+          prepare_site_assets('site')
           "
 
       - name: Setup GitHub Pages
