@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: 'Target specs (e.g. "all@all", "all@latest", "tsc@latest", "!jscpd")'
+        description: 'Target specs (e.g. "all@all", "tsc@latest", "!jscpd")'
         required: false
         type: string
         default: 'all@all'
@@ -35,9 +35,12 @@ permissions:
   id-token: write
 
 jobs:
-  audit:
-    name: Audit
+  generate-matrix:
+    name: Matrix
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      should_publish: ${{ steps.decision.outputs.should_publish }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -54,31 +57,12 @@ jobs:
           uv pip install --system -r pyproject.toml || true
           pip install pytest ruff pydantic pyyaml
 
-      - name: Health Check & Tests
+      - name: Audit & Health Check
         env:
           PYTHONPATH: scripts
         run: |
           python scripts/build.py check
           pytest scripts/tests/
-
-  generate-matrix:
-    name: Matrix
-    needs: audit
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.matrix.outputs.matrix }}
-      should_publish: ${{ steps.decision.outputs.should_publish }}
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7
-
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      - name: Install Dependencies
-        run: pip install pydantic pyyaml
 
       - name: Determine Publish Decision
         id: decision
@@ -144,7 +128,7 @@ jobs:
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
-            python3 scripts/build.py build "pkg/$PKG_NAME" --channel "$CHANNEL"
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || pip install --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py build \"pkg/$PKG_NAME\" --channel \"$CHANNEL\""
 
       - name: Publish Release Tag & Artifacts
         if: ${{ needs.generate-matrix.outputs.should_publish == 'true' }}
@@ -169,7 +153,6 @@ jobs:
             done
           fi
 
-
   build-status:
     name: Build Status
     needs: [generate-matrix, build-package]
@@ -179,6 +162,7 @@ jobs:
       - name: Verify Matrix Results
         run: |
           if [ "${{ needs.build-package.result }}" = "failure" ] || [ "${{ needs.build-package.result }}" = "cancelled" ]; then
+            echo "Package matrix build failed!"
             exit 1
           fi
           echo "All matrix targets built successfully or skipped."
@@ -186,7 +170,7 @@ jobs:
   publish-site:
     name: Deploy
     needs: [generate-matrix, build-package]
-    if: always() && needs.generate-matrix.outputs.should_publish == 'true' && needs.audit.result == 'success' && (needs.build-package.result == 'success' || needs.build-package.result == 'failure' || needs.build-package.result == 'skipped')
+    if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-package.result == 'success' || needs.build-package.result == 'failure' || needs.build-package.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
