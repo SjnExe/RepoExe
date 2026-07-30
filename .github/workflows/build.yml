@@ -222,7 +222,7 @@ jobs:
 
       - name: Upload Single Target Build Log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-log-${{ matrix.package }}-${{ matrix.channel }}
           path: build_logs/
@@ -258,7 +258,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download All Target Build Logs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: build-log-*
           path: all_logs
@@ -292,7 +292,7 @@ jobs:
 
       - name: Upload Aggregated Log Summary Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aggregated-build-logs
           path: summary/all_build_logs.txt

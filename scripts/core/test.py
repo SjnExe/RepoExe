@@ -41,10 +41,10 @@ class ProotTestRunner:
         script_content = (
             f"#!/bin/bash\n"
             f"set -e\n"
-            f"export PREFIX=\"{self.prefix}\"\n"
-            f"export HOME=\"{self.home}\"\n"
-            f"export PATH=\"{self.prefix}/bin:$PATH\"\n"
-            f"export LD_LIBRARY_PATH=\"{self.prefix}/lib:$LD_LIBRARY_PATH\"\n"
+            f"export PREFIX=\"${{PREFIX:-{self.prefix}}}\"\n"
+            f"export HOME=\"${{HOME:-{self.home}}}\"\n"
+            f"export PATH=\"$PREFIX/bin:$PATH\"\n"
+            f"export LD_LIBRARY_PATH=\"$PREFIX/lib:$LD_LIBRARY_PATH\"\n"
             f"{test_commands}\n"
         )
         script_path.write_text(script_content, encoding="utf-8")
@@ -88,7 +88,6 @@ class ProotTestRunner:
             print(f"✓ [{package_name}] Smoke test passed successfully via PRoot.")
             return True
 
-        # Fallback to direct execution if PRoot hits signal 11 / segfault
         if res.returncode in (139, -11) or "terminated with signal 11" in res.stderr:
             print(f"⚠️ [{package_name}] PRoot hit signal 11, falling back to direct execution...")
             test_env = os.environ.copy()
@@ -102,6 +101,7 @@ class ProotTestRunner:
                 py_dirs = [
                     str(staged_prefix / "lib" / "python3" / "dist-packages"),
                     str(staged_prefix / "lib" / "python3" / "site-packages"),
+                    str(staged_prefix / "lib" / "python3.12" / "site-packages"),
                     str(staged_prefix / "lib" / "python3.13" / "site-packages"),
                 ]
                 pypath = [p for p in py_dirs if Path(p).exists()]

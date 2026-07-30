@@ -21,8 +21,8 @@ channels:
 build_system: custom
 phases:
   make: |
-    python3 -m pip wheel . --no-deps -w output/ || true
-    python3 -m pip install --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" . --no-deps
+    python3 -m pip wheel . -w output/ || true
+    python3 -m pip install --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
     echo "Installed pydantic site-packages into staging"
   test: |
