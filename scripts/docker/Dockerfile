@@ -74,3 +74,7 @@ ENV REPO_ROOT=/home/builder/RepoExe
 WORKDIR /home/builder/RepoExe
 
 RUN python3 -m pip install --break-system-packages --no-cache-dir pyyaml "pydantic>=2.0.0" pytest ruff
+
+# Install latest stable Rust toolchain via rustup (supports Edition 2024)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+ENV PATH="/home/builder/.cargo/bin:${PATH}"
