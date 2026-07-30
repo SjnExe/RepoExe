@@ -1,6 +1,5 @@
 import contextlib
 import os
-import platform
 import shutil
 import subprocess
 import tempfile
@@ -10,7 +9,7 @@ from core.properties import HOME, PREFIX
 
 
 class ProotTestRunner:
-    """Executes package tests inside a strict PRoot + QEMU sandbox."""
+    """Executes package tests inside a strict PRoot sandbox."""
 
     def __init__(self, prefix: str = PREFIX, home: str = HOME):
         self.prefix = prefix
@@ -19,7 +18,7 @@ class ProotTestRunner:
     def execute_test(
         self, package_name: str, test_commands: str, destdir: Path | None = None
     ) -> bool:
-        print(f"[{package_name}] Running tests in PRoot + QEMU sandbox...")
+        print(f"[{package_name}] Running tests in PRoot sandbox...")
 
         with contextlib.suppress(OSError):
             Path(self.prefix).mkdir(parents=True, exist_ok=True)
@@ -78,31 +77,14 @@ class ProotTestRunner:
             f"{self.home}:{self.home}",
             "-w",
             self.home,
+            target_bash,
+            str(script_path),
         ]
-
-        host_arch = platform.machine().lower()
-        if host_arch in ("x86_64", "amd64") and shutil.which("qemu-aarch64-static"):
-            proot_cmd.extend(["-q", "qemu-aarch64-static"])
-
-        proot_cmd.extend([target_bash, str(script_path)])
 
         res = subprocess.run(proot_cmd, capture_output=True, text=True, check=False)
         if res.returncode == 0:
             print(f"✓ [{package_name}] Smoke test passed successfully.")
             return True
-
-        # Direct QEMU fallback for Rust binaries if PRoot wrapping throws Signal 11
-        if host_arch in ("x86_64", "amd64") and shutil.which("qemu-aarch64-static"):
-            print(f"Notice: Retrying {package_name} test using direct QEMU execution...")
-            qemu_env = os.environ.copy()
-            staged_bin_dir = destdir / "stage" / rel_prefix / "bin" if destdir else Path()
-            qemu_env["PATH"] = f"{staged_bin_dir}:{qemu_env.get('PATH', '')}"
-
-            qemu_cmd = ["qemu-aarch64-static", str(script_path)]
-            res_qemu = subprocess.run(qemu_cmd, capture_output=True, text=True, env=qemu_env, check=False)
-            if res_qemu.returncode == 0:
-                print(f"✓ [{package_name}] Smoke test passed via direct QEMU execution.")
-                return True
 
         err_msg = (
             f"Smoke test failed for {package_name}:\n"

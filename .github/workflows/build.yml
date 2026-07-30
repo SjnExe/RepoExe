@@ -37,7 +37,7 @@ permissions:
 jobs:
   generate-matrix:
     name: Matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       should_publish: ${{ steps.decision.outputs.should_publish }}
@@ -86,7 +86,7 @@ jobs:
     name: "${{ matrix.package }}@${{ matrix.channel }}"
     needs: [generate-matrix]
     if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false
       matrix:
@@ -183,7 +183,7 @@ jobs:
             "ghcr.io/$OWNER/repoexe-builder:latest" \
             sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py pack \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
 
-      - name: PRoot + QEMU Smoke Test
+      - name: PRoot Smoke Test
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
@@ -255,7 +255,7 @@ jobs:
     name: Build Status & Log Aggregator
     needs: [generate-matrix, build-package]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Download All Target Build Logs
         uses: actions/download-artifact@v4
@@ -310,7 +310,7 @@ jobs:
     name: Deploy
     needs: [generate-matrix, build-package]
     if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-package.result == 'success' || needs.build-package.result == 'failure' || needs.build-package.result == 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7

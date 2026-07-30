@@ -5,7 +5,6 @@ from core.properties import PREFIX
 
 def generate_cmake_toolchain(arch: str, ndk_path: str, output_path: str) -> str:
     """Generates an android.toolchain.cmake file strictly targeting the architecture."""
-    # Maps internal arch to Android API/CMake ABI standards
     abi_map = {
         "aarch64": "arm64-v8a",
         "arm": "armeabi-v7a",
@@ -16,9 +15,9 @@ def generate_cmake_toolchain(arch: str, ndk_path: str, output_path: str) -> str:
     if not abi:
         raise ValueError(f"Unsupported architecture for CMake generation: {arch}")
 
-    api_level = "24"  # Default minimum API level
+    api_level = "24"
+    prebuilt_dir = "linux-aarch64" if os.path.exists(f"{ndk_path}/toolchains/llvm/prebuilt/linux-aarch64") else "linux-x86_64"
 
-    # We enforce Ninja backend and CMAKE_INSTALL_PREFIX
     cmake_content = f"""
 set(CMAKE_SYSTEM_NAME Android)
 set(CMAKE_SYSTEM_VERSION {api_level})
@@ -29,8 +28,8 @@ set(CMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY ON)
 set(CMAKE_INSTALL_PREFIX {PREFIX})
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_MAKE_PROGRAM ninja)
-set(CMAKE_C_COMPILER "{ndk_path}/toolchains/llvm/prebuilt/linux-x86_64/bin/clang")
-set(CMAKE_CXX_COMPILER "{ndk_path}/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++")
+set(CMAKE_C_COMPILER "{ndk_path}/toolchains/llvm/prebuilt/{prebuilt_dir}/bin/clang")
+set(CMAKE_CXX_COMPILER "{ndk_path}/toolchains/llvm/prebuilt/{prebuilt_dir}/bin/clang++")
 set(CMAKE_FIND_ROOT_PATH {PREFIX})
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
@@ -51,7 +50,6 @@ class NativeToolchain:
         self._setup_target()
 
     def _setup_target(self):
-        # Handle multilib logic (compiling 32-bit on 64-bit target)
         if self.build_multilib:
             if self.arch == "aarch64":
                 self.target_arch = "arm"
@@ -75,8 +73,8 @@ class NativeToolchain:
         self.clang_target = f"{self.target_triple}{self.api_level}"
 
     def get_env(self) -> dict:
-        """Returns standard C/C++ environment variables injected with PREFIX paths."""
-        llvm_bin = f"{self.ndk_path}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+        prebuilt_dir = "linux-aarch64" if os.path.exists(f"{self.ndk_path}/toolchains/llvm/prebuilt/linux-aarch64") else "linux-x86_64"
+        llvm_bin = f"{self.ndk_path}/toolchains/llvm/prebuilt/{prebuilt_dir}/bin"
 
         env = {
             "CC": f"{llvm_bin}/{self.clang_target}-clang",
@@ -91,10 +89,6 @@ class NativeToolchain:
             "OBJCOPY": f"{llvm_bin}/llvm-objcopy",
             "OBJDUMP": f"{llvm_bin}/llvm-objdump",
             "READELF": f"{llvm_bin}/llvm-readelf",
-            # Fortran/Flang support
-            "FC": f"{llvm_bin}/flang",
-            "F77": f"{llvm_bin}/flang",
-            "F90": f"{llvm_bin}/flang",
             "CFLAGS": f"-I{PREFIX}/include -O2 -fPIC",
             "CXXFLAGS": f"-I{PREFIX}/include -O2 -fPIC",
             "CPPFLAGS": f"-I{PREFIX}/include",
@@ -103,14 +97,11 @@ class NativeToolchain:
             "PKG_CONFIG_LIBDIR": f"{PREFIX}/lib/pkgconfig",
             "PREFIX": PREFIX,
             "CMAKE_INSTALL_PREFIX": PREFIX,
-            # We standardize ninja
             "CMAKE_GENERATOR": "Ninja",
         }
         return env
 
     def get_cmake_args(self, build_dir: str) -> list[str]:
-        """Returns standard CMake execution arguments ensuring deterministic generation."""
-        # We write the generated toolchain to the build dir
         os.makedirs(build_dir, exist_ok=True)
         toolchain_file = os.path.join(build_dir, "android.toolchain.cmake")
         generate_cmake_toolchain(self.target_arch, self.ndk_path, toolchain_file)
@@ -125,12 +116,11 @@ class NativeToolchain:
         return args
 
     def get_meson_args(self) -> list[str]:
-        """Returns standard Meson arguments."""
         args = [
             f"--prefix={PREFIX}",
             "--libdir=lib",
             "--buildtype=release",
             "--default-library=shared",
-            "--cross-file=android_cross_file.txt",  # Expecting generation in sysroot or similar
+            "--cross-file=android_cross_file.txt",
         ]
         return args
