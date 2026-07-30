@@ -97,17 +97,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Restore Build Caches (Go & Cargo)
-        uses: actions/cache@v4
+      - name: Restore Go Cache
+        if: matrix.build_system == 'go'
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
+          key: go-cache-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/go.mod', 'pkg/tsc/build.yml') }}
+          restore-keys: |
+            go-cache-${{ runner.os }}-${{ matrix.package }}-
+
+      - name: Restore Cargo Cache
+        if: matrix.build_system == 'cargo'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: build-toolchains-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/build.yml', '**/Cargo.lock', '**/go.mod') }}
+          key: cargo-cache-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/Cargo.lock', 'pkg/*/build.yml') }}
           restore-keys: |
-            build-toolchains-${{ runner.os }}-${{ matrix.package }}-
+            cargo-cache-${{ runner.os }}-${{ matrix.package }}-
 
       - name: Free Disk Space
         if: env.HEAVY == 'true'
@@ -192,16 +202,23 @@ jobs:
             "ghcr.io/$OWNER/repoexe-builder:latest" \
             sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py test \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
 
-      - name: Save Cache (Main Branch Only)
-        if: github.ref == 'refs/heads/main' && always()
+      - name: Save Go Cache (Main Branch Only)
+        if: github.ref == 'refs/heads/main' && matrix.build_system == 'go' && always()
         uses: actions/cache/save@v4
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
+          key: go-cache-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/go.mod', 'pkg/tsc/build.yml') }}
+
+      - name: Save Cargo Cache (Main Branch Only)
+        if: github.ref == 'refs/heads/main' && matrix.build_system == 'cargo' && always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: build-toolchains-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/build.yml', '**/Cargo.lock', '**/go.mod') }}
+          key: cargo-cache-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/Cargo.lock', 'pkg/*/build.yml') }}
 
       - name: Upload Single Target Build Log
         if: always()

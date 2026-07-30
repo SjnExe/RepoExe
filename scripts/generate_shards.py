@@ -55,7 +55,6 @@ def main() -> None:
         except Exception:
             return ["latest"]
 
-    # Fallback to git diff if triggered by push or empty target input
     if not raw_input or raw_input == "auto":
         changed = get_changed_packages(repo_root)
         if changed:
@@ -100,14 +99,21 @@ def main() -> None:
     matrix = []
     for p, c in final_targets:
         heavy = False
+        build_sys = "custom"
         recipe_path = pkgs_dir / p / "build.yml"
         if recipe_path.exists():
             try:
                 r = parse_recipe(recipe_path, channel=c)
                 heavy = r.heavy_build
+                build_sys = r.build_system
             except Exception:
                 pass
-        matrix.append({"package": p, "channel": c, "heavy": heavy})
+        matrix.append({
+            "package": p,
+            "channel": c,
+            "heavy": heavy,
+            "build_system": build_sys
+        })
 
     print(json.dumps(matrix))
 

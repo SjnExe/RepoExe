@@ -81,8 +81,7 @@ class ProotTestRunner:
         ]
 
         host_arch = platform.machine().lower()
-        is_cross_emu = host_arch in ("x86_64", "amd64") and shutil.which("qemu-aarch64-static")
-        if is_cross_emu:
+        if host_arch in ("x86_64", "amd64") and shutil.which("qemu-aarch64-static"):
             proot_cmd.extend(["-q", "qemu-aarch64-static"])
 
         proot_cmd.extend([target_bash, str(script_path)])
@@ -92,10 +91,18 @@ class ProotTestRunner:
             print(f"✓ [{package_name}] Smoke test passed successfully.")
             return True
 
-        # Handle host QEMU user-mode emulation Signal 11 (Segmentation Fault) notice
-        if is_cross_emu and "Segmentation fault" in res.stderr and res.returncode in (139, -11):
-            print(f"⚠️ [{package_name}] QEMU user-mode emulation segfault ignored on x86_64 runner.")
-            return True
+        # Direct QEMU fallback for Rust binaries if PRoot wrapping throws Signal 11
+        if host_arch in ("x86_64", "amd64") and shutil.which("qemu-aarch64-static"):
+            print(f"Notice: Retrying {package_name} test using direct QEMU execution...")
+            qemu_env = os.environ.copy()
+            staged_bin_dir = destdir / "stage" / rel_prefix / "bin" if destdir else Path()
+            qemu_env["PATH"] = f"{staged_bin_dir}:{qemu_env.get('PATH', '')}"
+
+            qemu_cmd = ["qemu-aarch64-static", str(script_path)]
+            res_qemu = subprocess.run(qemu_cmd, capture_output=True, text=True, env=qemu_env, check=False)
+            if res_qemu.returncode == 0:
+                print(f"✓ [{package_name}] Smoke test passed via direct QEMU execution.")
+                return True
 
         err_msg = (
             f"Smoke test failed for {package_name}:\n"
