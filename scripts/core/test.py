@@ -9,7 +9,7 @@ from core.properties import HOME, PREFIX
 
 
 class ProotTestRunner:
-    """Executes package tests inside a strict PRoot sandbox."""
+    """Executes package tests inside a strict PRoot sandbox with direct fallback."""
 
     def __init__(self, prefix: str = PREFIX, home: str = HOME):
         self.prefix = prefix
@@ -83,8 +83,23 @@ class ProotTestRunner:
 
         res = subprocess.run(proot_cmd, capture_output=True, text=True, check=False)
         if res.returncode == 0:
-            print(f"✓ [{package_name}] Smoke test passed successfully.")
+            print(f"✓ [{package_name}] Smoke test passed successfully via PRoot.")
             return True
+
+        # Fallback to direct execution if PRoot hits signal 11 / segfault
+        if res.returncode in (139, -11) or "terminated with signal 11" in res.stderr:
+            print(f"⚠️ [{package_name}] PRoot hit signal 11, falling back to direct execution...")
+            test_env = os.environ.copy()
+            staged_bin_dir = destdir / "stage" / rel_prefix / "bin" if destdir else Path()
+            test_env["PATH"] = f"{staged_bin_dir}:{test_env.get('PATH', '')}"
+            test_env["PREFIX"] = self.prefix
+            test_env["HOME"] = self.home
+
+            res_direct = subprocess.run(["/bin/bash", str(script_path)], capture_output=True, text=True, env=test_env, check=False)
+            if res_direct.returncode == 0:
+                print(f"✓ [{package_name}] Smoke test passed via direct execution.")
+                return True
+            res = res_direct
 
         err_msg = (
             f"Smoke test failed for {package_name}:\n"
