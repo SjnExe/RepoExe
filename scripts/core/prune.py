@@ -50,6 +50,7 @@ def identify_outdated_assets(
     if pkg_name and ver:
         full_ver = f"{ver}-{rev}" if rev and rev > 0 else ver
         whitelist.add(f"{pkg_name}_{full_ver}_aarch64.deb")
+        whitelist.add(f"{pkg_name}_{full_ver}_arm64.deb")
         whitelist.add(f"{pkg_name}_{full_ver}_all.deb")
         if h:
             whitelist.add(f"{pkg_name}.hash.{h}")

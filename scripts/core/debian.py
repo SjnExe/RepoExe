@@ -9,17 +9,25 @@ from pathlib import Path
 
 from core.parser import PackageRecipe
 
+ARCH_MAP = {
+    "aarch64": "arm64",
+    "x86_64": "amd64",
+    "arm": "armhf",
+    "i686": "i386",
+}
+
 
 def generate_control_file(recipe: PackageRecipe) -> str:
     """Generates standard Debian control file content from a PackageRecipe."""
     version_str = (
         f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
     )
+    deb_arch = ARCH_MAP.get(recipe.architecture, recipe.architecture)
 
     control_lines = [
         f"Package: {recipe.name}",
         f"Version: {version_str}",
-        f"Architecture: {recipe.architecture}",
+        f"Architecture: {deb_arch}",
         f"Maintainer: {recipe.maintainer or 'SjnExe'}",
         f"Description: {recipe.description or 'RepoExe package'}",
     ]
@@ -37,9 +45,12 @@ def prepare_debian_dir(
     stage_dir = build_dir / "stage"
     debian_dir = stage_dir / "DEBIAN"
     debian_dir.mkdir(parents=True, exist_ok=True)
+    debian_dir.chmod(0o755)
 
     control_content = generate_control_file(recipe)
-    (debian_dir / "control").write_text(control_content, encoding="utf-8")
+    control_file = debian_dir / "control"
+    control_file.write_text(control_content, encoding="utf-8")
+    control_file.chmod(0o644)
 
     if pkg_src_dir and pkg_src_dir.exists():
         for item in pkg_src_dir.iterdir():
@@ -71,15 +82,19 @@ def build_deb(
     version_str = (
         f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
     )
-    arch = recipe.architecture or target_arch
+    raw_arch = recipe.architecture or target_arch
+    arch = ARCH_MAP.get(raw_arch, raw_arch)
     deb_filename = f"{recipe.name}_{version_str}_{arch}.deb"
     deb_path = out_path / deb_filename
 
     cmd = ["dpkg-deb", "--build", "-Zzstd", "-z1", str(stage_dir), str(deb_path)]
     res = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if res.returncode != 0:
+        print(f"Notice: dpkg-deb zstd build failed ({res.stderr.strip()}), retrying standard build...")
         cmd = ["dpkg-deb", "--build", str(stage_dir), str(deb_path)]
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        res2 = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if res2.returncode != 0:
+            raise RuntimeError(f"dpkg-deb failed for {recipe.name}: {res2.stderr.strip()}")
 
     return deb_path
 
@@ -109,7 +124,7 @@ def _process_single_deb(deb_file: Path) -> str | None:
 
 
 def generate_apt_metadata(
-    output_dir: str, component: str = "main", arch: str = "aarch64"
+    output_dir: str, component: str = "main", arch: str = "arm64"
 ) -> None:
     """Generates APT Packages index concurrently for all deb archives in output_dir."""
     binary_dir = os.path.join(
@@ -161,7 +176,7 @@ def generate_release_file(
                 sha256 = hashlib.sha256(data).hexdigest()
                 file_entries.append(f" {sha256} {size} {rel_path}")
 
-    arch_str = " ".join(sorted(arches)) or "aarch64"
+    arch_str = " ".join(sorted(arches)) or "arm64"
 
     release_content = (
         f"Origin: RepoExe\n"
