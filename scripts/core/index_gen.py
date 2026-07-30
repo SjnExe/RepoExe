@@ -10,7 +10,7 @@ from core.pip import generate_pip_index
 def prepare_site(
     site_dir: str | Path = "site", artifacts_dir: str | Path = "artifacts"
 ) -> None:
-    """Builds full multi-format repository index from release artifacts."""
+    """Builds full multi-format repository index from release artifacts supporting both arm64 and aarch64."""
     s_path = Path(site_dir)
     art_path = Path(artifacts_dir)
 
@@ -37,15 +37,20 @@ def prepare_site(
             elif f.name.endswith(".tgz"):
                 shutil.copy2(f, s_path / "npm" / f.name)
 
-    # 2. Generate APT Metadata and Release File
+    # 2. Generate APT Metadata and Release File for both arm64 and aarch64
     deb_files = list(apt_staging.glob("*.deb"))
     arches = set()
     for f in deb_files:
         arch = f.name.split("_")[-1].replace(".deb", "")
         if arch != "all":
             arches.add(arch)
+            if arch == "arm64":
+                arches.add("aarch64")
+            elif arch == "aarch64":
+                arches.add("arm64")
+
     if not arches:
-        arches.add("aarch64")
+        arches.update(["arm64", "aarch64"])
 
     for arch in arches:
         generate_apt_metadata(str(apt_staging), component="main", arch=arch)
@@ -75,3 +80,7 @@ def prepare_site(
 
     (s_path / ".nojekyll").touch()
     print(f"✓ Complete RepoExe site environment successfully generated at {s_path}")
+
+
+if __name__ == "__main__":
+    prepare_site()
