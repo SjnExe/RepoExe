@@ -1,27 +1,27 @@
 name: CI Checks & Tests
 
 on:
-  pull_request:
-    branches: [main]
   push:
-    branches-ignore: [main]
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+      - 'refactor/**'
+  workflow_dispatch:
 
 jobs:
   validate:
-    name: Pull Request Quality Checks
+    name: Validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install uv & Dependencies
         run: |
@@ -31,7 +31,11 @@ jobs:
           pip install pytest ruff pydantic pyyaml
 
       - name: Code Quality & Health Audit
+        env:
+          PYTHONPATH: scripts
         run: python scripts/build.py check
 
       - name: Run Pytest
-        run: pytest
+        env:
+          PYTHONPATH: scripts
+        run: python3 -m pytest scripts/tests/

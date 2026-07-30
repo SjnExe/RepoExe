@@ -1,17 +1,27 @@
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
-from pydantic import BaseModel, Field
+import yaml
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChannelOverride(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     version: str | None = None
     revision: int | None = None
-    source_url: str | None = None
+    architecture: str | None = Field(default=None, alias="arch")
+    build_system: str | None = None
+    source_url: str | None = Field(default=None, alias="source")
     sha256: str | None = None
+    formats: list[str] | None = None
+    build_deps: list[str] | None = None
+    deps: list[str] | None = Field(default=None, alias="depends")
+    heavy_build: bool | None = None
     auto_update: bool | None = None
-    update_strategy: str | None = None
+    update_strategy: str | None = Field(default=None, alias="strategy")
     custom_update_cmd: str | None = None
     patches: list[str] | None = None
     phases: dict[str, str] | None = None
@@ -19,21 +29,25 @@ class ChannelOverride(BaseModel):
 
 
 class PackageRecipe(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     name: str
     version: str
     revision: int = 0
-    architecture: str = "aarch64"
-    description: str = ""
+    architecture: str = Field(default="aarch64", alias="arch")
+    description: str = Field(default="", alias="desc")
     license: str = "MIT"
     homepage: str = ""
     maintainer: str = "SjnExe"
     build_system: str = "custom"
-    source_url: str | None = None
+    source_url: str | None = Field(default=None, alias="source")
     sha256: str | None = None
     formats: list[str] = Field(default_factory=lambda: ["apt", "pacman", "apk"])
     build_deps: list[str] = Field(default_factory=list)
+    deps: list[str] = Field(default_factory=list, alias="depends")
+    heavy_build: bool = False
     auto_update: bool = False
-    update_strategy: str | None = None
+    update_strategy: str | None = Field(default=None, alias="strategy")
     custom_update_cmd: str | None = None
     patches: list[str] = Field(default_factory=list)
     phases: dict[str, str] = Field(default_factory=dict)
@@ -43,35 +57,15 @@ class PackageRecipe(BaseModel):
     state_hash: str = ""
 
     def get_channel_recipe(self, channel_name: str = "latest") -> "PackageRecipe":
-        if channel_name == "latest" or channel_name not in self.channels:
-            resolved = self.model_copy(deep=True)
-            resolved.active_channel = channel_name
-            resolved.state_hash = resolved.compute_state_hash()
-            return resolved
+        data = self.model_dump() if hasattr(self, "model_dump") else self.dict()
 
-        override = self.channels[channel_name]
-        data = self.model_dump()
+        if channel_name in self.channels:
+            override = self.channels[channel_name]
+            override_data = override.model_dump(exclude_unset=True) if hasattr(override, "model_dump") else override.dict(exclude_unset=True)
+            data.update(override_data)
 
-        if override.version is not None:
-            data["version"] = override.version
-        if override.revision is not None:
-            data["revision"] = override.revision
-        if override.source_url is not None:
-            data["source_url"] = override.source_url
-        if override.sha256 is not None:
-            data["sha256"] = override.sha256
-        if override.auto_update is not None:
-            data["auto_update"] = override.auto_update
-        if override.update_strategy is not None:
-            data["update_strategy"] = override.update_strategy
-        if override.custom_update_cmd is not None:
-            data["custom_update_cmd"] = override.custom_update_cmd
-        if override.patches is not None:
-            data["patches"] = override.patches
-        if override.phases is not None:
-            data["phases"] = override.phases
-        if override.vars is not None:
-            data["vars"] = {**data.get("vars", {}), **override.vars}
+        if data.get("source_url") and isinstance(data["source_url"], str) and "{version}" in data["source_url"]:
+            data["source_url"] = data["source_url"].replace("{version}", data.get("version", ""))
 
         data["active_channel"] = channel_name
         resolved = PackageRecipe(**data)
@@ -84,6 +78,7 @@ class PackageRecipe(BaseModel):
             "version": self.version,
             "revision": self.revision,
             "architecture": self.architecture,
+            "build_system": self.build_system,
             "source_url": self.source_url,
             "sha256": self.sha256,
             "formats": sorted(self.formats),
@@ -97,8 +92,6 @@ class PackageRecipe(BaseModel):
 
 
 def parse_recipe(recipe_path: Path, channel: str = "latest") -> PackageRecipe:
-    import yaml
-
     if not recipe_path.exists():
         raise FileNotFoundError(f"Recipe file not found: {recipe_path}")
 

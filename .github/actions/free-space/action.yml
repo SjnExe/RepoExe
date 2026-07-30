@@ -1,26 +1,22 @@
 name: 'Free Disk Space'
-description: 'Frees up massive unused directories on GitHub Actions Ubuntu runners to maximize disk space before compiling.'
+description: 'Removes unused runner SDKs and caches in parallel to free up ~25GB of disk space fast'
 
 runs:
   using: 'composite'
   steps:
-    - name: Optimize Disk Space
+    - name: Purge Unused Runner Assets
       shell: bash
       run: |
-        echo "Optimizing disk space on GitHub Actions runner..."
-
+        echo "🧹 Freeing disk space on runner..."
         echo "Disk space BEFORE:"
-        df -h
+        df -h /
 
-        # Remove massive unused directories on standard Ubuntu GitHub runners in parallel to save time
         sudo rm -rf /usr/share/dotnet &
         sudo rm -rf /usr/local/lib/android &
         sudo rm -rf /opt/ghc &
         sudo rm -rf /opt/hostedtoolcache/CodeQL &
         sudo rm -rf "$AGENT_TOOLSDIRECTORY" &
-
-        # Wait for all background deletion jobs to finish
         wait
 
         echo "Disk space AFTER:"
-        df -h
+        df -h /

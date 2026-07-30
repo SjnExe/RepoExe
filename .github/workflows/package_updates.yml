@@ -17,14 +17,16 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v9
         with:
           enable-cache: true
 
       - name: Run upstream_check.py
         id: check
+        env:
+          PYTHONPATH: scripts
         run: |
-          uv --project scripts run python scripts/core/upstream_check.py > update_log.txt 2>&1 || true
+          uv run python scripts/core/upstream_check.py > update_log.txt 2>&1 || true
           cat update_log.txt
 
           grep "Update available for" update_log.txt > updates_to_process.txt || true
@@ -45,7 +47,7 @@ jobs:
               OLD="${BASH_REMATCH[3]}"
               NEW="${BASH_REMATCH[4]}"
 
-              BRANCH_NAME="update-${PKG}-${CHANNEL}-${NEW}"
+              BRANCH_NAME="update/${PKG}@${CHANNEL}/${NEW}"
 
               if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
                 echo "Branch $BRANCH_NAME already exists, skipping."
@@ -55,30 +57,28 @@ jobs:
               echo "Processing update for $PKG@$CHANNEL to $NEW"
               git checkout -b "$BRANCH_NAME"
 
-              if [ "$CHANNEL" == "latest" ]; then
-                sed -i "s/^version: .*/version: \"$NEW\"/" "pkg/$PKG/build.yml"
-                sed -i "s/^revision: .*/revision: 0/" "pkg/$PKG/build.yml"
-              else
-                python3 -c "
-                import yaml
-                p = 'pkg/$PKG/build.yml'
-                with open(p, 'r') as f:
-                    d = yaml.safe_load(f)
-                if 'channels' in d and '$CHANNEL' in d['channels']:
-                    d['channels']['$CHANNEL']['version'] = '$NEW'
-                    d['channels']['$CHANNEL']['revision'] = 0
-                with open(p, 'w') as f:
-                    yaml.dump(d, f, sort_keys=False)
-                "
-              fi
+              python3 -c "
+              import yaml
+              p = 'pkg/$PKG/build.yml'
+              with open(p, 'r') as f:
+                  d = yaml.safe_load(f)
+              d['version'] = '$NEW'
+              d['revision'] = 0
+              if 'channels' in d and '$CHANNEL' in d['channels']:
+                  d['channels']['$CHANNEL']['version'] = '$NEW'
+                  d['channels']['$CHANNEL']['revision'] = 0
+              with open(p, 'w') as f:
+                  yaml.dump(d, f, sort_keys=False)
+              "
 
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
               git add "pkg/$PKG/build.yml"
-              git commit -m "feat($PKG): update $CHANNEL channel to $NEW"
+              git commit -m "feat($PKG@$CHANNEL): update to $NEW"
 
               git push origin "$BRANCH_NAME"
               gh pr create --title "feat($PKG@$CHANNEL): update to $NEW" --body "Automated update for channel **$CHANNEL** from $OLD to $NEW" --base main --head "$BRANCH_NAME"
+              gh pr merge "$BRANCH_NAME" --auto --squash
 
               git checkout main
             fi

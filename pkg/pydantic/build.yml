@@ -16,12 +16,14 @@ channels:
     version: "2.13.4"
     auto_update: true
     update_strategy: pypi
-    source_url: https://files.pythonhosted.org/packages/source/p/pydantic/pydantic-2.10.6.tar.gz
+    source_url: https://files.pythonhosted.org/packages/source/p/pydantic/pydantic-{version}.tar.gz
 
 build_system: custom
 phases:
   make: |
-    python3 -m pip wheel . --no-deps -w output/ || true
-    python3 -m pip install --target="${DESTDIR}${PREFIX}/lib/python3.11/site-packages" . --no-deps || true
+    python3 -m pip wheel . -w output/ || true
+    python3 -m pip install --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
-    echo "Installed pydantic site-packages"
+    echo "Installed pydantic site-packages into staging"
+  test: |
+    python3 -c "import pydantic; print('pydantic ok')"

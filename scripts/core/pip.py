@@ -1,26 +1,43 @@
 import hashlib
 import shutil
-import subprocess
+import zipfile
 from pathlib import Path
 
 from core.parser import PackageRecipe
 
 
 def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
-    """Builds a universal/Termux-compatible wheel from staged site-packages or binaries."""
+    """Builds a universal/Termux-compatible wheel from staged site-packages or reuses pre-built wheel."""
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    stage_dir = Path(destdir) / "stage"
     pkg_name = recipe.name.replace("-", "_")
+    existing_wheels = list(out_path.glob(f"{pkg_name}*.whl"))
+    if existing_wheels:
+        return existing_wheels[0]
+
+    stage_dir = Path(destdir) / "stage"
     wheel_name = f"{pkg_name}-{recipe.version}-py3-none-any.whl"
     wheel_path = out_path / wheel_name
 
     wheel_build_dir = Path(destdir) / "wheel_build"
+    if wheel_build_dir.exists():
+        shutil.rmtree(wheel_build_dir)
     wheel_build_dir.mkdir(parents=True, exist_ok=True)
 
-    if stage_dir.exists():
+    python_staged = list(stage_dir.rglob("site-packages")) + list(stage_dir.rglob("dist-packages"))
+    if python_staged:
+        for p_dir in python_staged:
+            for item in p_dir.iterdir():
+                target = wheel_build_dir / item.name
+                if item.is_dir():
+                    shutil.copytree(item, target, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(item, target)
+    elif stage_dir.exists():
         for item in stage_dir.iterdir():
+            if item.name in ("DEBIAN", ".PKGINFO", "npm_package", "wheel_build"):
+                continue
             target = wheel_build_dir / item.name
             if item.is_dir():
                 shutil.copytree(item, target, dirs_exist_ok=True)
@@ -39,12 +56,12 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         encoding="utf-8",
     )
 
-    subprocess.run(
-        ["zip", "-q", "-r", str(wheel_path), "."],
-        cwd=wheel_build_dir,
-        check=True,
-        capture_output=True,
-    )
+    with zipfile.ZipFile(wheel_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for file_path in sorted(wheel_build_dir.rglob("*")):
+            if file_path.is_file():
+                arcname = file_path.relative_to(wheel_build_dir)
+                zf.write(file_path, arcname)
+
     return wheel_path
 
 

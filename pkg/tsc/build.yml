@@ -25,8 +25,11 @@ vars:
   GOOS: "android"
   GOARCH: "arm64"
   CGO_ENABLED: "0"
+  GOTOOLCHAIN: "local"
 
 phases:
+  prepare: |
+    [ -f go.mod ] && sed -i 's/^go 1\.[0-9]*/go 1.22/' go.mod || true
   make: |
     echo "Patching fanotify for Android Seccomp compatibility..."
     python3 -c '
@@ -48,7 +51,7 @@ phases:
     except Exception as e:
         print("Notice: " + str(e))
     '
-    go mod edit -go=1.26
-    go build -ldflags="-s -w" -o tsc ./cmd/tsgo || go build -ldflags="-s -w" -o tsc .
+    go mod tidy || true
+    go build -buildvcs=false -ldflags="-s -w" -o tsc ./cmd/tsgo
   install: |
     install -Dm755 tsc "${DESTDIR}${PREFIX}/bin/tsc"

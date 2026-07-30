@@ -29,7 +29,7 @@ def test_debian_control_generation():
     control = generate_control_file(recipe)
     assert "Package: tsc" in control
     assert "Version: 7.0.2" in control
-    assert "Architecture: aarch64" in control
+    assert "Architecture: arm64" in control
     assert "Maintainer: SjnExe" in control
 
 

@@ -29,17 +29,11 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     bin_dir = npm_pkg_dir / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
 
-    stage_bin = (
-        stage_dir
-        / "data"
-        / "data"
-        / "com.termux"
-        / "files"
-        / "usr"
-        / "bin"
-        / recipe.name
+    stage_bin = next(
+        (f for f in stage_dir.rglob(recipe.name) if f.is_file() and "DEBIAN" not in f.parts and f.name == recipe.name),
+        None,
     )
-    if stage_bin.exists():
+    if stage_bin and stage_bin.exists():
         bin_target = bin_dir / recipe.name
         shutil.copy2(stage_bin, bin_target)
         bin_target.chmod(0o755)

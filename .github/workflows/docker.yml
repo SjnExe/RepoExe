@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set lower case owner name
-        run: echo "OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+        run: echo "OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -47,9 +47,14 @@ jobs:
         with:
           context: .
           file: ./scripts/docker/Dockerfile
-          push: true
+          push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max' || '' }}
           provenance: false
+
+      - name: Fast Docker Container Verification
+        run: |
+          docker run --rm "ghcr.io/${{ env.OWNER }}/repoexe-builder:latest" python3 -c "import pydantic, yaml; print('✓ Docker container healthy')"
