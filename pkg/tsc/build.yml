@@ -30,8 +30,8 @@ vars:
     GOTOOLCHAIN: "local"
 
 phases:
-    prepare: |
-      [ -f go.mod ] && sed -i 's/^go 1\.2[0-9]/go 1.22/' go.mod || true
+  prepare: |
+    [ -f go.mod ] && sed -i 's/^go 1\.[0-9]*/go 1.22/' go.mod || true
   make: |
     echo "Patching fanotify for Android Seccomp compatibility..."
     python3 -c '
@@ -53,7 +53,6 @@ phases:
     except Exception as e:
         print("Notice: " + str(e))
     '
-    go mod edit -go=1.26
     go build -ldflags="-s -w" -o tsc ./cmd/tsgo || go build -ldflags="-s -w" -o tsc .
   install: |
     install -Dm755 tsc "${DESTDIR}${PREFIX}/bin/tsc"
