@@ -25,3 +25,5 @@ phases:
     python3 -m pip install --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" . --no-deps
   install: |
     echo "Installed pydantic site-packages into staging"
+  test: |
+    python3 -c "import pydantic; print('pydantic ok')"

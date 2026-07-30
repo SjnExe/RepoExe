@@ -107,9 +107,9 @@ jobs:
         with:
           size: '4G'
 
-      - name: Prepare Workspace Permissions
+      - name: Prepare Workspace & Log Dirs
         run: |
-          mkdir -p build output
+          mkdir -p build output build_logs
           sudo chmod -R 777 .
 
       - name: Log in to GitHub Container Registry
@@ -126,6 +126,8 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
+          LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
+          echo "=== STAGE: COMPILE ===" >> "$LOG_FILE"
 
           docker run --rm \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
@@ -133,7 +135,7 @@ jobs:
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py compile \"pkg/$PKG_NAME\" --channel \"$CHANNEL\""
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py compile \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
 
       - name: Assemble Package Archives
         env:
@@ -142,6 +144,8 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
+          LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
+          echo "=== STAGE: PACK ===" >> "$LOG_FILE"
 
           docker run --rm \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
@@ -149,7 +153,7 @@ jobs:
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py pack \"pkg/$PKG_NAME\" --channel \"$CHANNEL\""
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py pack \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
 
       - name: PRoot + QEMU Smoke Test
         env:
@@ -158,6 +162,8 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
+          LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
+          echo "=== STAGE: TEST ===" >> "$LOG_FILE"
 
           docker run --rm \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
@@ -165,7 +171,15 @@ jobs:
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py test \"pkg/$PKG_NAME\" --channel \"$CHANNEL\""
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py test \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
+
+      - name: Upload Single Target Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ matrix.package }}-${{ matrix.channel }}
+          path: build_logs/
+          retention-days: 1
 
       - name: Publish Release Tag & Artifacts
         if: ${{ needs.generate-matrix.outputs.should_publish == 'true' }}
@@ -191,18 +205,59 @@ jobs:
           fi
 
   build-status:
-    name: Build Status
+    name: Build Status & Log Aggregator
     needs: [generate-matrix, build-package]
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Download All Target Build Logs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: build-log-*
+          path: all_logs
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Aggregate All Logs Into Summary Text File
+        run: |
+          mkdir -p summary
+          SUMMARY_FILE="summary/all_build_logs.txt"
+          echo "================================================================================" > "$SUMMARY_FILE"
+          echo "REPOEXE AUTOMATED MATRIX BUILD & SMOKE TEST LOG SUMMARY" >> "$SUMMARY_FILE"
+          echo "================================================================================" >> "$SUMMARY_FILE"
+          echo "" >> "$SUMMARY_FILE"
+
+          if [ -d "all_logs" ] && [ "$(ls -A all_logs 2>/dev/null)" ]; then
+            for logfile in all_logs/*.log; do
+              if [ -f "$logfile" ]; then
+                target_name=$(basename "$logfile" .log)
+                echo "--------------------------------------------------------------------------------" >> "$SUMMARY_FILE"
+                echo "TARGET LOG: $target_name" >> "$SUMMARY_FILE"
+                echo "--------------------------------------------------------------------------------" >> "$SUMMARY_FILE"
+                cat "$logfile" >> "$SUMMARY_FILE"
+                echo "" >> "$SUMMARY_FILE"
+                echo "" >> "$SUMMARY_FILE"
+              fi
+            done
+          else
+            echo "No build logs collected." >> "$SUMMARY_FILE"
+          fi
+
+      - name: Upload Aggregated Log Summary Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aggregated-build-logs
+          path: summary/all_build_logs.txt
+          retention-days: 7
+
       - name: Verify Matrix Results
         run: |
           if [ "${{ needs.build-package.result }}" = "failure" ] || [ "${{ needs.build-package.result }}" = "cancelled" ]; then
-            echo "Package matrix build failed!"
+            echo "❌ Matrix build failed! Download the 'aggregated-build-logs' artifact for detailed logs."
             exit 1
           fi
-          echo "All matrix targets built successfully or skipped."
+          echo "✓ All matrix targets built successfully or skipped."
 
   publish-site:
     name: Deploy

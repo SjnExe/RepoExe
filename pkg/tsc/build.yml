@@ -52,6 +52,6 @@ phases:
         print("Notice: " + str(e))
     '
     go mod tidy || true
-    go build -ldflags="-s -w" -o tsc ./cmd/tsgo
+    go build -buildvcs=false -ldflags="-s -w" -o tsc ./cmd/tsgo
   install: |
     install -Dm755 tsc "${DESTDIR}${PREFIX}/bin/tsc"
