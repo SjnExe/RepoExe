@@ -44,6 +44,8 @@ class ProotTestRunner:
             "/proc",
             "-b",
             "/sys",
+            "-b",
+            "/tmp:/tmp",
             *extra_binds,
             "-b",
             f"{self.prefix}:{self.prefix}",
