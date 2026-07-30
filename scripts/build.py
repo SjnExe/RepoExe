@@ -140,7 +140,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                 subprocess.run(["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)], check=True)
             work_dir = src_extract_dir
 
-    env["DESTDIR"] = str(stage_dir)
+    env["DESTDIR"] = str(stage_dir.resolve())
     env["PREFIX"] = "/data/data/com.termux/files/usr"
 
     phases = getattr(recipe, "phases", {})
@@ -257,8 +257,8 @@ def main() -> None:
             print(f"✓ Dry-run complete for {recipe.name} ({args.command}).")
             return
 
-        destdir = Path("build") / f"build_{recipe.name}"
-        output_dir = Path("output")
+        destdir = (Path.cwd() / "build" / f"build_{recipe.name}").resolve()
+        output_dir = (Path.cwd() / "output").resolve()
 
         if args.command == "compile":
             execute_compile(recipe, p_dir, destdir)
