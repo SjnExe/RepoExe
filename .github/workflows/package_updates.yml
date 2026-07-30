@@ -57,19 +57,19 @@ jobs:
               echo "Processing update for $PKG@$CHANNEL to $NEW"
               git checkout -b "$BRANCH_NAME"
 
-              python3 -c "
-              import yaml
-              p = 'pkg/$PKG/build.yml'
-              with open(p, 'r') as f:
-                  d = yaml.safe_load(f)
-              d['version'] = '$NEW'
-              d['revision'] = 0
-              if 'channels' in d and '$CHANNEL' in d['channels']:
-                  d['channels']['$CHANNEL']['version'] = '$NEW'
-                  d['channels']['$CHANNEL']['revision'] = 0
-              with open(p, 'w') as f:
-                  yaml.dump(d, f, sort_keys=False)
-              "
+              python3 - << PYEOF
+import yaml
+recipe_path = 'pkg/$PKG/build.yml'
+with open(recipe_path, 'r') as f:
+    d = yaml.safe_load(f)
+d['version'] = '$NEW'
+d['revision'] = 0
+if 'channels' in d and '$CHANNEL' in d['channels']:
+    d['channels']['$CHANNEL']['version'] = '$NEW'
+    d['channels']['$CHANNEL']['revision'] = 0
+with open(recipe_path, 'w') as f:
+    yaml.dump(d, f, sort_keys=False)
+PYEOF
 
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
