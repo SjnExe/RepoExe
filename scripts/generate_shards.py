@@ -6,27 +6,55 @@ from pathlib import Path
 from core.parser import parse_recipe
 
 
-def get_changed_packages(repo_root: Path) -> set[str]:
-    """Inspects git diff to find modified packages in pkg/."""
+def get_git_diff_files(repo_root: Path) -> set[str]:
+    """Inspects git diff to find modified files."""
+    base_ref = os.environ.get("GITHUB_BASE_REF", "").strip()
+    if base_ref:
+        diff_cmd = ["git", "diff", "--name-only", f"origin/{base_ref}...HEAD"]
+    else:
+        diff_cmd = ["git", "diff", "--name-only", "HEAD~1", "HEAD"]
+
     try:
         res = subprocess.run(
-            ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
+            diff_cmd,
             cwd=repo_root,
             capture_output=True,
             text=True,
             check=False,
         )
         if res.returncode != 0 or not res.stdout.strip():
-            return set()
-
-        changed = set()
-        for line in res.stdout.splitlines():
-            parts = Path(line.strip()).parts
-            if len(parts) >= 2 and parts[0] == "pkg":
-                changed.add(parts[1])
-        return changed
+            res = subprocess.run(
+                ["git", "diff", "--name-only", "HEAD"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        if res.returncode == 0 and res.stdout.strip():
+            return set(res.stdout.splitlines())
     except Exception:
-        return set()
+        pass
+    return set()
+
+
+def inspect_changes(repo_root: Path) -> tuple[bool, set[str]]:
+    files = get_git_diff_files(repo_root)
+    if not files:
+        return False, set()
+
+    core_changed = False
+    changed_pkgs = set()
+
+    for file in files:
+        parts = Path(file.strip()).parts
+        if not parts:
+            continue
+        if parts[0] == "pkg" and len(parts) >= 2:
+            changed_pkgs.add(parts[1])
+        elif parts[0] in ("scripts", ".github", "docker") or file in ("pyproject.toml", "Dockerfile"):
+            core_changed = True
+
+    return core_changed, changed_pkgs
 
 
 def main() -> None:
@@ -56,11 +84,13 @@ def main() -> None:
             return ["latest"]
 
     if not raw_input or raw_input == "auto":
-        changed = get_changed_packages(repo_root)
-        if changed:
-            candidates = {(p, "latest") for p in changed if (pkgs_dir / p).exists()}
-        else:
+        core_changed, changed_pkgs = inspect_changes(repo_root)
+        if core_changed:
             candidates = {(p, "latest") for p in all_pkg_dirs}
+        elif changed_pkgs:
+            candidates = {(p, "latest") for p in changed_pkgs if (pkgs_dir / p).exists()}
+        else:
+            candidates = set()
     else:
         incl_tokens, excl_tokens = [], []
         for token in raw_input.split():
