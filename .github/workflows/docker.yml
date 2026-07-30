@@ -48,8 +48,13 @@ jobs:
           context: .
           file: ./scripts/docker/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
+
+      - name: Fast Docker Container Verification
+        run: |
+          docker run --rm "ghcr.io/${{ env.OWNER }}/repoexe-builder:latest" python3 -c "import pydantic, yaml; print('✓ Docker container healthy')"
