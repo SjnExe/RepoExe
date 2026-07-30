@@ -236,7 +236,10 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
         run: |
           TAG="${PKG_NAME}@${CHANNEL}"
-          gh release create "$TAG" --title "$PKG_NAME ($CHANNEL)" --notes "Automated build for $TAG" 2>/dev/null || true
+          RECIPE_VER=$(python3 -c "from core.parser import parse_recipe; from pathlib import Path; r=parse_recipe(Path('pkg/$PKG_NAME/build.yml'), channel='$CHANNEL'); print(r.version)")
+          RELEASE_TITLE="$PKG_NAME v$RECIPE_VER [$CHANNEL]"
+
+          gh release create "$TAG" --title "$RELEASE_TITLE" --notes "Automated release build for $TAG" 2>/dev/null || gh release edit "$TAG" --title "$RELEASE_TITLE" --notes "Automated release build for $TAG"
 
           if [ -d "output" ] && [ "$(ls -A output)" ]; then
             for file in output/*; do
