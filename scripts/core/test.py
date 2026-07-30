@@ -24,6 +24,19 @@ class ProotTestRunner:
             Path(self.prefix).mkdir(parents=True, exist_ok=True)
             Path(self.home).mkdir(parents=True, exist_ok=True)
 
+        empty_root = Path(tempfile.gettempdir()) / "empty_rootfs_for_proot"
+        empty_root.mkdir(parents=True, exist_ok=True)
+
+        rel_prefix = Path(self.prefix).relative_to("/")
+        rel_home = Path(self.home).relative_to("/")
+        (empty_root / rel_prefix).mkdir(parents=True, exist_ok=True)
+        (empty_root / rel_home).mkdir(parents=True, exist_ok=True)
+
+        staged_prefix = destdir / "stage" / rel_prefix if destdir else None
+        stage_bind = f"{self.prefix}:{self.prefix}"
+        if staged_prefix and staged_prefix.exists():
+            stage_bind = f"{staged_prefix}:{self.prefix}"
+
         script_path = Path(tempfile.gettempdir()) / f"test_{package_name}.sh"
         script_content = (
             f"#!/bin/bash\n"
@@ -37,24 +50,13 @@ class ProotTestRunner:
         script_path.write_text(script_content, encoding="utf-8")
         script_path.chmod(0o755)
 
-        empty_root = Path(tempfile.gettempdir()) / "empty_rootfs_for_proot"
-        empty_root.mkdir(parents=True, exist_ok=True)
-
-        rel_prefix = Path(self.prefix).relative_to("/")
-        (empty_root / rel_prefix).mkdir(parents=True, exist_ok=True)
-
-        stage_bind = f"{self.prefix}:{self.prefix}"
-        if destdir:
-            staged_prefix = destdir / "stage" / rel_prefix
-            if staged_prefix.exists():
-                stage_bind = f"{staged_prefix}:{self.prefix}"
-
         target_bash = f"{self.prefix}/bin/bash"
         extra_binds = []
         if not Path(target_bash).exists():
             target_bash = "/bin/bash"
             for p in ["/bin", "/usr", "/lib", "/lib64"]:
                 if Path(p).exists():
+                    (empty_root / Path(p).relative_to("/")).mkdir(parents=True, exist_ok=True)
                     extra_binds.extend(["-b", f"{p}:{p}"])
 
         proot_cmd = [
@@ -90,9 +92,25 @@ class ProotTestRunner:
         if res.returncode in (139, -11) or "terminated with signal 11" in res.stderr:
             print(f"⚠️ [{package_name}] PRoot hit signal 11, falling back to direct execution...")
             test_env = os.environ.copy()
-            staged_bin_dir = destdir / "stage" / rel_prefix / "bin" if destdir else Path()
-            test_env["PATH"] = f"{staged_bin_dir}:{test_env.get('PATH', '')}"
-            test_env["PREFIX"] = self.prefix
+
+            if staged_prefix and staged_prefix.exists():
+                test_env["PREFIX"] = str(staged_prefix)
+                staged_bin = staged_prefix / "bin"
+                if staged_bin.exists():
+                    test_env["PATH"] = f"{staged_bin}:{test_env.get('PATH', '')}"
+
+                py_dirs = [
+                    str(staged_prefix / "lib" / "python3" / "dist-packages"),
+                    str(staged_prefix / "lib" / "python3" / "site-packages"),
+                    str(staged_prefix / "lib" / "python3.13" / "site-packages"),
+                ]
+                pypath = [p for p in py_dirs if Path(p).exists()]
+                if test_env.get("PYTHONPATH"):
+                    pypath.append(test_env["PYTHONPATH"])
+                test_env["PYTHONPATH"] = ":".join(pypath)
+            else:
+                test_env["PREFIX"] = self.prefix
+
             test_env["HOME"] = self.home
 
             res_direct = subprocess.run(["/bin/bash", str(script_path)], capture_output=True, text=True, env=test_env, check=False)
