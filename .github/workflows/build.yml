@@ -125,6 +125,7 @@ jobs:
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
         run: |
+          set -o pipefail
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
           LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
           echo "=== STAGE: COMPILE ===" >> "$LOG_FILE"
@@ -143,6 +144,7 @@ jobs:
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
         run: |
+          set -o pipefail
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
           LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
           echo "=== STAGE: PACK ===" >> "$LOG_FILE"
@@ -161,6 +163,7 @@ jobs:
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
         run: |
+          set -o pipefail
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
           LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
           echo "=== STAGE: TEST ===" >> "$LOG_FILE"

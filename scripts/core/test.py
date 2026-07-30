@@ -26,9 +26,14 @@ class ProotTestRunner:
             Path(self.home).mkdir(parents=True, exist_ok=True)
 
         script_path = Path(tempfile.gettempdir()) / f"test_{package_name}.sh"
-        script_path.write_text(
-            f"#!/bin/bash\nset -e\n{test_commands}\n", encoding="utf-8"
+        script_content = (
+            f"#!/bin/bash\n"
+            f"set -e\n"
+            f"export PATH=\"{self.prefix}/bin:$PATH\"\n"
+            f"export LD_LIBRARY_PATH=\"{self.prefix}/lib:$LD_LIBRARY_PATH\"\n"
+            f"{test_commands}\n"
         )
+        script_path.write_text(script_content, encoding="utf-8")
         script_path.chmod(0o755)
 
         empty_root = Path(tempfile.gettempdir()) / "empty_rootfs_for_proot"
