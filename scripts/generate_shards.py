@@ -6,27 +6,48 @@ from pathlib import Path
 from core.parser import parse_recipe
 
 
-def get_changed_packages(repo_root: Path) -> set[str]:
-    """Inspects git diff to find modified packages in pkg/."""
+def get_git_diff_files(repo_root: Path) -> set[str]:
+    """Inspects git diff to find modified files."""
+    base_ref = os.environ.get("GITHUB_BASE_REF", "").strip()
+    if base_ref:
+        diff_cmd = ["git", "diff", "--name-only", f"origin/{base_ref}...HEAD"]
+    else:
+        diff_cmd = ["git", "diff", "--name-only", "HEAD~1", "HEAD"]
+
     try:
         res = subprocess.run(
-            ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
+            diff_cmd,
             cwd=repo_root,
             capture_output=True,
             text=True,
             check=False,
         )
         if res.returncode != 0 or not res.stdout.strip():
-            return set()
-
-        changed = set()
-        for line in res.stdout.splitlines():
-            parts = Path(line.strip()).parts
-            if len(parts) >= 2 and parts[0] == "pkg":
-                changed.add(parts[1])
-        return changed
+            res = subprocess.run(
+                ["git", "diff", "--name-only", "HEAD"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        if res.returncode == 0 and res.stdout.strip():
+            return set(res.stdout.splitlines())
     except Exception:
-        return set()
+        pass
+    return set()
+
+
+def get_changed_packages(repo_root: Path) -> set[str]:
+    """Finds packages under pkg/ that have explicit file modifications."""
+    files = get_git_diff_files(repo_root)
+    changed_pkgs = set()
+
+    for file in files:
+        parts = Path(file.strip()).parts
+        if len(parts) >= 2 and parts[0] == "pkg":
+            changed_pkgs.add(parts[1])
+
+    return changed_pkgs
 
 
 def main() -> None:
@@ -55,13 +76,12 @@ def main() -> None:
         except Exception:
             return ["latest"]
 
+    # Standard PR/Push auto-mode: ONLY build packages modified under pkg/
     if not raw_input or raw_input == "auto":
-        changed = get_changed_packages(repo_root)
-        if changed:
-            candidates = {(p, "latest") for p in changed if (pkgs_dir / p).exists()}
-        else:
-            candidates = {(p, "latest") for p in all_pkg_dirs}
+        changed_pkgs = get_changed_packages(repo_root)
+        candidates = {(p, "latest") for p in changed_pkgs if (pkgs_dir / p).exists()}
     else:
+        # Manual workflow_dispatch mode (e.g., "all@all", "tsc@latest")
         incl_tokens, excl_tokens = [], []
         for token in raw_input.split():
             if token.startswith("!"):

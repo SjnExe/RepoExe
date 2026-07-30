@@ -44,6 +44,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -76,8 +78,9 @@ jobs:
       - name: Generate Matrix
         id: matrix
         env:
-          TARGET_INPUT: ${{ inputs.packages || 'all@all' }}
+          TARGET_INPUT: ${{ inputs.packages || 'auto' }}
           PYTHONPATH: scripts
+          GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
           MATRIX_JSON=$(python scripts/generate_shards.py)
           echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
@@ -234,6 +237,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
+          PYTHONPATH: scripts
         run: |
           TAG="${PKG_NAME}@${CHANNEL}"
           RECIPE_VER=$(python3 -c "from core.parser import parse_recipe; from pathlib import Path; r=parse_recipe(Path('pkg/$PKG_NAME/build.yml'), channel='$CHANNEL'); print(r.version)")
