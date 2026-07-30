@@ -21,6 +21,8 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
 
     if stage_dir.exists():
         for item in stage_dir.iterdir():
+            if item.name in ("DEBIAN", ".PKGINFO", "npm_package", "wheel_build"):
+                continue
             target = wheel_build_dir / item.name
             if item.is_dir():
                 shutil.copytree(item, target, dirs_exist_ok=True)
