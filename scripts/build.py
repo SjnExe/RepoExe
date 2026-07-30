@@ -113,6 +113,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
 
     print(f"[COMPILING] Package: {recipe.name} (Channel: {recipe.active_channel})")
 
+    destdir.parent.mkdir(parents=True, exist_ok=True)
     if destdir.exists():
         shutil.rmtree(destdir)
     destdir.mkdir(parents=True, exist_ok=True)
@@ -258,9 +259,6 @@ def main() -> None:
 
         destdir = Path("build") / f"build_{recipe.name}"
         output_dir = Path("output")
-        output_dir.mkdir(parents=True, exist_ok=True)
-        with contextlib.suppress(OSError):
-            os.chmod(output_dir, 0o777)
 
         if args.command == "compile":
             execute_compile(recipe, p_dir, destdir)

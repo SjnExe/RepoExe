@@ -107,6 +107,11 @@ jobs:
         with:
           size: '4G'
 
+      - name: Prepare Workspace Permissions
+        run: |
+          mkdir -p build output
+          sudo chmod -R 777 .
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
         with:
@@ -120,8 +125,6 @@ jobs:
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
         run: |
-          mkdir -p output
-          chmod -R 777 output
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
 
           docker run --rm \
@@ -138,8 +141,6 @@ jobs:
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
         run: |
-          mkdir -p output
-          chmod -R 777 output
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
 
           docker run --rm \
@@ -156,8 +157,6 @@ jobs:
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
         run: |
-          mkdir -p output
-          chmod -R 777 output
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
 
           docker run --rm \
