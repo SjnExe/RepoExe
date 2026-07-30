@@ -121,11 +121,10 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
         run: |
           mkdir -p output
-          chmod 777 output
+          chmod -R 777 output
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
 
           docker run --rm \
-            --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \
@@ -140,11 +139,10 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
         run: |
           mkdir -p output
-          chmod 777 output
+          chmod -R 777 output
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
 
           docker run --rm \
-            --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \
@@ -159,11 +157,10 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
         run: |
           mkdir -p output
-          chmod 777 output
+          chmod -R 777 output
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
 
           docker run --rm \
-            --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \

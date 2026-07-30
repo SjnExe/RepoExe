@@ -164,7 +164,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
 def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     with contextlib.suppress(OSError):
-        output_dir.chmod(0o777)
+        os.chmod(output_dir, 0o777)
 
     stage_dir = destdir / "stage"
     installed_files = list(stage_dir.rglob("*")) if stage_dir.exists() else []
@@ -256,7 +256,7 @@ def main() -> None:
         output_dir = Path("output")
         output_dir.mkdir(parents=True, exist_ok=True)
         with contextlib.suppress(OSError):
-            output_dir.chmod(0o777)
+            os.chmod(output_dir, 0o777)
 
         if args.command == "compile":
             execute_compile(recipe, p_dir, destdir)
