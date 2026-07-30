@@ -170,7 +170,13 @@ def execute_build(
     env["PREFIX"] = "/data/data/com.termux/files/usr"
 
     phases = getattr(recipe, "phases", {})
+    prepare_cmd = phases.get("prepare")
     make_cmd = phases.get("make")
+
+    if prepare_cmd:
+        res = subprocess.run(prepare_cmd, shell=True, cwd=work_dir, env=env, check=False)
+        if res.returncode != 0:
+            raise RuntimeError(f"Prepare phase failed for {recipe.name}")
     install_cmd = phases.get("install")
     test_cmd = phases.get("test")
 

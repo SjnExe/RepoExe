@@ -22,6 +22,6 @@ build_system: custom
 phases:
   make: |
     python3 -m pip wheel . --no-deps -w output/ || true
-    python3 -m pip install --target="${DESTDIR}${PREFIX}/lib/python3.11/site-packages" . --no-deps || true
+    python3 -m pip install --target="$(python3 -c "import site; print(site.getsitepackages()[0])")" . --no-deps || true
   install: |
     echo "Installed pyyaml site-packages"

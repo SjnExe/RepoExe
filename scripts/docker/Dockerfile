@@ -7,7 +7,7 @@ ENV LANG=en_US.UTF-8
 # Base dependencies
 RUN apt-get update && apt-get install -yq --no-install-recommends \
     zstd locales apt-utils eatmydata sudo curl git ca-certificates aria2 \
-    unzip patch golang rustc cargo build-essential nodejs npm shellcheck \
+    unzip patch rustc cargo build-essential nodejs npm shellcheck \
     proot abigail-tools graphviz dpkg-dev gcc-aarch64-linux-gnu g++-aarch64-linux-gnu python3-pip python3-yaml python3-pydantic \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \
@@ -59,6 +59,12 @@ RUN userdel -r ubuntu || true \
   && echo "builder ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/builder \
   && chmod 0440 /etc/sudoers.d/builder \
   && chown -R builder:builder /data/data/com.termux /home/builder
+
+
+# Install Official Latest Go Toolchain
+RUN GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -n1) \
+  && curl -fsSL "https://go.dev/dl/${GO_VERSION}.linux-amd64.tar.gz" | tar -C /usr/local -xz
+ENV PATH="/usr/local/go/bin:${PATH}"
 
 USER builder:builder
 WORKDIR /home/builder
