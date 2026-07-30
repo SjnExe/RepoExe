@@ -1,6 +1,5 @@
 import concurrent.futures
 import json
-import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -23,7 +22,7 @@ def get_expected_asset_filenames(recipe: PackageRecipe) -> set[str]:
         f"{pkg}_metadata.json",
     }
 
-    formats = getattr(recipe, "formats", ["apt"])
+    formats = set(recipe.formats) if hasattr(recipe, "formats") and recipe.formats else {"apt"}
 
     if "apt" in formats:
         expected.add(f"{pkg}_{version_str_deb}_arm64.deb")
@@ -34,7 +33,7 @@ def get_expected_asset_filenames(recipe: PackageRecipe) -> set[str]:
         expected.add(f"{pkg}-{version_str_pacman}-aarch64.pkg.tar.zst")
         expected.add(f"{pkg}-{version_str_pacman}-aarch64.pkg.tar.gz")
 
-    if "alpine" in formats:
+    if "apk" in formats or "alpine" in formats:
         expected.add(f"{pkg}-{version_str_apk}.apk")
 
     if "npm" in formats:

@@ -7,7 +7,7 @@ def test_get_expected_asset_filenames():
     recipe.name = "ruff"
     recipe.version = "0.16.0"
     recipe.revision = 0
-    recipe.formats = ["apt", "pacman", "alpine", "pip"]
+    recipe.formats = ["apt", "pacman", "apk", "pip"]
 
     expected = get_expected_asset_filenames(recipe)
 
@@ -36,3 +36,4 @@ def test_identify_outdated_assets():
 
     assert "ruff_old_0.15.0_arm64.deb" in outdated_names
     assert "ruff_0.16.0_arm64.deb" not in outdated_names
+    assert "ruff-0.16.0-1-aarch64.pkg.tar.zst" not in outdated_names
