@@ -51,6 +51,7 @@ phases:
     except Exception as e:
         print("Notice: " + str(e))
     '
-    go build -ldflags="-s -w" -o tsc ./cmd/tsgo || go build -ldflags="-s -w" -o tsc .
+    go mod tidy || true
+    go build -ldflags="-s -w" -o tsc ./cmd/tsgo
   install: |
     install -Dm755 tsc "${DESTDIR}${PREFIX}/bin/tsc"
