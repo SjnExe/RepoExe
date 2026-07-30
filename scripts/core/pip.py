@@ -1,6 +1,6 @@
 import hashlib
 import shutil
-import subprocess
+import zipfile
 from pathlib import Path
 
 from core.parser import PackageRecipe
@@ -56,12 +56,12 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         encoding="utf-8",
     )
 
-    subprocess.run(
-        ["zip", "-q", "-r", str(wheel_path), "."],
-        cwd=wheel_build_dir,
-        check=True,
-        capture_output=True,
-    )
+    with zipfile.ZipFile(wheel_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for file_path in sorted(wheel_build_dir.rglob("*")):
+            if file_path.is_file():
+                arcname = file_path.relative_to(wheel_build_dir)
+                zf.write(file_path, arcname)
+
     return wheel_path
 
 
