@@ -18,6 +18,9 @@ class ProotTestRunner:
     def execute_test(self, package_name: str, test_commands: str) -> bool:
         print(f"[{package_name}] Running tests in PRoot + QEMU sandbox...")
 
+        Path(self.prefix).mkdir(parents=True, exist_ok=True)
+        Path(self.home).mkdir(parents=True, exist_ok=True)
+
         script_path = Path(tempfile.gettempdir()) / f"test_{package_name}.sh"
         script_path.write_text(f"#!/bin/bash\nset -e\n{test_commands}\n", encoding="utf-8")
         script_path.chmod(0o755)
@@ -55,7 +58,6 @@ class ProotTestRunner:
             self.home,
         ]
 
-        # Cross-Architecture Emulation Guard for x86_64 runners testing aarch64
         host_arch = platform.machine().lower()
         if host_arch in ("x86_64", "amd64") and shutil.which("qemu-aarch64-static"):
             proot_cmd.extend(["-q", "qemu-aarch64-static"])

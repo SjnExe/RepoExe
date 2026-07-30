@@ -16,7 +16,7 @@ channels:
     version: "2.13.4"
     auto_update: true
     update_strategy: pypi
-    source_url: https://files.pythonhosted.org/packages/source/p/pydantic/pydantic-2.10.6.tar.gz
+    source_url: https://files.pythonhosted.org/packages/source/p/pydantic/pydantic-{version}.tar.gz
 
 build_system: custom
 phases:

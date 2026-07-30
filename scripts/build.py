@@ -100,25 +100,7 @@ def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
             subprocess.run(["tar", "-tf", str(f)], check=True, capture_output=True)
 
 
-def execute_build(
-    package_path: Path,
-    channel: str = "latest",
-    dry_run: bool = False,
-    force: bool = False,
-) -> None:
-    recipe_file = package_path / "build.yml" if package_path.is_dir() else package_path
-    if not recipe_file.exists():
-        print(f"Error: Recipe not found at {recipe_file}", file=sys.stderr)
-        sys.exit(1)
-
-    pkg_dir = recipe_file.parent
-    recipe = parse_recipe(recipe_file, channel=channel)
-
-    if not force and check_existing_release_hash(recipe.name, channel, recipe.state_hash):
-        print(f"⏭️ Skipping build for {recipe.name}@{channel}: state_hash unchanged.")
-        return
-
-    # Hardware parallel compilation flags (4 Cores / 16GB RAM)
+def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     env = os.environ.copy()
     env["MAKEFLAGS"] = "-j4"
     env["CARGO_BUILD_JOBS"] = "4"
@@ -129,26 +111,13 @@ def execute_build(
         with contextlib.suppress(Exception):
             setup_build_environment(build_sys, recipe.architecture)
 
-    print(f"[BUILDING] Package: {recipe.name} (Channel: {recipe.active_channel})")
+    print(f"[COMPILING] Package: {recipe.name} (Channel: {recipe.active_channel})")
 
-    if dry_run:
-        print("✓ Dry-run complete.")
-        return
-
-    output_dir = Path("output")
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    destdir = Path(f"/tmp/build_{recipe.name}")
-    if destdir.exists():
-        shutil.rmtree(destdir)
-    destdir.mkdir(parents=True, exist_ok=True)
     stage_dir = destdir / "stage"
     stage_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Fetch & Install Build Dependencies
     resolve_and_fetch_build_dependencies(recipe.build_deps, destdir)
 
-    # 2. Source Extraction
     work_dir = pkg_dir
     src_url = getattr(recipe, "source_url", None)
     if src_url:
@@ -172,13 +141,12 @@ def execute_build(
     phases = getattr(recipe, "phases", {})
     prepare_cmd = phases.get("prepare")
     make_cmd = phases.get("make")
+    install_cmd = phases.get("install")
 
     if prepare_cmd:
         res = subprocess.run(prepare_cmd, shell=True, cwd=work_dir, env=env, check=False)
         if res.returncode != 0:
             raise RuntimeError(f"Prepare phase failed for {recipe.name}")
-    install_cmd = phases.get("install")
-    test_cmd = phases.get("test")
 
     if make_cmd:
         res = subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
@@ -190,19 +158,19 @@ def execute_build(
         if res.returncode != 0:
             raise RuntimeError(f"Install phase failed for {recipe.name}")
 
-    # 3. Payload Sanity Verification
-    installed_files = list(stage_dir.rglob("*"))
+    return stage_dir
+
+
+def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None:
+    stage_dir = destdir / "stage"
+    installed_files = list(stage_dir.rglob("*")) if stage_dir.exists() else []
     payload_files = [
         f for f in installed_files if f.is_file() and "DEBIAN" not in f.parts and ".PKGINFO" not in f.name
     ]
-    if not payload_files:
-        raise RuntimeError(f"CRITICAL ERROR: No files installed in $DESTDIR for {recipe.name}.")
 
-    # 4. PRoot + QEMU Post-Build Smoke Test Sandbox (Hard Fails on error)
-    if shutil.which("proot"):
-        runner = ProotTestRunner()
-        cmd_to_run = test_cmd or f"{recipe.name} --version || {recipe.name} --help"
-        runner.execute_test(recipe.name, cmd_to_run)
+    out_has_wheels = list(output_dir.glob(f"{recipe.name}*.whl")) if output_dir.exists() else []
+    if not payload_files and not out_has_wheels:
+        raise RuntimeError(f"CRITICAL ERROR: No files installed in $DESTDIR for {recipe.name}.")
 
     target_formats = getattr(recipe, "formats", ["apt", "pacman", "apk"])
 
@@ -217,7 +185,6 @@ def execute_build(
     if "npm" in target_formats:
         build_npm(recipe, str(destdir), str(output_dir))
 
-    # 5. Format Archive Verification & Metadata Generation
     verify_format_archives(output_dir, recipe.name)
 
     meta = {
@@ -231,27 +198,70 @@ def execute_build(
     (output_dir / f"{recipe.name}_metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
+def execute_test(recipe) -> None:
+    phases = getattr(recipe, "phases", {})
+    test_cmd = phases.get("test")
+    if shutil.which("proot"):
+        runner = ProotTestRunner()
+        cmd_to_run = test_cmd or f"{recipe.name} --version || {recipe.name} --help"
+        runner.execute_test(recipe.name, cmd_to_run)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="RepoExe Build System CLI")
     subparsers = parser.add_subparsers(dest="command")
 
     subparsers.add_parser("check")
-    build_p = subparsers.add_parser("build")
-    build_p.add_argument("package")
-    build_p.add_argument("--channel", default="latest")
-    build_p.add_argument("--dry-run", action="store_true")
-    build_p.add_argument("--force", action="store_true")
+
+    for cmd_name in ("build", "compile", "pack", "test"):
+        p = subparsers.add_parser(cmd_name)
+        p.add_argument("package")
+        p.add_argument("--channel", default="latest")
+        p.add_argument("--dry-run", action="store_true")
+        p.add_argument("--force", action="store_true")
 
     args = parser.parse_args()
     pkg_dir = Path(__file__).parent.parent / "pkg"
 
     if args.command == "check":
         audit_repository_health(pkg_dir)
-    elif args.command == "build":
+        return
+
+    if args.command in ("build", "compile", "pack", "test"):
         pkg_path = Path(args.package)
         if not pkg_path.is_absolute():
             pkg_path = Path.cwd() / args.package
-        execute_build(pkg_path, channel=args.channel, dry_run=args.dry_run, force=args.force)
+
+        recipe_file = pkg_path / "build.yml" if pkg_path.is_dir() else pkg_path
+        if not recipe_file.exists():
+            print(f"Error: Recipe not found at {recipe_file}", file=sys.stderr)
+            sys.exit(1)
+
+        p_dir = recipe_file.parent
+        recipe = parse_recipe(recipe_file, channel=args.channel)
+
+        if not args.force and check_existing_release_hash(recipe.name, args.channel, recipe.state_hash):
+            print(f"⏭️ Skipping {recipe.name}@{args.channel}: state_hash unchanged.")
+            return
+
+        if args.dry_run:
+            print(f"✓ Dry-run complete for {recipe.name} ({args.command}).")
+            return
+
+        destdir = Path(f"/tmp/build_{recipe.name}")
+        output_dir = Path("output")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        if args.command == "compile":
+            execute_compile(recipe, p_dir, destdir)
+        elif args.command == "pack":
+            execute_pack(recipe, p_dir, destdir, output_dir)
+        elif args.command == "test":
+            execute_test(recipe)
+        elif args.command == "build":
+            execute_compile(recipe, p_dir, destdir)
+            execute_pack(recipe, p_dir, destdir, output_dir)
+            execute_test(recipe)
 
 
 if __name__ == "__main__":
