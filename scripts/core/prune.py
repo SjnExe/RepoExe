@@ -5,63 +5,62 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from core.parser import parse_recipe
+from core.parser import PackageRecipe, parse_recipe
 
 
-def sort_debian_versions(versions: list[str]) -> list[str]:
-    """Sorts Debian version strings handling optional epoch numbers (e.g., '1:1.0')."""
+def get_expected_asset_filenames(recipe: PackageRecipe) -> set[str]:
+    """Dynamically generates all valid asset filenames based on enabled formats in the recipe."""
+    ver = recipe.version
+    rev = recipe.revision
+    pkg = recipe.name
 
-    def parse_key(ver_str: str) -> tuple[int, list[int | str]]:
-        if ":" in ver_str:
-            epoch_str, rest = ver_str.split(":", 1)
-            epoch = int(epoch_str)
-        else:
-            epoch = 0
-            rest = ver_str
-        parts: list[int | str] = [
-            int(p) if p.isdigit() else p for p in re.split(r"(\d+)", rest) if p
-        ]
-        return (epoch, parts)
+    version_str_deb = f"{ver}-{rev}" if rev > 0 else ver
+    version_str_pacman = f"{ver}-{rev}" if rev > 0 else f"{ver}-1"
+    version_str_apk = f"{ver}-r{rev}" if rev > 0 else f"{ver}-r0"
 
-    return sorted(versions, key=parse_key)
+    expected = {
+        "metadata.json",
+        f"{pkg}_metadata.json",
+    }
+
+    formats = getattr(recipe, "formats", ["apt"])
+
+    if "apt" in formats:
+        expected.add(f"{pkg}_{version_str_deb}_arm64.deb")
+        expected.add(f"{pkg}_{version_str_deb}_aarch64.deb")
+        expected.add(f"{pkg}_{version_str_deb}_all.deb")
+
+    if "pacman" in formats:
+        expected.add(f"{pkg}-{version_str_pacman}-aarch64.pkg.tar.zst")
+        expected.add(f"{pkg}-{version_str_pacman}-aarch64.pkg.tar.gz")
+
+    if "alpine" in formats:
+        expected.add(f"{pkg}-{version_str_apk}.apk")
+
+    if "npm" in formats:
+        expected.add(f"{pkg}-{ver}.tgz")
+
+    if "pip" in formats:
+        clean_name = pkg.replace("-", "_")
+        expected.add(f"{clean_name}-{ver}-py3-none-any.whl")
+
+    return expected
 
 
 def identify_outdated_assets(
     assets: list[dict[str, Any]],
-    target_version: str = "",
-    target_revision: int = 0,
-    target_state_hash: str = "",
-    metadata: dict[str, Any] | None = None,
+    recipe: PackageRecipe | None = None,
     pkg_name: str = "",
 ) -> list[dict[str, Any]]:
     to_delete = []
-    whitelist = set()
 
-    if metadata:
-        pkg_name = metadata.get("name", pkg_name)
-        ver = metadata.get("version", "")
-        rev = metadata.get("revision", 0)
-        h = metadata.get("state_hash", "")
-    else:
-        ver = target_version
-        rev = target_revision
-        h = target_state_hash
-
-    if pkg_name and ver:
-        full_ver = f"{ver}-{rev}" if rev and rev > 0 else ver
-        whitelist.add(f"{pkg_name}_{full_ver}_aarch64.deb")
-        whitelist.add(f"{pkg_name}_{full_ver}_arm64.deb")
-        whitelist.add(f"{pkg_name}_{full_ver}_all.deb")
-        if h:
-            whitelist.add(f"{pkg_name}.hash.{h}")
-
-    if not whitelist:
+    if not recipe:
         return to_delete
+
+    whitelist = get_expected_asset_filenames(recipe)
 
     for asset in assets:
         name = asset.get("name", "")
-        if name == "metadata.json":
-            continue
         if name not in whitelist:
             to_delete.append(asset)
 
@@ -89,7 +88,7 @@ def prune_release_tags() -> None:
         repo_info = json.loads(repo_res.stdout)
         owner = repo_info["owner"]["login"]
         repo_name = repo_info["name"]
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"Failed to parse repo info: {e}")
         return
 
@@ -105,7 +104,7 @@ def prune_release_tags() -> None:
 
     try:
         releases = json.loads(releases_res.stdout)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"Failed to parse releases JSON: {e}")
         return
 
@@ -120,26 +119,18 @@ def prune_release_tags() -> None:
         pkg, channel = tag.split("@", 1)
         recipe_path = pkgs_dir / pkg / "build.yml"
 
-        metadata = None
         if recipe_path.exists():
             try:
                 recipe = parse_recipe(recipe_path, channel=channel)
-                metadata = {
-                    "name": recipe.name,
-                    "version": recipe.version,
-                    "revision": recipe.revision,
-                    "state_hash": recipe.state_hash,
-                }
-            except Exception as e:  # noqa: BLE001
+                outdated = identify_outdated_assets(assets, recipe=recipe, pkg_name=pkg)
+
+                for asset in outdated:
+                    asset_id = asset.get("id")
+                    asset_name = asset.get("name")
+                    if asset_id and asset_name:
+                        deletion_tasks.append((tag, asset_name, asset_id, owner, repo_name))
+            except Exception as e:
                 print(f"Could not parse recipe for {pkg}: {e}")
-
-        outdated = identify_outdated_assets(assets, metadata=metadata, pkg_name=pkg)
-
-        for asset in outdated:
-            asset_id = asset.get("id")
-            asset_name = asset.get("name")
-            if asset_id and asset_name:
-                deletion_tasks.append((tag, asset_name, asset_id, owner, repo_name))
 
     if not deletion_tasks:
         print("✓ All release assets are up to date! Nothing to prune.")
