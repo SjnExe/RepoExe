@@ -1,14 +1,14 @@
 name: CI Checks & Tests
 
 on:
-  pull_request:
-    branches: [main]
   push:
-    branches-ignore: [main]
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+      - 'refactor/**'
+  workflow_dispatch:
 
 jobs:
   validate:
@@ -16,31 +16,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
-      - name: Install uv & Dependencies
+      - name: Install Dependencies
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          uv pip install --system -r pyproject.toml || true
-          pip install pytest ruff pydantic pyyaml
+          python -m pip install --upgrade pip
+          pip install pytest ruff pydantic pyyaml requests
 
-      - name: Code Quality & Health Audit
-        env:
-          PYTHONPATH: scripts
-        run: python scripts/build.py check
+      - name: Run Ruff Linter
+        run: ruff check .
+
+      - name: Repository Health Check
+        run: |
+          PYTHONPATH=scripts python3 scripts/build.py check
 
       - name: Run Pytest
-        env:
-          PYTHONPATH: scripts
-        run: pytest scripts/tests/
-
-      - name: Fast Docker Container Verification
         run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
-          docker run --rm "ghcr.io/$OWNER/repoexe-builder:latest" python3 -c "import pydantic, yaml; print('✓ Docker container healthy')" || echo "Notice: Docker container self-test skipped or unbuilt."
+          PYTHONPATH=scripts pytest scripts/tests/
