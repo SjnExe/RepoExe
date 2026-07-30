@@ -37,24 +37,17 @@ def get_git_diff_files(repo_root: Path) -> set[str]:
     return set()
 
 
-def inspect_changes(repo_root: Path) -> tuple[bool, set[str]]:
+def get_changed_packages(repo_root: Path) -> set[str]:
+    """Finds packages under pkg/ that have explicit file modifications."""
     files = get_git_diff_files(repo_root)
-    if not files:
-        return False, set()
-
-    core_changed = False
     changed_pkgs = set()
 
     for file in files:
         parts = Path(file.strip()).parts
-        if not parts:
-            continue
-        if parts[0] == "pkg" and len(parts) >= 2:
+        if len(parts) >= 2 and parts[0] == "pkg":
             changed_pkgs.add(parts[1])
-        elif parts[0] in ("scripts", ".github", "docker") or file in ("pyproject.toml", "Dockerfile"):
-            core_changed = True
 
-    return core_changed, changed_pkgs
+    return changed_pkgs
 
 
 def main() -> None:
@@ -83,15 +76,12 @@ def main() -> None:
         except Exception:
             return ["latest"]
 
+    # Standard PR/Push auto-mode: ONLY build packages modified under pkg/
     if not raw_input or raw_input == "auto":
-        core_changed, changed_pkgs = inspect_changes(repo_root)
-        if core_changed:
-            candidates = {(p, "latest") for p in all_pkg_dirs}
-        elif changed_pkgs:
-            candidates = {(p, "latest") for p in changed_pkgs if (pkgs_dir / p).exists()}
-        else:
-            candidates = set()
+        changed_pkgs = get_changed_packages(repo_root)
+        candidates = {(p, "latest") for p in changed_pkgs if (pkgs_dir / p).exists()}
     else:
+        # Manual workflow_dispatch mode (e.g., "all@all", "tsc@latest")
         incl_tokens, excl_tokens = [], []
         for token in raw_input.split():
             if token.startswith("!"):
