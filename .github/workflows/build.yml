@@ -99,7 +99,7 @@ jobs:
 
       - name: Restore Go Cache
         if: matrix.build_system == 'go'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cache/go-build
@@ -110,7 +110,7 @@ jobs:
 
       - name: Restore Cargo Cache
         if: matrix.build_system == 'cargo'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cargo/registry
@@ -204,7 +204,7 @@ jobs:
 
       - name: Save Go Cache (Main Branch Only)
         if: github.ref == 'refs/heads/main' && matrix.build_system == 'go' && always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.cache/go-build
@@ -213,7 +213,7 @@ jobs:
 
       - name: Save Cargo Cache (Main Branch Only)
         if: github.ref == 'refs/heads/main' && matrix.build_system == 'cargo' && always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.cargo/registry
@@ -258,7 +258,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download All Target Build Logs
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: build-log-*
           path: all_logs
