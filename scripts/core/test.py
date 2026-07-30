@@ -1,3 +1,4 @@
+import contextlib
 import os
 import platform
 import shutil
@@ -18,8 +19,9 @@ class ProotTestRunner:
     def execute_test(self, package_name: str, test_commands: str) -> bool:
         print(f"[{package_name}] Running tests in PRoot + QEMU sandbox...")
 
-        Path(self.prefix).mkdir(parents=True, exist_ok=True)
-        Path(self.home).mkdir(parents=True, exist_ok=True)
+        with contextlib.suppress(OSError):
+            Path(self.prefix).mkdir(parents=True, exist_ok=True)
+            Path(self.home).mkdir(parents=True, exist_ok=True)
 
         script_path = Path(tempfile.gettempdir()) / f"test_{package_name}.sh"
         script_path.write_text(f"#!/bin/bash\nset -e\n{test_commands}\n", encoding="utf-8")

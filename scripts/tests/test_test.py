@@ -1,12 +1,15 @@
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from core.test import ProotTestRunner
 
 
-def test_test_runner_success() -> None:
-    runner = ProotTestRunner()
+def test_test_runner_success(tmp_path: Path) -> None:
+    prefix = str(tmp_path / "usr")
+    home = str(tmp_path / "home")
+    runner = ProotTestRunner(prefix=prefix, home=home)
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="Success", stderr=""
@@ -16,8 +19,10 @@ def test_test_runner_success() -> None:
         assert mock_run.call_count == 1
 
 
-def test_test_runner_failure() -> None:
-    runner = ProotTestRunner()
+def test_test_runner_failure(tmp_path: Path) -> None:
+    prefix = str(tmp_path / "usr")
+    home = str(tmp_path / "home")
+    runner = ProotTestRunner(prefix=prefix, home=home)
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=1, stdout="", stderr="Command failed"
