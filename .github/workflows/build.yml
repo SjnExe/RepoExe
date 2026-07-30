@@ -37,7 +37,7 @@ permissions:
 jobs:
   generate-matrix:
     name: Matrix
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       should_publish: ${{ steps.decision.outputs.should_publish }}
@@ -255,7 +255,7 @@ jobs:
     name: Build Status & Log Aggregator
     needs: [generate-matrix, build-package]
     if: always()
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     steps:
       - name: Download All Target Build Logs
         uses: actions/download-artifact@v4
@@ -310,7 +310,7 @@ jobs:
     name: Deploy
     needs: [generate-matrix, build-package]
     if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-package.result == 'success' || needs.build-package.result == 'failure' || needs.build-package.result == 'skipped')
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7

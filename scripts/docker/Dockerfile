@@ -25,12 +25,27 @@ ENV SCCACHE_GHA_ENABLED=true
 ENV SCCACHE_DIR=/home/builder/.cache/sccache
 
 # Setup HomuHomu833 Android NDK r29 for ARM64
+ENV TERMUX_NDK_VERSION=29
 ENV NDK=/opt/android-ndk
 RUN mkdir -p /opt \
   && curl -L -sS -o /tmp/ndk.tar.xz "https://github.com/HomuHomu833/android-ndk-custom/releases/download/r29/android-ndk-r29-aarch64-linux-gnu.tar.xz" \
   && tar -xf /tmp/ndk.tar.xz -C /opt \
   && mv /opt/android-ndk-r29 ${NDK} \
   && rm -f /tmp/ndk.tar.xz
+
+# Apply NDK Patches dynamically to ARM64 sysroot
+COPY scripts/docker/ndk-patches /tmp/ndk-patches
+RUN PREBUILT_DIR=$(ls ${NDK}/toolchains/llvm/prebuilt | head -n1) \
+  && cd ${NDK}/toolchains/llvm/prebuilt/${PREBUILT_DIR}/sysroot \
+  && for patch in /tmp/ndk-patches/${TERMUX_NDK_VERSION}/*.patch; do \
+       [ -f "$patch" ] || continue; \
+       sed -i "s|@TERMUX_PREFIX@|/data/data/com.termux/files/usr|g" "$patch"; \
+       sed -i "s|@TERMUX_HOME@|/data/data/com.termux/files/home|g" "$patch"; \
+       patch --no-backup-if-mismatch -p1 < "$patch"; \
+     done \
+  && cp /tmp/ndk-patches/langinfo.h ${NDK}/toolchains/llvm/prebuilt/${PREBUILT_DIR}/sysroot/usr/include/ 2>/dev/null || true \
+  && cp /tmp/ndk-patches/libintl.h ${NDK}/toolchains/llvm/prebuilt/${PREBUILT_DIR}/sysroot/usr/include/ 2>/dev/null || true \
+  && rm -rf /tmp/ndk-patches
 
 RUN mkdir -p /data/data/com.termux/files/usr /data/data/com.termux/files/home
 
