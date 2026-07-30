@@ -48,7 +48,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install Dependencies
         run: |
@@ -121,15 +121,17 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
         run: |
           mkdir -p output
+          chmod 777 output
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
 
           docker run --rm \
+            --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py build \"pkg/$PKG_NAME\" --channel \"$CHANNEL\""
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py compile \"pkg/$PKG_NAME\" --channel \"$CHANNEL\""
 
       - name: Assemble Package Archives
         env:
@@ -137,9 +139,12 @@ jobs:
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
         run: |
+          mkdir -p output
+          chmod 777 output
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
 
           docker run --rm \
+            --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \
@@ -153,15 +158,19 @@ jobs:
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
         run: |
+          mkdir -p output
+          chmod 777 output
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
 
           docker run --rm \
+            --user $(id -u):$(id -g) \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py test \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py test \"pkg/$PKG_NAME\" --channel \"$CHANNEL\""
+
       - name: Publish Release Tag & Artifacts
         if: ${{ needs.generate-matrix.outputs.should_publish == 'true' }}
         env:
@@ -211,7 +220,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install Build Tools & GPG
         run: |
