@@ -237,10 +237,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
-          PYTHONPATH: scripts
         run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
           TAG="${PKG_NAME}@${CHANNEL}"
-          RECIPE_VER=$(python3 -c "from core.parser import parse_recipe; from pathlib import Path; r=parse_recipe(Path('pkg/$PKG_NAME/build.yml'), channel='$CHANNEL'); print(r.version)")
+          RECIPE_VER=$(docker run --rm -v ${{ github.workspace }}:/home/builder/RepoExe -w /home/builder/RepoExe -e PYTHONPATH="scripts" "ghcr.io/$OWNER/repoexe-builder:latest" python3 -c "from core.parser import parse_recipe; from pathlib import Path; r=parse_recipe(Path('pkg/$PKG_NAME/build.yml'), channel='$CHANNEL'); print(r.version)")
           RELEASE_TITLE="$PKG_NAME v$RECIPE_VER [$CHANNEL]"
 
           gh release create "$TAG" --title "$RELEASE_TITLE" --notes "Automated release build for $TAG" 2>/dev/null || gh release edit "$TAG" --title "$RELEASE_TITLE" --notes "Automated release build for $TAG"
