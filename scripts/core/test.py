@@ -16,7 +16,9 @@ class ProotTestRunner:
         self.prefix = prefix
         self.home = home
 
-    def execute_test(self, package_name: str, test_commands: str) -> bool:
+    def execute_test(
+        self, package_name: str, test_commands: str, destdir: Path | None = None
+    ) -> bool:
         print(f"[{package_name}] Running tests in PRoot + QEMU sandbox...")
 
         with contextlib.suppress(OSError):
@@ -24,11 +26,22 @@ class ProotTestRunner:
             Path(self.home).mkdir(parents=True, exist_ok=True)
 
         script_path = Path(tempfile.gettempdir()) / f"test_{package_name}.sh"
-        script_path.write_text(f"#!/bin/bash\nset -e\n{test_commands}\n", encoding="utf-8")
+        script_path.write_text(
+            f"#!/bin/bash\nset -e\n{test_commands}\n", encoding="utf-8"
+        )
         script_path.chmod(0o755)
 
         empty_root = Path(tempfile.gettempdir()) / "empty_rootfs_for_proot"
         empty_root.mkdir(parents=True, exist_ok=True)
+
+        rel_prefix = Path(self.prefix).relative_to("/")
+        (empty_root / rel_prefix).mkdir(parents=True, exist_ok=True)
+
+        stage_bind = f"{self.prefix}:{self.prefix}"
+        if destdir:
+            staged_prefix = destdir / "stage" / rel_prefix
+            if staged_prefix.exists():
+                stage_bind = f"{staged_prefix}:{self.prefix}"
 
         target_bash = f"{self.prefix}/bin/bash"
         extra_binds = []
@@ -53,7 +66,7 @@ class ProotTestRunner:
             "/tmp:/tmp",
             *extra_binds,
             "-b",
-            f"{self.prefix}:{self.prefix}",
+            stage_bind,
             "-b",
             f"{self.home}:{self.home}",
             "-w",
@@ -71,6 +84,9 @@ class ProotTestRunner:
             print(f"✓ [{package_name}] Smoke test passed successfully.")
             return True
 
-        err_msg = f"Smoke test failed for {package_name}:\nSTDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}"
+        err_msg = (
+            f"Smoke test failed for {package_name}:\n"
+            f"STDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}"
+        )
         print(f"❌ {err_msg}")
         raise RuntimeError(err_msg)

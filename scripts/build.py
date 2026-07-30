@@ -207,13 +207,13 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
     (output_dir / f"{recipe.name}_metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
-def execute_test(recipe) -> None:
+def execute_test(recipe, destdir: Path | None = None) -> None:
     phases = getattr(recipe, "phases", {})
     test_cmd = phases.get("test")
     if shutil.which("proot"):
         runner = ProotTestRunner()
         cmd_to_run = test_cmd or f"{recipe.name} --version || {recipe.name} --help"
-        runner.execute_test(recipe.name, cmd_to_run)
+        runner.execute_test(recipe.name, cmd_to_run, destdir=destdir)
 
 
 def main() -> None:
@@ -265,11 +265,11 @@ def main() -> None:
         elif args.command == "pack":
             execute_pack(recipe, p_dir, destdir, output_dir)
         elif args.command == "test":
-            execute_test(recipe)
+            execute_test(recipe, destdir)
         elif args.command == "build":
             execute_compile(recipe, p_dir, destdir)
             execute_pack(recipe, p_dir, destdir, output_dir)
-            execute_test(recipe)
+            execute_test(recipe, destdir)
 
 
 if __name__ == "__main__":
