@@ -114,20 +114,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Package inside Docker Container
+      - name: Compile Package Payload
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
-          HEAVY: ${{ matrix.heavy }}
-          SHOULD_PUBLISH: ${{ needs.generate-matrix.outputs.should_publish }}
         run: |
           mkdir -p output
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
-
-          if [ "$HEAVY" == "true" ]; then
-            sudo swapon --show || true
-          fi
 
           docker run --rm \
             -v ${{ github.workspace }}:/home/builder/RepoExe \
@@ -135,8 +129,39 @@ jobs:
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || pip install --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py build \"pkg/$PKG_NAME\" --channel \"$CHANNEL\""
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py build \"pkg/$PKG_NAME\" --channel \"$CHANNEL\""
 
+      - name: Assemble Package Archives
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
+
+          docker run --rm \
+            -v ${{ github.workspace }}:/home/builder/RepoExe \
+            -w /home/builder/RepoExe \
+            -e GH_TOKEN="$GH_TOKEN" \
+            -e PYTHONPATH="scripts" \
+            "ghcr.io/$OWNER/repoexe-builder:latest" \
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py pack \"pkg/$PKG_NAME\" --channel \"$CHANNEL\""
+
+      - name: PRoot + QEMU Smoke Test
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
+
+          docker run --rm \
+            -v ${{ github.workspace }}:/home/builder/RepoExe \
+            -w /home/builder/RepoExe \
+            -e GH_TOKEN="$GH_TOKEN" \
+            -e PYTHONPATH="scripts" \
+            "ghcr.io/$OWNER/repoexe-builder:latest" \
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py test \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 
       - name: Publish Release Tag & Artifacts
         if: ${{ needs.generate-matrix.outputs.should_publish == 'true' }}
         env:
