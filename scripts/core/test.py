@@ -49,7 +49,7 @@ class ProotTestRunner:
         if host_arch in ("x86_64", "amd64") and shutil.which("qemu-aarch64-static"):
             proot_cmd.extend(["-q", "qemu-aarch64-static"])
 
-        proot_cmd.extend(["--kill-on-exit", f"{self.prefix}/bin/bash", str(script_path)])
+        proot_cmd.extend([f"{self.prefix}/bin/bash", str(script_path)])
 
         res = subprocess.run(proot_cmd, capture_output=True, text=True, check=False)
         if res.returncode == 0:

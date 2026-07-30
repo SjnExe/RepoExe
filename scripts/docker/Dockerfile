@@ -76,7 +76,7 @@ WORKDIR /home/builder/RepoExe
 RUN python3 -m pip install --break-system-packages --no-cache-dir pyyaml "pydantic>=2.0.0" pytest ruff
 
 # Install latest stable Rust toolchain via rustup (supports Edition 2024)
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && /home/builder/.cargo/bin/rustup target add aarch64-unknown-linux-musl aarch64-unknown-linux-gnu x86_64-unknown-linux-musl
 ENV PATH="/home/builder/.cargo/bin:${PATH}"
 
 ENV GOTOOLCHAIN=local
