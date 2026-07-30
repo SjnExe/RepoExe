@@ -1,724 +1,240 @@
-      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show      - name: Optimize Disk Space & Enable Swap
-        if: env.HEAVY == 'true'
-        run: |
-          echo "⚡ Enabling heavy resource profile (Freeing disk & allocating 4GB swap)..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell 2>/dev/null || true
-          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show
+name: RepoExe Orchestrator & Deployment
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Target specs (e.g. "all@all", "tsc@latest", "!jscpd")'
+        required: false
+        type: string
+        default: 'all@all'
+      publish:
+        description: 'Publish release assets & update GitHub Pages site'
+        required: false
+        type: boolean
+        default: true
+      skip_build:
+        description: 'Skip compilation step and re-index existing releases'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  generate-matrix:
+    name: Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      should_publish: ${{ steps.decision.outputs.should_publish }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          uv pip install --system -r pyproject.toml || true
+          pip install pytest ruff pydantic pyyaml
+
+      - name: Audit & Health Check
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python scripts/build.py check
+          pytest scripts/tests/
+
+      - name: Determine Publish Decision
+        id: decision
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ] && [ "${{ inputs.publish }}" != "false" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate Matrix
+        id: matrix
+        env:
+          TARGET_INPUT: ${{ inputs.packages || 'all@all' }}
+          PYTHONPATH: scripts
+        run: |
+          MATRIX_JSON=$(python scripts/generate_shards.py)
+          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+
+  build-package:
+    name: "${{ matrix.package }}@${{ matrix.channel }}"
+    needs: [generate-matrix]
+    if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Free Disk Space
+        if: env.HEAVY == 'true'
+        uses: ./.github/actions/free-space
+
+      - name: Enable 4GB Swap
+        if: env.HEAVY == 'true'
+        uses: ./.github/actions/setup-swap
+        with:
+          size: '4G'
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Package inside Docker Container
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+          HEAVY: ${{ matrix.heavy }}
+          SHOULD_PUBLISH: ${{ needs.generate-matrix.outputs.should_publish }}
+        run: |
+          mkdir -p output
+          OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
+
+          if [ "$HEAVY" == "true" ]; then
+            sudo swapon --show || true
+          fi
+
+          docker run --rm \
+            -v ${{ github.workspace }}:/home/builder/RepoExe \
+            -w /home/builder/RepoExe \
+            -e GH_TOKEN="$GH_TOKEN" \
+            -e PYTHONPATH="scripts" \
+            "ghcr.io/$OWNER/repoexe-builder:latest" \
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || pip install --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py build \"pkg/$PKG_NAME\" --channel \"$CHANNEL\""
+
+      - name: Publish Release Tag & Artifacts
+        if: ${{ needs.generate-matrix.outputs.should_publish == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          TAG="${PKG_NAME}@${CHANNEL}"
+          gh release create "$TAG" --title "$PKG_NAME ($CHANNEL)" --notes "Automated build for $TAG" 2>/dev/null || true
+
+          if [ -d "output" ] && [ "$(ls -A output)" ]; then
+            for file in output/*; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                if [[ "$filename" == *"_metadata.json" ]]; then
+                  gh release upload "$TAG" "$file#metadata.json" --clobber
+                else
+                  gh release upload "$TAG" "$file" --clobber
+                fi
+              fi
+            done
+          fi
+
+  build-status:
+    name: Build Status
+    needs: [generate-matrix, build-package]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Matrix Results
+        run: |
+          if [ "${{ needs.build-package.result }}" = "failure" ] || [ "${{ needs.build-package.result }}" = "cancelled" ]; then
+            echo "Package matrix build failed!"
+            exit 1
+          fi
+          echo "All matrix targets built successfully or skipped."
+
+  publish-site:
+    name: Deploy
+    needs: [generate-matrix, build-package]
+    if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-package.result == 'success' || needs.build-package.result == 'failure' || needs.build-package.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Build Tools & GPG
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
+          pip install pydantic pyyaml
+
+      - name: Download All Release Artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p artifacts
+          TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
+          for tag in $TAGS; do
+            gh release download "$tag" --dir artifacts || true
+          done
+
+      - name: Import GPG Private Key for Repository Signing
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import || echo "Notice: GPG key import failed."
+          else
+            echo "Notice: GPG_PRIVATE_KEY secret is omitted; repository metadata will remain unsigned."
+          fi
+
+      - name: Build Full Site & Repository Indexes
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python -c "
+          from core.index_gen import prepare_site
+          prepare_site('site', 'artifacts')
+          "
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: 'site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
       - name: Prune Outdated Release Tag Assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
