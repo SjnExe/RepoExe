@@ -113,6 +113,10 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
 
     print(f"[COMPILING] Package: {recipe.name} (Channel: {recipe.active_channel})")
 
+    if destdir.exists():
+        shutil.rmtree(destdir)
+    destdir.mkdir(parents=True, exist_ok=True)
+
     stage_dir = destdir / "stage"
     stage_dir.mkdir(parents=True, exist_ok=True)
 
@@ -252,7 +256,7 @@ def main() -> None:
             print(f"✓ Dry-run complete for {recipe.name} ({args.command}).")
             return
 
-        destdir = Path(f"/tmp/build_{recipe.name}")
+        destdir = Path("build") / f"build_{recipe.name}"
         output_dir = Path("output")
         output_dir.mkdir(parents=True, exist_ok=True)
         with contextlib.suppress(OSError):
