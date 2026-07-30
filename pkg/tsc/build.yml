@@ -26,6 +26,9 @@ vars:
   GOARCH: "arm64"
   CGO_ENABLED: "0"
 
+vars:
+    GOTOOLCHAIN: "local"
+
 phases:
   make: |
     echo "Patching fanotify for Android Seccomp compatibility..."
