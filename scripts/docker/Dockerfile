@@ -8,7 +8,7 @@ ENV LANG=en_US.UTF-8
 RUN apt-get update && apt-get install -yq --no-install-recommends \
     zstd locales apt-utils eatmydata sudo curl git ca-certificates aria2 \
     unzip patch golang rustc cargo build-essential nodejs npm shellcheck \
-    proot abigail-tools graphviz dpkg-dev python3-pip python3-yaml python3-pydantic \
+    proot abigail-tools graphviz dpkg-dev gcc-aarch64-linux-gnu g++-aarch64-linux-gnu python3-pip python3-yaml python3-pydantic \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \
   && npm install -g prettier@latest \
@@ -80,3 +80,6 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
 ENV PATH="/home/builder/.cargo/bin:${PATH}"
 
 ENV GOTOOLCHAIN=local
+
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc

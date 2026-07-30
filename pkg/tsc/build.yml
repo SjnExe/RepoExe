@@ -30,6 +30,8 @@ vars:
     GOTOOLCHAIN: "local"
 
 phases:
+    prepare: |
+      [ -f go.mod ] && sed -i 's/^go 1\.2[0-9]/go 1.22/' go.mod || true
   make: |
     echo "Patching fanotify for Android Seccomp compatibility..."
     python3 -c '

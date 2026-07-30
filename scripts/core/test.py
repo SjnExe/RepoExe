@@ -25,6 +25,14 @@ class ProotTestRunner:
         empty_root = Path(tempfile.gettempdir()) / "empty_rootfs_for_proot"
         empty_root.mkdir(parents=True, exist_ok=True)
 
+        target_bash = f"{self.prefix}/bin/bash"
+        extra_binds = []
+        if not Path(target_bash).exists():
+            target_bash = "/bin/bash"
+            for p in ["/bin", "/usr", "/lib", "/lib64"]:
+                if Path(p).exists():
+                    extra_binds.extend(["-b", f"{p}:{p}"])
+
         proot_cmd = [
             "proot",
             "-r",
@@ -36,6 +44,7 @@ class ProotTestRunner:
             "/proc",
             "-b",
             "/sys",
+            *extra_binds,
             "-b",
             f"{self.prefix}:{self.prefix}",
             "-b",
@@ -49,7 +58,7 @@ class ProotTestRunner:
         if host_arch in ("x86_64", "amd64") and shutil.which("qemu-aarch64-static"):
             proot_cmd.extend(["-q", "qemu-aarch64-static"])
 
-        proot_cmd.extend([f"{self.prefix}/bin/bash", str(script_path)])
+        proot_cmd.extend([target_bash, str(script_path)])
 
         res = subprocess.run(proot_cmd, capture_output=True, text=True, check=False)
         if res.returncode == 0:
