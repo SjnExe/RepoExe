@@ -73,4 +73,4 @@ RUN uv python install 3.13 \
 ENV REPO_ROOT=/home/builder/RepoExe
 WORKDIR /home/builder/RepoExe
 
-RUN python3 -m pip install --break-system-packages --no-cache-dir pyyaml pydantic pytest ruff
+RUN python3 -m pip install --break-system-packages --no-cache-dir pyyaml "pydantic>=2.0.0" pytest ruff

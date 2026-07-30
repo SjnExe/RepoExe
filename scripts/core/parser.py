@@ -57,11 +57,11 @@ class PackageRecipe(BaseModel):
     state_hash: str = ""
 
     def get_channel_recipe(self, channel_name: str = "latest") -> "PackageRecipe":
-        data = self.model_dump()
+        data = self.model_dump() if hasattr(self, "model_dump") else self.dict()
 
         if channel_name in self.channels:
             override = self.channels[channel_name]
-            override_data = override.model_dump(exclude_unset=True)
+            override_data = override.model_dump(exclude_unset=True) if hasattr(override, "model_dump") else override.dict(exclude_unset=True)
             data.update(override_data)
 
         if data.get("source_url") and isinstance(data["source_url"], str) and "{version}" in data["source_url"]:
