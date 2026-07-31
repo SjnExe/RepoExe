@@ -101,59 +101,51 @@ class ProotTestRunner:
                 shutil.rmtree(wrapper_bin)
             wrapper_bin.mkdir(parents=True, exist_ok=True)
 
+            pypath_items = []
+            staged_bin_path = ""
             if staged_prefix and staged_prefix.exists():
                 test_env["PREFIX"] = str(staged_prefix)
                 staged_bin = staged_prefix / "bin"
                 if staged_bin.exists():
+                    staged_bin_path = str(staged_bin)
                     for item in staged_bin.iterdir():
                         if item.is_file():
-                            try:
-                                first_line = item.read_text(
-                                    encoding="utf-8", errors="ignore"
-                                ).splitlines()[0]
-                            except Exception:
-                                first_line = ""
+                            wrapper_file = wrapper_bin / item.name
+                            wrapper_file.write_text(
+                                f'#!/bin/bash\nexec python3 "{item.resolve()}" "$@"\n',
+                                encoding="utf-8",
+                            )
+                            wrapper_file.chmod(0o755)
 
-                            if first_line.startswith("#!"):
-                                interp = first_line[2:].strip().split()[0]
-                                if not Path(interp).exists():
-                                    wrapper_file = wrapper_bin / item.name
-                                    if "python" in first_line:
-                                        wrapper_file.write_text(
-                                            f'#!/bin/bash\nexec python3 "{item.resolve()}" "$@"\n',
-                                            encoding="utf-8",
-                                        )
-                                    else:
-                                        wrapper_file.write_text(
-                                            f'#!/bin/bash\nexec /bin/bash "{item.resolve()}" "$@"\n',
-                                            encoding="utf-8",
-                                        )
-                                    wrapper_file.chmod(0o755)
-
-                    test_env["PATH"] = (
-                        f"{wrapper_bin}:{staged_bin}:{test_env.get('PATH', '')}"
-                    )
-
-                py_dirs = [
-                    str(staged_prefix / "lib" / "python3" / "dist-packages"),
-                    str(staged_prefix / "lib" / "python3" / "site-packages"),
-                ]
                 for p in staged_prefix.glob("lib/python*/site-packages"):
-                    py_dirs.append(str(p))
+                    pypath_items.append(str(p))
                 for p in staged_prefix.glob("lib/python*/dist-packages"):
-                    py_dirs.append(str(p))
+                    pypath_items.append(str(p))
 
-                pypath = [p for p in py_dirs if Path(p).exists()]
-                if test_env.get("PYTHONPATH"):
-                    pypath.append(test_env["PYTHONPATH"])
-                test_env["PYTHONPATH"] = ":".join(pypath)
-            else:
-                test_env["PREFIX"] = self.prefix
+            if test_env.get("PYTHONPATH"):
+                pypath_items.append(test_env["PYTHONPATH"])
+            combined_pypath = ":".join(pypath_items)
+            test_env["PYTHONPATH"] = combined_pypath
 
-            test_env["HOME"] = self.home
+            direct_script_path = (
+                Path(tempfile.gettempdir()) / f"test_direct_{package_name}.sh"
+            )
+            bin_path_str = f"{wrapper_bin}:{staged_bin_path}:$PATH" if staged_bin_path else f"{wrapper_bin}:$PATH"
+
+            direct_script_content = (
+                "#!/bin/bash\n"
+                "set -e\n"
+                f'export PREFIX="{staged_prefix if staged_prefix else self.prefix}"\n'
+                f'export HOME="{self.home}"\n'
+                f'export PATH="{bin_path_str}"\n'
+                f'export PYTHONPATH="{combined_pypath}"\n'
+                f"{test_commands}\n"
+            )
+            direct_script_path.write_text(direct_script_content, encoding="utf-8")
+            direct_script_path.chmod(0o755)
 
             res_direct = subprocess.run(
-                ["/bin/bash", str(script_path)],
+                ["/bin/bash", str(direct_script_path)],
                 capture_output=True,
                 text=True,
                 env=test_env,
