@@ -122,7 +122,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     resolve_and_fetch_build_dependencies(recipe.build_deps, destdir)
 
     work_dir = pkg_dir
-    src_url = getattr(recipe, "source_url", None)
+    src_url = getattr(recipe, "source_url", None) or getattr(recipe, "url", None)
     if src_url:
         archive_path = destdir / "source.tar.gz"
         src_extract_dir = destdir / "src"
