@@ -101,36 +101,55 @@ class ProotTestRunner:
                 shutil.rmtree(wrapper_bin)
             wrapper_bin.mkdir(parents=True, exist_ok=True)
 
+            stage_dir = destdir / "stage" if destdir else None
             pypath_items = []
-            staged_bin_path = ""
-            if staged_prefix and staged_prefix.exists():
-                test_env["PREFIX"] = str(staged_prefix)
-                staged_bin = staged_prefix / "bin"
-                if staged_bin.exists():
-                    staged_bin_path = str(staged_bin)
-                    for item in staged_bin.iterdir():
+            bin_dirs = []
+
+            if stage_dir and stage_dir.exists():
+                test_env["PREFIX"] = str(staged_prefix) if staged_prefix else str(stage_dir)
+                bin_dirs = [d for d in stage_dir.rglob("bin") if d.is_dir()]
+
+                for bdir in bin_dirs:
+                    for item in bdir.iterdir():
                         if item.is_file():
                             wrapper_file = wrapper_bin / item.name
-                            wrapper_file.write_text(
-                                f'#!/bin/bash\nexec python3 "{item.resolve()}" "$@"\n',
-                                encoding="utf-8",
-                            )
+                            is_python = False
+                            try:
+                                first_line = item.read_text(
+                                    encoding="utf-8", errors="ignore"
+                                ).splitlines()[0]
+                                if "python" in first_line:
+                                    is_python = True
+                            except Exception:
+                                pass
+
+                            if is_python:
+                                wrapper_file.write_text(
+                                    f'#!/bin/bash\nexec python3 "{item.resolve()}" "$@"\n',
+                                    encoding="utf-8",
+                                )
+                            else:
+                                wrapper_file.write_text(
+                                    f'#!/bin/bash\nexec "{item.resolve()}" "$@"\n',
+                                    encoding="utf-8",
+                                )
                             wrapper_file.chmod(0o755)
 
-                for p in staged_prefix.glob("lib/python*/site-packages"):
-                    pypath_items.append(str(p))
-                for p in staged_prefix.glob("lib/python*/dist-packages"):
-                    pypath_items.append(str(p))
+                for p in stage_dir.rglob("*packages"):
+                    if p.is_dir():
+                        pypath_items.append(str(p))
 
             if test_env.get("PYTHONPATH"):
                 pypath_items.append(test_env["PYTHONPATH"])
             combined_pypath = ":".join(pypath_items)
             test_env["PYTHONPATH"] = combined_pypath
 
+            bin_path_parts = [str(wrapper_bin)] + [str(d) for d in bin_dirs]
+            bin_path_str = ":".join(bin_path_parts) + ":$PATH"
+
             direct_script_path = (
                 Path(tempfile.gettempdir()) / f"test_direct_{package_name}.sh"
             )
-            bin_path_str = f"{wrapper_bin}:{staged_bin_path}:$PATH" if staged_bin_path else f"{wrapper_bin}:$PATH"
 
             direct_script_content = (
                 "#!/bin/bash\n"
