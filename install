@@ -1,0 +1,49 @@
+#!/bin/sh
+set -e
+
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+REPO_URL="https://sjnexe.github.io/RepoExe"
+
+echo "Configuring RepoExe universal environment..."
+
+# 1. APT (Termux / Debian)
+if command -v apt-get >/dev/null 2>&1 || [ -d "$PREFIX/etc/apt" ]; then
+    echo "[+] Configuring APT repository..."
+    mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
+    echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+    curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg"
+fi
+
+# 2. Bun Integration (~/.bunfig.toml)
+if command -v bun >/dev/null 2>&1 || [ "$1" = "--all" ] || [ "$1" = "--bun" ]; then
+    echo "[+] Configuring Bun registry scope..."
+    mkdir -p ~/.config
+    if ! grep -q "sjnexe.github.io" ~/.bunfig.toml 2>/dev/null; then
+        cat << 'BUNEOF' >> ~/.bunfig.toml
+
+[install.scopes]
+"@sjnexe" = { url = "https://sjnexe.github.io/RepoExe/npm/" }
+BUNEOF
+    fi
+fi
+
+# 3. NPM Integration (~/.npmrc)
+if command -v npm >/dev/null 2>&1 || [ "$1" = "--all" ] || [ "$1" = "--npm" ]; then
+    echo "[+] Configuring NPM scope..."
+    npm config set @sjnexe:registry "$REPO_URL/npm/" 2>/dev/null || true
+fi
+
+# 4. Pip Integration (~/.config/pip/pip.conf)
+if command -v pip >/dev/null 2>&1 || command -v pip3 >/dev/null 2>&1 || [ "$1" = "--all" ] || [ "$1" = "--pip" ]; then
+    echo "[+] Configuring Pip extra index..."
+    mkdir -p ~/.config/pip
+    if ! grep -q "sjnexe.github.io" ~/.config/pip/pip.conf 2>/dev/null; then
+        cat << PIPEOF >> ~/.config/pip/pip.conf
+[global]
+extra-index-url = $REPO_URL/pip/
+PIPEOF
+    fi
+fi
+
+echo "✓ RepoExe environment configured successfully!"
+echo "Run 'repoexe status' once updated to verify package manager bindings."

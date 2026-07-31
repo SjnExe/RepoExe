@@ -1,64 +1,49 @@
 #!/bin/sh
 set -e
 
-echo "Configuring RepoExe universal Android/Termux repository environment..."
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+REPO_URL="https://sjnexe.github.io/RepoExe"
 
-# 1. APT Configuration
-if command -v pkg >/dev/null 2>&1 || [ -d "$PREFIX/etc/apt" ]; then
-  echo "Setting up APT repository..."
-  rm -f $PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg
-  curl -fsSL https://sjnexe.github.io/RepoExe/repoexe.gpg -o $PREFIX/etc/apt/trusted.gpg.d/repoexe.asc 2>/dev/null || true
-  echo "deb [arch=aarch64,arm64] https://sjnexe.github.io/RepoExe/apt stable main" > $PREFIX/etc/apt/sources.list.d/repoexe.list
-  pkg update -y 2>/dev/null || true
+echo "Configuring RepoExe universal environment..."
+
+# 1. APT (Termux / Debian)
+if command -v apt-get >/dev/null 2>&1 || [ -d "$PREFIX/etc/apt" ]; then
+    echo "[+] Configuring APT repository..."
+    mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
+    echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+    curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg"
 fi
 
-# 2. Pacman Configuration
-if command -v pacman >/dev/null 2>&1; then
-  echo "Setting up Pacman repository..."
-  if ! grep -q "RepoExe" /etc/pacman.conf 2>/dev/null; then
-    echo -e "\n[repoexe]\nSigLevel = Optional TrustAll\nServer = https://sjnexe.github.io/RepoExe/pacman" >> /etc/pacman.conf
-  fi
-  pacman -Sy --noconfirm 2>/dev/null || true
+# 2. Bun Integration (~/.bunfig.toml)
+if command -v bun >/dev/null 2>&1 || [ "$1" = "--all" ] || [ "$1" = "--bun" ]; then
+    echo "[+] Configuring Bun registry scope..."
+    mkdir -p ~/.config
+    if ! grep -q "sjnexe.github.io" ~/.bunfig.toml 2>/dev/null; then
+        cat << 'BUNEOF' >> ~/.bunfig.toml
+
+[install.scopes]
+"@sjnexe" = { url = "https://sjnexe.github.io/RepoExe/npm/" }
+BUNEOF
+    fi
 fi
 
-# 3. Alpine APK Configuration
-if command -v apk >/dev/null 2>&1; then
-  echo "Setting up Alpine APK repository..."
-  if ! grep -q "RepoExe" /etc/apk/repositories 2>/dev/null; then
-    echo "https://sjnexe.github.io/RepoExe/alpine" >> /etc/apk/repositories
-  fi
-  apk update 2>/dev/null || true
+# 3. NPM Integration (~/.npmrc)
+if command -v npm >/dev/null 2>&1 || [ "$1" = "--all" ] || [ "$1" = "--npm" ]; then
+    echo "[+] Configuring NPM scope..."
+    npm config set @sjnexe:registry "$REPO_URL/npm/" 2>/dev/null || true
 fi
 
-# 4. Python (Pip & uv) Configuration
-echo "Setting up global Python Extra Index URL..."
-mkdir -p ~/.config/pip
-if ! grep -q "extra-index-url" ~/.config/pip/pip.conf 2>/dev/null; then
-  cat << PIP_EOF >> ~/.config/pip/pip.conf
+# 4. Pip Integration (~/.config/pip/pip.conf)
+if command -v pip >/dev/null 2>&1 || command -v pip3 >/dev/null 2>&1 || [ "$1" = "--all" ] || [ "$1" = "--pip" ]; then
+    echo "[+] Configuring Pip extra index..."
+    mkdir -p ~/.config/pip
+    if ! grep -q "sjnexe.github.io" ~/.config/pip/pip.conf 2>/dev/null; then
+        cat << PIPEOF >> ~/.config/pip/pip.conf
 [global]
-extra-index-url = https://sjnexe.github.io/RepoExe/pip/
-PIP_EOF
+extra-index-url = $REPO_URL/pip/
+PIPEOF
+    fi
 fi
-
-[ -f ~/.bashrc ] || touch ~/.bashrc
-for rc in ~/.bashrc ~/.zshrc; do
-  if [ -f "$rc" ] && ! grep -q "UV_EXTRA_INDEX_URL" "$rc"; then
-    echo 'export UV_EXTRA_INDEX_URL="https://sjnexe.github.io/RepoExe/pip/"' >> "$rc"
-  fi
-done
-
-# 5. Node.js & Bun Configuration via Cloudflare Proxy
-echo "Setting up global NPM & Bun registry with transparent npmjs.org fallback..."
-WORKER_URL="https://repoexe-npm-proxy.sjn.workers.dev/"
-
-if command -v npm >/dev/null 2>&1; then
-  npm config set registry "$WORKER_URL" 2>/dev/null || true
-fi
-
-mkdir -p ~/.config/bun
-cat << BUN_EOF > ~/.bunconfig.toml
-[install]
-registry = "$WORKER_URL"
-BUN_EOF
 
 echo "✓ RepoExe environment configured successfully!"
+echo "Run 'repoexe status' once updated to verify package manager bindings."
