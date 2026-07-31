@@ -1,6 +1,6 @@
 name: repoexe
 version: "1.0"
-revision: 1
+revision: 2
 arch: aarch64
 desc: Central RepoExe repository management CLI and security keyrings
 license: MIT
@@ -16,7 +16,7 @@ phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
     mkdir -p "${DESTDIR}${PREFIX}/etc/apt/trusted.gpg.d"
-    mkdir -p "${DESTDIR}/etc/apk/keys"
+    mkdir -p "${DESTDIR}${PREFIX}/etc/apk/keys"
 
     # Install central repoexe CLI helper
     cat << 'CLIEOF' > "${DESTDIR}${PREFIX}/bin/repoexe"
@@ -65,5 +65,5 @@ phases:
       cp "scripts/repoexe.gpg" "${DESTDIR}${PREFIX}/etc/apt/trusted.gpg.d/repoexe.asc"
     fi
     if [ -f "scripts/repoexe.rsa.pub" ]; then
-      cp "scripts/repoexe.rsa.pub" "${DESTDIR}/etc/apk/keys/repoexe.rsa.pub"
+      cp "scripts/repoexe.rsa.pub" "${DESTDIR}${PREFIX}/etc/apk/keys/repoexe.rsa.pub"
     fi
