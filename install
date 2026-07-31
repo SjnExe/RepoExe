@@ -45,5 +45,11 @@ PIPEOF
     fi
 fi
 
+# 5. Automatically fetch and install the repoexe CLI package
+if command -v pkg >/dev/null 2>&1; then
+    echo "[+] Installing central repoexe management CLI..."
+    pkg update -y >/dev/null 2>&1 || true
+    pkg install -y repoexe >/dev/null 2>&1 || true
+fi
+
 echo "✓ RepoExe environment configured successfully!"
-echo "Run 'repoexe status' once updated to verify package manager bindings."
