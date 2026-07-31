@@ -15,4 +15,10 @@ formats:
 phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}"
+    for dir in */; do
+      if [ -f "${dir}pyproject.toml" ] || [ -f "${dir}setup.py" ]; then
+        cd "$dir"
+        break
+      fi
+    done
     python3 -m pip install --no-deps --prefix="${DESTDIR}${PREFIX}" .
