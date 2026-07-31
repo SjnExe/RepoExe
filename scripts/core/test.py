@@ -1,5 +1,6 @@
 import contextlib
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -38,12 +39,12 @@ class ProotTestRunner:
 
         script_path = Path(tempfile.gettempdir()) / f"test_{package_name}.sh"
         script_content = (
-            f"#!/bin/bash\n"
-            f"set -e\n"
-            f"export PREFIX=\"${{PREFIX:-{self.prefix}}}\"\n"
-            f"export HOME=\"${{HOME:-{self.home}}}\"\n"
-            f"export PATH=\"$PREFIX/bin:$PATH\"\n"
-            f"export LD_LIBRARY_PATH=\"$PREFIX/lib:$LD_LIBRARY_PATH\"\n"
+            "#!/bin/bash\n"
+            "set -e\n"
+            f'export PREFIX="${{PREFIX:-{self.prefix}}}"\n'
+            f'export HOME="${{HOME:-{self.home}}}"\n'
+            'export PATH="$PREFIX/bin:$PATH"\n'
+            'export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"\n'
             f"{test_commands}\n"
         )
         script_path.write_text(script_content, encoding="utf-8")
@@ -55,7 +56,9 @@ class ProotTestRunner:
             target_bash = "/bin/bash"
             for p in ["/bin", "/usr", "/lib", "/lib64"]:
                 if Path(p).exists():
-                    (empty_root / Path(p).relative_to("/")).mkdir(parents=True, exist_ok=True)
+                    (empty_root / Path(p).relative_to("/")).mkdir(
+                        parents=True, exist_ok=True
+                    )
                     extra_binds.extend(["-b", f"{p}:{p}"])
 
         proot_cmd = [
@@ -88,21 +91,58 @@ class ProotTestRunner:
             return True
 
         if res.returncode in (139, -11) or "terminated with signal 11" in res.stderr:
-            print(f"⚠️ [{package_name}] PRoot hit signal 11, falling back to direct execution...")
+            print(
+                f"⚠️ [{package_name}] PRoot hit signal 11, falling back to direct execution..."
+            )
             test_env = os.environ.copy()
+
+            wrapper_bin = Path(tempfile.gettempdir()) / f"wrapper_bin_{package_name}"
+            with contextlib.suppress(OSError):
+                shutil.rmtree(wrapper_bin)
+            wrapper_bin.mkdir(parents=True, exist_ok=True)
 
             if staged_prefix and staged_prefix.exists():
                 test_env["PREFIX"] = str(staged_prefix)
                 staged_bin = staged_prefix / "bin"
                 if staged_bin.exists():
-                    test_env["PATH"] = f"{staged_bin}:{test_env.get('PATH', '')}"
+                    for item in staged_bin.iterdir():
+                        if item.is_file():
+                            try:
+                                first_line = item.read_text(
+                                    encoding="utf-8", errors="ignore"
+                                ).splitlines()[0]
+                            except Exception:
+                                first_line = ""
+
+                            if first_line.startswith("#!"):
+                                interp = first_line[2:].strip().split()[0]
+                                if not Path(interp).exists():
+                                    wrapper_file = wrapper_bin / item.name
+                                    if "python" in first_line:
+                                        wrapper_file.write_text(
+                                            f'#!/bin/bash\nexec python3 "{item.resolve()}" "$@"\n',
+                                            encoding="utf-8",
+                                        )
+                                    else:
+                                        wrapper_file.write_text(
+                                            f'#!/bin/bash\nexec /bin/bash "{item.resolve()}" "$@"\n',
+                                            encoding="utf-8",
+                                        )
+                                    wrapper_file.chmod(0o755)
+
+                    test_env["PATH"] = (
+                        f"{wrapper_bin}:{staged_bin}:{test_env.get('PATH', '')}"
+                    )
 
                 py_dirs = [
                     str(staged_prefix / "lib" / "python3" / "dist-packages"),
                     str(staged_prefix / "lib" / "python3" / "site-packages"),
-                    str(staged_prefix / "lib" / "python3.12" / "site-packages"),
-                    str(staged_prefix / "lib" / "python3.13" / "site-packages"),
                 ]
+                for p in staged_prefix.glob("lib/python*/site-packages"):
+                    py_dirs.append(str(p))
+                for p in staged_prefix.glob("lib/python*/dist-packages"):
+                    py_dirs.append(str(p))
+
                 pypath = [p for p in py_dirs if Path(p).exists()]
                 if test_env.get("PYTHONPATH"):
                     pypath.append(test_env["PYTHONPATH"])
@@ -112,7 +152,13 @@ class ProotTestRunner:
 
             test_env["HOME"] = self.home
 
-            res_direct = subprocess.run(["/bin/bash", str(script_path)], capture_output=True, text=True, env=test_env, check=False)
+            res_direct = subprocess.run(
+                ["/bin/bash", str(script_path)],
+                capture_output=True,
+                text=True,
+                env=test_env,
+                check=False,
+            )
             if res_direct.returncode == 0:
                 print(f"✓ [{package_name}] Smoke test passed via direct execution.")
                 return True

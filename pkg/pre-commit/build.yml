@@ -16,3 +16,5 @@ phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}"
     python3 -m pip install --no-deps --prefix="${DESTDIR}${PREFIX}" .
+  test: |
+    pre-commit --version
