@@ -25,3 +25,6 @@ dev = [
     "mypy>=1.10.0",
     "pytest>=8.0.0",
 ]
+
+[tool.ruff.lint]
+ignore = ["BLE001", "S110"]

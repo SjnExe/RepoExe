@@ -1,0 +1,11 @@
+name: pre-commit
+version: "4.1.0"
+revision: 0
+arch: aarch64
+desc: Framework for managing and maintaining multi-language pre-commit hooks
+license: MIT
+homepage: https://pre-commit.com
+maintainer: SjnExe
+build_system: python
+formats:
+  - pip

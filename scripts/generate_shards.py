@@ -114,7 +114,7 @@ def main() -> None:
 
         candidates -= excluded
 
-    final_targets = sorted(list(candidates))
+    final_targets = sorted(candidates)
 
     matrix = []
     for p, c in final_targets:

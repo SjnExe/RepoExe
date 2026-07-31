@@ -90,9 +90,7 @@ def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
     for f in output_dir.glob(f"{pkg_name}*"):
         if f.name.endswith(".deb"):
             subprocess.run(["dpkg-deb", "-I", str(f)], check=True, capture_output=True)
-        elif f.name.endswith(".pkg.tar.zst") or f.name.endswith(".pkg.tar.gz"):
-            subprocess.run(["tar", "-tf", str(f)], check=True, capture_output=True)
-        elif f.name.endswith(".apk"):
+        elif f.name.endswith(".pkg.tar.zst") or f.name.endswith(".pkg.tar.gz") or f.name.endswith(".apk"):
             subprocess.run(["tar", "-tf", str(f)], check=True, capture_output=True)
         elif f.name.endswith(".whl"):
             subprocess.run(["unzip", "-t", str(f)], check=True, capture_output=True)
