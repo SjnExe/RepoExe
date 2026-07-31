@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 class ChannelOverride(BaseModel):
@@ -13,7 +13,9 @@ class ChannelOverride(BaseModel):
     revision: int | None = None
     architecture: str | None = Field(default=None, alias="arch")
     build_system: str | None = None
-    source_url: str | None = Field(default=None, alias="source")
+    source_url: str | None = Field(
+        default=None, validation_alias=AliasChoices("source_url", "source", "url")
+    )
     sha256: str | None = None
     formats: list[str] | None = None
     build_deps: list[str] | None = None
@@ -39,7 +41,9 @@ class PackageRecipe(BaseModel):
     homepage: str = ""
     maintainer: str = "SjnExe"
     build_system: str = "custom"
-    source_url: str | None = Field(default=None, alias="source")
+    source_url: str | None = Field(
+        default=None, validation_alias=AliasChoices("source_url", "source", "url")
+    )
     sha256: str | None = None
     formats: list[str] = Field(default_factory=lambda: ["apt", "pacman", "apk"])
     build_deps: list[str] = Field(default_factory=list)
@@ -60,11 +64,21 @@ class PackageRecipe(BaseModel):
 
         if channel_name in self.channels:
             override = self.channels[channel_name]
-            override_data = override.model_dump(exclude_unset=True) if hasattr(override, "model_dump") else override.dict(exclude_unset=True)
+            override_data = (
+                override.model_dump(exclude_unset=True)
+                if hasattr(override, "model_dump")
+                else override.dict(exclude_unset=True)
+            )
             data.update(override_data)
 
-        if data.get("source_url") and isinstance(data["source_url"], str) and "{version}" in data["source_url"]:
-            data["source_url"] = data["source_url"].replace("{version}", data.get("version", ""))
+        if (
+            data.get("source_url")
+            and isinstance(data["source_url"], str)
+            and "{version}" in data["source_url"]
+        ):
+            data["source_url"] = data["source_url"].replace(
+                "{version}", data.get("version", "")
+            )
 
         data["active_channel"] = channel_name
         resolved = PackageRecipe(**data)

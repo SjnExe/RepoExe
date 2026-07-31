@@ -6,7 +6,7 @@ desc: Framework for managing and maintaining multi-language pre-commit hooks
 license: MIT
 homepage: https://pre-commit.com
 maintainer: SjnExe
-url: https://files.pythonhosted.org/packages/source/p/pre-commit/pre_commit-4.1.0.tar.gz
+source: https://files.pythonhosted.org/packages/source/p/pre-commit/pre_commit-4.1.0.tar.gz
 build_system: custom
 formats:
   - pip
