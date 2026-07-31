@@ -1,6 +1,6 @@
 name: repoexe
 version: "1.0"
-revision: 0
+revision: 1
 arch: aarch64
 desc: Central RepoExe repository management CLI and security keyrings
 license: MIT
