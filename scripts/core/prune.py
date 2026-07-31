@@ -108,11 +108,12 @@ def prune_release_tags() -> None:
         return
 
     deletion_tasks = []
+    orphaned_releases = []
 
     for release in releases:
         tag = release.get("tag_name", "")
         assets = release.get("assets", [])
-        if "@" not in tag or not assets:
+        if "@" not in tag:
             continue
 
         pkg, channel = tag.split("@", 1)
@@ -130,40 +131,55 @@ def prune_release_tags() -> None:
                         deletion_tasks.append((tag, asset_name, asset_id, owner, repo_name))
             except Exception as e:
                 print(f"Could not parse recipe for {pkg}: {e}")
+        else:
+            # Package recipe folder no longer exists in pkg/ -> mark entire release and tag for deletion
+            orphaned_releases.append(tag)
 
-    if not deletion_tasks:
-        print("✓ All release assets are up to date! Nothing to prune.")
-        return
-
-    print(f"🗑️ Found {len(deletion_tasks)} outdated asset(s) to prune...")
-
-    def delete_asset(
-        task: tuple[str, str, int, str, str],
-    ) -> tuple[str, bool, str]:
-        tag, name, asset_id, repo_owner, repo = task
-        res = subprocess.run(
-            [
-                "gh",
-                "api",
-                "--method",
-                "DELETE",
-                f"repos/{repo_owner}/{repo}/releases/assets/{asset_id}",
-            ],
+    # 1. Prune orphaned releases (deleted packages)
+    for tag in orphaned_releases:
+        print(f"🗑️ Pruning deleted package release and tag: {tag}")
+        subprocess.run(
+            ["gh", "release", "delete", tag, "--cleanup-tag", "-y"],
             capture_output=True,
             text=True,
             check=False,
         )
-        if res.returncode == 0:
-            return (f"✓ [{tag}] Deleted {name}", True, "")
-        return (f"❌ [{tag}] Failed to delete {name}", False, res.stderr)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        results = list(executor.map(delete_asset, deletion_tasks))
+    # 2. Prune outdated assets from existing packages
+    if not deletion_tasks and not orphaned_releases:
+        print("✓ All release assets and tags are up to date! Nothing to prune.")
+        return
 
-    for msg, success, err in results:
-        print(msg)
-        if not success and err:
-            print(f"   Error detail: {err.strip()}")
+    if deletion_tasks:
+        print(f"🗑️ Found {len(deletion_tasks)} outdated asset(s) to prune...")
+
+        def delete_asset(
+            task: tuple[str, str, int, str, str],
+        ) -> tuple[str, bool, str]:
+            tag, name, asset_id, repo_owner, repo = task
+            res = subprocess.run(
+                [
+                    "gh",
+                    "api",
+                    "--method",
+                    "DELETE",
+                    f"repos/{repo_owner}/{repo}/releases/assets/{asset_id}",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if res.returncode == 0:
+                return (f"✓ [{tag}] Deleted {name}", True, "")
+            return (f"❌ [{tag}] Failed to delete {name}", False, res.stderr)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            results = list(executor.map(delete_asset, deletion_tasks))
+
+        for msg, success, err in results:
+            print(msg)
+            if not success and err:
+                print(f"   Error detail: {err.strip()}")
 
 
 if __name__ == "__main__":
