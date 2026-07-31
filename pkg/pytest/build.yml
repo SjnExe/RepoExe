@@ -6,6 +6,7 @@ desc: Simple powerful testing framework for Python
 license: MIT
 homepage: https://pytest.org
 maintainer: SjnExe
+url: https://github.com/pytest-dev/pytest/archive/refs/tags/8.3.4.tar.gz
 build_system: python
 formats:
   - pip
