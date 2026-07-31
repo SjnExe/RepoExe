@@ -46,7 +46,7 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         return tarinfo
 
     with tarfile.open(tgz_path, "w:gz") as tar:
-        tar.add(npm_pkg_dir.parent, arcname="", filter=set_exec_perms)
+        tar.add(npm_pkg_dir, arcname="package", filter=set_exec_perms)
 
     return tgz_path
 

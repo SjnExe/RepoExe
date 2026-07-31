@@ -1,0 +1,69 @@
+name: repoexe
+version: "1.0"
+revision: 0
+arch: aarch64
+desc: Central RepoExe repository management CLI and security keyrings
+license: MIT
+homepage: https://github.com/SjnExe/RepoExe
+maintainer: SjnExe
+build_system: custom
+formats:
+  - apt
+  - pacman
+  - apk
+
+phases:
+  install: |
+    mkdir -p "${DESTDIR}${PREFIX}/bin"
+    mkdir -p "${DESTDIR}${PREFIX}/etc/apt/trusted.gpg.d"
+    mkdir -p "${DESTDIR}/etc/apk/keys"
+
+    # Install central repoexe CLI helper
+    cat << 'CLIEOF' > "${DESTDIR}${PREFIX}/bin/repoexe"
+    #!/bin/sh
+    set -e
+
+    PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+
+    case "$1" in
+      status)
+        echo "=== RepoExe System Status ==="
+        if [ -f "$PREFIX/etc/apt/sources.list.d/repoexe.list" ]; then
+          echo "  APT (Termux):      [ENABLED]"
+        else
+          echo "  APT (Termux):      [DISABLED]"
+        fi
+        if grep -q "sjnexe.github.io" ~/.npmrc 2>/dev/null; then
+          echo "  NPM Registry:      [ENABLED]"
+        else
+          echo "  NPM Registry:      [DISABLED]"
+        fi
+        if grep -q "sjnexe.github.io" ~/.bunfig.toml 2>/dev/null; then
+          echo "  Bun Registry:      [ENABLED]"
+        else
+          echo "  Bun Registry:      [DISABLED]"
+        fi
+        if grep -q "sjnexe.github.io" ~/.config/pip/pip.conf 2>/dev/null; then
+          echo "  Pip Index:         [ENABLED]"
+        else
+          echo "  Pip Index:         [DISABLED]"
+        fi
+        ;;
+      sync)
+        echo "Syncing RepoExe environment settings..."
+        curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- --all
+        ;;
+      *)
+        echo "Usage: repoexe {status|sync}"
+        ;;
+    esac
+    CLIEOF
+    chmod 755 "${DESTDIR}${PREFIX}/bin/repoexe"
+
+    # Install GPG & RSA security keys
+    if [ -f "scripts/repoexe.gpg" ]; then
+      cp "scripts/repoexe.gpg" "${DESTDIR}${PREFIX}/etc/apt/trusted.gpg.d/repoexe.gpg"
+    fi
+    if [ -f "scripts/repoexe.rsa.pub" ]; then
+      cp "scripts/repoexe.rsa.pub" "${DESTDIR}/etc/apk/keys/repoexe.rsa.pub"
+    fi
