@@ -1,6 +1,6 @@
 name: repoexe
-version: "1.0"
-revision: 2
+version: "1.0.1"
+revision: 0
 arch: aarch64
 desc: Central RepoExe repository management CLI and security keyrings
 license: MIT
@@ -17,6 +17,7 @@ phases:
     mkdir -p "${DESTDIR}${PREFIX}/bin"
     mkdir -p "${DESTDIR}${PREFIX}/etc/apt/trusted.gpg.d"
     mkdir -p "${DESTDIR}${PREFIX}/etc/apk/keys"
+    mkdir -p "${DESTDIR}${PREFIX}/share/bash-completion/completions"
 
     # Install central repoexe CLI helper
     cat << 'CLIEOF' > "${DESTDIR}${PREFIX}/bin/repoexe"
@@ -24,41 +25,206 @@ phases:
     set -e
 
     PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+    REPO_URL="https://sjnexe.github.io/RepoExe"
+
+    # Terminal Colors
+    if [ -t 1 ]; then
+      BOLD='\033[1m'
+      GREEN='\033[0;32m'
+      RED='\033[0;31m'
+      YELLOW='\033[0;33m'
+      CYAN='\033[0;36m'
+      RESET='\033[0m'
+    else
+      BOLD=''
+      GREEN=''
+      RED=''
+      YELLOW=''
+      CYAN=''
+      RESET=''
+    fi
+
+    show_help() {
+      printf "${BOLD}RepoExe Repository Management CLI v1.0.1${RESET}\n\n"
+      printf "${BOLD}USAGE:${RESET}\n"
+      printf "  repoexe <command> [args]\n\n"
+      printf "${BOLD}COMMANDS:${RESET}\n"
+      printf "  ${CYAN}status${RESET}          Check system repository integrations status\n"
+      printf "  ${CYAN}sync${RESET}            Re-sync all manager integrations from upstream\n"
+      printf "  ${CYAN}enable <target>${RESET}  Enable specific manager (${BOLD}apt|bun|npm|pip|all${RESET})\n"
+      printf "  ${CYAN}disable <target>${RESET} Disable specific manager (${BOLD}apt|bun|npm|pip|all${RESET})\n"
+      printf "  ${CYAN}version${RESET}         Print CLI version\n"
+      printf "  ${CYAN}help${RESET}            Show this help menu\n"
+    }
+
+    check_status() {
+      printf "${BOLD}=== RepoExe System Status ===${RESET}\n"
+
+      if [ -f "$PREFIX/etc/apt/sources.list.d/repoexe.list" ]; then
+        printf "  APT (Termux):      [${GREEN}ENABLED${RESET}]\n"
+      else
+        printf "  APT (Termux):      [${RED}DISABLED${RESET}]\n"
+      fi
+
+      if grep -q "sjnexe.github.io" ~/.npmrc 2>/dev/null; then
+        printf "  NPM Registry:      [${GREEN}ENABLED${RESET}]\n"
+      else
+        printf "  NPM Registry:      [${RED}DISABLED${RESET}]\n"
+      fi
+
+      if grep -q "sjnexe.github.io" ~/.bunfig.toml 2>/dev/null; then
+        printf "  Bun Registry:      [${GREEN}ENABLED${RESET}]\n"
+      else
+        printf "  Bun Registry:      [${RED}DISABLED${RESET}]\n"
+      fi
+
+      if grep -q "sjnexe.github.io" ~/.config/pip/pip.conf 2>/dev/null; then
+        printf "  Pip Index:         [${GREEN}ENABLED${RESET}]\n"
+      else
+        printf "  Pip Index:         [${RED}DISABLED${RESET}]\n"
+      fi
+    }
+
+    enable_manager() {
+      case "$1" in
+        apt)
+          mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
+          echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+          curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc"
+          printf "${GREEN}✓ Enabled APT repository.${RESET}\n"
+          ;;
+        bun)
+          mkdir -p ~/.config
+          if ! grep -q "sjnexe.github.io" ~/.bunfig.toml 2>/dev/null; then
+            cat << 'BUNEOF' >> ~/.bunfig.toml
+
+[install.scopes]
+"@sjnexe" = { url = "https://sjnexe.github.io/RepoExe/npm/" }
+BUNEOF
+          fi
+          printf "${GREEN}✓ Enabled Bun @sjnexe scope.${RESET}\n"
+          ;;
+        npm)
+          npm config set @sjnexe:registry "$REPO_URL/npm/" 2>/dev/null || true
+          printf "${GREEN}✓ Enabled NPM @sjnexe scope.${RESET}\n"
+          ;;
+        pip)
+          mkdir -p ~/.config/pip
+          if ! grep -q "sjnexe.github.io" ~/.config/pip/pip.conf 2>/dev/null; then
+            cat << PIPEOF >> ~/.config/pip/pip.conf
+[global]
+extra-index-url = $REPO_URL/pip/
+PIPEOF
+          fi
+          printf "${GREEN}✓ Enabled Pip extra index.${RESET}\n"
+          ;;
+        all)
+          enable_manager apt
+          enable_manager bun
+          enable_manager npm
+          enable_manager pip
+          ;;
+        *)
+          printf "${RED}Error: Unknown target '$1'. Options: apt, bun, npm, pip, all${RESET}\n"
+          exit 1
+          ;;
+      esac
+    }
+
+    disable_manager() {
+      case "$1" in
+        apt)
+          rm -f "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+          printf "${YELLOW}✓ Disabled APT repository.${RESET}\n"
+          ;;
+        bun)
+          if [ -f ~/.bunfig.toml ]; then
+            sed -i '/sjnexe.github.io/d' ~/.bunfig.toml 2>/dev/null || true
+            sed -i '/@sjnexe/d' ~/.bunfig.toml 2>/dev/null || true
+          fi
+          printf "${YELLOW}✓ Disabled Bun scope.${RESET}\n"
+          ;;
+        npm)
+          npm config delete @sjnexe:registry 2>/dev/null || true
+          printf "${YELLOW}✓ Disabled NPM scope.${RESET}\n"
+          ;;
+        pip)
+          if [ -f ~/.config/pip/pip.conf ]; then
+            sed -i '/sjnexe.github.io/d' ~/.config/pip/pip.conf 2>/dev/null || true
+          fi
+          printf "${YELLOW}✓ Disabled Pip extra index.${RESET}\n"
+          ;;
+        all)
+          disable_manager apt
+          disable_manager bun
+          disable_manager npm
+          disable_manager pip
+          ;;
+        *)
+          printf "${RED}Error: Unknown target '$1'. Options: apt, bun, npm, pip, all${RESET}\n"
+          exit 1
+          ;;
+      esac
+    }
 
     case "$1" in
       status)
-        echo "=== RepoExe System Status ==="
-        if [ -f "$PREFIX/etc/apt/sources.list.d/repoexe.list" ]; then
-          echo "  APT (Termux):      [ENABLED]"
-        else
-          echo "  APT (Termux):      [DISABLED]"
-        fi
-        if grep -q "sjnexe.github.io" ~/.npmrc 2>/dev/null; then
-          echo "  NPM Registry:      [ENABLED]"
-        else
-          echo "  NPM Registry:      [DISABLED]"
-        fi
-        if grep -q "sjnexe.github.io" ~/.bunfig.toml 2>/dev/null; then
-          echo "  Bun Registry:      [ENABLED]"
-        else
-          echo "  Bun Registry:      [DISABLED]"
-        fi
-        if grep -q "sjnexe.github.io" ~/.config/pip/pip.conf 2>/dev/null; then
-          echo "  Pip Index:         [ENABLED]"
-        else
-          echo "  Pip Index:         [DISABLED]"
-        fi
+        check_status
         ;;
       sync)
-        echo "Syncing RepoExe environment settings..."
-        curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- --all
+        printf "${CYAN}Syncing RepoExe environment settings...${RESET}\n"
+        curl -sL "$REPO_URL/install" | sh -s -- --all
+        ;;
+      enable)
+        if [ -z "$2" ]; then
+          printf "${RED}Usage: repoexe enable <apt|bun|npm|pip|all>${RESET}\n"
+          exit 1
+        fi
+        enable_manager "$2"
+        ;;
+      disable)
+        if [ -z "$2" ]; then
+          printf "${RED}Usage: repoexe disable <apt|bun|npm|pip|all>${RESET}\n"
+          exit 1
+        fi
+        disable_manager "$2"
+        ;;
+      version|-v|--version)
+        printf "repoexe v1.0.1\n"
+        ;;
+      help|-h|--help|"")
+        show_help
         ;;
       *)
-        echo "Usage: repoexe {status|sync}"
+        printf "${RED}Error: Unknown command '$1'${RESET}\n\n"
+        show_help
+        exit 1
         ;;
     esac
     CLIEOF
     chmod 755 "${DESTDIR}${PREFIX}/bin/repoexe"
+
+    # Install Bash/Zsh Auto-completion Script
+    cat << 'COMPEOF' > "${DESTDIR}${PREFIX}/share/bash-completion/completions/repoexe"
+    _repoexe_completions() {
+        local cur prev
+        COMPREPLY=()
+        cur="${COMPWORDS[COMPCWORD]}"
+        prev="${COMPWORDS[COMPCWORD-1]}"
+
+        case "${prev}" in
+            enable|disable)
+                COMPREPLY=( $(compgen -W "apt bun npm pip all" -- ${cur}) )
+                return 0
+                ;;
+            repoexe)
+                COMPREPLY=( $(compgen -W "status sync enable disable version help" -- ${cur}) )
+                return 0
+                ;;
+        esac
+    }
+    complete -F _repoexe_completions repoexe
+    COMPEOF
 
     # Install GPG & RSA security keys using .asc extension
     if [ -f "scripts/repoexe.gpg" ]; then
