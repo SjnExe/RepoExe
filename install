@@ -16,21 +16,21 @@ fi
 
 # 2. Bun Integration (~/.bunfig.toml)
 if command -v bun >/dev/null 2>&1 || [ "$1" = "--all" ] || [ "$1" = "--bun" ]; then
-    echo "[+] Configuring Bun registry scope..."
+    echo "[+] Configuring Bun registry scope (@repoexe)..."
     mkdir -p ~/.config
-    if ! grep -q "sjnexe.github.io" ~/.bunfig.toml 2>/dev/null; then
+    if ! grep -q "@repoexe" ~/.bunfig.toml 2>/dev/null; then
         cat << 'BUNEOF' >> ~/.bunfig.toml
 
 [install.scopes]
-"@sjnexe" = { url = "https://sjnexe.github.io/RepoExe/npm/" }
+"@repoexe" = { url = "https://sjnexe.github.io/RepoExe/npm/" }
 BUNEOF
     fi
 fi
 
 # 3. NPM Integration (~/.npmrc)
 if command -v npm >/dev/null 2>&1 || [ "$1" = "--all" ] || [ "$1" = "--npm" ]; then
-    echo "[+] Configuring NPM scope..."
-    npm config set @sjnexe:registry "$REPO_URL/npm/" 2>/dev/null || true
+    echo "[+] Configuring NPM scope (@repoexe)..."
+    npm config set @repoexe:registry "$REPO_URL/npm/" 2>/dev/null || true
 fi
 
 # 4. Pip Integration (~/.config/pip/pip.conf)

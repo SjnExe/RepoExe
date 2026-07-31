@@ -1,6 +1,6 @@
 name: repoexe
 version: "1.0.1"
-revision: 0
+revision: 1
 arch: aarch64
 desc: Central RepoExe repository management CLI and security keyrings
 license: MIT
@@ -66,13 +66,13 @@ phases:
         printf "  APT (Termux):      [${RED}DISABLED${RESET}]\n"
       fi
 
-      if grep -q "sjnexe.github.io" ~/.npmrc 2>/dev/null; then
+      if grep -q "@repoexe" ~/.npmrc 2>/dev/null; then
         printf "  NPM Registry:      [${GREEN}ENABLED${RESET}]\n"
       else
         printf "  NPM Registry:      [${RED}DISABLED${RESET}]\n"
       fi
 
-      if grep -q "sjnexe.github.io" ~/.bunfig.toml 2>/dev/null; then
+      if grep -q "@repoexe" ~/.bunfig.toml 2>/dev/null; then
         printf "  Bun Registry:      [${GREEN}ENABLED${RESET}]\n"
       else
         printf "  Bun Registry:      [${RED}DISABLED${RESET}]\n"
@@ -95,18 +95,18 @@ phases:
           ;;
         bun)
           mkdir -p ~/.config
-          if ! grep -q "sjnexe.github.io" ~/.bunfig.toml 2>/dev/null; then
+          if ! grep -q "@repoexe" ~/.bunfig.toml 2>/dev/null; then
             cat << 'BUNEOF' >> ~/.bunfig.toml
 
 [install.scopes]
-"@sjnexe" = { url = "https://sjnexe.github.io/RepoExe/npm/" }
+"@repoexe" = { url = "https://sjnexe.github.io/RepoExe/npm/" }
 BUNEOF
           fi
-          printf "${GREEN}✓ Enabled Bun @sjnexe scope.${RESET}\n"
+          printf "${GREEN}✓ Enabled Bun @repoexe scope.${RESET}\n"
           ;;
         npm)
-          npm config set @sjnexe:registry "$REPO_URL/npm/" 2>/dev/null || true
-          printf "${GREEN}✓ Enabled NPM @sjnexe scope.${RESET}\n"
+          npm config set @repoexe:registry "$REPO_URL/npm/" 2>/dev/null || true
+          printf "${GREEN}✓ Enabled NPM @repoexe scope.${RESET}\n"
           ;;
         pip)
           mkdir -p ~/.config/pip
@@ -139,13 +139,12 @@ PIPEOF
           ;;
         bun)
           if [ -f ~/.bunfig.toml ]; then
-            sed -i '/sjnexe.github.io/d' ~/.bunfig.toml 2>/dev/null || true
-            sed -i '/@sjnexe/d' ~/.bunfig.toml 2>/dev/null || true
+            sed -i '/@repoexe/d' ~/.bunfig.toml 2>/dev/null || true
           fi
           printf "${YELLOW}✓ Disabled Bun scope.${RESET}\n"
           ;;
         npm)
-          npm config delete @sjnexe:registry 2>/dev/null || true
+          npm config delete @repoexe:registry 2>/dev/null || true
           printf "${YELLOW}✓ Disabled NPM scope.${RESET}\n"
           ;;
         pip)
