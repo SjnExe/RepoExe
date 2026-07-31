@@ -10,8 +10,8 @@ echo "Configuring RepoExe universal environment..."
 if command -v apt-get >/dev/null 2>&1 || [ -d "$PREFIX/etc/apt" ]; then
     echo "[+] Configuring APT repository..."
     mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
-    echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
-    curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.gpg"
+    echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+    curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc"
 fi
 
 # 2. Bun Integration (~/.bunfig.toml)
@@ -45,7 +45,7 @@ PIPEOF
     fi
 fi
 
-# 5. Automatically fetch and install the repoexe CLI package
+# 5. Automatically fetch and install repoexe CLI package
 if command -v pkg >/dev/null 2>&1; then
     echo "[+] Installing central repoexe management CLI..."
     pkg update -y >/dev/null 2>&1 || true

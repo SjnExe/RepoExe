@@ -60,9 +60,9 @@ phases:
     CLIEOF
     chmod 755 "${DESTDIR}${PREFIX}/bin/repoexe"
 
-    # Install GPG & RSA security keys
+    # Install GPG & RSA security keys using .asc extension
     if [ -f "scripts/repoexe.gpg" ]; then
-      cp "scripts/repoexe.gpg" "${DESTDIR}${PREFIX}/etc/apt/trusted.gpg.d/repoexe.gpg"
+      cp "scripts/repoexe.gpg" "${DESTDIR}${PREFIX}/etc/apt/trusted.gpg.d/repoexe.asc"
     fi
     if [ -f "scripts/repoexe.rsa.pub" ]; then
       cp "scripts/repoexe.rsa.pub" "${DESTDIR}/etc/apk/keys/repoexe.rsa.pub"
