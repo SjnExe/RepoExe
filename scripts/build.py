@@ -103,6 +103,11 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     env["MAKEFLAGS"] = "-j4"
     env["CARGO_BUILD_JOBS"] = "4"
     env["GOMAXPROCS"] = "4"
+    env["GIT_CONFIG_COUNT"] = "1"
+    env["GIT_CONFIG_KEY_0"] = "safe.directory"
+    env["GIT_CONFIG_VALUE_0"] = "*"
+
+    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "*"], check=False)
 
     build_sys = getattr(recipe, "build_system", None)
     if build_sys:
@@ -122,7 +127,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     resolve_and_fetch_build_dependencies(recipe.build_deps, destdir)
 
     work_dir = pkg_dir
-    src_url = getattr(recipe, "source_url", None) or getattr(recipe, "url", None)
+    src_url = getattr(recipe, "source_url", None)
     if src_url:
         archive_path = destdir / "source.tar.gz"
         src_extract_dir = destdir / "src"
