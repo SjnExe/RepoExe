@@ -3,10 +3,11 @@ set -e
 
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 REPO_URL="https://sjnexe.github.io/RepoExe"
+WORKER_NPM_URL="https://sjnexe.github.io/RepoExe/npm/" # Replace with your Cloudflare Worker URL if active
 
 echo "Configuring RepoExe universal environment..."
 
-# 1. APT (Termux / Debian)
+# 1. APT
 if command -v apt-get >/dev/null 2>&1 || [ -d "$PREFIX/etc/apt" ]; then
     echo "[+] Configuring APT repository..."
     mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
@@ -14,38 +15,36 @@ if command -v apt-get >/dev/null 2>&1 || [ -d "$PREFIX/etc/apt" ]; then
     curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc"
 fi
 
-# 2. Bun Integration (~/.bunfig.toml)
+# 2. Bun Integration (Sets default global registry + @repoexe scope)
 if command -v bun >/dev/null 2>&1 || [ "$1" = "--all" ] || [ "$1" = "--bun" ]; then
-    echo "[+] Configuring Bun registry scope (@repoexe)..."
+    echo "[+] Configuring Bun global registry..."
     mkdir -p ~/.config
-    if ! grep -q "@repoexe" ~/.bunfig.toml 2>/dev/null; then
-        cat << 'BUNEOF' >> ~/.bunfig.toml
+    cat << BUNEOF > ~/.bunfig.toml
+# Configured by RepoExe
+url = "$WORKER_NPM_URL"
 
 [install.scopes]
-"@repoexe" = { url = "https://sjnexe.github.io/RepoExe/npm/" }
+"@repoexe" = { url = "$WORKER_NPM_URL" }
 BUNEOF
-    fi
 fi
 
-# 3. NPM Integration (~/.npmrc)
+# 3. NPM Integration
 if command -v npm >/dev/null 2>&1 || [ "$1" = "--all" ] || [ "$1" = "--npm" ]; then
-    echo "[+] Configuring NPM scope (@repoexe)..."
-    npm config set @repoexe:registry "$REPO_URL/npm/" 2>/dev/null || true
+    echo "[+] Configuring NPM registry..."
+    npm config set registry "$WORKER_NPM_URL" 2>/dev/null || true
 fi
 
-# 4. Pip Integration (~/.config/pip/pip.conf)
+# 4. Pip Integration
 if command -v pip >/dev/null 2>&1 || command -v pip3 >/dev/null 2>&1 || [ "$1" = "--all" ] || [ "$1" = "--pip" ]; then
     echo "[+] Configuring Pip extra index..."
     mkdir -p ~/.config/pip
     if ! grep -q "sjnexe.github.io" ~/.config/pip/pip.conf 2>/dev/null; then
-        cat << PIPEOF >> ~/.config/pip/pip.conf
-[global]
-extra-index-url = $REPO_URL/pip/
-PIPEOF
+        echo "[global]" >> ~/.config/pip/pip.conf
+        echo "extra-index-url = $REPO_URL/pip/" >> ~/.config/pip/pip.conf
     fi
 fi
 
-# 5. Automatically fetch and install repoexe CLI package
+# 5. Automatically fetch and install repoexe CLI
 if command -v pkg >/dev/null 2>&1; then
     echo "[+] Installing central repoexe management CLI..."
     pkg update -y >/dev/null 2>&1 || true
