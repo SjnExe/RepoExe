@@ -10,10 +10,10 @@ from pathlib import Path
 from core.parser import PackageRecipe
 
 ARCH_MAP = {
-    "aarch64": "arm64",
-    "x86_64": "amd64",
-    "arm": "armhf",
-    "i686": "i386",
+    "aarch64": "aarch64",
+    "x86_64": "x86_64",
+    "arm": "arm",
+    "i686": "i686",
 }
 
 
@@ -124,7 +124,7 @@ def _process_single_deb(deb_file: Path) -> str | None:
 
 
 def generate_apt_metadata(
-    output_dir: str, component: str = "main", arch: str = "arm64"
+    output_dir: str, component: str = "main", arch: str = "aarch64"
 ) -> None:
     """Generates APT Packages index concurrently for all deb archives in output_dir."""
     binary_dir = os.path.join(
@@ -176,7 +176,7 @@ def generate_release_file(
                 sha256 = hashlib.sha256(data).hexdigest()
                 file_entries.append(f" {sha256} {size} {rel_path}")
 
-    arch_str = " ".join(sorted(arches)) or "arm64"
+    arch_str = " ".join(sorted(arches)) or "aarch64"
 
     release_content = (
         f"Origin: RepoExe\n"
