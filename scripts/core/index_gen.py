@@ -71,8 +71,13 @@ def prepare_site(
         artifacts_dir=art_path,
     )
 
-    # 4. Copy Security Keyrings
+    # 4. Copy Root Installer & Security Keyrings
     root_dir = Path(__file__).resolve().parents[2]
+    
+    install_src = root_dir / "install"
+    if install_src.exists():
+        shutil.copy2(install_src, s_path / "install")
+
     for key in ["scripts/repoexe.gpg", "scripts/repoexe.rsa.pub"]:
         src = root_dir / key
         if src.exists():
