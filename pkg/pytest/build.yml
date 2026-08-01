@@ -1,6 +1,6 @@
 name: pytest
 version: "8.3.4"
-revision: 1
+revision: 0
 arch: aarch64
 desc: Simple powerful testing framework for Python
 license: MIT

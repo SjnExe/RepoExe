@@ -86,7 +86,6 @@ def generate_npm_index(output_dir: str | Path) -> None:
             filename = tgz_path.name.replace(".tgz", "")
             filename_ver = filename[len(pkg_name)+1:] if filename.startswith(f"{pkg_name}-") else "1.0.0"
 
-            # Extract full package.json metadata from inside the built tarball
             inner_meta = {}
             try:
                 with tarfile.open(tgz_path, "r:gz") as tar:
@@ -103,7 +102,6 @@ def generate_npm_index(output_dir: str | Path) -> None:
             inner_meta["name"] = pkg_name
             inner_meta["version"] = ver
 
-            # Ensure bin field is explicitly populated
             if "bin" not in inner_meta:
                 inner_meta["bin"] = {pkg_name: f"bin/{pkg_name}"}
 
