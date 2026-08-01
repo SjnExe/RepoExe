@@ -35,32 +35,28 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     bin_dir = npm_pkg_dir / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
 
-    stage_bin = next(
-        (
-            f
-            for f in stage_dir.rglob(recipe.name)
-            if f.is_file() and "DEBIAN" not in f.parts and f.name == recipe.name
-        ),
-        None,
-    )
-    if stage_bin and stage_bin.exists():
-        bin_target = bin_dir / recipe.name
-        shutil.copy2(stage_bin, bin_target)
-        bin_target.chmod(0o755)
+    # Copy the entire Termux structure into the NPM package to preserve shared libraries and resources
+    usr_stage_dir = stage_dir / "data" / "data" / "com.termux" / "files" / "usr"
+    if usr_stage_dir.exists():
+        shutil.copytree(usr_stage_dir, npm_pkg_dir / "usr", dirs_exist_ok=True)
     else:
-        # If the binary wasn't found directly, it might be in an overarching `bin` directory
-        bin_dir_path = (
-            stage_dir / "data" / "data" / "com.termux" / "files" / "usr" / "bin"
-        )
-        if bin_dir_path.exists():
-            bin_target_alt = bin_dir_path / recipe.name
-            if bin_target_alt.exists():
-                bin_target = bin_dir / recipe.name
-                shutil.copy2(bin_target_alt, bin_target)
-                bin_target.chmod(0o755)
+        # Fallback if it's a flat build structure without full Termux prefix
+        for item in stage_dir.iterdir():
+            if item.is_dir() and item.name not in ("DEBIAN", "npm_package", "wheel_build"):
+                shutil.copytree(item, npm_pkg_dir / "usr" / item.name, dirs_exist_ok=True)
 
-    if not (bin_dir / recipe.name).exists():
-        print(f"Warning: Could not find binary {recipe.name} in stage dir. NPM package bin will be missing.")
+    # Generate a robust bash wrapper to execute the deep-nested binary with the correct dynamic linker and library paths
+    wrapper_script = (
+        "#!/data/data/com.termux/files/usr/bin/bash\n"
+        "set -e\n"
+        "DIR=\"$( cd \"$( dirname \"${BASH_SOURCE[0]}\" )\" >/dev/null 2>&1 && pwd )\"\n"
+        "export LD_LIBRARY_PATH=\"${DIR}/../usr/lib:$LD_LIBRARY_PATH\"\n"
+        "exec \"${DIR}/../usr/bin/" + recipe.name + "\" \"$@\"\n"
+    )
+
+    bin_target = bin_dir / recipe.name
+    bin_target.write_text(wrapper_script, encoding="utf-8")
+    bin_target.chmod(0o755)
 
     tgz_path = out_path / f"{recipe.name}-{npm_version}.tgz"
 
