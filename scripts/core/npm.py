@@ -52,7 +52,7 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
 
 
 def generate_npm_index(output_dir: str | Path) -> None:
-    """Generates standard NPM registry package manifests."""
+    """Generates standard NPM registry package manifests routing to Cloudflare Worker."""
     base_dir = Path(output_dir)
     npm_dir = base_dir / "npm"
     npm_dir.mkdir(parents=True, exist_ok=True)
@@ -61,7 +61,6 @@ def generate_npm_index(output_dir: str | Path) -> None:
     packages: dict[str, list[Path]] = {}
 
     for tgz in tgz_files:
-        # Safely extract package name by finding the first segment starting with a digit
         parts = tgz.name.replace(".tgz", "").split("-")
         ver_idx = len(parts) - 1
         for i, p in enumerate(parts):
@@ -85,18 +84,14 @@ def generate_npm_index(output_dir: str | Path) -> None:
                 shutil.copy2(tgz_path, dest)
 
             filename = tgz_path.name.replace(".tgz", "")
-            if filename.startswith(f"{pkg_name}-"):
-                ver = filename[len(pkg_name)+1:]
-            else:
-                ver = "1.0.0"
-                
+            ver = filename[len(pkg_name)+1:] if filename.startswith(f"{pkg_name}-") else "1.0.0"
             latest_ver = ver
 
             versions_manifest[ver] = {
                 "name": pkg_name,
                 "version": ver,
                 "dist": {
-                    "tarball": f"https://sjnexe.github.io/RepoExe/npm/{pkg_name}/{tgz_path.name}"
+                    "tarball": f"https://repoexe-npm-proxy.sjn.workers.dev/{pkg_name}/-/{tgz_path.name}"
                 },
             }
 

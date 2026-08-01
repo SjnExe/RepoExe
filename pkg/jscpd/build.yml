@@ -1,12 +1,12 @@
 name: jscpd
-version: "5.0.15"
-revision: 0
+version: "5.0.14"
+revision: 1
 arch: aarch64
-desc: Copy/paste code detector compiled natively in Rust for aarch64 Android/Termux
+desc: Copy/paste code detector compiled natively in Rust for Termux
 license: MIT
-homepage: https://github.com/kucherenko/jscpd
+homepage: https://jscpd.dev
 maintainer: SjnExe
-source: https://github.com/kucherenko/jscpd/archive/refs/tags/v5.0.14.tar.gz
+source: https://crates.io/api/v1/crates/jscpd/5.0.14/download
 build_system: cargo
 formats:
   - npm
@@ -16,16 +16,14 @@ formats:
 phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
-    CARGO_MANIFEST=$(find . -name Cargo.toml | head -n 1)
-    if [ -n "$CARGO_MANIFEST" ]; then
-      cd "$(dirname "$CARGO_MANIFEST")"
+    if [ -f "target/aarch64-linux-android/release/jscpd" ]; then
+      cp target/aarch64-linux-android/release/jscpd "${DESTDIR}${PREFIX}/bin/jscpd"
+    elif [ -f "target/release/jscpd" ]; then
+      cp target/release/jscpd "${DESTDIR}${PREFIX}/bin/jscpd"
+    else
+      cargo build --release
+      cp target/release/jscpd "${DESTDIR}${PREFIX}/bin/jscpd"
     fi
-    cargo build --release
-    BIN_SRC=$(find target/ -type f -name jscpd 2>/dev/null | grep -v "\.d$" | head -n 1)
-    if [ -z "$BIN_SRC" ]; then
-      BIN_SRC=$(find . -type f -name jscpd 2>/dev/null | grep -v "\.d$" | head -n 1)
-    fi
-    cp "$BIN_SRC" "${DESTDIR}${PREFIX}/bin/jscpd"
     chmod +x "${DESTDIR}${PREFIX}/bin/jscpd"
   test: |
     jscpd --version

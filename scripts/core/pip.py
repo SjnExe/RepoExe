@@ -44,12 +44,13 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
             else:
                 shutil.copy2(item, target)
 
-    # Clean up foreign .dist-info or .egg-info directories to maintain strict PEP 427 wheel compliance
+    # Bulletproof PEP 427 wheel metadata isolation
     clean_pkg_name = recipe.name.replace("-", "_").lower()
     expected_dist_info = f"{clean_pkg_name}-{recipe.version}.dist-info".lower()
 
-    for item in list(wheel_build_dir.glob("*.dist-info")) + list(wheel_build_dir.glob("*.egg-info")):
-        if item.name.lower() != expected_dist_info:
+    for item in wheel_build_dir.iterdir():
+        name_lower = item.name.lower()
+        if name_lower.endswith((".dist-info", ".egg-info")) and name_lower != expected_dist_info:
             if item.is_dir():
                 shutil.rmtree(item)
             else:
