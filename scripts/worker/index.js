@@ -1,25 +1,24 @@
 export default {
-  async fetch(request) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // 1. Try fetching from RepoExe GitHub Pages
-    const repoexeUrl = `https://sjnexe.github.io/RepoExe/npm${url.pathname}${url.search}`;
+    // 1. Query local RepoExe store first for custom compiled packages
+    const repoexeUrl = `https://sjnexe.github.io/RepoExe/npm${url.pathname}`;
+    const localRes = await fetch(repoexeUrl, {
+      headers: { 'User-Agent': 'RepoExe-Proxy' }
+    });
 
-    try {
-      const response = await fetch(repoexeUrl, {
-        method: request.method,
-        headers: request.headers,
-      });
-
-      if (response.status === 200) {
-        return response;
-      }
-    } catch (err) {
-      // Fallback on network error
+    if (localRes.status === 200) {
+      return localRes;
     }
 
-    // 2. Redirect to official npmjs.org for standard packages
-    const npmUrl = `https://registry.npmjs.org${url.pathname}${url.search}`;
-    return Response.redirect(npmUrl, 307);
+    // 2. Fall back to upstream npmjs.org for standard public packages
+    const upstreamUrl = `https://registry.npmjs.org${url.pathname}`;
+    return fetch(upstreamUrl, {
+      headers: { 
+        'User-Agent': request.headers.get('User-Agent') || 'RepoExe-Proxy',
+        'Accept': request.headers.get('Accept') || '*/*'
+      }
+    });
   }
 };
