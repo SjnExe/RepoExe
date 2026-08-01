@@ -1,28 +1,29 @@
 name: jscpd
 version: "5.0.14"
 revision: 0
-architecture: aarch64
-description: Copy/paste detector for programming code (static Rust ARM64 build)
+arch: aarch64
+desc: Copy/paste code detector compiled natively for Termux
 license: MIT
-homepage: https://github.com/SjnExe/RepoExe
+homepage: https://github.com/kucherenko/jscpd
 maintainer: SjnExe
-
+source: https://github.com/kucherenko/jscpd/archive/refs/tags/v5.0.14.tar.gz
+build_system: cargo
 formats:
+  - npm
   - apt
   - pacman
-  - apk
-  - npm
 
-channels:
-  latest:
-    version: "5.0.14"
-    auto_update: true
-    update_strategy: github_tag
-    source_url: https://github.com/vv-bogdanov/jscpd-rs/archive/refs/heads/main.tar.gz
-
-build_system: cargo
 phases:
-  make: |
-    cargo build --release --target aarch64-unknown-linux-musl
   install: |
-    install -Dm755 target/aarch64-unknown-linux-musl/release/jscpd "${DESTDIR}${PREFIX}/bin/jscpd"
+    mkdir -p "${DESTDIR}${PREFIX}/bin"
+    if [ -f "target/aarch64-linux-android/release/jscpd" ]; then
+      cp target/aarch64-linux-android/release/jscpd "${DESTDIR}${PREFIX}/bin/jscpd"
+    elif [ -f "target/release/jscpd" ]; then
+      cp target/release/jscpd "${DESTDIR}${PREFIX}/bin/jscpd"
+    else
+      cargo build --release
+      cp target/release/jscpd "${DESTDIR}${PREFIX}/bin/jscpd"
+    fi
+    chmod +x "${DESTDIR}${PREFIX}/bin/jscpd"
+  test: |
+    jscpd --version
