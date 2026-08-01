@@ -15,6 +15,6 @@ formats:
 phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}"
-    python3 -m pip install --no-deps --prefix="${DESTDIR}${PREFIX}" .
+    python3 -m pip install --prefix="${DESTDIR}${PREFIX}" .
   test: |
     pytest --version
