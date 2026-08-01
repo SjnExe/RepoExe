@@ -1,13 +1,13 @@
 name: jscpd
 version: "5.0.14"
 revision: 0
-arch: aarch64
-desc: Copy/paste code detector compiled natively for Termux
+arch: all
+desc: Copy/paste code detector bundled for universal Node/Bun/Termux execution
 license: MIT
 homepage: https://github.com/kucherenko/jscpd
 maintainer: SjnExe
-source: https://github.com/kucherenko/jscpd/archive/refs/tags/v5.0.14.tar.gz
-build_system: cargo
+source: https://registry.npmjs.org/jscpd/-/jscpd-5.0.14.tgz
+build_system: custom
 formats:
   - npm
   - apt
@@ -16,14 +16,9 @@ formats:
 phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
-    if [ -f "target/aarch64-linux-android/release/jscpd" ]; then
-      cp target/aarch64-linux-android/release/jscpd "${DESTDIR}${PREFIX}/bin/jscpd"
-    elif [ -f "target/release/jscpd" ]; then
-      cp target/release/jscpd "${DESTDIR}${PREFIX}/bin/jscpd"
-    else
-      cargo build --release
-      cp target/release/jscpd "${DESTDIR}${PREFIX}/bin/jscpd"
-    fi
+    npm install
+    npm install --no-save esbuild
+    npx esbuild bin/jscpd.js --bundle --platform=node --target=node18 --banner:js='#!/usr/bin/env node' --outfile="${DESTDIR}${PREFIX}/bin/jscpd"
     chmod +x "${DESTDIR}${PREFIX}/bin/jscpd"
   test: |
     jscpd --version
