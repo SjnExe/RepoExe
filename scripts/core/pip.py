@@ -12,6 +12,7 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     out_path.mkdir(parents=True, exist_ok=True)
 
     pkg_name = recipe.name.replace("-", "_")
+
     existing_wheels = list(out_path.glob(f"{pkg_name}*.whl"))
     if existing_wheels:
         return existing_wheels[0]
@@ -25,7 +26,9 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         shutil.rmtree(wheel_build_dir)
     wheel_build_dir.mkdir(parents=True, exist_ok=True)
 
-    python_staged = list(stage_dir.rglob("site-packages")) + list(stage_dir.rglob("dist-packages"))
+    python_staged = list(stage_dir.rglob("site-packages")) + list(
+        stage_dir.rglob("dist-packages")
+    )
     if python_staged:
         for p_dir in python_staged:
             for item in p_dir.iterdir():
@@ -46,11 +49,19 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
 
     # Bulletproof PEP 427 wheel metadata isolation
     clean_pkg_name = recipe.name.replace("-", "_").lower()
+
+    # Construct PEP 440 local version identifier (e.g. 1.0.0+repoexe.1)
+    recipe.version = recipe.version
+    if recipe.revision > 0:
+        recipe.version = f"{recipe.version}+repoexe.{recipe.revision}"
     expected_dist_info = f"{clean_pkg_name}-{recipe.version}.dist-info".lower()
 
     for item in wheel_build_dir.iterdir():
         name_lower = item.name.lower()
-        if name_lower.endswith((".dist-info", ".egg-info")) and name_lower != expected_dist_info:
+        if (
+            name_lower.endswith((".dist-info", ".egg-info"))
+            and name_lower != expected_dist_info
+        ):
             if item.is_dir():
                 shutil.rmtree(item)
             else:

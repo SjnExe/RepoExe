@@ -29,14 +29,28 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     bin_dir = npm_pkg_dir / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
 
-    stage_bin = next(
-        (f for f in stage_dir.rglob(recipe.name) if f.is_file() and "DEBIAN" not in f.parts and f.name == recipe.name),
-        None,
+    # Copy the entire Termux structure into the NPM package to preserve shared libraries and resources
+    usr_stage_dir = stage_dir / "data" / "data" / "com.termux" / "files" / "usr"
+    if usr_stage_dir.exists():
+        shutil.copytree(usr_stage_dir, npm_pkg_dir / "usr", dirs_exist_ok=True)
+    else:
+        # Fallback if it's a flat build structure without full Termux prefix
+        for item in stage_dir.iterdir():
+            if item.is_dir() and item.name not in ("DEBIAN", "npm_package", "wheel_build"):
+                shutil.copytree(item, npm_pkg_dir / "usr" / item.name, dirs_exist_ok=True)
+
+    # Generate a robust bash wrapper to execute the deep-nested binary with the correct dynamic linker and library paths
+    wrapper_script = (
+        "#!/data/data/com.termux/files/usr/bin/bash\n"
+        "set -e\n"
+        "DIR=\"$(dirname \"$(readlink -f \"$0\" 2>/dev/null || realpath \"$0\" 2>/dev/null || echo \"$0\")\")\"\n"
+        "export LD_LIBRARY_PATH=\"${DIR}/../usr/lib:$LD_LIBRARY_PATH\"\n"
+        "exec \"${DIR}/../usr/bin/" + recipe.name + "\" \"$@\"\n"
     )
-    if stage_bin and stage_bin.exists():
-        bin_target = bin_dir / recipe.name
-        shutil.copy2(stage_bin, bin_target)
-        bin_target.chmod(0o755)
+
+    bin_target = bin_dir / recipe.name
+    bin_target.write_text(wrapper_script, encoding="utf-8")
+    bin_target.chmod(0o755)
 
     tgz_path = out_path / f"{recipe.name}-{recipe.version}.tgz"
 
@@ -67,7 +81,7 @@ def generate_npm_index(output_dir: str | Path) -> None:
             if p and p[0].isdigit():
                 ver_idx = i
                 break
-        
+
         name = "-".join(parts[:ver_idx]) if ver_idx > 0 else parts[0]
         packages.setdefault(name, []).append(tgz)
 
@@ -84,7 +98,11 @@ def generate_npm_index(output_dir: str | Path) -> None:
                 shutil.copy2(tgz_path, dest)
 
             filename = tgz_path.name.replace(".tgz", "")
-            filename_ver = filename[len(pkg_name)+1:] if filename.startswith(f"{pkg_name}-") else "1.0.0"
+            filename_ver = (
+                filename[len(pkg_name) + 1 :]
+                if filename.startswith(f"{pkg_name}-")
+                else "1.0.0"
+            )
 
             inner_meta = {}
             try:
