@@ -1,9 +1,9 @@
 from unittest.mock import MagicMock, patch
 
-from core.docker import DockerBackgroundExec, DockerConfig, DockerRunner
+from docker.runner import DockerBackgroundExec, DockerConfig, DockerRunner
 
 
-@patch("core.docker.subprocess.Popen")
+@patch("docker.runner.subprocess.Popen")
 def test_docker_runner(mock_popen):
     mock_process = MagicMock()
     mock_process.communicate.return_value = ("stdout", "stderr")
@@ -32,8 +32,8 @@ def test_docker_runner(mock_popen):
     assert "hello" in called_args
 
 
-@patch("core.docker.subprocess.run")
-@patch("core.docker.subprocess.Popen")
+@patch("docker.runner.subprocess.run")
+@patch("docker.runner.subprocess.Popen")
 def test_docker_background_exec(mock_popen, mock_run):
     mock_process = MagicMock()
     mock_process.communicate.return_value = ("out", "err")
