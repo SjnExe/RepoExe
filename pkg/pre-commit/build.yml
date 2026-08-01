@@ -15,6 +15,6 @@ formats:
 phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}"
-    python3 -m pip install --prefix="${DESTDIR}${PREFIX}" .
+    python3 -m pip install --ignore-installed --prefix="${DESTDIR}${PREFIX}" .
   test: |
     pre-commit --version
