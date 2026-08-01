@@ -3,9 +3,17 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
+    const parts = pathname.split('/').filter(Boolean);
+    if (parts.length === 0) {
+      return new Response('RepoExe NPM Proxy', { status: 200 });
+    }
+
+    const pkgName = parts[0];
     let targetPath = pathname;
-    if (!pathname.endsWith('.tgz') && !pathname.endsWith('.json')) {
-      targetPath = `${pathname.replace(/\/$/, '')}/package.json`;
+
+    // Map any package metadata request (e.g. /tsc/7.0.2) to /tsc/package.json
+    if (!pathname.endsWith('.tgz')) {
+      targetPath = `/${pkgName}/package.json`;
     }
 
     // 1. Query local RepoExe store on GitHub Pages first
