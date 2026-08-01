@@ -1,5 +1,5 @@
 name: jscpd
-version: "5.0.14"
+version: "5.0.14-native.1"
 revision: 0
 arch: aarch64
 desc: Copy/paste code detector compiled natively in Rust for aarch64 Android/Termux

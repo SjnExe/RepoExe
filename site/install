@@ -190,7 +190,7 @@ case "$1" in
     ;;
   sync|-y)
     printf "${CYAN}Syncing RepoExe environment settings...${RESET}\n"
-    curl -sL "$REPO_URL/install" | sh -s -- --all
+    curl -sL "$REPO_URL/install" | sh -s -- enable all
     ;;
   list|ls|-l)
     list_packages
@@ -213,7 +213,7 @@ case "$1" in
     disable_manager "$2"
     ;;
   version|-v|--version)
-    printf "repoexe v1.1.3\n"
+    printf "repoexe v1.1.4\n"
     ;;
   help|-h|--help|"")
     show_help
