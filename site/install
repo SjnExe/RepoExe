@@ -3,7 +3,7 @@ set -e
 
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 REPO_URL="https://sjnexe.github.io/RepoExe"
-WORKER_NPM_URL="${REPOEXE_WORKER_URL:-https://sjnexe.github.io/RepoExe/npm/}"
+WORKER_NPM_URL="${REPOEXE_WORKER_URL:-https://repoexe-npm-proxy.sjn.workers.dev}"
 
 # Terminal Colors
 if [ -t 1 ]; then
@@ -23,7 +23,7 @@ else
 fi
 
 show_help() {
-  printf "${BOLD}RepoExe Repository Management CLI v1.1.2${RESET}\n\n"
+  printf "${BOLD}RepoExe Repository Management CLI v1.1.3${RESET}\n\n"
   printf "${BOLD}USAGE:${RESET}\n"
   printf "  repoexe <command> [target|args]\n\n"
   printf "${BOLD}COMMANDS:${RESET}\n"
@@ -46,13 +46,13 @@ check_status() {
     printf "  APT (Termux):      [${RED}DISABLED${RESET}]\n"
   fi
 
-  if [ -f ~/.npmrc ] && grep -qE "(sjnexe\.github\.io|workers\.dev|repoexe|registry=)" ~/.npmrc 2>/dev/null && ! grep -q "registry=https://registry.npmjs.org" ~/.npmrc 2>/dev/null; then
+  if [ -f ~/.npmrc ] && grep -qE "(repoexe-npm-proxy|workers\.dev|sjnexe\.github\.io|registry=)" ~/.npmrc 2>/dev/null && ! grep -q "registry=https://registry.npmjs.org" ~/.npmrc 2>/dev/null; then
     printf "  NPM Registry:      [${GREEN}ENABLED${RESET}]\n"
   else
     printf "  NPM Registry:      [${RED}DISABLED${RESET}]\n"
   fi
 
-  if [ -f ~/.bunfig.toml ] && grep -qE "(sjnexe\.github\.io|workers\.dev|repoexe|url =)" ~/.bunfig.toml 2>/dev/null; then
+  if [ -f ~/.bunfig.toml ] && grep -qE "(repoexe-npm-proxy|workers\.dev|sjnexe\.github\.io|url =)" ~/.bunfig.toml 2>/dev/null; then
     printf "  Bun Registry:      [${GREEN}ENABLED${RESET}]\n"
   else
     printf "  Bun Registry:      [${RED}DISABLED${RESET}]\n"
@@ -213,7 +213,7 @@ case "$1" in
     disable_manager "$2"
     ;;
   version|-v|--version)
-    printf "repoexe v1.1.2\n"
+    printf "repoexe v1.1.3\n"
     ;;
   help|-h|--help|"")
     show_help
