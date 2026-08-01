@@ -1,4 +1,4 @@
-name: RepoExe Orchestrator & Deployment
+name: Build
 
 on:
   push:
@@ -118,6 +118,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            ~/.cache/sccache
           key: cargo-cache-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/Cargo.lock', 'pkg/*/build.yml') }}
           restore-keys: |
             cargo-cache-${{ runner.os }}-${{ matrix.package }}-
@@ -164,6 +165,11 @@ jobs:
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $HOME/.cargo/registry:/home/builder/.cargo/registry \
+            -v $HOME/.cache/sccache:/home/builder/.cache/sccache \
+            -v $HOME/.cache/go-build:/home/builder/.cache/go-build \
+            -v $HOME/go/pkg/mod:/home/builder/go/pkg/mod \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
             sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py compile \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
 
@@ -183,10 +189,17 @@ jobs:
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $HOME/.cargo/registry:/home/builder/.cargo/registry \
+            -v $HOME/.cache/sccache:/home/builder/.cache/sccache \
+            -v $HOME/.cache/go-build:/home/builder/.cache/go-build \
+            -v $HOME/go/pkg/mod:/home/builder/go/pkg/mod \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
             sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py pack \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
 
-      - name: PRoot Smoke Test
+      - name: Termux Docker Smoke Test
+        continue-on-error: true
+        id: test_step
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
@@ -202,8 +215,22 @@ jobs:
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $HOME/.cargo/registry:/home/builder/.cargo/registry \
+            -v $HOME/.cache/sccache:/home/builder/.cache/sccache \
+            -v $HOME/.cache/go-build:/home/builder/.cache/go-build \
+            -v $HOME/go/pkg/mod:/home/builder/go/pkg/mod \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
             sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py test \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
+
+      - name: Fix Cache Permissions
+        run: sudo chown -R $USER:$USER ~/.cargo ~/.cache/sccache ~/.cache/go-build ~/go 2>/dev/null || true
+
+      - name: Check Build and Test Status
+        if: steps.build_step.outcome == 'failure' || steps.test_step.outcome == 'failure'
+        run: |
+          echo "::error::Target failed during build or test. Check aggregated logs."
+          bash -c 'exit 1'
 
       - name: Save Go Cache (Main Branch Only)
         if: github.ref == 'refs/heads/main' && matrix.build_system == 'go' && always()
@@ -221,6 +248,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            ~/.cache/sccache
           key: cargo-cache-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/Cargo.lock', 'pkg/*/build.yml') }}
 
       - name: Upload Single Target Build Log
@@ -275,26 +303,10 @@ jobs:
       - name: Aggregate All Logs Into Summary Text File
         run: |
           mkdir -p summary
-          SUMMARY_FILE="summary/all_build_logs.txt"
-          echo "================================================================================" > "$SUMMARY_FILE"
-          echo "REPOEXE AUTOMATED MATRIX BUILD & SMOKE TEST LOG SUMMARY" >> "$SUMMARY_FILE"
-          echo "================================================================================" >> "$SUMMARY_FILE"
-          echo "" >> "$SUMMARY_FILE"
-
-          if [ -d "all_logs" ] && [ "$(ls -A all_logs 2>/dev/null)" ]; then
-            for logfile in all_logs/*.log; do
-              if [ -f "$logfile" ]; then
-                target_name=$(basename "$logfile" .log)
-                echo "--------------------------------------------------------------------------------" >> "$SUMMARY_FILE"
-                echo "TARGET LOG: $target_name" >> "$SUMMARY_FILE"
-                echo "--------------------------------------------------------------------------------" >> "$SUMMARY_FILE"
-                cat "$logfile" >> "$SUMMARY_FILE"
-                echo "" >> "$SUMMARY_FILE"
-                echo "" >> "$SUMMARY_FILE"
-              fi
-            done
+          if [ -d "all_logs" ]; then
+            python3 scripts/core/log_aggregator.py all_logs summary/all_build_logs.txt
           else
-            echo "No build logs collected." >> "$SUMMARY_FILE"
+            echo "No build logs collected." > summary/all_build_logs.txt
           fi
 
       - name: Upload Aggregated Log Summary Artifact

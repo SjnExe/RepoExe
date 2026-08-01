@@ -39,25 +39,48 @@ class ProotTestRunner:
         script_path.write_text(script_content, encoding="utf-8")
         script_path.chmod(0o755)
 
-        docker_cmd = [
-            "docker", "run", "--rm",
-            "-v", f"{script_path}:/test.sh:ro"
-        ]
+        # When running inside GitHub Actions (Docker-in-Docker via socket), we must map internal paths
+        # to host paths so the host Docker daemon can find them to mount into the test container.
+        host_stage_dir = str(stage_dir) if stage_dir else ""
+        github_workspace = os.environ.get("GITHUB_WORKSPACE")
 
-        # Mount the built package output into the termux prefix so it can be tested
+        if github_workspace and "/home/builder/RepoExe" in host_stage_dir:
+            host_stage_dir = host_stage_dir.replace(
+                "/home/builder/RepoExe", github_workspace
+            )
+
+        # Instead of mounting the script file (which is complicated with host paths), we pipe it via STDIN
+        docker_cmd = ["docker", "run", "--rm", "-i"]
         if stage_dir and stage_dir.exists():
-            docker_cmd.extend(["-v", f"{stage_dir}:/tmp/stage:ro"])
+            docker_cmd.extend(["-v", f"{host_stage_dir}:/tmp/stage:ro"])
 
-        docker_cmd.extend([termux_image, "/data/data/com.termux/files/usr/bin/bash", "/test.sh"])
+        docker_cmd.extend(
+            [
+                termux_image,
+                "/data/data/com.termux/files/usr/bin/bash",
+                "-c",
+                script_content,
+            ]
+        )
 
         # Check if docker is available and we can run termux-docker
-        has_docker = subprocess.run(["docker", "info"], capture_output=True, check=False).returncode == 0
+        has_docker = (
+            bool(shutil.which("docker"))
+            and subprocess.run(
+                ["docker", "info"], capture_output=True, check=False
+            ).returncode
+            == 0
+        )
 
         if has_docker:
             # We must be on arm64 or have qemu-user-static configured to run termux/termux-docker:aarch64
-            res = subprocess.run(docker_cmd, capture_output=True, text=True, check=False)
+            res = subprocess.run(
+                docker_cmd, capture_output=True, text=True, check=False
+            )
             if res.returncode == 0:
-                print(f"✓ [{package_name}] Smoke test passed successfully inside Termux Docker.")
+                print(
+                    f"✓ [{package_name}] Smoke test passed successfully inside Termux Docker."
+                )
                 return True
 
             err_msg = (
@@ -67,10 +90,15 @@ class ProotTestRunner:
             print(f"❌ {err_msg}")
 
             # If the image was missing, it might output a specific error we can fallback on
-            if "Unable to find image" not in res.stderr and "exec format error" not in res.stderr:
+            if (
+                "Unable to find image" not in res.stderr
+                and "exec format error" not in res.stderr
+            ):
                 raise RuntimeError(err_msg)
 
-        print(f"⚠️ [{package_name}] Termux Docker unavailable (no Docker or arch mismatch), falling back to native wrapper execution...")
+        print(
+            f"⚠️ [{package_name}] Termux Docker unavailable (no Docker or arch mismatch), falling back to native wrapper execution..."
+        )
 
         test_env = os.environ.copy()
 
@@ -85,7 +113,9 @@ class ProotTestRunner:
         staged_prefix = None
         if stage_dir and stage_dir.exists():
             staged_prefix = stage_dir / Path(self.prefix).relative_to("/")
-            test_env["PREFIX"] = str(staged_prefix) if staged_prefix.exists() else str(stage_dir)
+            test_env["PREFIX"] = (
+                str(staged_prefix) if staged_prefix.exists() else str(stage_dir)
+            )
             bin_dirs = [d for d in stage_dir.rglob("bin") if d.is_dir()]
 
             for bdir in bin_dirs:
@@ -150,7 +180,9 @@ class ProotTestRunner:
             check=False,
         )
         if res_direct.returncode == 0:
-            print(f"✓ [{package_name}] Smoke test passed via direct execution fallback.")
+            print(
+                f"✓ [{package_name}] Smoke test passed via direct execution fallback."
+            )
             return True
 
         err_msg = (
