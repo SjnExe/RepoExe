@@ -1,6 +1,6 @@
 name: tsc
 version: "7.0.2"
-revision: 0
+revision: 1
 architecture: aarch64
 description: Fast TypeScript compiler written in Go with Seccomp sandbox patches
 license: Apache-2.0

@@ -91,7 +91,7 @@ def generate_npm_index(output_dir: str | Path) -> None:
                 "name": pkg_name,
                 "version": ver,
                 "dist": {
-                    "tarball": f"https://repoexe-npm-proxy.sjn.workers.dev/{pkg_name}/-/{tgz_path.name}"
+                    "tarball": f"https://repoexe-npm-proxy.sjn.workers.dev/{pkg_name}/{tgz_path.name}"
                 },
             }
 

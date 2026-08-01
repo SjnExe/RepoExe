@@ -1,9 +1,16 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const pathname = url.pathname;
 
-    // 1. Query local RepoExe store first for custom compiled packages
-    const repoexeUrl = `https://sjnexe.github.io/RepoExe/npm${url.pathname}`;
+    // Resolve static file path on GitHub Pages
+    let targetPath = pathname;
+    if (!pathname.endsWith('.tgz') && !pathname.endsWith('.json')) {
+      targetPath = `${pathname.replace(/\/$/, '')}/package.json`;
+    }
+
+    // 1. Query local RepoExe store on GitHub Pages first
+    const repoexeUrl = `https://sjnexe.github.io/RepoExe/npm${targetPath}`;
     const localRes = await fetch(repoexeUrl, {
       headers: { 'User-Agent': 'RepoExe-Proxy' }
     });
@@ -12,8 +19,8 @@ export default {
       return localRes;
     }
 
-    // 2. Fall back to upstream npmjs.org for standard public packages
-    const upstreamUrl = `https://registry.npmjs.org${url.pathname}`;
+    // 2. Fall back to upstream npmjs.org for unhosted public packages
+    const upstreamUrl = `https://registry.npmjs.org${pathname}`;
     return fetch(upstreamUrl, {
       headers: { 
         'User-Agent': request.headers.get('User-Agent') || 'RepoExe-Proxy',
