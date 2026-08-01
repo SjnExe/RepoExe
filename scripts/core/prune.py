@@ -22,7 +22,11 @@ def get_expected_asset_filenames(recipe: PackageRecipe) -> set[str]:
         f"{pkg}_metadata.json",
     }
 
-    formats = set(recipe.formats) if hasattr(recipe, "formats") and recipe.formats else {"apt"}
+    formats = (
+        set(recipe.formats)
+        if hasattr(recipe, "formats") and recipe.formats
+        else {"apt"}
+    )
 
     if "apt" in formats:
         expected.add(f"{pkg}_{version_str_deb}_arm64.deb")
@@ -128,7 +132,9 @@ def prune_release_tags() -> None:
                     asset_id = asset.get("id")
                     asset_name = asset.get("name")
                     if asset_id and asset_name:
-                        deletion_tasks.append((tag, asset_name, asset_id, owner, repo_name))
+                        deletion_tasks.append(
+                            (tag, asset_name, asset_id, owner, repo_name)
+                        )
             except Exception as e:
                 print(f"Could not parse recipe for {pkg}: {e}")
         else:
