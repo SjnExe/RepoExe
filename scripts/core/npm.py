@@ -52,7 +52,7 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
 
 
 def generate_npm_index(output_dir: str | Path) -> None:
-    """Generates standard NPM registry package manifests routing to Cloudflare Worker."""
+    """Generates standard NPM registry package manifests containing complete bin mappings."""
     base_dir = Path(output_dir)
     npm_dir = base_dir / "npm"
     npm_dir.mkdir(parents=True, exist_ok=True)
@@ -83,17 +83,29 @@ def generate_npm_index(output_dir: str | Path) -> None:
             if tgz_path != dest:
                 shutil.copy2(tgz_path, dest)
 
-            filename = tgz_path.name.replace(".tgz", "")
-            ver = filename[len(pkg_name)+1:] if filename.startswith(f"{pkg_name}-") else "1.0.0"
+            # Extract full package.json metadata from inside the built tarball
+            inner_meta = {}
+            try:
+                with tarfile.open(tgz_path, "r:gz") as tar:
+                    member = tar.getmember("package/package.json")
+                    f = tar.extractfile(member)
+                    if f:
+                        inner_meta = json.loads(f.read().decode("utf-8"))
+            except Exception:
+                pass
+
+            ver = inner_meta.get("version", "1.0.0")
             latest_ver = ver
 
-            versions_manifest[ver] = {
-                "name": pkg_name,
-                "version": ver,
-                "dist": {
-                    "tarball": f"https://repoexe-npm-proxy.sjn.workers.dev/{pkg_name}/{tgz_path.name}"
-                },
+            # Ensure bin field is explicitly populated
+            if "bin" not in inner_meta:
+                inner_meta["bin"] = {pkg_name: f"bin/{pkg_name}"}
+
+            inner_meta["dist"] = {
+                "tarball": f"https://repoexe-npm-proxy.sjn.workers.dev/{pkg_name}/{tgz_path.name}"
             }
+
+            versions_manifest[ver] = inner_meta
 
         meta = {
             "name": pkg_name,
