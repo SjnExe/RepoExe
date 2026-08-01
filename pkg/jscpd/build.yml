@@ -1,13 +1,13 @@
 name: jscpd
 version: "5.0.14"
-revision: 6
-arch: all
-desc: Copy/paste code detector bundled for universal Node/Bun/Termux execution
+revision: 7
+arch: aarch64
+desc: Copy/paste code detector compiled natively in Rust for Termux
 license: MIT
-homepage: https://github.com/kucherenko/jscpd
+homepage: https://jscpd.dev
 maintainer: SjnExe
-source: https://registry.npmjs.org/jscpd/-/jscpd-5.0.14.tgz
-build_system: custom
+source: https://static.crates.io/crates/jscpd/jscpd-5.0.14.crate
+build_system: cargo
 formats:
   - npm
   - apt
@@ -16,8 +16,14 @@ formats:
 phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
-    npm install --no-save esbuild
-    npx esbuild bin/jscpd.js --bundle --platform=node --target=node18 --banner:js='#!/usr/bin/env node' --outfile="${DESTDIR}${PREFIX}/bin/jscpd"
+    cargo build --release
+    
+    BIN_PATH=$(find target -type f -name jscpd | grep release | head -n 1)
+    if [ -z "$BIN_PATH" ]; then
+      BIN_PATH=$(find target -type f -name cpd | grep release | head -n 1)
+    fi
+    
+    cp "$BIN_PATH" "${DESTDIR}${PREFIX}/bin/jscpd"
     chmod +x "${DESTDIR}${PREFIX}/bin/jscpd"
   test: |
     jscpd --version

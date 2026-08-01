@@ -11,8 +11,9 @@ export default {
     const pkgName = parts[0];
     let targetPath = pathname;
 
-    // Map any package metadata request (e.g. /tsc/7.0.2) to /tsc/package.json
-    if (!pathname.endsWith('.tgz')) {
+    if (pathname.endsWith('.tgz')) {
+      targetPath = pathname.replace('/-/', '/');
+    } else {
       targetPath = `/${pkgName}/package.json`;
     }
 
