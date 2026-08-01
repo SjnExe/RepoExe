@@ -44,6 +44,15 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         bin_target = bin_dir / recipe.name
         shutil.copy2(stage_bin, bin_target)
         bin_target.chmod(0o755)
+    else:
+        # If the binary wasn't found directly, it might be in an overarching `bin` directory
+        bin_dir_path = stage_dir / "data" / "data" / "com.termux" / "files" / "usr" / "bin"
+        if bin_dir_path.exists():
+            bin_target_alt = bin_dir_path / recipe.name
+            if bin_target_alt.exists():
+                bin_target = bin_dir / recipe.name
+                shutil.copy2(bin_target_alt, bin_target)
+                bin_target.chmod(0o755)
 
     tgz_path = out_path / f"{recipe.name}-{npm_version}.tgz"
 
