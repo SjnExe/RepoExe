@@ -49,7 +49,7 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     wrapper_script = (
         "#!/data/data/com.termux/files/usr/bin/bash\n"
         "set -e\n"
-        "DIR=\"$( cd \"$( dirname \"${BASH_SOURCE[0]}\" )\" >/dev/null 2>&1 && pwd )\"\n"
+        "DIR=\"$(dirname \"$(readlink -f \"$0\" 2>/dev/null || realpath \"$0\" 2>/dev/null || echo \"$0\")\")\"\n"
         "export LD_LIBRARY_PATH=\"${DIR}/../usr/lib:$LD_LIBRARY_PATH\"\n"
         "exec \"${DIR}/../usr/bin/" + recipe.name + "\" \"$@\"\n"
     )
