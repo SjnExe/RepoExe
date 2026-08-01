@@ -35,9 +35,18 @@ def prepare_site(
             elif f.name.endswith(".whl"):
                 shutil.copy2(f, s_path / "pip" / f.name)
             elif f.name.endswith(".tgz"):
-                shutil.copy2(f, s_path / "npm" / f.name)
+                parts = f.name.replace(".tgz", "").split("-")
+                ver_idx = len(parts) - 1
+                for i, p in enumerate(parts):
+                    if p and p[0].isdigit():
+                        ver_idx = i
+                        break
+                pkg_name = "-".join(parts[:ver_idx]) if ver_idx > 0 else parts[0]
+                pkg_npm_dir = s_path / "npm" / pkg_name
+                pkg_npm_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(f, pkg_npm_dir / f.name)
 
-    # 2. Generate APT Metadata and Release File for both arm64 and aarch64
+    # 2. Generate APT Metadata and Release File
     deb_files = list(apt_staging.glob("*.deb"))
     arches = set()
     for f in deb_files:

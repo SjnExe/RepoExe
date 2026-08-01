@@ -40,7 +40,7 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
 
     tgz_path = out_path / f"{recipe.name}-{recipe.version}.tgz"
 
-    def set_exec_perms(tarinfo: tarfile.TarInfo) -> tarfile.TarInfo:
+    def set_exec_perms(tarinfo: tarfile.TarInfo, path: str = "") -> tarfile.TarInfo:
         if "bin/" in tarinfo.name:
             tarinfo.mode = 0o755
         return tarinfo
