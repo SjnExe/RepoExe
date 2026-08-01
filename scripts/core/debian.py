@@ -90,11 +90,15 @@ def build_deb(
     cmd = ["dpkg-deb", "--build", "-Zzstd", "-z1", str(stage_dir), str(deb_path)]
     res = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if res.returncode != 0:
-        print(f"Notice: dpkg-deb zstd build failed ({res.stderr.strip()}), retrying standard build...")
+        print(
+            f"Notice: dpkg-deb zstd build failed ({res.stderr.strip()}), retrying standard build..."
+        )
         cmd = ["dpkg-deb", "--build", str(stage_dir), str(deb_path)]
         res2 = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if res2.returncode != 0:
-            raise RuntimeError(f"dpkg-deb failed for {recipe.name}: {res2.stderr.strip()}")
+            raise RuntimeError(
+                f"dpkg-deb failed for {recipe.name}: {res2.stderr.strip()}"
+            )
 
     return deb_path
 

@@ -8,7 +8,7 @@ ENV LANG=en_US.UTF-8
 RUN apt-get update && apt-get install -yq --no-install-recommends \
     zstd locales apt-utils eatmydata sudo curl git ca-certificates aria2 \
     unzip patch build-essential nodejs npm shellcheck \
-    proot abigail-tools graphviz dpkg-dev gcc g++ python3-pip python3-yaml python3-pydantic \
+    proot abigail-tools graphviz dpkg-dev gcc g++ python3-pip python3-yaml python3-pydantic docker.io \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \
   && npm install -g prettier@latest \

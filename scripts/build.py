@@ -68,7 +68,11 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
                 rel_data = json.loads(resp.read().decode("utf-8"))
 
             deb_asset = next(
-                (a for a in rel_data.get("assets", []) if a.get("name", "").endswith(".deb")),
+                (
+                    a
+                    for a in rel_data.get("assets", [])
+                    if a.get("name", "").endswith(".deb")
+                ),
                 None,
             )
 
@@ -82,7 +86,9 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
                 )
                 print(f"✓ Extracted pre-built dependency '{dep}' into build staging.")
         except Exception as e:
-            print(f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e}).")
+            print(
+                f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e})."
+            )
 
 
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
@@ -90,7 +96,11 @@ def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
     for f in output_dir.glob(f"{pkg_name}*"):
         if f.name.endswith(".deb"):
             subprocess.run(["dpkg-deb", "-I", str(f)], check=True, capture_output=True)
-        elif f.name.endswith(".pkg.tar.zst") or f.name.endswith(".pkg.tar.gz") or f.name.endswith(".apk"):
+        elif (
+            f.name.endswith(".pkg.tar.zst")
+            or f.name.endswith(".pkg.tar.gz")
+            or f.name.endswith(".apk")
+        ):
             subprocess.run(["tar", "-tf", str(f)], check=True, capture_output=True)
         elif f.name.endswith(".whl"):
             subprocess.run(["unzip", "-t", str(f)], check=True, capture_output=True)
@@ -107,7 +117,9 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     env["GIT_CONFIG_KEY_0"] = "safe.directory"
     env["GIT_CONFIG_VALUE_0"] = "*"
 
-    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "*"], check=False)
+    subprocess.run(
+        ["git", "config", "--global", "--add", "safe.directory", "*"], check=False
+    )
 
     build_sys = getattr(recipe, "build_system", None)
     if build_sys:
@@ -133,14 +145,26 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         src_extract_dir = destdir / "src"
         src_extract_dir.mkdir(parents=True, exist_ok=True)
 
-        subprocess.run(["curl", "-fsSL", str(src_url), "-o", str(archive_path)], check=True)
+        subprocess.run(
+            ["curl", "-fsSL", str(src_url), "-o", str(archive_path)], check=True
+        )
         if archive_path.exists():
             subprocess.run(
-                ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir), "--strip-components=1"],
+                [
+                    "tar",
+                    "-xf",
+                    str(archive_path),
+                    "-C",
+                    str(src_extract_dir),
+                    "--strip-components=1",
+                ],
                 check=False,
             )
             if not any(src_extract_dir.iterdir()):
-                subprocess.run(["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)], check=True)
+                subprocess.run(
+                    ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
+                    check=True,
+                )
             work_dir = src_extract_dir
 
     env["DESTDIR"] = str(stage_dir.resolve())
@@ -152,7 +176,9 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     install_cmd = phases.get("install")
 
     if prepare_cmd:
-        res = subprocess.run(prepare_cmd, shell=True, cwd=work_dir, env=env, check=False)
+        res = subprocess.run(
+            prepare_cmd, shell=True, cwd=work_dir, env=env, check=False
+        )
         if res.returncode != 0:
             raise RuntimeError(f"Prepare phase failed for {recipe.name}")
 
@@ -162,7 +188,9 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
             raise RuntimeError(f"Make phase failed for {recipe.name}")
 
     if install_cmd:
-        res = subprocess.run(install_cmd, shell=True, cwd=work_dir, env=env, check=False)
+        res = subprocess.run(
+            install_cmd, shell=True, cwd=work_dir, env=env, check=False
+        )
         if res.returncode != 0:
             raise RuntimeError(f"Install phase failed for {recipe.name}")
 
@@ -177,21 +205,37 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
     stage_dir = destdir / "stage"
     installed_files = list(stage_dir.rglob("*")) if stage_dir.exists() else []
     payload_files = [
-        f for f in installed_files if f.is_file() and "DEBIAN" not in f.parts and ".PKGINFO" not in f.name
+        f
+        for f in installed_files
+        if f.is_file() and "DEBIAN" not in f.parts and ".PKGINFO" not in f.name
     ]
 
-    out_has_wheels = list(output_dir.glob(f"{recipe.name}*.whl")) if output_dir.exists() else []
+    out_has_wheels = (
+        list(output_dir.glob(f"{recipe.name}*.whl")) if output_dir.exists() else []
+    )
     if not payload_files and not out_has_wheels:
-        raise RuntimeError(f"CRITICAL ERROR: No files installed in $DESTDIR for {recipe.name}.")
+        raise RuntimeError(
+            f"CRITICAL ERROR: No files installed in $DESTDIR for {recipe.name}."
+        )
 
     target_formats = getattr(recipe, "formats", ["apt", "pacman", "apk"])
 
     if "apt" in target_formats:
-        build_deb(recipe, str(destdir), str(output_dir), target_arch=recipe.architecture, pkg_src_dir=pkg_dir)
+        build_deb(
+            recipe,
+            str(destdir),
+            str(output_dir),
+            target_arch=recipe.architecture,
+            pkg_src_dir=pkg_dir,
+        )
     if "pacman" in target_formats:
-        build_pacman(recipe, str(destdir), str(output_dir), target_arch=recipe.architecture)
+        build_pacman(
+            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+        )
     if "apk" in target_formats:
-        build_alpine(recipe, str(destdir), str(output_dir), target_arch=recipe.architecture)
+        build_alpine(
+            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+        )
     if "pip" in target_formats:
         build_pip(recipe, str(destdir), str(output_dir))
     if "npm" in target_formats:
@@ -207,7 +251,9 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
         "state_hash": recipe.state_hash,
         "channel": recipe.active_channel,
     }
-    (output_dir / f"{recipe.name}_metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    (output_dir / f"{recipe.name}_metadata.json").write_text(
+        json.dumps(meta, indent=2), encoding="utf-8"
+    )
 
 
 def execute_test(recipe, destdir: Path | None = None) -> None:
@@ -252,7 +298,9 @@ def main() -> None:
         p_dir = recipe_file.parent
         recipe = parse_recipe(recipe_file, channel=args.channel)
 
-        if not args.force and check_existing_release_hash(recipe.name, args.channel, recipe.state_hash):
+        if not args.force and check_existing_release_hash(
+            recipe.name, args.channel, recipe.state_hash
+        ):
             print(f"⏭️ Skipping {recipe.name}@{args.channel}: state_hash unchanged.")
             return
 
