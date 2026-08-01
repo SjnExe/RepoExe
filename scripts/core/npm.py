@@ -15,9 +15,15 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     npm_pkg_dir = Path(destdir) / "npm_package" / "package"
     npm_pkg_dir.mkdir(parents=True, exist_ok=True)
 
+    # Construct revisioned NPM version (e.g., 5.0.14-repoexe.1)
+    # Note: NPM semver handles pre-release tags well, but adding +build isn't universally supported in all clients.
+    npm_version = recipe.version
+    if recipe.revision > 0:
+        npm_version = f"{recipe.version}-repoexe.{recipe.revision}"
+
     pkg_json = {
         "name": recipe.name,
-        "version": recipe.version,
+        "version": npm_version,
         "description": recipe.description,
         "license": recipe.license,
         "bin": {recipe.name: f"bin/{recipe.name}"},
@@ -30,15 +36,33 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     bin_dir.mkdir(parents=True, exist_ok=True)
 
     stage_bin = next(
-        (f for f in stage_dir.rglob(recipe.name) if f.is_file() and "DEBIAN" not in f.parts and f.name == recipe.name),
+        (
+            f
+            for f in stage_dir.rglob(recipe.name)
+            if f.is_file() and "DEBIAN" not in f.parts and f.name == recipe.name
+        ),
         None,
     )
     if stage_bin and stage_bin.exists():
         bin_target = bin_dir / recipe.name
         shutil.copy2(stage_bin, bin_target)
         bin_target.chmod(0o755)
+    else:
+        # If the binary wasn't found directly, it might be in an overarching `bin` directory
+        bin_dir_path = (
+            stage_dir / "data" / "data" / "com.termux" / "files" / "usr" / "bin"
+        )
+        if bin_dir_path.exists():
+            bin_target_alt = bin_dir_path / recipe.name
+            if bin_target_alt.exists():
+                bin_target = bin_dir / recipe.name
+                shutil.copy2(bin_target_alt, bin_target)
+                bin_target.chmod(0o755)
 
-    tgz_path = out_path / f"{recipe.name}-{recipe.version}.tgz"
+    if not (bin_dir / recipe.name).exists():
+        print(f"Warning: Could not find binary {recipe.name} in stage dir. NPM package bin will be missing.")
+
+    tgz_path = out_path / f"{recipe.name}-{npm_version}.tgz"
 
     def set_exec_perms(tarinfo: tarfile.TarInfo, path: str = "") -> tarfile.TarInfo:
         if "bin/" in tarinfo.name:
@@ -67,7 +91,7 @@ def generate_npm_index(output_dir: str | Path) -> None:
             if p and p[0].isdigit():
                 ver_idx = i
                 break
-        
+
         name = "-".join(parts[:ver_idx]) if ver_idx > 0 else parts[0]
         packages.setdefault(name, []).append(tgz)
 
@@ -84,7 +108,11 @@ def generate_npm_index(output_dir: str | Path) -> None:
                 shutil.copy2(tgz_path, dest)
 
             filename = tgz_path.name.replace(".tgz", "")
-            filename_ver = filename[len(pkg_name)+1:] if filename.startswith(f"{pkg_name}-") else "1.0.0"
+            filename_ver = (
+                filename[len(pkg_name) + 1 :]
+                if filename.startswith(f"{pkg_name}-")
+                else "1.0.0"
+            )
 
             inner_meta = {}
             try:

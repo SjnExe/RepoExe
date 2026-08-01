@@ -128,12 +128,9 @@ def main() -> None:
                 build_sys = r.build_system
             except Exception:
                 pass
-        matrix.append({
-            "package": p,
-            "channel": c,
-            "heavy": heavy,
-            "build_system": build_sys
-        })
+        matrix.append(
+            {"package": p, "channel": c, "heavy": heavy, "build_system": build_sys}
+        )
 
     print(json.dumps(matrix))
 

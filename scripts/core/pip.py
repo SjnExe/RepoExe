@@ -12,12 +12,18 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     out_path.mkdir(parents=True, exist_ok=True)
 
     pkg_name = recipe.name.replace("-", "_")
+
+    # Construct PEP 440 local version identifier (e.g. 1.0.0+repoexe.1)
+    pip_version = recipe.version
+    if recipe.revision > 0:
+        pip_version = f"{recipe.version}+repoexe.{recipe.revision}"
+
     existing_wheels = list(out_path.glob(f"{pkg_name}*.whl"))
     if existing_wheels:
         return existing_wheels[0]
 
     stage_dir = Path(destdir) / "stage"
-    wheel_name = f"{pkg_name}-{recipe.version}-py3-none-any.whl"
+    wheel_name = f"{pkg_name}-{pip_version}-py3-none-any.whl"
     wheel_path = out_path / wheel_name
 
     wheel_build_dir = Path(destdir) / "wheel_build"
@@ -25,7 +31,9 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         shutil.rmtree(wheel_build_dir)
     wheel_build_dir.mkdir(parents=True, exist_ok=True)
 
-    python_staged = list(stage_dir.rglob("site-packages")) + list(stage_dir.rglob("dist-packages"))
+    python_staged = list(stage_dir.rglob("site-packages")) + list(
+        stage_dir.rglob("dist-packages")
+    )
     if python_staged:
         for p_dir in python_staged:
             for item in p_dir.iterdir():
@@ -46,21 +54,29 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
 
     # Bulletproof PEP 427 wheel metadata isolation
     clean_pkg_name = recipe.name.replace("-", "_").lower()
-    expected_dist_info = f"{clean_pkg_name}-{recipe.version}.dist-info".lower()
+
+    # Construct PEP 440 local version identifier (e.g. 1.0.0+repoexe.1)
+    pip_version = recipe.version
+    if recipe.revision > 0:
+        pip_version = f"{recipe.version}+repoexe.{recipe.revision}"
+    expected_dist_info = f"{clean_pkg_name}-{pip_version}.dist-info".lower()
 
     for item in wheel_build_dir.iterdir():
         name_lower = item.name.lower()
-        if name_lower.endswith((".dist-info", ".egg-info")) and name_lower != expected_dist_info:
+        if (
+            name_lower.endswith((".dist-info", ".egg-info"))
+            and name_lower != expected_dist_info
+        ):
             if item.is_dir():
                 shutil.rmtree(item)
             else:
                 item.unlink()
 
-    dist_info = wheel_build_dir / f"{pkg_name}-{recipe.version}.dist-info"
+    dist_info = wheel_build_dir / f"{pkg_name}-{pip_version}.dist-info"
     dist_info.mkdir(parents=True, exist_ok=True)
 
     (dist_info / "METADATA").write_text(
-        f"Metadata-Version: 2.1\nName: {recipe.name}\nVersion: {recipe.version}\nSummary: {recipe.description}\n",
+        f"Metadata-Version: 2.1\nName: {recipe.name}\nVersion: {pip_version}\nSummary: {recipe.description}\n",
         encoding="utf-8",
     )
     (dist_info / "WHEEL").write_text(
