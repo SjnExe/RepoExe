@@ -15,9 +15,16 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     npm_pkg_dir = Path(destdir) / "npm_package" / "package"
     npm_pkg_dir.mkdir(parents=True, exist_ok=True)
 
+
+    # Construct revisioned NPM version (e.g., 5.0.14-repoexe.1)
+    # Note: NPM semver handles pre-release tags well, but adding +build isn't universally supported in all clients.
+    npm_version = recipe.version
+    if recipe.revision > 0:
+        npm_version = f"{recipe.version}-repoexe.{recipe.revision}"
+
     pkg_json = {
         "name": recipe.name,
-        "version": recipe.version,
+        "version": npm_version,
         "description": recipe.description,
         "license": recipe.license,
         "bin": {recipe.name: f"bin/{recipe.name}"},
@@ -38,7 +45,7 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         shutil.copy2(stage_bin, bin_target)
         bin_target.chmod(0o755)
 
-    tgz_path = out_path / f"{recipe.name}-{recipe.version}.tgz"
+    tgz_path = out_path / f"{recipe.name}-{npm_version}.tgz"
 
     def set_exec_perms(tarinfo: tarfile.TarInfo, path: str = "") -> tarfile.TarInfo:
         if "bin/" in tarinfo.name:
