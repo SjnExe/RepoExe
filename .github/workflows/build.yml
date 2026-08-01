@@ -292,6 +292,9 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
       - name: Download All Target Build Logs
         uses: actions/download-artifact@v8
         with:

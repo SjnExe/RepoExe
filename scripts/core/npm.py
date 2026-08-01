@@ -59,6 +59,9 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
                 shutil.copy2(bin_target_alt, bin_target)
                 bin_target.chmod(0o755)
 
+    if not (bin_dir / recipe.name).exists():
+        print(f"Warning: Could not find binary {recipe.name} in stage dir. NPM package bin will be missing.")
+
     tgz_path = out_path / f"{recipe.name}-{npm_version}.tgz"
 
     def set_exec_perms(tarinfo: tarfile.TarInfo, path: str = "") -> tarfile.TarInfo:
