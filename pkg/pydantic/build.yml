@@ -1,6 +1,6 @@
 name: pydantic
 version: "2.13.4"
-revision: 0
+revision: 1
 architecture: aarch64
 description: Data validation using Python type hints
 license: MIT

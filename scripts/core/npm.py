@@ -61,7 +61,15 @@ def generate_npm_index(output_dir: str | Path) -> None:
     packages: dict[str, list[Path]] = {}
 
     for tgz in tgz_files:
-        name = tgz.name.split("-")[0]
+        # Safely extract package name by finding the first segment starting with a digit
+        parts = tgz.name.replace(".tgz", "").split("-")
+        ver_idx = len(parts) - 1
+        for i, p in enumerate(parts):
+            if p and p[0].isdigit():
+                ver_idx = i
+                break
+        
+        name = "-".join(parts[:ver_idx]) if ver_idx > 0 else parts[0]
         packages.setdefault(name, []).append(tgz)
 
     for pkg_name, files in packages.items():
@@ -76,8 +84,12 @@ def generate_npm_index(output_dir: str | Path) -> None:
             if tgz_path != dest:
                 shutil.copy2(tgz_path, dest)
 
-            parts = tgz_path.name.replace(".tgz", "").split("-")
-            ver = parts[-1] if len(parts) > 1 else "1.0.0"
+            filename = tgz_path.name.replace(".tgz", "")
+            if filename.startswith(f"{pkg_name}-"):
+                ver = filename[len(pkg_name)+1:]
+            else:
+                ver = "1.0.0"
+                
             latest_ver = ver
 
             versions_manifest[ver] = {
