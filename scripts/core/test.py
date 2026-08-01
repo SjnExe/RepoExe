@@ -39,14 +39,28 @@ class ProotTestRunner:
         script_path.write_text(script_content, encoding="utf-8")
         script_path.chmod(0o755)
 
-        docker_cmd = ["docker", "run", "--rm", "-v", f"{script_path}:/test.sh:ro"]
+        # When running inside GitHub Actions (Docker-in-Docker via socket), we must map internal paths
+        # to host paths so the host Docker daemon can find them to mount into the test container.
+        host_stage_dir = str(stage_dir) if stage_dir else ""
+        github_workspace = os.environ.get("GITHUB_WORKSPACE")
 
-        # Mount the built package output into the termux prefix so it can be tested
+        if github_workspace and "/home/builder/RepoExe" in host_stage_dir:
+            host_stage_dir = host_stage_dir.replace(
+                "/home/builder/RepoExe", github_workspace
+            )
+
+        # Instead of mounting the script file (which is complicated with host paths), we pipe it via STDIN
+        docker_cmd = ["docker", "run", "--rm", "-i"]
         if stage_dir and stage_dir.exists():
-            docker_cmd.extend(["-v", f"{stage_dir}:/tmp/stage:ro"])
+            docker_cmd.extend(["-v", f"{host_stage_dir}:/tmp/stage:ro"])
 
         docker_cmd.extend(
-            [termux_image, "/data/data/com.termux/files/usr/bin/bash", "/test.sh"]
+            [
+                termux_image,
+                "/data/data/com.termux/files/usr/bin/bash",
+                "-c",
+                script_content,
+            ]
         )
 
         # Check if docker is available and we can run termux-docker

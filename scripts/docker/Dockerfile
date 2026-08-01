@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 # Install sccache for ARM64
-ENV SCCACHE_VERSION=v0.8.2
+ENV SCCACHE_VERSION=v0.17.0
 RUN curl -L -sS "https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/sccache-${SCCACHE_VERSION}-aarch64-unknown-linux-musl.tar.gz" | tar xz -C /tmp \
   && mv /tmp/sccache-${SCCACHE_VERSION}-aarch64-unknown-linux-musl/sccache /usr/local/bin/ \
   && chmod +x /usr/local/bin/sccache \
@@ -79,5 +79,9 @@ RUN python3 -m pip install --break-system-packages --no-cache-dir pyyaml "pydant
 # Install Rust Toolchain for ARM64
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && /home/builder/.cargo/bin/rustup target add aarch64-unknown-linux-musl aarch64-unknown-linux-gnu
 ENV PATH="/home/builder/.cargo/bin:${PATH}"
+
+# Install Cargo tools natively inside the builder container for generic caching
+RUN cargo install sccache cargo-c cargo-audit || true
+
 
 ENV GOTOOLCHAIN=local
