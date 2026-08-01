@@ -15,7 +15,7 @@ formats:
 phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
-    cp "${pkg_dir}/../../site/install" "${DESTDIR}${PREFIX}/bin/repoexe"
+    cp "../../site/install" "${DESTDIR}${PREFIX}/bin/repoexe"
     chmod +x "${DESTDIR}${PREFIX}/bin/repoexe"
   test: |
     repoexe --version
