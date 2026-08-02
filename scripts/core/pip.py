@@ -18,7 +18,7 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         return existing_wheels[0]
 
     stage_dir = Path(destdir) / "stage"
-    wheel_name = f"{pkg_name}-{recipe.version}-py3-none-any.whl"
+    wheel_name = f"{pkg_name}-{pip_version}-py3-none-any.whl"
     wheel_path = out_path / wheel_name
 
     wheel_build_dir = Path(destdir) / "wheel_build"
@@ -67,11 +67,11 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
             else:
                 item.unlink()
 
-    dist_info = wheel_build_dir / f"{pkg_name}-{recipe.version}.dist-info"
+    dist_info = wheel_build_dir / f"{pkg_name}-{pip_version}.dist-info"
     dist_info.mkdir(parents=True, exist_ok=True)
 
     (dist_info / "METADATA").write_text(
-        f"Metadata-Version: 2.1\nName: {recipe.name}\nVersion: {recipe.version}\nSummary: {recipe.description}\n",
+        f"Metadata-Version: 2.1\nName: {recipe.name}\nVersion: {pip_version}\nSummary: {recipe.description}\n",
         encoding="utf-8",
     )
     (dist_info / "WHEEL").write_text(
