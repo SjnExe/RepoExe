@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install uv & Dependencies
-        uses: astral-sh/setup-uv@v9
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 

@@ -39,7 +39,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv & Dependencies
-        uses: astral-sh/setup-uv@v9
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
