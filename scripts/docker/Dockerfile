@@ -81,7 +81,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
 ENV PATH="/home/builder/.cargo/bin:${PATH}"
 
 # Install Cargo tools natively inside the builder container for generic caching
-RUN cargo install sccache cargo-c cargo-audit || true
+RUN cargo install cargo-c cargo-audit || true
 
 
 ENV GOTOOLCHAIN=local
