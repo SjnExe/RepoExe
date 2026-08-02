@@ -165,6 +165,7 @@ jobs:
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
+            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v $HOME/.cargo/registry:/home/builder/.cargo/registry \
             -v $HOME/.cache/sccache:/home/builder/.cache/sccache \
@@ -189,6 +190,7 @@ jobs:
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
+            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v $HOME/.cargo/registry:/home/builder/.cargo/registry \
             -v $HOME/.cache/sccache:/home/builder/.cache/sccache \
@@ -215,6 +217,7 @@ jobs:
             -w /home/builder/RepoExe \
             -e GH_TOKEN="$GH_TOKEN" \
             -e PYTHONPATH="scripts" \
+            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v $HOME/.cargo/registry:/home/builder/.cargo/registry \
             -v $HOME/.cache/sccache:/home/builder/.cache/sccache \

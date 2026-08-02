@@ -58,6 +58,10 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     bin_target.write_text(wrapper_script, encoding="utf-8")
     bin_target.chmod(0o755)
 
+    bin_target = bin_dir / recipe.name
+    bin_target.write_text(wrapper_script, encoding="utf-8")
+    bin_target.chmod(0o755)
+
     tgz_path = out_path / f"{recipe.name}-{npm_version}.tgz"
 
     def set_exec_perms(tarinfo: tarfile.TarInfo, path: str = "") -> tarfile.TarInfo:
