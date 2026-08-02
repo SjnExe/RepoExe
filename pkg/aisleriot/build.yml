@@ -1,0 +1,28 @@
+name: aisleriot
+version: "3.22.34"
+revision: 0
+arch: aarch64
+desc: A collection of card games
+license: GPL-3.0
+component: x11
+build_system: custom
+source: https://download.gnome.org/sources/aisleriot/3.22/aisleriot-3.22.34.tar.xz
+sha256: 622e1a3848b78864d2bfb26efbbbd43bba69ad1023c52a0a256a9bd671b56de6
+depends:
+  - gtk3
+  - glib
+  - libxml2
+  - guile
+build_deps:
+  - meson
+  - ninja
+  - pkg-config
+phases:
+  build: |
+    meson setup build \
+      --prefix=/data/data/com.termux/files/usr \
+      --buildtype=release \
+      -Dtheme_kde=false
+    ninja -C build
+  install: |
+    DESTDIR=$DESTDIR ninja -C build install

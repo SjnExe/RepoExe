@@ -3,7 +3,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from core.parser import parse_recipe
+from builders.parser import parse_recipe
 
 
 def get_git_diff_files(repo_root: Path) -> set[str]:
@@ -94,8 +94,25 @@ def main() -> None:
 
         candidates = set()
         for token in incl_tokens:
+            if token.startswith("type:"):
+                sys_types = {"sys", "system", "apt"}
+                q_type = token.split(":")[1]
+                for p in all_pkg_dirs:
+                    recipe_path = pkgs_dir / p / "build.yml"
+                    try:
+                        r = parse_recipe(recipe_path, channel="latest")
+                        is_sys = r.build_system not in ["npm", "pip", "bun", "uv"]
+                        if (q_type in sys_types and is_sys) or (q_type == r.build_system):
+                            for c in get_channels(p):
+                                candidates.add((p, c))
+                    except Exception:
+                        pass
+                continue
+
             pkg, ch = token.split("@", 1) if "@" in token else (token, "latest")
-            target_pkgs = all_pkg_dirs if pkg == "all" else [pkg]
+
+            target_pkgs = all_pkg_dirs if pkg == "all" else pkg.split(",")
+
             for p in target_pkgs:
                 if not (pkgs_dir / p).exists():
                     continue
@@ -117,22 +134,41 @@ def main() -> None:
     final_targets = sorted(candidates)
 
     matrix = []
-    for p, c in final_targets:
-        heavy = False
-        build_sys = "custom"
+
+    for i, (p, c) in enumerate(final_targets):
+        free_space = False
+        zram = 0
         recipe_path = pkgs_dir / p / "build.yml"
         if recipe_path.exists():
             try:
                 r = parse_recipe(recipe_path, channel=c)
-                heavy = r.heavy_build
-                build_sys = r.build_system
+                if r.heavy_build or r.free_space:
+                    free_space = True
+                if r.zram and r.zram > 0:
+                    zram = r.zram
             except Exception:
                 pass
-        matrix.append(
-            {"package": p, "channel": c, "heavy": heavy, "build_system": build_sys}
-        )
 
-    print(json.dumps(matrix))
+        tag = f"{p}@{c}"
+        if free_space:
+            tag += ",free_space:true"
+        if zram > 0:
+            tag += f",zram:{zram}"
+
+        matrix.append({"shard": i+1, "shards": len(final_targets), "targets": tag})
+
+    if not matrix:
+        print('{"include": []}')
+    else:
+        print(f"matrix={json.dumps({'include': matrix})}")
+
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output:
+        with open(github_output, "a") as f:
+            if not matrix:
+                f.write('matrix={"include": []}\n')
+            else:
+                f.write(f'matrix={json.dumps({"include": matrix})}\n')
 
 
 if __name__ == "__main__":

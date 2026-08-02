@@ -2,7 +2,7 @@ import contextlib
 import json
 from pathlib import Path
 
-from core.parser import parse_recipe
+from builders.parser import parse_recipe
 
 
 def generate_packages_json(

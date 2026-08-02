@@ -1,7 +1,7 @@
 from pathlib import Path
 from collections import deque
 
-from core.parser import PackageRecipe, parse_recipe
+from builders.parser import PackageRecipe, parse_recipe
 
 
 class DependencyGraph:

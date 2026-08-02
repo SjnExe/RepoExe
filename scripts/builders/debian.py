@@ -7,7 +7,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from core.parser import PackageRecipe
+from utils.parser import PackageRecipe
 
 ARCH_MAP = {
     "aarch64": "aarch64",
@@ -128,20 +128,19 @@ def _process_single_deb(deb_file: Path) -> str | None:
 
 
 def generate_apt_metadata(
-    output_dir: str, component: str = "main", arch: str = "aarch64"
+    output_dir: str, deb_files: list[Path], component: str = "main", arch: str = "aarch64"
 ) -> None:
-    """Generates APT Packages index concurrently for all deb archives in output_dir."""
+    """Generates APT Packages index concurrently for provided deb archives in output_dir."""
     binary_dir = os.path.join(
         output_dir, "dists", "stable", component, f"binary-{arch}"
     )
     os.makedirs(binary_dir, exist_ok=True)
 
     packages_path = os.path.join(binary_dir, "Packages")
-    deb_files = sorted(Path(output_dir).glob("*.deb"))
 
     packages_entries = []
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        results = executor.map(_process_single_deb, deb_files)
+        results = executor.map(_process_single_deb, sorted(deb_files))
         for entry in results:
             if entry:
                 packages_entries.append(entry)
@@ -155,7 +154,7 @@ def generate_apt_metadata(
 
 
 def generate_release_file(
-    output_dir: str, suite: str = "stable", component: str = "main"
+    output_dir: str, suite: str = "stable", components: list[str] = ["main"]
 ) -> None:
     """Generates APT Release, InRelease, and Release.gpg metadata files."""
     dists_dir = os.path.join(output_dir, "dists", suite)
@@ -181,6 +180,7 @@ def generate_release_file(
                 file_entries.append(f" {sha256} {size} {rel_path}")
 
     arch_str = " ".join(sorted(arches)) or "aarch64"
+    comp_str = " ".join(components)
 
     release_content = (
         f"Origin: RepoExe\n"
@@ -189,7 +189,7 @@ def generate_release_file(
         f"Suite: {suite}\n"
         f"Codename: {suite}\n"
         f"Architectures: {arch_str}\n"
-        f"Components: {component}\n"
+        f"Components: {comp_str}\n"
         f"Description: RepoExe Package Repository\n"
         f"SHA256:\n" + "\n".join(file_entries) + "\n"
     )

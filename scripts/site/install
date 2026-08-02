@@ -1,0 +1,134 @@
+#!/bin/bash
+
+# Terminal Colors
+BOLD='\033[1m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+RESET='\033[0m'
+
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+REPO_URL="https://sjnexe.github.io/RepoExe"
+PROXY_URL="https://repoexe-npm-proxy.sjn.workers.dev"
+
+show_help() {
+  printf "${BOLD}RepoExe CLI - Universal Multi-Format Repository Manager${RESET}\n\n"
+  printf "${BOLD}USAGE:${RESET}\n"
+  printf "  repoexe <command> [args]\n\n"
+  printf "${BOLD}COMMANDS:${RESET}\n"
+  printf "  ${CYAN}enable <ecosystem>${RESET}   Enable support for (npm, bun, pip, x11, all)\n"
+  printf "  ${CYAN}disable <ecosystem>${RESET}  Disable support for an ecosystem\n"
+  printf "  ${CYAN}status${RESET}               Check enabled ecosystems\n"
+  printf "  ${CYAN}doctor${RESET}               Verify network and GPG signature health\n"
+  printf "  ${CYAN}update${RESET}               Update this CLI script\n"
+  printf "  ${CYAN}help${RESET}                 Show this help menu\n\n"
+  printf "Note: Base APT packages are managed via standard 'pkg install' or 'apt install'.\n"
+}
+
+enable_manager() {
+  case "$1" in
+    x11)
+      echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable main x11" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+      printf "${GREEN}✓ Enabled X11 Component for APT.${RESET}\n"
+      ;;
+    npm)
+      touch ~/.npmrc
+      sed -i '/registry=/d' ~/.npmrc 2>/dev/null || true
+      echo "registry=$PROXY_URL" >> ~/.npmrc
+      printf "${GREEN}✓ Enabled global NPM proxy for Termux compatibility.${RESET}\n"
+      ;;
+    bun)
+      touch ~/.bunfig.toml
+      sed -i '/url = /d' ~/.bunfig.toml 2>/dev/null || true
+      echo "url = \"$PROXY_URL\"" >> ~/.bunfig.toml
+      printf "${GREEN}✓ Enabled global Bun registry.${RESET}\n"
+      ;;
+    pip)
+      mkdir -p ~/.config/pip
+      if ! grep -q "sjnexe.github.io" ~/.config/pip/pip.conf 2>/dev/null; then
+        echo "[global]" >> ~/.config/pip/pip.conf
+        echo "extra-index-url = $REPO_URL/pip/" >> ~/.config/pip/pip.conf
+      fi
+      printf "${GREEN}✓ Enabled Pip extra index.${RESET}\n"
+      ;;
+    all)
+      enable_manager npm
+      enable_manager bun
+      enable_manager pip
+      ;;
+    *)
+      printf "${RED}Unknown ecosystem: $1 (Use: x11, npm, bun, pip, all)${RESET}\n"
+      return 1
+      ;;
+  esac
+}
+
+disable_manager() {
+  case "$1" in
+    x11)
+      echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+      printf "${YELLOW}✓ Disabled X11 Component for APT.${RESET}\n"
+      ;;
+    npm)
+      sed -i '/registry=/d' ~/.npmrc 2>/dev/null || true
+      printf "${YELLOW}✓ Disabled NPM Proxy.${RESET}\n"
+      ;;
+    bun)
+      sed -i '/url = /d' ~/.bunfig.toml 2>/dev/null || true
+      printf "${YELLOW}✓ Disabled Bun Proxy.${RESET}\n"
+      ;;
+    pip)
+      sed -i '/sjnexe.github.io/d' ~/.config/pip/pip.conf 2>/dev/null || true
+      printf "${YELLOW}✓ Disabled PIP Extra Index.${RESET}\n"
+      ;;
+    *)
+      printf "${RED}Unknown ecosystem: $1${RESET}\n"
+      return 1
+      ;;
+  esac
+}
+
+setup_initial_apt() {
+  mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
+  echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+  curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc"
+  curl -sL "$REPO_URL/install" -o "$PREFIX/bin/repoexe"
+  chmod +x "$PREFIX/bin/repoexe"
+  printf "${GREEN}RepoExe successfully installed! Use 'repoexe help' to explore.${RESET}\n"
+}
+
+case "$1" in
+  --bootstrap)
+    setup_initial_apt
+    ;;
+  enable|-e)
+    [ -z "$2" ] && echo "Missing ecosystem. Usage: repoexe enable <x11|npm|bun|pip|all>" && return 1
+    enable_manager "$2"
+    ;;
+  disable|-d)
+    [ -z "$2" ] && echo "Missing ecosystem. Usage: repoexe disable <x11|npm|bun|pip>" && return 1
+    disable_manager "$2"
+    ;;
+  status)
+    printf "${BOLD}RepoExe Status:${RESET}\n"
+    [ -f "$PREFIX/etc/apt/sources.list.d/repoexe.list" ] && echo "  APT Repo: ENABLED" || echo "  APT Repo: DISABLED"
+    [ -f ~/.npmrc ] && grep -q "$PROXY_URL" ~/.npmrc && echo "  NPM Proxy: ENABLED" || echo "  NPM Proxy: DISABLED"
+    [ -f ~/.bunfig.toml ] && grep -q "$PROXY_URL" ~/.bunfig.toml && echo "  Bun Proxy: ENABLED" || echo "  Bun Proxy: DISABLED"
+    [ -f ~/.config/pip/pip.conf ] && grep -q "sjnexe.github.io" ~/.config/pip/pip.conf && echo "  PIP Index: ENABLED" || echo "  PIP Index: DISABLED"
+    ;;
+  doctor)
+    curl -sI "$REPO_URL/packages.json" | grep -q "200 OK" && echo "[OK] Network reachable" || echo "[FAIL] Network unreachable"
+    [ -f "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc" ] && echo "[OK] GPG Key found" || echo "[FAIL] GPG Key missing"
+    ;;
+  help|"")
+    show_help
+    ;;
+  *)
+    if [ "$1" != "--bash-completion" ]; then
+      printf "${RED}Unknown command: $1${RESET}\n"
+      show_help
+      return 1
+    fi
+    ;;
+esac

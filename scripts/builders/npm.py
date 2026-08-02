@@ -3,7 +3,7 @@ import shutil
 import tarfile
 from pathlib import Path
 
-from core.parser import PackageRecipe
+from utils.parser import PackageRecipe
 
 
 def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
@@ -45,18 +45,24 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
             if item.is_dir() and item.name not in ("DEBIAN", "npm_package", "wheel_build"):
                 shutil.copytree(item, npm_pkg_dir / "usr" / item.name, dirs_exist_ok=True)
 
-    # Generate a robust bash wrapper to execute the deep-nested binary with the correct dynamic linker and library paths
-    wrapper_script = (
-        "#!/data/data/com.termux/files/usr/bin/bash\n"
-        "set -e\n"
-        "DIR=\"$(dirname \"$(readlink -f \"$0\" 2>/dev/null || realpath \"$0\" 2>/dev/null || echo \"$0\")\")\"\n"
-        "export LD_LIBRARY_PATH=\"${DIR}/../usr/lib:$LD_LIBRARY_PATH\"\n"
-        "exec \"${DIR}/../usr/bin/" + recipe.name + "\" \"$@\"\n"
-    )
+    # Generate a robust bash wrapper to execute the deep-nested binary.
+    # We must cleanly traverse symlinks because npm/bun creates symlinks in node_modules/.bin/
+    # that readlink -f might fail on in minimal Termux environments.
+    wrapper_script = f"""#!/data/data/com.termux/files/usr/bin/bash
+set -e
 
-    bin_target = bin_dir / recipe.name
-    bin_target.write_text(wrapper_script, encoding="utf-8")
-    bin_target.chmod(0o755)
+# Robust pure-bash symlink resolution loop
+TARGET="$0"
+while [ -h "$TARGET" ]; do
+  DIR="$( cd -P "$( dirname "$TARGET" )" >/dev/null 2>&1 && pwd )"
+  LINK="$(readlink "$TARGET")"
+  [[ $LINK != /* ]] && TARGET="$DIR/$LINK" || TARGET="$LINK"
+done
+DIR="$( cd -P "$( dirname "$TARGET" )" >/dev/null 2>&1 && pwd )"
+
+export LD_LIBRARY_PATH="${{DIR}}/../usr/lib:$LD_LIBRARY_PATH"
+exec "${{DIR}}/../usr/bin/{recipe.name}" "$@"
+"""
 
     bin_target = bin_dir / recipe.name
     bin_target.write_text(wrapper_script, encoding="utf-8")

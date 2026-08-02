@@ -1,51 +1,42 @@
 # RepoExe
 
-A scalable, multi-format package repository providing custom tools and standalone packages (like aapt2, zipalign, and aidl) built with modern continuous integration pipelines.
+A scalable, multi-format package repository providing custom tools, ecosystem integrations, and standalone packages natively optimized for Termux.
 
-## Quick Install
+## 🚀 Quick Install
 
-To automatically install this custom repository on your device, run:
+To automatically install the RepoExe package repository and CLI onto your device, run:
 
 ```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh
+curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- --bootstrap
 ```
 
-This universal script will automatically detect your active package manager (APT, Pacman, or Alpine apk), securely download the required keys, and inject the RepoExe repository into your system.
+This will automatically configure APT, download security keys, and inject the `repoexe` CLI globally.
+Base packages (like `jscpd`, `tsc`, `aisleriot`) can now be directly installed via:
 
-## Features
+```bash
+pkg install jscpd
+```
 
-- **Multi-Format Support:** Natively distributes `.deb` (APT), `.pkg.tar.zst` (Pacman), and `.apk` (Alpine) packages.
-- **Standalone Build System**: Packages are defined declaratively via `build.yml` using a custom Python orchestrator.
-- **Independent CI/CD Pipelines**: Automated dependency tracking, dynamic CI matrix sharding, and static Pages deployments.
-- **Hermetic Docker Environments**: Reproducible artifact generation through strictly sandboxed custom Docker builder images.
+## 🛠️ Exploring the CLI
+
+RepoExe natively integrates with multiple ecosystems (NPM, Bun, PIP, X11). The CLI lets you enable overrides to automatically route missing unscoped ecosystem packages back to the Termux native repository.
+
+```bash
+repoexe enable all    # Enables NPM, Bun, and Pip integrations
+repoexe enable x11    # Enables the GUI / Wayland component repository
+repoexe status        # Verify your repository health
+repoexe help          # Show available commands
+```
+
+## Architecture
+
+- **Multi-Format Support:** Natively distributes `.deb` (APT), `.pkg.tar.zst` (Pacman), `.apk` (Alpine), `.whl` (Pip), and `.tgz` (NPM).
+- **Standalone Build System**: Packages are defined declaratively via `build.yml` with support for isolated ZRAM generation and filesystem shrinking for heavy GUI builds.
+- **Independent CI/CD Pipelines**: Automated dependency tracking via Python orchestrators with modular dynamic GitHub Matrix targets.
+- **Robust Symlink Resolution**: Wrappers for Node ecosystems natively use pure-bash recursive resolution to survive nested `node_modules/.bin` limits.
 
 ## Contributing
 
 Please read `CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests to us.
 
 If you are an AI agent or maintainer looking to modify the build infrastructure, please refer to `AGENTS.md` first.
-
-## Security
-
-If you discover a security vulnerability within RepoExe, please refer to our Security Policy in `SECURITY.md`.
-
-## 🚀 Installation
-
-RepoExe provides native binaries for Android terminal environments across multiple package managers and ecosystems.
-
-### 1. Termux / APT (Default)
-```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh
-```
-### 2. NPM Scope (@repoexe)
-```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --npm
-```
-### 3. Python Wheels / Pip
-```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --pip
-```
-### 4. All Package Repositories
-```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --all
-``` 

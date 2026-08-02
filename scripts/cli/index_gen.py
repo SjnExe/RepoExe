@@ -1,10 +1,10 @@
 import shutil
 from pathlib import Path
 
-from core.debian import generate_apt_metadata, generate_release_file
-from core.metadata import generate_packages_json
-from core.npm import generate_npm_index
-from core.pip import generate_pip_index
+from builders.debian import generate_apt_metadata, generate_release_file
+from builders.metadata import generate_packages_json
+from builders.npm import generate_npm_index
+from builders.pip import generate_pip_index
 
 
 def prepare_site(
@@ -47,24 +47,47 @@ def prepare_site(
                 shutil.copy2(f, pkg_npm_dir / f.name)
 
     # 2. Generate APT Metadata and Release File
+    from utils.parser import parse_recipe
+
     deb_files = list(apt_staging.glob("*.deb"))
-    arches = set()
+
+    # We must scan original recipes to figure out which component each deb belongs to.
+    pkg_dir = Path(__file__).resolve().parents[2] / "pkg"
+    components_map = {}
+
     for f in deb_files:
+        pkg_name = f.name.split("_")[0]
+        component = "main"
+        recipe_path = pkg_dir / pkg_name / "build.yml"
+        if recipe_path.exists():
+            try:
+                recipe = parse_recipe(str(recipe_path))
+                component = recipe.component
+            except Exception:
+                pass
+
         arch = f.name.split("_")[-1].replace(".deb", "")
+
+        comp_dict = components_map.setdefault(component, {"files": [], "arches": set()})
+        comp_dict["files"].append(f)
         if arch != "all":
-            arches.add(arch)
+            comp_dict["arches"].add(arch)
             if arch == "arm64":
-                arches.add("aarch64")
+                comp_dict["arches"].add("aarch64")
             elif arch == "aarch64":
-                arches.add("arm64")
+                comp_dict["arches"].add("arm64")
 
-    if not arches:
-        arches.update(["arm64", "aarch64"])
+    if not components_map:
+        components_map["main"] = {"files": [], "arches": {"arm64", "aarch64"}}
 
-    for arch in arches:
-        generate_apt_metadata(str(apt_staging), component="main", arch=arch)
+    for comp, data in components_map.items():
+        arches = data["arches"]
+        if not arches:
+            arches.update(["arm64", "aarch64"])
+        for arch in arches:
+            generate_apt_metadata(str(apt_staging), deb_files=data["files"], component=comp, arch=arch)
 
-    generate_release_file(str(apt_staging), suite="stable", component="main")
+    generate_release_file(str(apt_staging), suite="stable", components=list(components_map.keys()))
 
     if (apt_staging / "dists").exists():
         shutil.copytree(

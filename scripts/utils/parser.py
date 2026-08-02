@@ -13,6 +13,7 @@ class ChannelOverride(BaseModel):
     revision: int | None = None
     architecture: str | None = Field(default=None, alias="arch")
     build_system: str | None = None
+    component: str | None = None
     source_url: str | None = Field(
         default=None, validation_alias=AliasChoices("source_url", "source", "url")
     )
@@ -21,6 +22,8 @@ class ChannelOverride(BaseModel):
     build_deps: list[str] | None = None
     deps: list[str] | None = Field(default=None, alias="depends")
     heavy_build: bool | None = None
+    free_space: bool | None = None
+    zram: int | None = None
     auto_update: bool | None = None
     update_strategy: str | None = Field(default=None, alias="strategy")
     custom_update_cmd: str | None = None
@@ -38,6 +41,7 @@ class PackageRecipe(BaseModel):
     architecture: str = Field(default="aarch64", alias="arch")
     description: str = Field(default="", alias="desc")
     license: str = "MIT"
+    component: str = "main"
     homepage: str = ""
     maintainer: str = "SjnExe"
     build_system: str = "custom"
@@ -49,6 +53,8 @@ class PackageRecipe(BaseModel):
     build_deps: list[str] = Field(default_factory=list)
     deps: list[str] = Field(default_factory=list, alias="depends")
     heavy_build: bool = False
+    free_space: bool = False
+    zram: int = 0
     auto_update: bool = False
     update_strategy: str | None = Field(default=None, alias="strategy")
     custom_update_cmd: str | None = None

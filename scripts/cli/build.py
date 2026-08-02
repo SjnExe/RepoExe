@@ -8,15 +8,15 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from core.alpine import build_alpine
-from core.debian import build_deb
-from core.health import audit_repository_health
-from core.npm import build_npm
-from core.pacman import build_pacman
-from core.parser import parse_recipe
-from core.pip import build_pip
-from core.test import ProotTestRunner
-from core.toolchains import setup_build_environment
+from builders.alpine import build_alpine
+from builders.debian import build_deb
+from utils.health import audit_repository_health
+from builders.npm import build_npm
+from builders.pacman import build_pacman
+from utils.parser import parse_recipe
+from builders.pip import build_pip
+from utils.test import ProotTestRunner
+from utils.toolchains import setup_build_environment
 
 
 def get_ruff_cmd() -> list[str]:

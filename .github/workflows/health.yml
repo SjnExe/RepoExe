@@ -1,0 +1,45 @@
+name: Code Quality
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv & Dependencies
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install Dependencies
+        run: uv pip install --system -r pyproject.toml pytest ruff pydantic pyyaml
+
+      - name: Code Quality & Health Audit
+        env:
+          PYTHONPATH: scripts
+        run: python scripts/cli/build.py check
+
+      - name: Run Pytest
+        env:
+          PYTHONPATH: scripts
+        run: python3 -m pytest scripts/tests/

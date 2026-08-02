@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from core.parser import PackageRecipe, parse_recipe
+from utils.parser import PackageRecipe, parse_recipe
 
 
 def get_expected_asset_filenames(recipe: PackageRecipe) -> set[str]:
@@ -45,7 +45,10 @@ def get_expected_asset_filenames(recipe: PackageRecipe) -> set[str]:
 
     if "pip" in formats:
         clean_name = pkg.replace("-", "_")
-        expected.add(f"{clean_name}-{ver}-py3-none-any.whl")
+        pip_version = ver
+        if rev > 0:
+            pip_version = f"{ver}+repoexe.{rev}"
+        expected.add(f"{clean_name}-{pip_version}-py3-none-any.whl")
 
     return expected
 

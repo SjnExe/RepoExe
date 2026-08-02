@@ -1,0 +1,60 @@
+name: Publish Repo
+
+on:
+  workflow_dispatch:
+    inputs:
+      trigger_sha:
+        description: 'Commit SHA to publish'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish Artifacts & Index
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.trigger_sha || github.sha }}
+
+      - name: Download all outputs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: output-shard-*
+          path: all_outputs
+          merge-multiple: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Generate Repository Index
+        env:
+          PYTHONPATH: scripts
+        run: |
+          mkdir -p site
+          python scripts/cli/index_gen.py
+
+      - name: Publish to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/cli/prune.py
+
+      - name: Deploy to GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "site"
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
