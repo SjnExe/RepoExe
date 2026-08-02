@@ -34,17 +34,17 @@ jobs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Install uv & Dependencies
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v9
         with:
           enable-cache: true
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version-file: "pyproject.toml"
 
@@ -61,7 +61,7 @@ jobs:
   build:
     name: Build Shard
     needs: matrix
-    if: needs.matrix.outputs.matrix != '{"include": []}'
+    if: "needs.matrix.outputs.matrix != '{\"include\": []}'"
     runs-on: ubuntu-24.04-arm
     continue-on-error: true
     strategy:
@@ -70,10 +70,10 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version-file: "pyproject.toml"
 
@@ -112,7 +112,7 @@ jobs:
               --targets "${{ matrix.targets }}"
 
       - name: Upload Output Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: output-shard-${{ matrix.shard }}
           path: output/
@@ -120,7 +120,7 @@ jobs:
 
       - name: Upload Log Artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: logs-shard-${{ matrix.shard }}
           path: logs/
@@ -129,21 +129,21 @@ jobs:
   build-summary:
     name: Build Status & Log Aggregator
     needs: [matrix, build]
-    if: always() && (needs.matrix.outputs.matrix != '{"include": []}')
+    if: "always() && (needs.matrix.outputs.matrix != '{\"include\": []}')"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download all logs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: logs-shard-*
           path: all_logs
           merge-multiple: true
 
       - name: Download all outputs (for publishing trigger)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: output-shard-*
           path: all_outputs

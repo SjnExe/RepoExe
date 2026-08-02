@@ -19,19 +19,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.trigger_sha || github.sha }}
 
       - name: Download all outputs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: output-shard-*
           path: all_outputs
           merge-multiple: true
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version-file: "pyproject.toml"
 
@@ -49,12 +49,12 @@ jobs:
           python scripts/cli/prune.py
 
       - name: Deploy to GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: "site"
 
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
