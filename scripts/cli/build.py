@@ -279,7 +279,7 @@ def main() -> None:
         p.add_argument("--force", action="store_true")
 
     args = parser.parse_args()
-    pkg_dir = Path(__file__).parent.parent / "pkg"
+    pkg_dir = Path(__file__).resolve().parent.parent.parent / "pkg"
 
     if args.command == "check":
         audit_repository_health(pkg_dir)
