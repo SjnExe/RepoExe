@@ -1,6 +1,6 @@
 import os
 
-from core.properties import PREFIX
+from scripts.utils.properties import PREFIX
 
 
 class SwiftToolchain:

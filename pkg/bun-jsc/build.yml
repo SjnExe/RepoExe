@@ -1,0 +1,61 @@
+name: bun-jsc
+version: 1.3.14
+revision: 0
+architecture: aarch64
+description: Custom WebKit JavaScriptCore engine for Bun
+license: LGPL-2.1
+homepage: https://github.com/oven-sh/webkit
+maintainer: SjnExe
+component: main
+resources:
+  zram: 24
+  swap: 10
+  free_space: true
+vars:
+  NINJA_JOBS: "2"
+  CFLAGS: "-O2 -g0"
+  CXXFLAGS: "-O2 -g0"
+  LDFLAGS: "-fuse-ld=lld -Wl,--thread-count=2"
+formats:
+- apt
+- pacman
+- apk
+build_deps:
+- cmake
+- ninja
+- pkg-config
+- ruby
+- gperf
+- bison
+deps:
+- libicu
+- libxml2
+- zlib
+source_url: https://github.com/oven-sh/webkit/archive/refs/heads/bun.tar.gz
+sha256: skip
+build_system: custom
+phases:
+  install: |
+    mkdir -p build
+    cd build
+
+    # Apply Bionic/Android specific patches implicitly since this is custom
+    export LDFLAGS="${LDFLAGS} -z max-page-size=65536"
+
+    cmake -G Ninja ../ \
+        -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPORT=JSCOnly \
+        -DENABLE_STATIC_JSC=ON \
+        -DUSE_SYSTEM_MALLOC=ON \
+        -DENABLE_GIGACAGE=ON \
+        -DENABLE_BUN_PLATFORM=ON \
+        -DENABLE_JIT=ON
+
+    ninja -j2 jsc
+
+    mkdir -p "${DESTDIR}${PREFIX}/include/JavaScriptCore"
+    mkdir -p "${DESTDIR}${PREFIX}/lib"
+
+    cp -r ../Source/JavaScriptCore/API/*.h "${DESTDIR}${PREFIX}/include/JavaScriptCore/"
+    cp lib/libJavaScriptCore.* "${DESTDIR}${PREFIX}/lib/"

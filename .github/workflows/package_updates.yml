@@ -26,7 +26,7 @@ jobs:
         env:
           PYTHONPATH: scripts
         run: |
-          uv run python scripts/core/upstream_check.py > update_log.txt 2>&1 || true
+          uv run python scripts/cli/upstream_check.py > update_log.txt 2>&1 || true
           cat update_log.txt
 
           grep "Update available for" update_log.txt > updates_to_process.txt || true
@@ -57,7 +57,7 @@ jobs:
               echo "Processing update for $PKG@$CHANNEL to $NEW"
               git checkout -b "$BRANCH_NAME"
 
-              python3 scripts/core/update_recipe.py "$PKG" "$CHANNEL" "$NEW"
+              python3 scripts/cli/update_recipe.py "$PKG" "$CHANNEL" "$NEW"
 
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"

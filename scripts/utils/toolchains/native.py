@@ -1,6 +1,6 @@
 import os
 
-from core.properties import PREFIX
+from scripts.utils.properties import PREFIX
 
 
 def generate_cmake_toolchain(arch: str, ndk_path: str, output_path: str) -> str:

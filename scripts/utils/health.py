@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any
 
-from core.parser import parse_recipe
+from scripts.utils.parser import parse_recipe
 
 
 def audit_repository_health(packages_dir: Path) -> dict[str, Any]:

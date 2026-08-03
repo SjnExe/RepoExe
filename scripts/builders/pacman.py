@@ -2,7 +2,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from core.parser import PackageRecipe
+from scripts.utils.parser import PackageRecipe
 
 
 def build_pacman(

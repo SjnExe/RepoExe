@@ -9,7 +9,7 @@ import requests
 import yaml
 from packaging.version import InvalidVersion, Version
 
-from core.parser import parse_recipe
+from scripts.utils.parser import parse_recipe
 
 
 def extract_semver(tag_name: str) -> Version | None:

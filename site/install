@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -97,7 +97,14 @@ run_doctor() {
 }
 
 enable_manager() {
-  case "$1" in
+  setup_tab_completion() {
+  if [ -n "$BASH_VERSION" ]; then
+    mkdir -p "$PREFIX/etc/bash_completion.d"
+    echo "complete -W 'status sync list doctor enable disable version help' repoexe" > "$PREFIX/etc/bash_completion.d/repoexe" 2>/dev/null || true
+  fi
+}
+
+case "$1" in
     apt)
       mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
       echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
@@ -139,14 +146,21 @@ enable_manager() {
       enable_manager pip
       ;;
     *)
-      printf "${RED}Error: Unknown target '$1'. Options: apt, bun, npm, pip, all${RESET}\n"
+      printf "${RED}Error: Unknown target '$1'. Options: apt, bun, npm, pip, x11, all${RESET}\n"
       exit 1
       ;;
   esac
 }
 
 disable_manager() {
-  case "$1" in
+  setup_tab_completion() {
+  if [ -n "$BASH_VERSION" ]; then
+    mkdir -p "$PREFIX/etc/bash_completion.d"
+    echo "complete -W 'status sync list doctor enable disable version help' repoexe" > "$PREFIX/etc/bash_completion.d/repoexe" 2>/dev/null || true
+  fi
+}
+
+case "$1" in
     apt)
       rm -f "$PREFIX/etc/apt/sources.list.d/repoexe.list"
       printf "${YELLOW}✓ Disabled APT repository.${RESET}\n"
@@ -178,10 +192,17 @@ disable_manager() {
       disable_manager pip
       ;;
     *)
-      printf "${RED}Error: Unknown target '$1'. Options: apt, bun, npm, pip, all${RESET}\n"
+      printf "${RED}Error: Unknown target '$1'. Options: apt, bun, npm, pip, x11, all${RESET}\n"
       exit 1
       ;;
   esac
+}
+
+setup_tab_completion() {
+  if [ -n "$BASH_VERSION" ]; then
+    mkdir -p "$PREFIX/etc/bash_completion.d"
+    echo "complete -W 'status sync list doctor enable disable version help' repoexe" > "$PREFIX/etc/bash_completion.d/repoexe" 2>/dev/null || true
+  fi
 }
 
 case "$1" in
@@ -200,7 +221,7 @@ case "$1" in
     ;;
   enable|-e)
     if [ -z "$2" ]; then
-      printf "${RED}Usage: repoexe enable <apt|bun|npm|pip|all>${RESET}\n"
+      printf "${RED}Usage: repoexe enable <apt|bun|npm|pip|all|x11>${RESET}\n"
       exit 1
     fi
     enable_manager "$2"

@@ -6,6 +6,12 @@ import yaml
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
+class ResourceConfig(BaseModel):
+    zram: int = 0
+    swap: int = 0
+    free_space: bool = False
+
+
 class ChannelOverride(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -27,6 +33,8 @@ class ChannelOverride(BaseModel):
     patches: list[str] | None = None
     phases: dict[str, str] | None = None
     vars: dict[str, str] | None = None
+    component: str | None = None
+    resources: ResourceConfig | None = None
 
 
 class PackageRecipe(BaseModel):
@@ -58,6 +66,8 @@ class PackageRecipe(BaseModel):
     channels: dict[str, ChannelOverride] = Field(default_factory=dict)
     active_channel: str = "latest"
     state_hash: str = ""
+    component: str = "main"
+    resources: ResourceConfig = Field(default_factory=ResourceConfig)
 
     def get_channel_recipe(self, channel_name: str = "latest") -> "PackageRecipe":
         data = self.model_dump() if hasattr(self, "model_dump") else self.dict()
@@ -99,6 +109,7 @@ class PackageRecipe(BaseModel):
             "phases": self.phases,
             "vars": self.vars,
             "channel": self.active_channel,
+            "component": self.component,
         }
         raw_json = json.dumps(payload, sort_keys=True)
         return hashlib.sha256(raw_json.encode("utf-8")).hexdigest()[:16]

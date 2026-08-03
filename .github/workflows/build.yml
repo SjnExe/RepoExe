@@ -139,13 +139,14 @@ jobs:
           sudo chmod -R 777 . ~/.cache/go-build ~/go ~/.cargo
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4.5.2
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Compile Package Payload
+        id: build_step
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
@@ -233,7 +234,7 @@ jobs:
         if: steps.build_step.outcome == 'failure' || steps.test_step.outcome == 'failure'
         run: |
           echo "::error::Target failed during build or test. Check aggregated logs."
-          bash -c 'exit 1'
+          bash -c 'false'
 
       - name: Save Go Cache (Main Branch Only)
         if: github.ref == 'refs/heads/main' && matrix.build_system == 'go' && always()
@@ -327,7 +328,7 @@ jobs:
         run: |
           if [ "${{ needs.build-package.result }}" = "failure" ] || [ "${{ needs.build-package.result }}" = "cancelled" ]; then
             echo "❌ Matrix build failed! Download the 'aggregated-build-logs' artifact for detailed logs."
-            exit 1
+            false
           fi
           echo "✓ All matrix targets built successfully or skipped."
 

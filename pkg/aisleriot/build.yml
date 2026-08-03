@@ -1,0 +1,49 @@
+name: aisleriot
+version: 3.22.34
+revision: 0
+architecture: aarch64
+description: A collection of card games which are easy to play with the aid of a mouse.
+license: GPL-3.0
+homepage: https://wiki.gnome.org/Apps/Aisleriot
+maintainer: SjnExe
+component: x11
+formats:
+- apt
+- pacman
+- apk
+build_deps:
+- meson
+- ninja
+- itstool
+- gettext
+- pkg-config
+- intltool
+deps:
+- gtk3
+- guile
+- librsvg
+- libcanberra
+- libxml2
+- desktop-file-utils
+- shared-mime-info
+source_url: https://download.gnome.org/sources/aisleriot/3.22/aisleriot-3.22.34.tar.xz
+sha256: 4b29efcc04149957388e6e589ba582c03563967d7301777265882312d8a4369e
+build_system: custom
+phases:
+  install: |
+    export GUILE_LOAD_PATH="${PREFIX}/share/guile/3.0"
+
+    mkdir -p build
+    cd build
+    meson setup .. \
+        --prefix="${PREFIX}" \
+        --libdir="${PREFIX}/lib" \
+        --buildtype=release \
+        -Dtheme_kde=false
+    ninja
+    DESTDIR="${DESTDIR}" ninja install
+
+    if [ -x "$(command -v termux-elf-cleaner)" ]; then
+        find "${DESTDIR}${PREFIX}/bin" -type f -executable -exec termux-elf-cleaner --api-level 24 {} + || true
+        find "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards" -type f -name "*.so" -exec termux-elf-cleaner --api-level 24 {} + || true
+    fi

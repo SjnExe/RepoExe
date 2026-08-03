@@ -1,4 +1,4 @@
-from core.properties import PREFIX
+from scripts.utils.properties import PREFIX
 
 
 def test_prefix_constant():

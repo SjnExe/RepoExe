@@ -1,6 +1,6 @@
 import tempfile
 
-from core.sysroot import Sysroot
+from scripts.utils.sysroot import Sysroot
 
 
 def test_hash_string():

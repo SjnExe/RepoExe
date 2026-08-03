@@ -1,10 +1,10 @@
 import shutil
 from pathlib import Path
 
-from core.debian import generate_apt_metadata, generate_release_file
-from core.metadata import generate_packages_json
-from core.npm import generate_npm_index
-from core.pip import generate_pip_index
+from scripts.builders.debian import generate_apt_metadata, generate_release_file
+from scripts.utils.metadata import generate_packages_json
+from scripts.builders.npm import generate_npm_index
+from scripts.builders.pip import generate_pip_index
 
 
 def prepare_site(

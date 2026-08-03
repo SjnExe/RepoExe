@@ -1,8 +1,8 @@
 import os
 import tempfile
 
-from core.properties import PREFIX
-from core.toolchains.native import NativeToolchain, generate_cmake_toolchain
+from scripts.utils.properties import PREFIX
+from scripts.utils.toolchains.native import NativeToolchain, generate_cmake_toolchain
 
 
 def test_generate_cmake_toolchain():

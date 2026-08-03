@@ -8,15 +8,15 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from core.alpine import build_alpine
-from core.debian import build_deb
-from core.health import audit_repository_health
-from core.npm import build_npm
-from core.pacman import build_pacman
-from core.parser import parse_recipe
-from core.pip import build_pip
-from core.test import ProotTestRunner
-from core.toolchains import setup_build_environment
+from scripts.builders.alpine import build_alpine
+from scripts.builders.debian import build_deb
+from scripts.utils.health import audit_repository_health
+from scripts.builders.npm import build_npm
+from scripts.builders.pacman import build_pacman
+from scripts.utils.parser import parse_recipe
+from scripts.builders.pip import build_pip
+from scripts.utils.test import ProotTestRunner
+from scripts.utils.toolchains import setup_build_environment
 
 
 def get_ruff_cmd() -> list[str]:
@@ -282,7 +282,7 @@ def main() -> None:
     pkg_dir = Path(__file__).parent.parent / "pkg"
 
     if args.command == "check":
-        audit_repository_health(pkg_dir)
+        audit_repository_health(pkg_dir.parents[1])
         return
 
     if args.command in ("build", "compile", "pack", "test"):

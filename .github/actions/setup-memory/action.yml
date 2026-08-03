@@ -1,0 +1,71 @@
+name: 'Setup Memory & Profiling'
+description: 'Configures zram, file swap, frees disk space, and tracks peak memory'
+inputs:
+  zram:
+    description: 'ZRAM size in GB'
+    required: false
+    default: '0'
+  swap:
+    description: 'File swap size in GB'
+    required: false
+    default: '0'
+  free_space:
+    description: 'Free up disk space'
+    required: false
+    default: 'false'
+runs:
+  using: "composite"
+  steps:
+    - name: Free Disk Space
+      if: inputs.free_space == 'true'
+      shell: bash
+      run: |
+        echo "Freeing disk space..."
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL &
+        wait
+
+    - name: Setup Swap (ZRAM)
+      if: inputs.zram != '0'
+      shell: bash
+      run: |
+        echo "Configuring ${zram_size}GB ZRAM..."
+        zram_size="${{ inputs.zram }}"
+        sudo modprobe zram num_devices=1
+        sudo zramctl --find --size "${zram_size}G" --streams 4 --algorithm zstd
+        sudo mkswap /dev/zram0
+        sudo swapon -p 100 /dev/zram0
+
+    - name: Setup Swap (File)
+      if: inputs.swap != '0'
+      shell: bash
+      run: |
+        swap_size="${{ inputs.swap }}"
+        echo "Configuring ${swap_size}GB File Swap..."
+        sudo fallocate -l "${swap_size}G" /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+
+    - name: Track Memory Background
+      shell: bash
+      run: |
+        cat << 'SCRIPT' > track_memory.sh
+        #!/bin/bash
+        peak=0
+        while true; do
+            used=$(free -m | awk '/Mem:/ {print $3}')
+            if [ "$used" -gt "$peak" ]; then peak=$used; fi
+            echo "Peak Memory: ${peak}MB" > peak_mem.txt
+            sleep 5
+        done
+        SCRIPT
+        chmod +x track_memory.sh
+        ./track_memory.sh &
+
+    - name: Post Cleanup
+      uses: gacts/run-and-post-run@v1
+      with:
+        post: |
+          if [ -f peak_mem.txt ]; then
+            cat peak_mem.txt >> $GITHUB_STEP_SUMMARY
+          fi

@@ -3,7 +3,7 @@ import shutil
 import tarfile
 from pathlib import Path
 
-from core.parser import PackageRecipe
+from scripts.utils.parser import PackageRecipe
 
 
 def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
@@ -45,18 +45,20 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
             if item.is_dir() and item.name not in ("DEBIAN", "npm_package", "wheel_build"):
                 shutil.copytree(item, npm_pkg_dir / "usr" / item.name, dirs_exist_ok=True)
 
-    # Generate a robust bash wrapper to execute the deep-nested binary with the correct dynamic linker and library paths
+    # Pure Bash readlink wrapper for safe execution without node dependencies
     wrapper_script = (
         "#!/data/data/com.termux/files/usr/bin/bash\n"
         "set -e\n"
-        "DIR=\"$(dirname \"$(readlink -f \"$0\" 2>/dev/null || realpath \"$0\" 2>/dev/null || echo \"$0\")\")\"\n"
+        "TARGET=\"$0\"\n"
+        "while [ -L \"$TARGET\" ]; do\n"
+        "  DIR=\"$( dirname \"$TARGET\" )\"\n"
+        "  TARGET=\"$( readlink \"$TARGET\" )\"\n"
+        "  [[ $TARGET != /* ]] && TARGET=\"$DIR/$TARGET\"\n"
+        "done\n"
+        "DIR=\"$( dirname \"$TARGET\" )\"\n"
         "export LD_LIBRARY_PATH=\"${DIR}/../usr/lib:$LD_LIBRARY_PATH\"\n"
         "exec \"${DIR}/../usr/bin/" + recipe.name + "\" \"$@\"\n"
     )
-
-    bin_target = bin_dir / recipe.name
-    bin_target.write_text(wrapper_script, encoding="utf-8")
-    bin_target.chmod(0o755)
 
     bin_target = bin_dir / recipe.name
     bin_target.write_text(wrapper_script, encoding="utf-8")

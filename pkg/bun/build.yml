@@ -1,0 +1,41 @@
+name: bun
+version: 1.1.20
+revision: 0
+architecture: aarch64
+description: Incredibly fast JavaScript runtime, bundler, test runner, and package manager.
+license: MIT
+homepage: https://bun.sh
+maintainer: SjnExe
+component: main
+formats:
+- apt
+- pacman
+- apk
+build_deps:
+- bun-jsc
+- zig
+deps:
+- bun-jsc
+source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v{version}.tar.gz
+sha256: skip
+build_system: custom
+phases:
+  install: |
+    mkdir -p build
+    cd build
+
+    export ZIG_VERSION="0.13.0"
+
+    zig build \
+      -Dtarget=aarch64-linux-musl \
+      -Doptimize=ReleaseFast \
+      -Dcpu=baseline \
+      --prefix "${DESTDIR}${PREFIX}"
+
+    if [ -x "$(command -v termux-elf-cleaner)" ]; then
+        termux-elf-cleaner --api-level 24 "${DESTDIR}${PREFIX}/bin/bun" || true
+    fi
+
+    ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
+
+    sed -i 's/\/bin\/sh/\/data\/data\/com.termux\/files\/usr\/bin\/sh/g' "${DESTDIR}${PREFIX}/bin/bun" || true

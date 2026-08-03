@@ -1,0 +1,39 @@
+name: Code Quality & Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+      - 'refactor/**'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        with:
+          enable-cache: true
+
+      - name: Code Quality & Health Audit
+        env:
+          PYTHONPATH: scripts
+        run: |
+          uv run ruff check scripts/
+          uv run python scripts/cli/build.py check
+
+      - name: Run Pytest
+        env:
+          PYTHONPATH: scripts
+        run: uv run pytest scripts/tests/
+
+      - name: Actionlint
+        uses: raven-actions/actionlint@v2

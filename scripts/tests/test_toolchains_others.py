@@ -1,9 +1,9 @@
-from core.properties import PREFIX
-from core.toolchains.golang import GolangToolchain
-from core.toolchains.python import PythonToolchain
-from core.toolchains.rust import RustToolchain
-from core.toolchains.swift import SwiftToolchain
-from core.toolchains.zig import ZigToolchain
+from scripts.utils.properties import PREFIX
+from scripts.utils.toolchains.golang import GolangToolchain
+from scripts.utils.toolchains.python import PythonToolchain
+from scripts.utils.toolchains.rust import RustToolchain
+from scripts.utils.toolchains.swift import SwiftToolchain
+from scripts.utils.toolchains.zig import ZigToolchain
 
 
 def test_golang_toolchain():
