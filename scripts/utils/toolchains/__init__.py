@@ -1,6 +1,6 @@
 import os
 
-from core.properties import HOME, PREFIX
+from utils.properties import HOME, PREFIX
 
 from .golang import GolangToolchain
 from .native import NativeToolchain

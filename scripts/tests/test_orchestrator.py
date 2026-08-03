@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from core.prune import identify_outdated_assets
+from cli.prune import identify_outdated_assets
 
 
 def test_prune_assets():

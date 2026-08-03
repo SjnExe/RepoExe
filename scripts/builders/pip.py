@@ -3,7 +3,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
-from core.parser import PackageRecipe
+from utils.parser import PackageRecipe
 
 
 def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
@@ -18,6 +18,12 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         return existing_wheels[0]
 
     stage_dir = Path(destdir) / "stage"
+
+    # Construct PEP 440 local version identifier (e.g. 1.0.0+repoexe.1)
+    pip_version = recipe.version
+    if recipe.revision > 0:
+        pip_version = f"{recipe.version}+repoexe.{recipe.revision}"
+
     wheel_name = f"{pkg_name}-{pip_version}-py3-none-any.whl"
     wheel_path = out_path / wheel_name
 
@@ -50,11 +56,7 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     # Bulletproof PEP 427 wheel metadata isolation
     clean_pkg_name = recipe.name.replace("-", "_").lower()
 
-    # Construct PEP 440 local version identifier (e.g. 1.0.0+repoexe.1)
-    recipe.version = recipe.version
-    if recipe.revision > 0:
-        recipe.version = f"{recipe.version}+repoexe.{recipe.revision}"
-    expected_dist_info = f"{clean_pkg_name}-{recipe.version}.dist-info".lower()
+    expected_dist_info = f"{clean_pkg_name}-{pip_version}.dist-info".lower()
 
     for item in wheel_build_dir.iterdir():
         name_lower = item.name.lower()

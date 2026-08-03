@@ -33,9 +33,14 @@ jobs:
       - name: Code Quality & Health Audit
         env:
           PYTHONPATH: scripts
-        run: python scripts/build.py check
+        run: python scripts/cli/build.py check
 
       - name: Run Pytest
         env:
           PYTHONPATH: scripts
         run: python3 -m pytest scripts/tests/
+
+      - name: Actionlint
+        run: |
+          curl -sL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
+          ./actionlint

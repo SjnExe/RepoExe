@@ -8,6 +8,14 @@ repos:
         types: [python]
         pass_filenames: false
 
+      - id: actionlint
+        name: actionlint
+        entry: bash -c 'curl -sL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash && ./actionlint && rm ./actionlint'
+        language: system
+        types: [yaml]
+        files: ^\.github/workflows/
+        pass_filenames: false
+
       - id: pytest
         name: pytest suite
         entry: env PYTHONPATH=scripts python3 -m pytest scripts/tests/

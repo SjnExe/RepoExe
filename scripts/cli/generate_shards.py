@@ -3,7 +3,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from core.parser import parse_recipe
+from utils.parser import parse_recipe
 
 
 def get_git_diff_files(repo_root: Path) -> set[str]:
@@ -120,16 +120,31 @@ def main() -> None:
     for p, c in final_targets:
         heavy = False
         build_sys = "custom"
+        zram = 0
+        swap = 0
+        free_space = False
         recipe_path = pkgs_dir / p / "build.yml"
         if recipe_path.exists():
             try:
                 r = parse_recipe(recipe_path, channel=c)
                 heavy = r.heavy_build
                 build_sys = r.build_system
+                if r.resources:
+                    zram = r.resources.zram
+                    swap = r.resources.swap
+                    free_space = r.resources.free_space
             except Exception:
                 pass
         matrix.append(
-            {"package": p, "channel": c, "heavy": heavy, "build_system": build_sys}
+            {
+                "package": p,
+                "channel": c,
+                "heavy": heavy,
+                "build_system": build_sys,
+                "zram": zram,
+                "swap": swap,
+                "free_space": free_space,
+            }
         )
 
     print(json.dumps(matrix))

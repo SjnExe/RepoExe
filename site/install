@@ -31,7 +31,7 @@ show_help() {
   printf "  ${CYAN}sync, -y${RESET}            Re-sync all manager integrations from upstream\n"
   printf "  ${CYAN}list, ls, -l${RESET}        List all available packages in RepoExe store\n"
   printf "  ${CYAN}doctor${RESET}              Run diagnostic health checks on repository setup\n"
-  printf "  ${CYAN}enable, -e <target>${RESET} Enable specific manager (${BOLD}apt|bun|npm|pip|all${RESET})\n"
+  printf "  ${CYAN}enable, -e <target>${RESET} Enable specific manager (${BOLD}apt|bun|npm|pip|x11|all${RESET})\n"
   printf "  ${CYAN}disable, -d <target>${RESET}Disable specific manager (${BOLD}apt|bun|npm|pip|all${RESET})\n"
   printf "  ${CYAN}version, -v${RESET}         Print CLI version\n"
   printf "  ${CYAN}help, -h${RESET}            Show this help menu\n"
@@ -132,6 +132,12 @@ enable_manager() {
       fi
       printf "${GREEN}✓ Enabled Pip extra index.${RESET}\n"
       ;;
+    x11)
+      mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
+      echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable x11" > "$PREFIX/etc/apt/sources.list.d/repoexe-x11.list"
+      curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc"
+      printf "${GREEN}✓ Enabled x11 APT repository.${RESET}\n"
+      ;;
     all)
       enable_manager apt
       enable_manager bun
@@ -139,7 +145,7 @@ enable_manager() {
       enable_manager pip
       ;;
     *)
-      printf "${RED}Error: Unknown target '$1'. Options: apt, bun, npm, pip, all${RESET}\n"
+      printf "${RED}Error: Unknown target '$1'. Options: apt, bun, npm, pip, x11, all${RESET}\n"
       exit 1
       ;;
   esac
@@ -171,6 +177,10 @@ disable_manager() {
       fi
       printf "${YELLOW}✓ Disabled Pip extra index.${RESET}\n"
       ;;
+    x11)
+      rm -f "$PREFIX/etc/apt/sources.list.d/repoexe-x11.list"
+      printf "${YELLOW}✓ Disabled x11 APT repository.${RESET}\n"
+      ;;
     all)
       disable_manager apt
       disable_manager bun
@@ -178,7 +188,7 @@ disable_manager() {
       disable_manager pip
       ;;
     *)
-      printf "${RED}Error: Unknown target '$1'. Options: apt, bun, npm, pip, all${RESET}\n"
+      printf "${RED}Error: Unknown target '$1'. Options: apt, bun, npm, pip, x11, all${RESET}\n"
       exit 1
       ;;
   esac

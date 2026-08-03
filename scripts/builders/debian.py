@@ -7,7 +7,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from core.parser import PackageRecipe
+from utils.parser import PackageRecipe
 
 ARCH_MAP = {
     "aarch64": "aarch64",
@@ -61,6 +61,23 @@ def prepare_debian_dir(
                 shutil.copytree(item, target, dirs_exist_ok=True)
             else:
                 shutil.copy2(item, target)
+
+    if shutil.which("termux-elf-cleaner"):
+        for root, _, files in os.walk(stage_dir):
+            for file in files:
+                file_path = Path(root) / file
+                if file_path.is_file() and not file_path.is_symlink():
+                    try:
+                        with open(file_path, "rb") as f:
+                            header = f.read(4)
+                            if header == b"\x7fELF":
+                                subprocess.run(
+                                    ["termux-elf-cleaner", str(file_path)],
+                                    capture_output=True,
+                                    check=False,
+                                )
+                    except Exception:
+                        pass
 
     return stage_dir
 

@@ -3,7 +3,7 @@ import shutil
 import tarfile
 from pathlib import Path
 
-from core.parser import PackageRecipe
+from utils.parser import PackageRecipe
 
 
 def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
@@ -49,14 +49,16 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     wrapper_script = (
         "#!/data/data/com.termux/files/usr/bin/bash\n"
         "set -e\n"
-        "DIR=\"$(dirname \"$(readlink -f \"$0\" 2>/dev/null || realpath \"$0\" 2>/dev/null || echo \"$0\")\")\"\n"
+        "SOURCE=\"$0\"\n"
+        "while [ -h \"$SOURCE\" ]; do\n"
+        "  DIR=\"$( cd -P \"$( dirname \"$SOURCE\" )\" >/dev/null 2>&1 && pwd )\"\n"
+        "  SOURCE=\"$(readlink \"$SOURCE\")\"\n"
+        "  [[ $SOURCE != /* ]] && SOURCE=\"$DIR/$SOURCE\"\n"
+        "done\n"
+        "DIR=\"$( cd -P \"$( dirname \"$SOURCE\" )\" >/dev/null 2>&1 && pwd )\"\n"
         "export LD_LIBRARY_PATH=\"${DIR}/../usr/lib:$LD_LIBRARY_PATH\"\n"
         "exec \"${DIR}/../usr/bin/" + recipe.name + "\" \"$@\"\n"
     )
-
-    bin_target = bin_dir / recipe.name
-    bin_target.write_text(wrapper_script, encoding="utf-8")
-    bin_target.chmod(0o755)
 
     bin_target = bin_dir / recipe.name
     bin_target.write_text(wrapper_script, encoding="utf-8")

@@ -1,0 +1,50 @@
+name: bun
+version: "1.2.2"
+revision: 0
+architecture: aarch64
+description: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
+license: MIT
+homepage: https://bun.sh
+maintainer: SjnExe
+build_system: custom
+source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.2.2.tar.gz
+sha256: "0"
+formats: ["apt", "pacman", "apk"]
+auto_update: true
+build_deps:
+  - bun-jsc
+  - cmake
+  - ninja
+  - python
+  - go
+  - rust
+deps: []
+phases:
+  configure: |
+    # Pin exact Zig version required by Bun upstream (if not provided by toolchain)
+    # Using the native Zig builder provided by repoexe-builder container.
+    echo "Configuring Bun build..."
+  make: |
+    # Real compilation substituting /bin/sh for Termux shell
+    mkdir -p build
+    # Compile linking against bun-jsc library
+    zig build \
+      -Doptimize=ReleaseFast \
+      -Dtarget=aarch64-linux-gnu \
+      -j$(nproc)
+
+    # Substitute the hardcoded /bin/sh with Termux's sh path in the executable
+    # Note: the zig build output binary is typically bun or bin/bun
+    cp zig-out/bin/bun build/bun || cp bun build/bun || true
+    if [ -f "build/bun" ]; then
+        sed -i 's|/bin/sh|/data/data/com.termux/files/usr/bin/sh|g' build/bun || true
+    fi
+  install: |
+    mkdir -p "${DESTDIR}${PREFIX}/bin"
+    cp build/bun "${DESTDIR}${PREFIX}/bin/bun"
+
+    if [ -x "$(command -v termux-elf-cleaner)" ]; then
+      termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/bun" || true
+    fi
+
+    ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"

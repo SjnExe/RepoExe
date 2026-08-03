@@ -43,7 +43,7 @@ jobs:
       should_publish: ${{ steps.decision.outputs.should_publish }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -63,7 +63,7 @@ jobs:
         env:
           PYTHONPATH: scripts
         run: |
-          python scripts/build.py check
+          python scripts/cli/build.py check
           pytest scripts/tests/
 
       - name: Determine Publish Decision
@@ -82,7 +82,7 @@ jobs:
           PYTHONPATH: scripts
           GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
-          MATRIX_JSON=$(python scripts/generate_shards.py)
+          MATRIX_JSON=$(python scripts/cli/generate_shards.py)
           echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
 
   build-package:
@@ -96,13 +96,13 @@ jobs:
         include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Restore Go Cache
         if: matrix.build_system == 'go'
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cache/go-build
@@ -113,7 +113,7 @@ jobs:
 
       - name: Restore Cargo Cache
         if: matrix.build_system == 'cargo'
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo/registry
@@ -124,14 +124,15 @@ jobs:
             cargo-cache-${{ runner.os }}-${{ matrix.package }}-
 
       - name: Free Disk Space
-        if: env.HEAVY == 'true'
+        if: ${{ matrix.free_space == true || matrix.free_space == 'true' }}
         uses: ./.github/actions/free-space
 
-      - name: Enable 4GB Swap
-        if: env.HEAVY == 'true'
-        uses: ./.github/actions/setup-swap
+      - name: Setup Tiered Memory
+        if: ${{ matrix.zram > 0 || matrix.swap > 0 }}
+        uses: ./.github/actions/setup-memory
         with:
-          size: '4G'
+          zram_gb: ${{ matrix.zram }}
+          swap_gb: ${{ matrix.swap }}
 
       - name: Prepare Workspace & Cache Directories
         run: |
@@ -139,7 +140,7 @@ jobs:
           sudo chmod -R 777 . ~/.cache/go-build ~/go ~/.cargo
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4.5.2
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -172,9 +173,10 @@ jobs:
             -v $HOME/.cache/go-build:/home/builder/.cache/go-build \
             -v $HOME/go/pkg/mod:/home/builder/go/pkg/mod \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py compile \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/cli/build.py compile \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
 
       - name: Assemble Package Archives
+        id: build_step
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
@@ -197,7 +199,7 @@ jobs:
             -v $HOME/.cache/go-build:/home/builder/.cache/go-build \
             -v $HOME/go/pkg/mod:/home/builder/go/pkg/mod \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py pack \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/cli/build.py pack \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
 
       - name: Termux Docker Smoke Test
         continue-on-error: true
@@ -224,7 +226,7 @@ jobs:
             -v $HOME/.cache/go-build:/home/builder/.cache/go-build \
             -v $HOME/go/pkg/mod:/home/builder/go/pkg/mod \
             "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py test \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
+            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/cli/build.py test \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
 
       - name: Fix Cache Permissions
         run: sudo chown -R $USER:$USER ~/.cargo ~/.cache/sccache ~/.cache/go-build ~/go 2>/dev/null || true
@@ -237,7 +239,7 @@ jobs:
 
       - name: Save Go Cache (Main Branch Only)
         if: github.ref == 'refs/heads/main' && matrix.build_system == 'go' && always()
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@v4
         with:
           path: |
             ~/.cache/go-build
@@ -246,7 +248,7 @@ jobs:
 
       - name: Save Cargo Cache (Main Branch Only)
         if: github.ref == 'refs/heads/main' && matrix.build_system == 'cargo' && always()
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@v4
         with:
           path: |
             ~/.cargo/registry
@@ -271,7 +273,7 @@ jobs:
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
           TAG="${PKG_NAME}@${CHANNEL}"
-          RECIPE_VER=$(docker run --rm -v ${{ github.workspace }}:/home/builder/RepoExe -w /home/builder/RepoExe -e PYTHONPATH="scripts" "ghcr.io/$OWNER/repoexe-builder:latest" python3 -c "from core.parser import parse_recipe; from pathlib import Path; r=parse_recipe(Path('pkg/$PKG_NAME/build.yml'), channel='$CHANNEL'); print(r.version)")
+          RECIPE_VER=$(docker run --rm -v ${{ github.workspace }}:/home/builder/RepoExe -w /home/builder/RepoExe -e PYTHONPATH="scripts" "ghcr.io/$OWNER/repoexe-builder:latest" python3 -c "from utils.parser import parse_recipe; from pathlib import Path; r=parse_recipe(Path('pkg/$PKG_NAME/build.yml'), channel='$CHANNEL'); print(r.version)")
           RELEASE_TITLE="$PKG_NAME v$RECIPE_VER [$CHANNEL]"
 
           gh release create "$TAG" --title "$RELEASE_TITLE" --notes "Automated release build for $TAG" 2>/dev/null || gh release edit "$TAG" --title "$RELEASE_TITLE" --notes "Automated release build for $TAG"
@@ -296,10 +298,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download All Target Build Logs
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v7
         with:
           pattern: build-log-*
           path: all_logs
@@ -310,7 +312,7 @@ jobs:
         run: |
           mkdir -p summary
           if [ -d "all_logs" ]; then
-            python3 scripts/core/log_aggregator.py all_logs summary/all_build_logs.txt
+            python3 scripts/utils/log_aggregator.py all_logs summary/all_build_logs.txt
           else
             echo "No build logs collected." > summary/all_build_logs.txt
           fi
@@ -338,7 +340,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -376,7 +378,7 @@ jobs:
           PYTHONPATH: scripts
         run: |
           python -c "
-          from core.index_gen import prepare_site
+          from utils.index_gen import prepare_site
           prepare_site('site', 'artifacts')
           "
 
@@ -384,7 +386,7 @@ jobs:
         uses: actions/configure-pages@v6
 
       - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@v4
         with:
           path: 'site'
 
@@ -398,6 +400,6 @@ jobs:
           PYTHONPATH: scripts
         run: |
           python -c "
-          from core.prune import prune_release_tags
+          from utils.prune import prune_release_tags
           prune_release_tags()
           " || echo "Notice: Release asset pruning completed."

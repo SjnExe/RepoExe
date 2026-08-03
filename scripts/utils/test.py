@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from core.properties import HOME, PREFIX
+from utils.properties import HOME, PREFIX
 
 
 class ProotTestRunner:

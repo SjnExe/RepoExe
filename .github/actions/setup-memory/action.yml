@@ -1,0 +1,76 @@
+name: 'Setup Tiered Memory'
+description: 'Configures ZRAM and NVMe swap space, and tracks memory usage'
+inputs:
+  zram_gb:
+    description: 'Size of ZRAM swap in GB'
+    required: false
+    default: '0'
+  swap_gb:
+    description: 'Size of NVMe swap file in GB'
+    required: false
+    default: '0'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure ZRAM
+      if: inputs.zram_gb != '0'
+      shell: bash
+      run: |
+        echo "⚡ Configuring ${zram_gb}GB ZRAM..."
+        sudo modprobe zram
+        sudo zramctl --find --size ${zram_gb}G || true
+        # Highest priority (e.g., 32767)
+        sudo mkswap /dev/zram0
+        sudo swapon -p 32767 /dev/zram0 || true
+        sudo zramctl
+      env:
+        zram_gb: ${{ inputs.zram_gb }}
+
+    - name: Configure NVMe Swap
+      if: inputs.swap_gb != '0'
+      shell: bash
+      run: |
+        echo "⚡ Allocating ${swap_gb}GB NVMe swap file..."
+        SWAPFILE="/mnt/swapfile"
+        if [ ! -f "$SWAPFILE" ]; then
+          sudo fallocate -l ${swap_gb}G "$SWAPFILE"
+          sudo chmod 600 "$SWAPFILE"
+          sudo mkswap "$SWAPFILE"
+        fi
+        # Lower priority
+        sudo swapon -p 10 "$SWAPFILE" || true
+      env:
+        swap_gb: ${{ inputs.swap_gb }}
+
+    - name: Start Memory Tracker
+      shell: bash
+      run: |
+        echo "Starting memory tracker in background..."
+        cat << 'EOF' > track_mem.sh
+        MAX_MEM=0
+        MAX_SWAP=0
+        while true; do
+          CURRENT_MEM=$(free -m | awk '/^Mem:/{print $3}')
+          CURRENT_SWAP=$(free -m | awk '/^Swap:/{print $3}')
+          if [ -n "$CURRENT_MEM" ] && [ "$CURRENT_MEM" -gt "$MAX_MEM" ]; then MAX_MEM=$CURRENT_MEM; fi
+          if [ -n "$CURRENT_SWAP" ] && [ "$CURRENT_SWAP" -gt "$MAX_SWAP" ]; then MAX_SWAP=$CURRENT_SWAP; fi
+          echo "Peak Memory: ${MAX_MEM}MB | Peak Swap: ${MAX_SWAP}MB" > peak_mem.txt
+          sleep 5
+        done
+        EOF
+        chmod +x track_mem.sh
+        ./track_mem.sh &
+        echo "TRACKER_PID=$!" >> $GITHUB_ENV
+
+    - name: Append Memory Stats to Summary
+      if: always()
+      shell: bash
+      run: |
+        if [ -n "$TRACKER_PID" ]; then
+          kill $TRACKER_PID || true
+        fi
+        if [ -f "peak_mem.txt" ]; then
+          echo "### 📊 Peak Memory Usage" >> $GITHUB_STEP_SUMMARY
+          cat peak_mem.txt >> $GITHUB_STEP_SUMMARY
+        fi

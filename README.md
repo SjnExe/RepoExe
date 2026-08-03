@@ -2,15 +2,6 @@
 
 A scalable, multi-format package repository providing custom tools and standalone packages (like aapt2, zipalign, and aidl) built with modern continuous integration pipelines.
 
-## Quick Install
-
-To automatically install this custom repository on your device, run:
-
-```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh
-```
-
-This universal script will automatically detect your active package manager (APT, Pacman, or Alpine apk), securely download the required keys, and inject the RepoExe repository into your system.
 
 ## Features
 
@@ -31,21 +22,8 @@ If you discover a security vulnerability within RepoExe, please refer to our Sec
 
 ## 🚀 Installation
 
-RepoExe provides native binaries for Android terminal environments across multiple package managers and ecosystems.
+To automatically install this custom repository on your device, run:
 
-### 1. Termux / APT (Default)
 ```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh
+curl -sL https://sjnexe.github.io/RepoExe/install | sh
 ```
-### 2. NPM Scope (@repoexe)
-```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --npm
-```
-### 3. Python Wheels / Pip
-```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --pip
-```
-### 4. All Package Repositories
-```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --all
-``` 

@@ -6,6 +6,11 @@ import yaml
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
+class ResourceConfig(BaseModel):
+    zram: int = 0
+    swap: int = 0
+    free_space: bool = False
+
 class ChannelOverride(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -27,6 +32,8 @@ class ChannelOverride(BaseModel):
     patches: list[str] | None = None
     phases: dict[str, str] | None = None
     vars: dict[str, str] | None = None
+    resources: ResourceConfig | None = None
+    component: str | None = None
 
 
 class PackageRecipe(BaseModel):
@@ -41,6 +48,8 @@ class PackageRecipe(BaseModel):
     homepage: str = ""
     maintainer: str = "SjnExe"
     build_system: str = "custom"
+    component: str = "main"
+    resources: ResourceConfig = Field(default_factory=ResourceConfig)
     source_url: str | None = Field(
         default=None, validation_alias=AliasChoices("source_url", "source", "url")
     )
@@ -99,6 +108,8 @@ class PackageRecipe(BaseModel):
             "phases": self.phases,
             "vars": self.vars,
             "channel": self.active_channel,
+            "component": self.component,
+            "resources": self.resources.model_dump() if hasattr(self.resources, "model_dump") else self.resources.dict(),
         }
         raw_json = json.dumps(payload, sort_keys=True)
         return hashlib.sha256(raw_json.encode("utf-8")).hexdigest()[:16]

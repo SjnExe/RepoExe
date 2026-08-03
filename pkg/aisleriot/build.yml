@@ -1,0 +1,57 @@
+name: aisleriot
+version: "3.22.25"
+revision: 0
+architecture: aarch64
+description: AisleRiot Solitaire Games
+license: GPL-3.0
+homepage: https://wiki.gnome.org/Apps/Aisleriot
+maintainer: SjnExe
+build_system: custom
+component: x11
+source_url: https://download.gnome.org/sources/aisleriot/3.22/aisleriot-3.22.25.tar.xz
+sha256: e8c6ebf7baf78c0e0b387e8346e4bfa0d1a44e50efb0416cb2d96c9c8ef79de1
+formats: ["apt", "pacman", "apk"]
+auto_update: true
+build_deps:
+  - meson
+  - ninja
+  - itstool
+  - gettext
+  - pkg-config
+  - intltool
+deps:
+  - gtk3
+  - guile
+  - librsvg
+  - libcanberra
+  - libxml2
+  - desktop-file-utils
+  - shared-mime-info
+phases:
+  configure: |
+    meson setup build \
+      --prefix="${PREFIX}" \
+      --libdir="${PREFIX}/lib" \
+      --buildtype=release \
+      -Dtheme_kde=false
+  make: |
+    ninja -C build
+  install: |
+    DESTDIR="${DESTDIR}" ninja -C build install
+
+    # Patch hardcoded /usr/share paths to Termux PREFIX
+    if [ -f "${DESTDIR}${PREFIX}/bin/sol" ]; then
+      sed -i "s|/usr/share|${PREFIX}/share|g" "${DESTDIR}${PREFIX}/bin/sol"
+    fi
+
+    # Set GUILE_LOAD_PATH
+    mkdir -p "${DESTDIR}${PREFIX}/etc/profile.d"
+    echo "export GUILE_LOAD_PATH=\"${PREFIX}/share/guile/site/3.0:${PREFIX}/share/guile/3.0\"" > "${DESTDIR}${PREFIX}/etc/profile.d/aisleriot.sh"
+
+    for file in "${DESTDIR}${PREFIX}/bin/sol" "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/"*.so; do
+      if [ -f "$file" ]; then
+        if [ -x "$(command -v termux-elf-cleaner)" ]; then
+          termux-elf-cleaner "$file"
+        fi
+      fi
+    done
