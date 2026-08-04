@@ -8,21 +8,15 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from core.alpine import build_alpine
-from core.debian import build_deb
-from core.health import audit_repository_health
-from core.npm import build_npm
-from core.pacman import build_pacman
-from core.parser import parse_recipe
-from core.pip import build_pip
-from core.test import ProotTestRunner
-from core.toolchains import setup_build_environment
-
-
-def get_ruff_cmd() -> list[str]:
-    if shutil.which("ruff"):
-        return ["ruff"]
-    return ["uvx", "ruff"]
+from builders.alpine import build_alpine
+from builders.debian import build_deb
+from builders.npm import build_npm
+from builders.pacman import build_pacman
+from builders.pip import build_pip
+from utils.health import audit_repository_health
+from utils.parser import parse_recipe
+from utils.test import ProotTestRunner
+from utils.toolchains import setup_build_environment
 
 
 def check_existing_release_hash(pkg_name: str, channel: str, target_hash: str) -> bool:
@@ -92,7 +86,6 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
 
 
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
-    """Validates structural integrity of produced package archives."""
     for f in output_dir.glob(f"{pkg_name}*"):
         if f.name.endswith(".deb"):
             subprocess.run(["dpkg-deb", "-I", str(f)], check=True, capture_output=True)
@@ -111,6 +104,7 @@ def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
 def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     env = os.environ.copy()
     env["MAKEFLAGS"] = "-j4"
+    env["NINJA_JOBS"] = "4"
     env["CARGO_BUILD_JOBS"] = "4"
     env["GOMAXPROCS"] = "4"
     env["GIT_CONFIG_COUNT"] = "1"
@@ -279,7 +273,7 @@ def main() -> None:
         p.add_argument("--force", action="store_true")
 
     args = parser.parse_args()
-    pkg_dir = Path(__file__).parent.parent / "pkg"
+    pkg_dir = Path(__file__).resolve().parents[2] / "pkg"
 
     if args.command == "check":
         audit_repository_health(pkg_dir)

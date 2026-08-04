@@ -1,0 +1,52 @@
+name: aisleriot
+version: "3.22.33"
+revision: 0
+architecture: aarch64
+description: Solitaire card games collection compiled for Termux X11
+license: GPL-3.0-or-later
+homepage: https://wiki.gnome.org/Apps/AisleRiot
+maintainer: SjnExe
+component: x11
+build_system: custom
+
+source_url: https://download.gnome.org/sources/aisleriot/3.22/aisleriot-3.22.33.tar.xz
+
+formats:
+  - apt
+  - pacman
+  - apk
+
+deps:
+  - gtk3
+  - guile
+  - librsvg
+  - libcanberra
+  - libxml2
+  - desktop-file-utils
+  - shared-mime-info
+
+build_deps:
+  - meson
+  - ninja
+  - itstool
+  - gettext
+  - pkg-config
+  - intltool
+
+phases:
+  configure: |
+    meson setup build \
+      --prefix="${PREFIX}" \
+      --libdir="${PREFIX}/lib" \
+      -Dguile=3.0 \
+      -Dkcard_theme=true
+  make: |
+    ninja -C build -j4
+  install: |
+    DESTDIR="${DESTDIR}" ninja -C build install
+    if shutil.which("termux-elf-cleaner"); then
+      termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/sol"
+      termux-elf-cleaner "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true
+    fi
+  test: |
+    sol --version || true

@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 
-from core.parser import PackageRecipe
+from utils.parser import PackageRecipe
 
 
 def build_alpine(

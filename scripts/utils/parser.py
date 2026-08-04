@@ -6,6 +6,14 @@ import yaml
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
+class ResourceConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    zram: int = 0
+    swap: int = 0
+    free_space: bool = False
+
+
 class ChannelOverride(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -40,6 +48,7 @@ class PackageRecipe(BaseModel):
     license: str = "MIT"
     homepage: str = ""
     maintainer: str = "SjnExe"
+    component: str = "main"
     build_system: str = "custom"
     source_url: str | None = Field(
         default=None, validation_alias=AliasChoices("source_url", "source", "url")
@@ -48,6 +57,7 @@ class PackageRecipe(BaseModel):
     formats: list[str] = Field(default_factory=lambda: ["apt", "pacman", "apk"])
     build_deps: list[str] = Field(default_factory=list)
     deps: list[str] = Field(default_factory=list, alias="depends")
+    resources: ResourceConfig = Field(default_factory=ResourceConfig)
     heavy_build: bool = False
     auto_update: bool = False
     update_strategy: str | None = Field(default=None, alias="strategy")

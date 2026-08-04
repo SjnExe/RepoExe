@@ -3,7 +3,7 @@ import shutil
 import tarfile
 from pathlib import Path
 
-from core.parser import PackageRecipe
+from utils.parser import PackageRecipe
 
 
 def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
@@ -53,10 +53,6 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         "export LD_LIBRARY_PATH=\"${DIR}/../usr/lib:$LD_LIBRARY_PATH\"\n"
         "exec \"${DIR}/../usr/bin/" + recipe.name + "\" \"$@\"\n"
     )
-
-    bin_target = bin_dir / recipe.name
-    bin_target.write_text(wrapper_script, encoding="utf-8")
-    bin_target.chmod(0o755)
 
     bin_target = bin_dir / recipe.name
     bin_target.write_text(wrapper_script, encoding="utf-8")

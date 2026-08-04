@@ -7,7 +7,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from core.parser import PackageRecipe
+from utils.parser import PackageRecipe
 
 ARCH_MAP = {
     "aarch64": "aarch64",
@@ -18,7 +18,6 @@ ARCH_MAP = {
 
 
 def generate_control_file(recipe: PackageRecipe) -> str:
-    """Generates standard Debian control file content from a PackageRecipe."""
     version_str = (
         f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
     )
@@ -41,7 +40,6 @@ def generate_control_file(recipe: PackageRecipe) -> str:
 def prepare_debian_dir(
     recipe: PackageRecipe, build_dir: Path, pkg_src_dir: Path | None = None
 ) -> Path:
-    """Prepares DEBIAN staging folder, copies payload files, and writes control file."""
     stage_dir = build_dir / "stage"
     debian_dir = stage_dir / "DEBIAN"
     debian_dir.mkdir(parents=True, exist_ok=True)
@@ -72,12 +70,16 @@ def build_deb(
     target_arch: str = "aarch64",
     pkg_src_dir: Path | None = None,
 ) -> Path:
-    """Builds a .deb package from staging/recipe using fast zstd compression."""
     build_path = Path(destdir)
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
     stage_dir = prepare_debian_dir(recipe, build_path, pkg_src_dir=pkg_src_dir)
+
+    if shutil.which("termux-elf-cleaner"):
+        subprocess.run(
+            ["termux-elf-cleaner", str(stage_dir)], check=False, capture_output=True
+        )
 
     version_str = (
         f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
@@ -90,9 +92,6 @@ def build_deb(
     cmd = ["dpkg-deb", "--build", "-Zzstd", "-z1", str(stage_dir), str(deb_path)]
     res = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if res.returncode != 0:
-        print(
-            f"Notice: dpkg-deb zstd build failed ({res.stderr.strip()}), retrying standard build..."
-        )
         cmd = ["dpkg-deb", "--build", str(stage_dir), str(deb_path)]
         res2 = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if res2.returncode != 0:
@@ -104,7 +103,6 @@ def build_deb(
 
 
 def _process_single_deb(deb_file: Path) -> str | None:
-    """Worker function to extract control metadata and hash a .deb package in parallel."""
     try:
         res = subprocess.run(
             ["dpkg-deb", "-f", str(deb_file)],
@@ -130,7 +128,6 @@ def _process_single_deb(deb_file: Path) -> str | None:
 def generate_apt_metadata(
     output_dir: str, component: str = "main", arch: str = "aarch64"
 ) -> None:
-    """Generates APT Packages index concurrently for all deb archives in output_dir."""
     binary_dir = os.path.join(
         output_dir, "dists", "stable", component, f"binary-{arch}"
     )
@@ -157,7 +154,6 @@ def generate_apt_metadata(
 def generate_release_file(
     output_dir: str, suite: str = "stable", component: str = "main"
 ) -> None:
-    """Generates APT Release, InRelease, and Release.gpg metadata files."""
     dists_dir = os.path.join(output_dir, "dists", suite)
     os.makedirs(dists_dir, exist_ok=True)
     release_path = os.path.join(dists_dir, "Release")

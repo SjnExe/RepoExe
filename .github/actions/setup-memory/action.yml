@@ -1,0 +1,44 @@
+name: 'Setup Memory Tiering'
+description: 'Configures high-priority zram compressed memory and NVMe swap fallback'
+inputs:
+  zram:
+    description: 'Size of zram compressed swap in GB'
+    required: false
+    default: '0'
+  swap:
+    description: 'Size of NVMe disk swapfile in GB'
+    required: false
+    default: '0'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure Memory & Swap
+      shell: bash
+      run: |
+        set -e
+        ZRAM_GB="${{ inputs.zram }}"
+        SWAP_GB="${{ inputs.swap }}"
+
+        if [ "$ZRAM_GB" -gt 0 ]; then
+          echo "⚡ Configuring ${ZRAM_GB}GB zram compressed swap..."
+          sudo modprobe zram num_devices=1 || true
+          ZRAM_BYTES=$((ZRAM_GB * 1024 * 1024 * 1024))
+          echo "$ZRAM_BYTES" | sudo tee /sys/block/zram0/disksize || true
+          sudo mkswap /dev/zram0 || true
+          sudo swapon -p 32767 /dev/zram0 || true
+        fi
+
+        if [ "$SWAP_GB" -gt 0 ]; then
+          echo "⚡ Configuring ${SWAP_GB}GB disk swap file..."
+          SWAPFILE="/swapfile_${SWAP_GB}G"
+          if [ ! -f "$SWAPFILE" ]; then
+            sudo fallocate -l "${SWAP_GB}G" "$SWAPFILE" || sudo dd if=/dev/zero of="$SWAPFILE" bs=1M count=$((SWAP_GB * 1024))
+            sudo chmod 600 "$SWAPFILE"
+            sudo mkswap "$SWAPFILE"
+          fi
+          sudo swapon -p 10 "$SWAPFILE" || true
+        fi
+
+        echo "### Memory Tiering Summary" >> $GITHUB_STEP_SUMMARY
+        free -h >> $GITHUB_STEP_SUMMARY

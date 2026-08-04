@@ -1,0 +1,33 @@
+name: bun
+version: "1.3.14"
+revision: 0
+architecture: aarch64
+description: Incredibly fast JavaScript & TypeScript all-in-one runtime
+license: MIT
+homepage: https://bun.sh
+maintainer: SjnExe
+build_system: custom
+
+source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.3.14.tar.gz
+
+formats:
+  - apt
+  - pacman
+  - apk
+
+build_deps:
+  - bun-jsc
+
+phases:
+  make: |
+    mkdir -p build
+    zig build -Doptimize=ReleaseFast -Dtarget=aarch64-linux-android
+  install: |
+    mkdir -p "${DESTDIR}${PREFIX}/bin"
+    cp build/bun "${DESTDIR}${PREFIX}/bin/bun"
+    ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
+    if command -v termux-elf-cleaner >/dev/null 2>&1; then
+      termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/bun"
+    fi
+  test: |
+    bun --version
