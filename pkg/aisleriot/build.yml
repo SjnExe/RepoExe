@@ -1,5 +1,5 @@
 name: aisleriot
-version: "3.22.33"
+version: "3.22.24"
 revision: 0
 architecture: aarch64
 description: Solitaire card games collection compiled for Termux X11
@@ -9,7 +9,7 @@ maintainer: SjnExe
 component: x11
 build_system: custom
 
-source_url: https://download.gnome.org/sources/aisleriot/3.22/aisleriot-3.22.33.tar.xz
+source_url: https://download.gnome.org/sources/aisleriot/3.22/aisleriot-3.22.24.tar.xz
 
 formats:
   - apt
