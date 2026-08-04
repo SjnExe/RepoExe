@@ -26,6 +26,10 @@ deps:
   - shared-mime-info
 
 phases:
+  prepare: |
+    if ! command -v ninja >/dev/null 2>&1 || ! command -v meson >/dev/null 2>&1; then
+      sudo apt-get update && sudo apt-get install -y cmake ninja-build meson itstool gettext intltool pkg-config
+    fi
   configure: |
     meson setup build \
       --prefix="${PREFIX}" \
@@ -36,7 +40,7 @@ phases:
     ninja -C build -j4
   install: |
     DESTDIR="${DESTDIR}" ninja -C build install
-    if shutil.which("termux-elf-cleaner"); then
+    if command -v termux-elf-cleaner >/dev/null 2>&1; then
       termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/sol"
       termux-elf-cleaner "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true
     fi

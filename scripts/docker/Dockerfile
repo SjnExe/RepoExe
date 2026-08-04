@@ -7,7 +7,7 @@ ENV LANG=en_US.UTF-8
 # Base dependencies
 RUN apt-get update && apt-get install -yq --no-install-recommends \
     zstd locales apt-utils eatmydata sudo curl git ca-certificates aria2 \
-    unzip patch build-essential nodejs npm shellcheck \
+    unzip patch build-essential cmake ninja-build meson pkg-config gettext intltool itstool nodejs npm shellcheck \
     proot abigail-tools graphviz dpkg-dev gcc g++ python3-pip python3-yaml python3-pydantic docker.io \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \

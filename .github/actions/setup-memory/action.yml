@@ -9,24 +9,54 @@ inputs:
     description: 'Size of NVMe disk swapfile in GB'
     required: false
     default: '0'
+  algorithm:
+    description: 'Compression algorithm for zram'
+    required: false
+    default: 'zstd'
 
 runs:
   using: 'composite'
   steps:
-    - name: Configure Memory & Swap
+    - name: Enable zram & Swap Memory
       shell: bash
       run: |
-        set -e
+        set -euo pipefail
         ZRAM_GB="${{ inputs.zram }}"
         SWAP_GB="${{ inputs.swap }}"
 
         if [ "$ZRAM_GB" -gt 0 ]; then
           echo "⚡ Configuring ${ZRAM_GB}GB zram compressed swap..."
-          sudo modprobe zram num_devices=1 || true
-          ZRAM_BYTES=$((ZRAM_GB * 1024 * 1024 * 1024))
-          echo "$ZRAM_BYTES" | sudo tee /sys/block/zram0/disksize || true
-          sudo mkswap /dev/zram0 || true
-          sudo swapon -p 32767 /dev/zram0 || true
+          if ! sudo modprobe zram 2>/dev/null; then
+            echo "Notice: zram module not found in runner kernel. Compiling zram module..."
+            FULL_KERNEL_VERSION="$(uname -r)"
+            KERNEL_VERSION="$(grep -o "^[0-9\.]*" <<< "${FULL_KERNEL_VERSION}")"
+            TAR_KERNEL_VERSION="${KERNEL_VERSION%\.0}"
+            MODULES_DIR="/lib/modules/${FULL_KERNEL_VERSION}"
+
+            LINUX_CHECKOUT_DIR=$(mktemp -d)
+            cd "$LINUX_CHECKOUT_DIR"
+            curl -sSL "https://cdn.kernel.org/pub/linux/kernel/v${KERNEL_VERSION%%.*}.x/linux-${TAR_KERNEL_VERSION}.tar.xz" | tar -xJ || true
+            if [ -d "linux-${TAR_KERNEL_VERSION}/drivers/block/zram" ]; then
+              cd "linux-${TAR_KERNEL_VERSION}/drivers/block/zram"
+              make -C "${MODULES_DIR}/build" M="$PWD" -j$(nproc) || true
+              if [ -f zram.ko ]; then
+                sudo cp zram.ko "${MODULES_DIR}/kernel/" || true
+                sudo depmod || true
+                sudo insmod zram.ko || sudo modprobe zram || true
+              fi
+            fi
+            cd /
+            rm -rf "$LINUX_CHECKOUT_DIR"
+          fi
+
+          if sudo zramctl --find --algorithm ${{ inputs.algorithm }} --size "${ZRAM_GB}G" 2>/dev/null; then
+            sudo mkswap /dev/zram0 || true
+            sudo swapon --discard --priority 32767 /dev/zram0 || true
+            echo "✓ Successfully activated zram0 (${ZRAM_GB}GB)"
+          else
+            echo "Notice: Could not initialize zramctl device, falling back to disk swap..."
+            SWAP_GB=$((SWAP_GB + ZRAM_GB))
+          fi
         fi
 
         if [ "$SWAP_GB" -gt 0 ]; then
@@ -38,6 +68,7 @@ runs:
             sudo mkswap "$SWAPFILE"
           fi
           sudo swapon -p 10 "$SWAPFILE" || true
+          echo "✓ Successfully activated disk swap (${SWAP_GB}GB)"
         fi
 
         echo "### Memory Tiering Summary" >> $GITHUB_STEP_SUMMARY

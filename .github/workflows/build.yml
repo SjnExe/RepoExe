@@ -88,7 +88,7 @@ jobs:
           echo "layer_1=$(echo "$JSON_OUT" | jq -c '.layer_1')" >> "$GITHUB_OUTPUT"
 
   build-layer-0:
-    name: "L0: ${{ matrix.package }}@${{ matrix.channel }}"
+    name: "0:${{ matrix.package }}@${{ matrix.channel }}"
     needs: [generate-matrix]
     if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.layer_0 != '[]' }}
     runs-on: ubuntu-24.04-arm
@@ -213,7 +213,7 @@ jobs:
           retention-days: 1
 
   build-layer-1:
-    name: "L1: ${{ matrix.package }}@${{ matrix.channel }}"
+    name: "1:${{ matrix.package }}@${{ matrix.channel }}"
     needs: [generate-matrix, build-layer-0]
     if: ${{ always() && needs.generate-matrix.outputs.layer_1 != '[]' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') }}
     runs-on: ubuntu-24.04-arm
