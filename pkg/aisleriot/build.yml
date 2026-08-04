@@ -9,7 +9,7 @@ maintainer: SjnExe
 component: x11
 build_system: custom
 
-source_url: https://gitlab.gnome.org/GNOME/aisleriot/-/archive/v3.22.24/aisleriot-v3.22.24.tar.gz
+source_url: https://gitlab.gnome.org/GNOME/aisleriot.git
 
 formats:
   - apt

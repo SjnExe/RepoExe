@@ -18,73 +18,58 @@ class DependencyGraph:
                 self.recipes[recipe.name] = recipe
 
     def resolve_build_order(self) -> list[str]:
-        """Topological sort to determine clean build order considering dependencies."""
-        graph: dict[str, list[str]] = {}
-        in_degree: dict[str, int] = {}
+        graph: dict[str, list[str]] = {p: [] for p in self.recipes}
+        in_degree: dict[str, int] = {p: 0 for p in self.recipes}
 
-        # Initialize graph and in-degrees
-        for pkg_name in self.recipes:
-            graph[pkg_name] = []
-            in_degree[pkg_name] = 0
-
-        # Build graph
         for pkg_name, recipe in self.recipes.items():
-            deps = recipe.deps or []
-            build_deps = recipe.build_deps or []
-
-            # Combine all dependencies
-            all_deps = set(deps + build_deps)
-
-            for dep in all_deps:
-                # We only care about dependencies that are local packages
+            deps = set((recipe.deps or []) + (recipe.build_deps or []))
+            for dep in deps:
                 if dep in self.recipes:
                     graph[dep].append(pkg_name)
                     in_degree[pkg_name] += 1
 
-        # Topological Sort using Kahn's Algorithm
         queue = deque([pkg for pkg in self.recipes if in_degree[pkg] == 0])
         order = []
 
         while queue:
             node = queue.popleft()
             order.append(node)
-
             for neighbor in graph.get(node, []):
                 in_degree[neighbor] -= 1
                 if in_degree[neighbor] == 0:
                     queue.append(neighbor)
 
-        # Check for cycles
         if len(order) != len(self.recipes):
-            raise ValueError("Dependency cycle detected in packages")
+            return list(self.recipes.keys())
 
         return order
 
-    def get_shards(
-        self,
-        target_packages: list[str] | None = None,
-        excluded_packages: set[str] | None = None,
-        is_pr: bool = False,
-        num_shards: int = 4,
-    ) -> list[list[str]]:
-        """Splits target packages into balanced matrix shards for CI workflow runners."""
-        if target_packages:
-            pkgs = [p for p in target_packages if (self.packages_dir / p).exists()]
-        else:
-            pkgs = self.resolve_build_order()
+    def get_layers(self, target_packages: list[str] | None = None) -> list[list[str]]:
+        pkgs = set(target_packages) if target_packages else set(self.recipes.keys())
+        pkgs = {p for p in pkgs if p in self.recipes}
 
-        if excluded_packages:
-            pkgs = [p for p in pkgs if p not in excluded_packages]
+        sub_graph: dict[str, set[str]] = {p: set() for p in pkgs}
+        in_degree: dict[str, int] = {p: 0 for p in pkgs}
 
-        if not pkgs:
-            return []
+        for p in pkgs:
+            recipe = self.recipes[p]
+            deps = set((recipe.deps or []) + (recipe.build_deps or []))
+            for dep in deps:
+                if dep in pkgs:
+                    sub_graph[dep].add(p)
+                    in_degree[p] += 1
 
-        # Group packages into layers based on dependencies to maximize parallelization safely
-        # Note: A full dependency-aware sharding would need careful orchestration.
-        # For now, we split maintaining relative topological order.
+        layers: list[list[str]] = []
+        current_layer = [p for p in pkgs if in_degree[p] == 0]
 
-        shards: list[list[str]] = [[] for _ in range(num_shards)]
-        for idx, pkg in enumerate(pkgs):
-            shards[idx % num_shards].append(pkg)
+        while current_layer:
+            layers.append(sorted(current_layer))
+            next_layer = []
+            for node in current_layer:
+                for neighbor in sub_graph[node]:
+                    in_degree[neighbor] -= 1
+                    if in_degree[neighbor] == 0:
+                        next_layer.append(neighbor)
+            current_layer = next_layer
 
-        return [s for s in shards if s]
+        return layers

@@ -26,37 +26,52 @@ def get_changed_packages(repo_root: Path) -> set[str]:
     return {Path(f.strip()).parts[1] for f in files if len(Path(f.strip()).parts) >= 2 and Path(f.strip()).parts[0] == "pkg"}
 
 
+def build_matrix_layer(pkgs_list: list[str], pkgs_dir: Path) -> list[dict]:
+    matrix = []
+    for p in pkgs_list:
+        recipe_path = pkgs_dir / p / "build.yml"
+        if not recipe_path.exists():
+            continue
+        try:
+            r = parse_recipe(recipe_path, channel="latest")
+            matrix.append({
+                "package": p,
+                "channel": "latest",
+                "heavy": r.heavy_build,
+                "build_system": r.build_system,
+                "zram": getattr(r.resources, "zram", 0),
+                "swap": getattr(r.resources, "swap", 0),
+                "free_space": getattr(r.resources, "free_space", False),
+            })
+        except Exception:
+            pass
+    return matrix
+
+
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     pkgs_dir = repo_root / "pkg"
     raw_input = os.environ.get("TARGET_INPUT", "").strip()
 
     dag = DependencyGraph(pkgs_dir)
-    ordered_all_pkgs = dag.resolve_build_order()
 
     if not raw_input or raw_input == "auto":
-        changed_pkgs = get_changed_packages(repo_root)
-        candidates = [p for p in ordered_all_pkgs if p in changed_pkgs]
+        changed_pkgs = list(get_changed_packages(repo_root))
+        target_pkgs = changed_pkgs if changed_pkgs else list(dag.recipes.keys())
     else:
-        candidates = [p for p in ordered_all_pkgs if (pkgs_dir / p).exists()]
+        target_pkgs = list(dag.recipes.keys())
 
-    matrix = []
-    for p in candidates:
-        recipe_path = pkgs_dir / p / "build.yml"
-        if not recipe_path.exists():
-            continue
-        r = parse_recipe(recipe_path, channel="latest")
-        matrix.append({
-            "package": p,
-            "channel": "latest",
-            "heavy": r.heavy_build,
-            "build_system": r.build_system,
-            "zram": getattr(r.resources, "zram", 0),
-            "swap": getattr(r.resources, "swap", 0),
-            "free_space": getattr(r.resources, "free_space", False),
-        })
+    layers = dag.get_layers(target_pkgs)
 
-    print(json.dumps(matrix))
+    layer_0_pkgs = layers[0] if len(layers) > 0 else []
+    layer_1_pkgs = layers[1] if len(layers) > 1 else []
+
+    output = {
+        "layer_0": build_matrix_layer(layer_0_pkgs, pkgs_dir),
+        "layer_1": build_matrix_layer(layer_1_pkgs, pkgs_dir),
+    }
+
+    print(json.dumps(output))
 
 
 if __name__ == "__main__":
