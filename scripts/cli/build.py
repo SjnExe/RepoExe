@@ -49,10 +49,12 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
 
     print(f"Resolving build dependencies: {', '.join(build_deps)}")
     stage_dir = destdir / "stage"
+    pkg_root = Path(__file__).resolve().parents[2] / "pkg"
 
     for dep in build_deps:
         tag = f"{dep}@latest"
         api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
+        fetched_remote = False
 
         try:
             req = urllib.request.Request(
@@ -79,10 +81,26 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
                     ["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True
                 )
                 print(f"✓ Extracted pre-built dependency '{dep}' into build staging.")
+                fetched_remote = True
         except Exception as e:
             print(
-                f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e})."
+                f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched remotely ({e})."
             )
+
+        if not fetched_remote:
+            local_recipe_file = pkg_root / dep / "build.yml"
+            if local_recipe_file.exists():
+                print(f"⚡ Local recipe found for missing dependency '{dep}'. Building locally first...")
+                dep_recipe = parse_recipe(local_recipe_file, channel="latest")
+                dep_destdir = (destdir.parent / f"build_{dep}").resolve()
+                dep_stage_dir = execute_compile(dep_recipe, local_recipe_file.parent, dep_destdir)
+                
+                # Copy compiled headers and libraries from dependency stage into active build staging
+                if dep_stage_dir.exists():
+                    shutil.copytree(dep_stage_dir, stage_dir, dirs_exist_ok=True)
+                    print(f"✓ Successfully built and staged local dependency '{dep}'.")
+            else:
+                print(f"⚠️ Warning: Dependency '{dep}' not found on remote release or local repository.")
 
 
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
