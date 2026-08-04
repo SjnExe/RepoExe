@@ -49,7 +49,6 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
 
     print(f"Resolving build dependencies: {', '.join(build_deps)}")
     stage_dir = destdir / "stage"
-    pkg_root = Path(__file__).resolve().parents[2] / "pkg"
 
     for dep in build_deps:
         tag = f"{dep}@latest"
@@ -57,56 +56,44 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
         fetched_remote = False
 
         try:
-            req = urllib.request.Request(
-                api_url, headers={"User-Agent": "RepoExe-Orchestrator"}
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                rel_data = json.loads(resp.read().decode("utf-8"))
-
-            deb_asset = next(
-                (
-                    a
-                    for a in rel_data.get("assets", [])
-                    if a.get("name", "").endswith(".deb")
-                ),
-                None,
-            )
-
-            # Check local workflow artifacts directory first (from previous CI stage)
             local_arts = list(Path("artifacts").glob(f"{dep}*.deb")) if Path("artifacts").exists() else []
             if local_arts:
                 print(f"✓ Found local workflow artifact for dependency '{dep}': {local_arts[0].name}")
                 subprocess.run(["dpkg-deb", "-x", str(local_arts[0]), str(stage_dir)], check=True)
                 fetched_remote = True
-            elif deb_asset:
-                download_url = deb_asset["browser_download_url"]
-                dep_deb = destdir / deb_asset["name"]
-                print(f"Fetching pre-built dependency '{dep}' from {download_url}...")
-                urllib.request.urlretrieve(download_url, dep_deb)
-                subprocess.run(
-                    ["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True
+            else:
+                req = urllib.request.Request(
+                    api_url, headers={"User-Agent": "RepoExe-Orchestrator"}
                 )
-                print(f"✓ Extracted pre-built dependency '{dep}' into build staging.")
-                fetched_remote = True
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    rel_data = json.loads(resp.read().decode("utf-8"))
+
+                deb_asset = next(
+                    (
+                        a
+                        for a in rel_data.get("assets", [])
+                        if a.get("name", "").endswith(".deb")
+                    ),
+                    None,
+                )
+
+                if deb_asset:
+                    download_url = deb_asset["browser_download_url"]
+                    dep_deb = destdir / deb_asset["name"]
+                    print(f"Fetching pre-built dependency '{dep}' from {download_url}...")
+                    urllib.request.urlretrieve(download_url, dep_deb)
+                    subprocess.run(
+                        ["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True
+                    )
+                    print(f"✓ Extracted pre-built dependency '{dep}' into build staging.")
+                    fetched_remote = True
         except Exception as e:
             print(
-                f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched remotely ({e})."
+                f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e})."
             )
 
         if not fetched_remote:
-            local_recipe_file = pkg_root / dep / "build.yml"
-            if local_recipe_file.exists():
-                print(f"⚡ Local recipe found for missing dependency '{dep}'. Building locally first...")
-                dep_recipe = parse_recipe(local_recipe_file, channel="latest")
-                dep_destdir = (destdir.parent / f"build_{dep}").resolve()
-                dep_stage_dir = execute_compile(dep_recipe, local_recipe_file.parent, dep_destdir)
-                
-                # Copy compiled headers and libraries from dependency stage into active build staging
-                if dep_stage_dir.exists():
-                    shutil.copytree(dep_stage_dir, stage_dir, dirs_exist_ok=True)
-                    print(f"✓ Successfully built and staged local dependency '{dep}'.")
-            else:
-                print(f"⚠️ Warning: Dependency '{dep}' not found on remote release or local repository.")
+            print(f"⚠️ Warning: Dependency '{dep}' not found on remote release or artifacts.")
 
 
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
@@ -159,38 +146,36 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     work_dir = pkg_dir
     src_url = getattr(recipe, "source_url", None)
     if src_url:
+        src_url_str = str(src_url).strip()
         archive_path = destdir / "source.tar.gz"
         src_extract_dir = destdir / "src"
         src_extract_dir.mkdir(parents=True, exist_ok=True)
 
-        res = subprocess.run(
-            ["curl", "-fsSL", str(src_url), "-o", str(archive_path)], check=False
-        )
-        if res.returncode == 0 and archive_path.exists() and archive_path.stat().st_size > 1000:
-            subprocess.run(
-                [
-                    "tar",
-                    "-xf",
-                    str(archive_path),
-                    "-C",
-                    str(src_extract_dir),
-                    "--strip-components=1",
-                ],
-                check=False,
-            )
-            if not any(src_extract_dir.iterdir()):
-                subprocess.run(
-                    ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
-                    check=True,
-                )
+        if src_url_str.endswith(".git") or "git" in src_url_str:
+            print(f"⚡ Cloning Git source repository: {src_url_str}...")
+            subprocess.run(["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)], check=True)
             work_dir = src_extract_dir
         else:
-            print(f"Notice: Direct archive download failed for {src_url}. Falling back to git clone...")
-            git_url = str(src_url).replace("/archive/refs/heads/main.tar.gz", ".git").replace("/archive/refs/tags/", "/tree/")
-            if not git_url.endswith(".git"):
-                git_url = str(src_url).split("/archive/")[0] + ".git"
-            subprocess.run(["git", "clone", "--depth", "1", git_url, str(src_extract_dir)], check=True)
-            work_dir = src_extract_dir
+            print(f"⚡ Downloading archive source: {src_url_str}...")
+            subprocess.run(["curl", "-fsSL", src_url_str, "-o", str(archive_path)], check=True)
+            if archive_path.exists():
+                subprocess.run(
+                    [
+                        "tar",
+                        "-xf",
+                        str(archive_path),
+                        "-C",
+                        str(src_extract_dir),
+                        "--strip-components=1",
+                    ],
+                    check=False,
+                )
+                if not any(src_extract_dir.iterdir()):
+                    subprocess.run(
+                        ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
+                        check=True,
+                    )
+                work_dir = src_extract_dir
 
     env["DESTDIR"] = str(stage_dir.resolve())
     env["PREFIX"] = "/data/data/com.termux/files/usr"
