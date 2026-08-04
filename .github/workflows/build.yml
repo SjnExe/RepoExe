@@ -101,6 +101,13 @@ jobs:
           fetch-depth: 0
 
       - name: Prepare Workspace Permissions
+      - name: Download Dependency Artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: package-artifact-*
+          path: artifacts
+          merge-multiple: true
+        continue-on-error: true
         run: |
           mkdir -p build output build_logs
           sudo chmod -R 777 .
@@ -193,6 +200,14 @@ jobs:
             -e GITHUB_WORKSPACE="${{ github.workspace }}" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+
+      - name: Save Package Build Artifact
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-artifact-${{ matrix.package }}
+          path: output/
+          retention-days: 1
 
       - name: Save Build Log Artifact
         if: always()

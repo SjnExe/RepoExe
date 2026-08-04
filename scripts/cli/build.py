@@ -72,7 +72,13 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
                 None,
             )
 
-            if deb_asset:
+            # Check local workflow artifacts directory first (from previous CI stage)
+            local_arts = list(Path("artifacts").glob(f"{dep}*.deb")) if Path("artifacts").exists() else []
+            if local_arts:
+                print(f"✓ Found local workflow artifact for dependency '{dep}': {local_arts[0].name}")
+                subprocess.run(["dpkg-deb", "-x", str(local_arts[0]), str(stage_dir)], check=True)
+                fetched_remote = True
+            elif deb_asset:
                 download_url = deb_asset["browser_download_url"]
                 dep_deb = destdir / deb_asset["name"]
                 print(f"Fetching pre-built dependency '{dep}' from {download_url}...")
@@ -157,10 +163,10 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         src_extract_dir = destdir / "src"
         src_extract_dir.mkdir(parents=True, exist_ok=True)
 
-        subprocess.run(
-            ["curl", "-fsSL", str(src_url), "-o", str(archive_path)], check=True
+        res = subprocess.run(
+            ["curl", "-fsSL", str(src_url), "-o", str(archive_path)], check=False
         )
-        if archive_path.exists():
+        if res.returncode == 0 and archive_path.exists() and archive_path.stat().st_size > 1000:
             subprocess.run(
                 [
                     "tar",
@@ -177,6 +183,13 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                     ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
                     check=True,
                 )
+            work_dir = src_extract_dir
+        else:
+            print(f"Notice: Direct archive download failed for {src_url}. Falling back to git clone...")
+            git_url = str(src_url).replace("/archive/refs/heads/main.tar.gz", ".git").replace("/archive/refs/tags/", "/tree/")
+            if not git_url.endswith(".git"):
+                git_url = str(src_url).split("/archive/")[0] + ".git"
+            subprocess.run(["git", "clone", "--depth", "1", git_url, str(src_extract_dir)], check=True)
             work_dir = src_extract_dir
 
     env["DESTDIR"] = str(stage_dir.resolve())

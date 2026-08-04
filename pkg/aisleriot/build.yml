@@ -9,7 +9,7 @@ maintainer: SjnExe
 component: x11
 build_system: custom
 
-source_url: https://download.gnome.org/sources/aisleriot/3.22/aisleriot-3.22.24.tar.xz
+source_url: https://gitlab.gnome.org/GNOME/aisleriot/-/archive/v3.22.24/aisleriot-v3.22.24.tar.gz
 
 formats:
   - apt
@@ -24,14 +24,6 @@ deps:
   - libxml2
   - desktop-file-utils
   - shared-mime-info
-
-build_deps:
-  - meson
-  - ninja
-  - itstool
-  - gettext
-  - pkg-config
-  - intltool
 
 phases:
   configure: |
