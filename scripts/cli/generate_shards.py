@@ -3,6 +3,7 @@ import os
 import subprocess
 from pathlib import Path
 
+from utils.dag import DependencyGraph
 from utils.parser import parse_recipe
 
 
@@ -53,13 +54,8 @@ def main() -> None:
     pkgs_dir = repo_root / "pkg"
 
     raw_input = os.environ.get("TARGET_INPUT", "").strip()
-    all_pkg_dirs = sorted(
-        [
-            d.name
-            for d in pkgs_dir.iterdir()
-            if d.is_dir() and (d / "build.yml").exists()
-        ]
-    )
+    dag = DependencyGraph(pkgs_dir)
+    ordered_all_pkgs = dag.resolve_build_order()
 
     def get_channels(pkg_name: str) -> list[str]:
         recipe_path = pkgs_dir / pkg_name / "build.yml"
@@ -91,7 +87,7 @@ def main() -> None:
         candidates = set()
         for token in incl_tokens:
             pkg, ch = token.split("@", 1) if "@" in token else (token, "latest")
-            target_pkgs = all_pkg_dirs if pkg == "all" else [pkg]
+            target_pkgs = ordered_all_pkgs if pkg == "all" else [pkg]
             for p in target_pkgs:
                 if not (pkgs_dir / p).exists():
                     continue
@@ -103,14 +99,15 @@ def main() -> None:
         excluded = set()
         for token in excl_tokens:
             pkg, ch = token.split("@", 1) if "@" in token else (token, None)
-            target_pkgs = all_pkg_dirs if pkg == "all" else [pkg]
+            target_pkgs = ordered_all_pkgs if pkg == "all" else [pkg]
             for p, c in list(candidates):
                 if p in target_pkgs and (ch is None or ch == "all" or c == ch):
                     excluded.add((p, c))
 
         candidates -= excluded
 
-    final_targets = sorted(candidates)
+    order_map = {pkg: idx for idx, pkg in enumerate(ordered_all_pkgs)}
+    final_targets = sorted(candidates, key=lambda x: (order_map.get(x[0], 999), x[1]))
 
     matrix = []
     for p, c in final_targets:

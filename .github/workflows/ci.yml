@@ -26,16 +26,18 @@ jobs:
       - name: Install uv & Dependencies
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           uv pip install --system -r pyproject.toml || true
           pip install pytest ruff pydantic pyyaml
 
       - name: Code Quality & Health Audit
         env:
           PYTHONPATH: scripts
-        run: python scripts/build.py check
+        run: |
+          python scripts/cli/build.py check
 
       - name: Run Pytest
         env:
           PYTHONPATH: scripts
-        run: python3 -m pytest scripts/tests/
+        run: |
+          python3 -m pytest scripts/tests/
