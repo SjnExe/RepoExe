@@ -36,3 +36,5 @@ phases:
     fi
   test: |
     bun --version
+
+auto_update: false

@@ -204,12 +204,15 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
             src_url_str.endswith(".git")
             or src_url_str.startswith("git://")
             or "git" in src_url_str.split("/")[-1]
+            or "#" in src_url_str
         ):
             print(f"⚡ Cloning Git source repository: {src_url_str}...")
-            subprocess.run(
-                ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)],
-                check=True,
-            )
+            if "#" in src_url_str:
+                repo_url, branch = src_url_str.split("#", 1)
+                clone_cmd = ["git", "clone", "--depth", "1", "--branch", branch, repo_url, str(src_extract_dir)]
+            else:
+                clone_cmd = ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)]
+            subprocess.run(clone_cmd, check=True)
             work_dir = src_extract_dir
         else:
             print(f"⚡ Downloading archive source: {src_url_str}...")
