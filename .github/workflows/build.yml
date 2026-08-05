@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: 'Target specs (e.g. "all@all", "tsc@latest", "!jscpd")'
+        description: 'Target specs (e.g. "aisleriot bun", "all@all", "!jscpd")'
         required: false
         type: string
         default: 'all@all'
@@ -41,6 +41,8 @@ jobs:
     outputs:
       layer_0: ${{ steps.matrix.outputs.layer_0 }}
       layer_1: ${{ steps.matrix.outputs.layer_1 }}
+      layer_2: ${{ steps.matrix.outputs.layer_2 }}
+      layer_3: ${{ steps.matrix.outputs.layer_3 }}
       should_publish: ${{ steps.decision.outputs.should_publish }}
     steps:
       - name: Checkout Code
@@ -86,6 +88,8 @@ jobs:
           JSON_OUT="$(python scripts/cli/generate_shards.py)"
           echo "layer_0=$(echo "$JSON_OUT" | jq -c '.layer_0')" >> "$GITHUB_OUTPUT"
           echo "layer_1=$(echo "$JSON_OUT" | jq -c '.layer_1')" >> "$GITHUB_OUTPUT"
+          echo "layer_2=$(echo "$JSON_OUT" | jq -c '.layer_2')" >> "$GITHUB_OUTPUT"
+          echo "layer_3=$(echo "$JSON_OUT" | jq -c '.layer_3')" >> "$GITHUB_OUTPUT"
 
   build-layer-0:
     name: "0:${{ matrix.package }}@${{ matrix.channel }}"
@@ -215,7 +219,7 @@ jobs:
   build-layer-1:
     name: "1:${{ matrix.package }}@${{ matrix.channel }}"
     needs: [generate-matrix, build-layer-0]
-    if: ${{ always() && needs.generate-matrix.outputs.layer_1 != '[]' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') }}
+    if: ${{ always() && needs.generate-matrix.outputs.layer_1 != '[]' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped' || needs.build-layer-0.result == 'failure') }}
     runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false

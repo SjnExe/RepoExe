@@ -26,6 +26,45 @@ def get_changed_packages(repo_root: Path) -> set[str]:
     return {Path(f.strip()).parts[1] for f in files if len(Path(f.strip()).parts) >= 2 and Path(f.strip()).parts[0] == "pkg"}
 
 
+def parse_target_tokens(raw_input: str, dag: DependencyGraph, pkgs_dir: Path) -> list[str]:
+    all_pkgs = set(dag.recipes.keys())
+    tokens = raw_input.split()
+    
+    selected = set()
+    excluded = set()
+
+    for token in tokens:
+        if token.startswith("!"):
+            ex_name = token[1:].split("@")[0]
+            if ex_name == "all":
+                excluded.update(all_pkgs)
+            elif ex_name in all_pkgs:
+                excluded.add(ex_name)
+        else:
+            inc_name = token.split("@")[0]
+            if inc_name == "all":
+                selected.update(all_pkgs)
+            elif inc_name in all_pkgs:
+                selected.add(inc_name)
+
+    if not selected:
+        selected = all_pkgs
+
+    final_requested = selected - excluded
+
+    # Expand transitive dependencies automatically
+    expanded_targets = set(final_requested)
+    for pkg in list(final_requested):
+        recipe = dag.recipes.get(pkg)
+        if recipe:
+            deps = set((recipe.deps or []) + (recipe.build_deps or []))
+            for dep in deps:
+                if dep in all_pkgs:
+                    expanded_targets.add(dep)
+
+    return list(expanded_targets)
+
+
 def build_matrix_layer(pkgs_list: list[str], pkgs_dir: Path) -> list[dict]:
     matrix = []
     for p in pkgs_list:
@@ -57,18 +96,20 @@ def main() -> None:
 
     if not raw_input or raw_input == "auto":
         changed_pkgs = list(get_changed_packages(repo_root))
-        target_pkgs = changed_pkgs if changed_pkgs else list(dag.recipes.keys())
+        if changed_pkgs:
+            target_pkgs = list(parse_target_tokens(" ".join(changed_pkgs), dag, pkgs_dir))
+        else:
+            target_pkgs = list(dag.recipes.keys())
     else:
-        target_pkgs = list(dag.recipes.keys())
+        target_pkgs = parse_target_tokens(raw_input, dag, pkgs_dir)
 
     layers = dag.get_layers(target_pkgs)
 
-    layer_0_pkgs = layers[0] if len(layers) > 0 else []
-    layer_1_pkgs = layers[1] if len(layers) > 1 else []
-
     output = {
-        "layer_0": build_matrix_layer(layer_0_pkgs, pkgs_dir),
-        "layer_1": build_matrix_layer(layer_1_pkgs, pkgs_dir),
+        "layer_0": build_matrix_layer(layers[0] if len(layers) > 0 else [], pkgs_dir),
+        "layer_1": build_matrix_layer(layers[1] if len(layers) > 1 else [], pkgs_dir),
+        "layer_2": build_matrix_layer(layers[2] if len(layers) > 2 else [], pkgs_dir),
+        "layer_3": build_matrix_layer(layers[3] if len(layers) > 3 else [], pkgs_dir),
     }
 
     print(json.dumps(output))

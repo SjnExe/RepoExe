@@ -49,19 +49,22 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
 
     print(f"Resolving build dependencies: {', '.join(build_deps)}")
     stage_dir = destdir / "stage"
+    pkg_root = Path(__file__).resolve().parents[2] / "pkg"
 
     for dep in build_deps:
-        tag = f"{dep}@latest"
-        api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
         fetched_remote = False
 
-        try:
-            local_arts = list(Path("artifacts").glob(f"{dep}*.deb")) if Path("artifacts").exists() else []
-            if local_arts:
-                print(f"✓ Found local workflow artifact for dependency '{dep}': {local_arts[0].name}")
-                subprocess.run(["dpkg-deb", "-x", str(local_arts[0]), str(stage_dir)], check=True)
-                fetched_remote = True
-            else:
+        # 1. Check local workflow artifacts from previous layer
+        local_arts = list(Path("artifacts").glob(f"{dep}*.deb")) if Path("artifacts").exists() else []
+        if local_arts:
+            print(f"✓ Found local workflow artifact for dependency '{dep}': {local_arts[0].name}")
+            subprocess.run(["dpkg-deb", "-x", str(local_arts[0]), str(stage_dir)], check=True)
+            fetched_remote = True
+        else:
+            # 2. Check remote GitHub releases
+            tag = f"{dep}@latest"
+            api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
+            try:
                 req = urllib.request.Request(
                     api_url, headers={"User-Agent": "RepoExe-Orchestrator"}
                 )
@@ -69,11 +72,7 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
                     rel_data = json.loads(resp.read().decode("utf-8"))
 
                 deb_asset = next(
-                    (
-                        a
-                        for a in rel_data.get("assets", [])
-                        if a.get("name", "").endswith(".deb")
-                    ),
+                    (a for a in rel_data.get("assets", []) if a.get("name", "").endswith(".deb")),
                     None,
                 )
 
@@ -82,18 +81,28 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
                     dep_deb = destdir / deb_asset["name"]
                     print(f"Fetching pre-built dependency '{dep}' from {download_url}...")
                     urllib.request.urlretrieve(download_url, dep_deb)
-                    subprocess.run(
-                        ["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True
-                    )
+                    subprocess.run(["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True)
                     print(f"✓ Extracted pre-built dependency '{dep}' into build staging.")
                     fetched_remote = True
-        except Exception as e:
-            print(
-                f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e})."
-            )
+            except Exception as e:
+                print(f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e}).")
 
+        # 3. Handle missing dependency gracefully
         if not fetched_remote:
-            print(f"⚠️ Warning: Dependency '{dep}' not found on remote release or artifacts.")
+            local_recipe_file = pkg_root / dep / "build.yml"
+            if local_recipe_file.exists():
+                recipe_obj = parse_recipe(local_recipe_file)
+                if getattr(recipe_obj.resources, "zram", 0) == 0 and getattr(recipe_obj.resources, "swap", 0) == 0:
+                    print(f"⚡ Compiling light dependency '{dep}' locally...")
+                    dep_destdir = (destdir.parent / f"build_{dep}").resolve()
+                    dep_stage_dir = execute_compile(recipe_obj, local_recipe_file.parent, dep_destdir)
+                    if dep_stage_dir.exists():
+                        shutil.copytree(dep_stage_dir, stage_dir, dirs_exist_ok=True)
+                        print(f"✓ Successfully built and staged local light dependency '{dep}'.")
+                        continue
+            
+            print(f"⏭️ Skipping build: Required dependency '{dep}' is missing or failed in a previous stage.")
+            sys.exit(0)
 
 
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
