@@ -23,11 +23,11 @@ deps:
   - libcanberra
   - libxml2
   - desktop-file-utils
-  - shared-mime-info qtbase5-dev libqt5svg5-dev
+  - shared-mime-info appstream-util yelp-tools qtbase5-dev libqt5svg5-dev
 
 phases:
   prepare: |
-    sudo apt-get update && sudo apt-get install -y cmake ninja-build meson itstool gettext intltool pkg-config libcairo2-dev libgtk-3-dev guile-3.0-dev librsvg2-dev libcanberra-dev libcanberra-gtk3-dev libxml2-dev desktop-file-utils shared-mime-info qtbase5-dev libqt5svg5-dev
+    sudo apt-get update && sudo apt-get install -y cmake ninja-build meson itstool gettext intltool pkg-config libcairo2-dev libgtk-3-dev guile-3.0-dev librsvg2-dev libcanberra-dev libcanberra-gtk3-dev libxml2-dev libxml2-utils desktop-file-utils shared-mime-info appstream-util yelp-tools qtbase5-dev libqt5svg5-dev
 
   configure: |
     export SCCACHE_DISABLE=1
