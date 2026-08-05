@@ -8,7 +8,7 @@ homepage: https://github.com/oven-sh/webkit
 maintainer: SjnExe
 build_system: custom
 
-source_url: https://github.com/oven-sh/webkit.git
+source_url: https://github.com/oven-sh/webkit/archive/refs/tags/bun-v1.3.14.tar.gz
 
 resources:
   zram: 24
@@ -41,3 +41,5 @@ phases:
     cmake --build build -j2
   install: |
     DESTDIR="${DESTDIR}" cmake --install build
+
+auto_update: false
