@@ -1,4 +1,4 @@
-from core.properties import PREFIX
+from utils.properties import PREFIX
 
 
 class PythonToolchain:

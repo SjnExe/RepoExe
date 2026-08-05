@@ -8,21 +8,15 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from core.alpine import build_alpine
-from core.debian import build_deb
-from core.health import audit_repository_health
-from core.npm import build_npm
-from core.pacman import build_pacman
-from core.parser import parse_recipe
-from core.pip import build_pip
-from core.test import ProotTestRunner
-from core.toolchains import setup_build_environment
-
-
-def get_ruff_cmd() -> list[str]:
-    if shutil.which("ruff"):
-        return ["ruff"]
-    return ["uvx", "ruff"]
+from builders.alpine import build_alpine
+from builders.debian import build_deb
+from builders.npm import build_npm
+from builders.pacman import build_pacman
+from builders.pip import build_pip
+from utils.health import audit_repository_health
+from utils.parser import parse_recipe
+from utils.test import ProotTestRunner
+from utils.toolchains import setup_build_environment
 
 
 def check_existing_release_hash(pkg_name: str, channel: str, target_hash: str) -> bool:
@@ -55,44 +49,91 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
 
     print(f"Resolving build dependencies: {', '.join(build_deps)}")
     stage_dir = destdir / "stage"
+    pkg_root = Path(__file__).resolve().parents[2] / "pkg"
 
     for dep in build_deps:
-        tag = f"{dep}@latest"
-        api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
+        fetched_remote = False
 
-        try:
-            req = urllib.request.Request(
-                api_url, headers={"User-Agent": "RepoExe-Orchestrator"}
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                rel_data = json.loads(resp.read().decode("utf-8"))
-
-            deb_asset = next(
-                (
-                    a
-                    for a in rel_data.get("assets", [])
-                    if a.get("name", "").endswith(".deb")
-                ),
-                None,
-            )
-
-            if deb_asset:
-                download_url = deb_asset["browser_download_url"]
-                dep_deb = destdir / deb_asset["name"]
-                print(f"Fetching pre-built dependency '{dep}' from {download_url}...")
-                urllib.request.urlretrieve(download_url, dep_deb)
-                subprocess.run(
-                    ["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True
-                )
-                print(f"✓ Extracted pre-built dependency '{dep}' into build staging.")
-        except Exception as e:
+        local_arts = (
+            list(Path("artifacts").glob(f"{dep}*.deb"))
+            if Path("artifacts").exists()
+            else []
+        )
+        if local_arts:
             print(
-                f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e})."
+                f"✓ Found local workflow artifact for dependency '{dep}': {local_arts[0].name}"
             )
+            subprocess.run(
+                ["dpkg-deb", "-x", str(local_arts[0]), str(stage_dir)], check=True
+            )
+            fetched_remote = True
+        else:
+            tag = f"{dep}@latest"
+            api_url = (
+                f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
+            )
+            try:
+                req = urllib.request.Request(
+                    api_url, headers={"User-Agent": "RepoExe-Orchestrator"}
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    rel_data = json.loads(resp.read().decode("utf-8"))
+
+                deb_asset = next(
+                    (
+                        a
+                        for a in rel_data.get("assets", [])
+                        if a.get("name", "").endswith(".deb")
+                    ),
+                    None,
+                )
+
+                if deb_asset:
+                    download_url = deb_asset["browser_download_url"]
+                    dep_deb = destdir / deb_asset["name"]
+                    print(
+                        f"Fetching pre-built dependency '{dep}' from {download_url}..."
+                    )
+                    urllib.request.urlretrieve(download_url, dep_deb)
+                    subprocess.run(
+                        ["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True
+                    )
+                    print(
+                        f"✓ Extracted pre-built dependency '{dep}' into build staging."
+                    )
+                    fetched_remote = True
+            except Exception as e:
+                print(
+                    f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e})."
+                )
+
+        if not fetched_remote:
+            local_recipe_file = pkg_root / dep / "build.yml"
+            if local_recipe_file.exists():
+                recipe_obj = parse_recipe(local_recipe_file)
+                if (
+                    getattr(recipe_obj.resources, "zram", 0) == 0
+                    and getattr(recipe_obj.resources, "swap", 0) == 0
+                ):
+                    print(f"⚡ Compiling light dependency '{dep}' locally...")
+                    dep_destdir = (destdir.parent / f"build_{dep}").resolve()
+                    dep_stage_dir = execute_compile(
+                        recipe_obj, local_recipe_file.parent, dep_destdir
+                    )
+                    if dep_stage_dir.exists():
+                        shutil.copytree(dep_stage_dir, stage_dir, dirs_exist_ok=True)
+                        print(
+                            f"✓ Successfully built and staged local light dependency '{dep}'."
+                        )
+                        continue
+
+            print(
+                f"⏭️ Skipping build: Required dependency '{dep}' is missing or failed in a previous stage."
+            )
+            sys.exit(0)
 
 
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
-    """Validates structural integrity of produced package archives."""
     for f in output_dir.glob(f"{pkg_name}*"):
         if f.name.endswith(".deb"):
             subprocess.run(["dpkg-deb", "-I", str(f)], check=True, capture_output=True)
@@ -111,6 +152,7 @@ def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
 def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     env = os.environ.copy()
     env["MAKEFLAGS"] = "-j4"
+    env["NINJA_JOBS"] = "4"
     env["CARGO_BUILD_JOBS"] = "4"
     env["GOMAXPROCS"] = "4"
     env["GIT_CONFIG_COUNT"] = "1"
@@ -141,37 +183,82 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     work_dir = pkg_dir
     src_url = getattr(recipe, "source_url", None)
     if src_url:
+        src_url_str = str(src_url).strip()
         archive_path = destdir / "source.tar.gz"
         src_extract_dir = destdir / "src"
         src_extract_dir.mkdir(parents=True, exist_ok=True)
 
-        subprocess.run(
-            ["curl", "-fsSL", str(src_url), "-o", str(archive_path)], check=True
+        is_archive = any(
+            ext in src_url_str
+            for ext in [
+                ".tar.gz",
+                ".tgz",
+                ".tar.xz",
+                ".tar.bz2",
+                ".zip",
+                ".crate",
+                ".whl",
+            ]
         )
-        if archive_path.exists():
-            subprocess.run(
-                [
-                    "tar",
-                    "-xf",
-                    str(archive_path),
-                    "-C",
-                    str(src_extract_dir),
-                    "--strip-components=1",
-                ],
-                check=False,
-            )
-            if not any(src_extract_dir.iterdir()):
-                subprocess.run(
-                    ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
-                    check=True,
-                )
+        if not is_archive and (
+            src_url_str.endswith(".git")
+            or src_url_str.startswith("git://")
+            or "git" in src_url_str.split("/")[-1]
+            or "#" in src_url_str
+        ):
+            print(f"⚡ Cloning Git source repository: {src_url_str}...")
+            if "#" in src_url_str:
+                parts = [x for x in src_url_str.split("#") if x]
+                repo_url = parts[0]
+                branch = parts[1]
+                clone_cmd = ["git", "clone", "--depth", "1", "--branch", branch, repo_url, str(src_extract_dir)]
+            else:
+                clone_cmd = ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)]
+            subprocess.run(clone_cmd, check=True)
             work_dir = src_extract_dir
+        else:
+            print(f"⚡ Downloading archive source: {src_url_str}...")
+            subprocess.run(
+                ["curl", "-fsSL", src_url_str, "-o", str(archive_path)],
+                check=True,
+            )
+            if archive_path.exists():
+                subprocess.run(
+                    [
+                        "tar",
+                        "-xf",
+                        str(archive_path),
+                        "-C",
+                        str(src_extract_dir),
+                        "--strip-components=1",
+                    ],
+                    check=False,
+                )
+                if not any(src_extract_dir.iterdir()):
+                    subprocess.run(
+                        [
+                            "tar",
+                            "-xf",
+                            str(archive_path),
+                            "-C",
+                            str(src_extract_dir),
+                        ],
+                        check=True,
+                    )
+                work_dir = src_extract_dir
+
+    if shutil.which("sccache"):
+        env["RUSTC_WRAPPER"] = "sccache"
+        env["CMAKE_C_COMPILER_LAUNCHER"] = "sccache"
+        env["CMAKE_CXX_COMPILER_LAUNCHER"] = "sccache"
+        env["SCCACHE_DIR"] = "/home/builder/.cache/sccache"
 
     env["DESTDIR"] = str(stage_dir.resolve())
     env["PREFIX"] = "/data/data/com.termux/files/usr"
 
     phases = getattr(recipe, "phases", {})
     prepare_cmd = phases.get("prepare")
+    configure_cmd = phases.get("configure")
     make_cmd = phases.get("make")
     install_cmd = phases.get("install")
 
@@ -182,8 +269,17 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         if res.returncode != 0:
             raise RuntimeError(f"Prepare phase failed for {recipe.name}")
 
+    if configure_cmd:
+        res = subprocess.run(
+            configure_cmd, shell=True, cwd=work_dir, env=env, check=False
+        )
+        if res.returncode != 0:
+            raise RuntimeError(f"Configure phase failed for {recipe.name}")
+
     if make_cmd:
-        res = subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
+        res = subprocess.run(
+            make_cmd, shell=True, cwd=work_dir, env=env, check=False
+        )
         if res.returncode != 0:
             raise RuntimeError(f"Make phase failed for {recipe.name}")
 
@@ -279,7 +375,7 @@ def main() -> None:
         p.add_argument("--force", action="store_true")
 
     args = parser.parse_args()
-    pkg_dir = Path(__file__).parent.parent / "pkg"
+    pkg_dir = Path(__file__).resolve().parents[2] / "pkg"
 
     if args.command == "check":
         audit_repository_health(pkg_dir)

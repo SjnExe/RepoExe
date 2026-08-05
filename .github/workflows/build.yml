@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: 'Target specs (e.g. "all@all", "tsc@latest", "!jscpd")'
+        description: 'Target specs (e.g. "aisleriot bun", "all@all", "!jscpd")'
         required: false
         type: string
         default: 'all@all'
@@ -39,7 +39,10 @@ jobs:
     name: Matrix
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.matrix.outputs.matrix }}
+      layer_0: ${{ steps.matrix.outputs.layer_0 }}
+      layer_1: ${{ steps.matrix.outputs.layer_1 }}
+      layer_2: ${{ steps.matrix.outputs.layer_2 }}
+      layer_3: ${{ steps.matrix.outputs.layer_3 }}
       should_publish: ${{ steps.decision.outputs.should_publish }}
     steps:
       - name: Checkout Code
@@ -55,7 +58,7 @@ jobs:
       - name: Install Dependencies
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           uv pip install --system -r pyproject.toml || true
           pip install pytest ruff pydantic pyyaml
 
@@ -63,7 +66,7 @@ jobs:
         env:
           PYTHONPATH: scripts
         run: |
-          python scripts/build.py check
+          python scripts/cli/build.py check
           pytest scripts/tests/
 
       - name: Determine Publish Decision
@@ -75,68 +78,76 @@ jobs:
             echo "should_publish=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Generate Matrix
+      - name: Generate Matrix Layers
         id: matrix
         env:
           TARGET_INPUT: ${{ inputs.packages || 'auto' }}
           PYTHONPATH: scripts
           GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
-          MATRIX_JSON=$(python scripts/generate_shards.py)
-          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+          JSON_OUT="$(python scripts/cli/generate_shards.py)"
+          {
+            echo "layer_0=$(echo "$JSON_OUT" | jq -c '.layer_0')"
+            echo "layer_1=$(echo "$JSON_OUT" | jq -c '.layer_1')"
+            echo "layer_2=$(echo "$JSON_OUT" | jq -c '.layer_2')"
+            echo "layer_3=$(echo "$JSON_OUT" | jq -c '.layer_3')"
+          } >> "$GITHUB_OUTPUT"
 
-  build-package:
-    name: "${{ matrix.package }}@${{ matrix.channel }}"
+  build-layer-0:
+    name: "0:${{ matrix.package }}@${{ matrix.channel }}"
     needs: [generate-matrix]
-    if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
+    if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.layer_0 != '[]' }}
     runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+        include: ${{ fromJson(needs.generate-matrix.outputs.layer_0) }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Restore Go Cache
-        if: matrix.build_system == 'go'
-        uses: actions/cache/restore@v6
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: go-cache-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/go.mod', 'pkg/tsc/build.yml') }}
-          restore-keys: |
-            go-cache-${{ runner.os }}-${{ matrix.package }}-
+      - name: Prepare Workspace Permissions
+        run: |
+          mkdir -p build output build_logs .sccache
+          sudo chmod -R 777 .
 
-      - name: Restore Cargo Cache
-        if: matrix.build_system == 'cargo'
-        uses: actions/cache/restore@v6
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cache/sccache
-          key: cargo-cache-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/Cargo.lock', 'pkg/*/build.yml') }}
-          restore-keys: |
-            cargo-cache-${{ runner.os }}-${{ matrix.package }}-
+      - name: Verify Docker Image Freshness
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          BASE_REF="${GITHUB_BASE_REF:-main}"
+          if [ "${GITHUB_REF_NAME%%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
+            echo "::error::Docker environment files (scripts/docker/) were modified in this branch. To avoid out-of-sync builds, update and publish the Docker container before running package compilation."
+            echo "Warning: Docker environment files modified in branch."
+          fi
 
       - name: Free Disk Space
-        if: env.HEAVY == 'true'
+        if: matrix.free_space
         uses: ./.github/actions/free-space
 
-      - name: Enable 4GB Swap
-        if: env.HEAVY == 'true'
-        uses: ./.github/actions/setup-swap
+      - name: Setup Memory & Swap
+        if: matrix.zram > 0 || matrix.swap > 0
+        uses: ./.github/actions/setup-memory
         with:
-          size: '4G'
+          zram: ${{ matrix.zram }}
+          swap: ${{ matrix.swap }}
 
-      - name: Prepare Workspace & Cache Directories
+      
+      - name: Restore Compiler Cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .sccache
+          key: sccache-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
+          restore-keys: |
+            sccache-${{ matrix.package }}-${{ matrix.channel }}-
+            sccache-${{ matrix.package }}-
+            sccache-
+
+      - name: Fix Cache Permissions
         run: |
-          mkdir -p build output build_logs ~/.cache/go-build ~/go/pkg/mod ~/.cargo/registry ~/.cargo/git
-          sudo chmod -R 777 . ~/.cache/go-build ~/go ~/.cargo
+          mkdir -p .sccache
+          sudo chmod -R 777 .sccache
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0
@@ -152,27 +163,21 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
         run: |
           set -o pipefail
-          OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
           LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
-          echo "=== STAGE: COMPILE ===" >> "$LOG_FILE"
+          mkdir -p build_logs
+          echo "=== STAGE: COMPILE ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v ${{ github.workspace }}:/home/builder/RepoExe \
-            -v ~/.cache/go-build:/home/builder/.cache/go-build \
-            -v ~/go/pkg/mod:/home/builder/go/pkg/mod \
-            -v ~/.cargo/registry:/home/builder/.cargo/registry \
-            -v ~/.cargo/git:/home/builder/.cargo/git \
+            -v "${{ github.workspace }}:/home/builder/RepoExe" \
             -w /home/builder/RepoExe \
-            -e GH_TOKEN="$GH_TOKEN" \
+            -e GH_TOKEN="${GH_TOKEN}" \
             -e PYTHONPATH="scripts" \
             -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v $HOME/.cargo/registry:/home/builder/.cargo/registry \
-            -v $HOME/.cache/sccache:/home/builder/.cache/sccache \
-            -v $HOME/.cache/go-build:/home/builder/.cache/go-build \
-            -v $HOME/go/pkg/mod:/home/builder/go/pkg/mod \
-            "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py compile \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
+            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
+            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Assemble Package Archives
         env:
@@ -181,23 +186,20 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
         run: |
           set -o pipefail
-          OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
           LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
-          echo "=== STAGE: PACK ===" >> "$LOG_FILE"
+          echo "=== STAGE: PACK ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v ${{ github.workspace }}:/home/builder/RepoExe \
+            -v "${{ github.workspace }}:/home/builder/RepoExe" \
             -w /home/builder/RepoExe \
-            -e GH_TOKEN="$GH_TOKEN" \
+            -e GH_TOKEN="${GH_TOKEN}" \
             -e PYTHONPATH="scripts" \
             -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v $HOME/.cargo/registry:/home/builder/.cargo/registry \
-            -v $HOME/.cache/sccache:/home/builder/.cache/sccache \
-            -v $HOME/.cache/go-build:/home/builder/.cache/go-build \
-            -v $HOME/go/pkg/mod:/home/builder/go/pkg/mod \
-            "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py pack \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
+            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
+            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Termux Docker Smoke Test
         continue-on-error: true
@@ -208,90 +210,203 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
         run: |
           set -o pipefail
-          OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
           LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
-          echo "=== STAGE: TEST ===" >> "$LOG_FILE"
+          echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v ${{ github.workspace }}:/home/builder/RepoExe \
+            -v "${{ github.workspace }}:/home/builder/RepoExe" \
             -w /home/builder/RepoExe \
-            -e GH_TOKEN="$GH_TOKEN" \
+            -e GH_TOKEN="${GH_TOKEN}" \
             -e PYTHONPATH="scripts" \
             -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v $HOME/.cargo/registry:/home/builder/.cargo/registry \
-            -v $HOME/.cache/sccache:/home/builder/.cache/sccache \
-            -v $HOME/.cache/go-build:/home/builder/.cache/go-build \
-            -v $HOME/go/pkg/mod:/home/builder/go/pkg/mod \
-            "ghcr.io/$OWNER/repoexe-builder:latest" \
-            sh -c "python3 -m pip install --break-system-packages --quiet pyyaml pydantic 2>/dev/null || true; python3 scripts/build.py test \"pkg/$PKG_NAME\" --channel \"$CHANNEL\"" 2>&1 | tee -a "$LOG_FILE"
+            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
+            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
-      - name: Fix Cache Permissions
-        run: sudo chown -R $USER:$USER ~/.cargo ~/.cache/sccache ~/.cache/go-build ~/go 2>/dev/null || true
-
-      - name: Check Build and Test Status
-        if: steps.build_step.outcome == 'failure' || steps.test_step.outcome == 'failure'
-        run: |
-          echo "::error::Target failed during build or test. Check aggregated logs."
-          bash -c 'exit 1'
-
-      - name: Save Go Cache (Main Branch Only)
-        if: github.ref == 'refs/heads/main' && matrix.build_system == 'go' && always()
+      
+      - name: Save Compiler Cache
         uses: actions/cache/save@v6
+        if: always()
         with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: go-cache-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/go.mod', 'pkg/tsc/build.yml') }}
+          path: .sccache
+          key: sccache-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
 
-      - name: Save Cargo Cache (Main Branch Only)
-        if: github.ref == 'refs/heads/main' && matrix.build_system == 'cargo' && always()
-        uses: actions/cache/save@v6
+      - name: Save Package Build Artifact
+        if: success()
+        uses: actions/upload-artifact@v7
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cache/sccache
-          key: cargo-cache-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles('**/Cargo.lock', 'pkg/*/build.yml') }}
+          name: "package-artifact-${{ matrix.package }}"
+          path: output/
+          retention-days: 1
 
-      - name: Upload Single Target Build Log
+      - name: Save Build Log Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: build-log-${{ matrix.package }}-${{ matrix.channel }}
+          name: "build-log-${{ matrix.package }}-${{ matrix.channel }}"
           path: build_logs/
           retention-days: 1
 
-      - name: Publish Release Tag & Artifacts
-        if: ${{ needs.generate-matrix.outputs.should_publish == 'true' }}
+  build-layer-1:
+    name: "1:${{ matrix.package }}@${{ matrix.channel }}"
+    needs: [generate-matrix, build-layer-0]
+    if: ${{ always() && needs.generate-matrix.outputs.layer_1 != '[]' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped' || needs.build-layer-0.result == 'failure') }}
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.layer_1) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Prepare Workspace Permissions
+        run: |
+          mkdir -p build output build_logs .sccache
+          sudo chmod -R 777 .
+
+      - name: Download Layer 0 Dependency Artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: package-artifact-*
+          path: artifacts
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Free Disk Space
+        if: matrix.free_space
+        uses: ./.github/actions/free-space
+
+      - name: Setup Memory & Swap
+        if: matrix.zram > 0 || matrix.swap > 0
+        uses: ./.github/actions/setup-memory
+        with:
+          zram: ${{ matrix.zram }}
+          swap: ${{ matrix.swap }}
+
+      
+      - name: Restore Compiler Cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .sccache
+          key: sccache-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
+          restore-keys: |
+            sccache-${{ matrix.package }}-${{ matrix.channel }}-
+            sccache-${{ matrix.package }}-
+            sccache-
+
+      - name: Fix Cache Permissions
+        run: |
+          mkdir -p .sccache
+          sudo chmod -R 777 .sccache
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compile Package Payload
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
           CHANNEL: ${{ matrix.channel }}
         run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
-          TAG="${PKG_NAME}@${CHANNEL}"
-          RECIPE_VER=$(docker run --rm -v ${{ github.workspace }}:/home/builder/RepoExe -w /home/builder/RepoExe -e PYTHONPATH="scripts" "ghcr.io/$OWNER/repoexe-builder:latest" python3 -c "from core.parser import parse_recipe; from pathlib import Path; r=parse_recipe(Path('pkg/$PKG_NAME/build.yml'), channel='$CHANNEL'); print(r.version)")
-          RELEASE_TITLE="$PKG_NAME v$RECIPE_VER [$CHANNEL]"
+          set -o pipefail
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
+          mkdir -p build_logs
+          echo "=== STAGE: COMPILE ===" >> "${LOG_FILE}"
 
-          gh release create "$TAG" --title "$RELEASE_TITLE" --notes "Automated release build for $TAG" 2>/dev/null || gh release edit "$TAG" --title "$RELEASE_TITLE" --notes "Automated release build for $TAG"
+          docker run --rm \
+            -v "${{ github.workspace }}:/home/builder/RepoExe" \
+            -w /home/builder/RepoExe \
+            -e GH_TOKEN="${GH_TOKEN}" \
+            -e PYTHONPATH="scripts" \
+            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
+            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
+            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
-          if [ -d "output" ] && [ "$(ls -A output)" ]; then
-            for file in output/*; do
-              if [ -f "$file" ]; then
-                filename=$(basename "$file")
-                if [[ "$filename" == *"_metadata.json" ]]; then
-                  gh release upload "$TAG" "$file#metadata.json" --clobber
-                else
-                  gh release upload "$TAG" "$file" --clobber
-                fi
-              fi
-            done
-          fi
+      - name: Assemble Package Archives
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          set -o pipefail
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
+          echo "=== STAGE: PACK ===" >> "${LOG_FILE}"
+
+          docker run --rm \
+            -v "${{ github.workspace }}:/home/builder/RepoExe" \
+            -w /home/builder/RepoExe \
+            -e GH_TOKEN="${GH_TOKEN}" \
+            -e PYTHONPATH="scripts" \
+            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
+            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
+            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+
+      - name: Termux Docker Smoke Test
+        continue-on-error: true
+        id: test_step
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          set -o pipefail
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
+          echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
+
+          docker run --rm \
+            -v "${{ github.workspace }}:/home/builder/RepoExe" \
+            -w /home/builder/RepoExe \
+            -e GH_TOKEN="${GH_TOKEN}" \
+            -e PYTHONPATH="scripts" \
+            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
+            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
+            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+
+      
+      - name: Save Compiler Cache
+        uses: actions/cache/save@v6
+        if: always()
+        with:
+          path: .sccache
+          key: sccache-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
+
+      - name: Save Package Build Artifact
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: "package-artifact-${{ matrix.package }}"
+          path: output/
+          retention-days: 1
+
+      - name: Save Build Log Artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: "build-log-${{ matrix.package }}-${{ matrix.channel }}"
+          path: build_logs/
+          retention-days: 1
 
   build-status:
     name: Build Status & Log Aggregator
-    needs: [generate-matrix, build-package]
+    needs: [generate-matrix, build-layer-0, build-layer-1]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -299,23 +414,23 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Download All Target Build Logs
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v7
         with:
           pattern: build-log-*
           path: all_logs
           merge-multiple: true
         continue-on-error: true
 
-      - name: Aggregate All Logs Into Summary Text File
+      - name: Aggregate All Logs
         run: |
           mkdir -p summary
           if [ -d "all_logs" ]; then
-            python3 scripts/core/log_aggregator.py all_logs summary/all_build_logs.txt
+            python3 scripts/utils/log_aggregator.py all_logs summary/all_build_logs.txt
           else
             echo "No build logs collected." > summary/all_build_logs.txt
           fi
 
-      - name: Upload Aggregated Log Summary Artifact
+      - name: Upload Aggregated Log Summary
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -323,18 +438,10 @@ jobs:
           path: summary/all_build_logs.txt
           retention-days: 7
 
-      - name: Verify Matrix Results
-        run: |
-          if [ "${{ needs.build-package.result }}" = "failure" ] || [ "${{ needs.build-package.result }}" = "cancelled" ]; then
-            echo "❌ Matrix build failed! Download the 'aggregated-build-logs' artifact for detailed logs."
-            exit 1
-          fi
-          echo "✓ All matrix targets built successfully or skipped."
-
   publish-site:
     name: Deploy
-    needs: [generate-matrix, build-package]
-    if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-package.result == 'success' || needs.build-package.result == 'failure' || needs.build-package.result == 'skipped')
+    needs: [generate-matrix, build-layer-0, build-layer-1]
+    if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') && (needs.build-layer-1.result == 'success' || needs.build-layer-1.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -351,32 +458,12 @@ jobs:
           sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
           pip install pydantic pyyaml
 
-      - name: Download All Release Artifacts
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p artifacts
-          TAGS=$(gh release list --limit 1000 --json tagName --jq '.[].tagName' || true)
-          for tag in $TAGS; do
-            gh release download "$tag" --dir artifacts || true
-          done
-
-      - name: Import GPG Private Key for Repository Signing
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: |
-          if [ -n "$GPG_PRIVATE_KEY" ]; then
-            echo "$GPG_PRIVATE_KEY" | gpg --batch --import || echo "Notice: GPG key import failed."
-          else
-            echo "Notice: GPG_PRIVATE_KEY secret is omitted; repository metadata will remain unsigned."
-          fi
-
       - name: Build Full Site & Repository Indexes
         env:
           PYTHONPATH: scripts
         run: |
           python -c "
-          from core.index_gen import prepare_site
+          from cli.index_gen import prepare_site
           prepare_site('site', 'artifacts')
           "
 
@@ -384,20 +471,10 @@ jobs:
         uses: actions/configure-pages@v6
 
       - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@v4
         with:
           path: 'site'
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
-
-      - name: Prune Outdated Release Tag Assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHONPATH: scripts
-        run: |
-          python -c "
-          from core.prune import prune_release_tags
-          prune_release_tags()
-          " || echo "Notice: Release asset pruning completed."

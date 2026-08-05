@@ -3,11 +3,10 @@ import shutil
 import zipfile
 from pathlib import Path
 
-from core.parser import PackageRecipe
+from utils.parser import PackageRecipe
 
 
 def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
-    """Builds a universal/Termux-compatible wheel from staged site-packages or reuses pre-built wheel."""
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
@@ -16,6 +15,12 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     existing_wheels = list(out_path.glob(f"{pkg_name}*.whl"))
     if existing_wheels:
         return existing_wheels[0]
+
+    pip_version = (
+        f"{recipe.version}+repoexe.{recipe.revision}"
+        if recipe.revision > 0
+        else recipe.version
+    )
 
     stage_dir = Path(destdir) / "stage"
     wheel_name = f"{pkg_name}-{pip_version}-py3-none-any.whl"
@@ -47,14 +52,8 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
             else:
                 shutil.copy2(item, target)
 
-    # Bulletproof PEP 427 wheel metadata isolation
     clean_pkg_name = recipe.name.replace("-", "_").lower()
-
-    # Construct PEP 440 local version identifier (e.g. 1.0.0+repoexe.1)
-    recipe.version = recipe.version
-    if recipe.revision > 0:
-        recipe.version = f"{recipe.version}+repoexe.{recipe.revision}"
-    expected_dist_info = f"{clean_pkg_name}-{recipe.version}.dist-info".lower()
+    expected_dist_info = f"{clean_pkg_name}-{pip_version}.dist-info".lower()
 
     for item in wheel_build_dir.iterdir():
         name_lower = item.name.lower()
@@ -89,7 +88,6 @@ def build_pip(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
 
 
 def generate_pip_index(output_dir: str | Path) -> None:
-    """Generates a PEP 503 compliant PyPI simple repository index with SHA256 checksums."""
     base_dir = Path(output_dir)
     pip_dir = base_dir / "pip"
     pip_dir.mkdir(parents=True, exist_ok=True)

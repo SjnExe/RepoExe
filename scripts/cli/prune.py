@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from core.parser import PackageRecipe, parse_recipe
+from utils.parser import PackageRecipe, parse_recipe
 
 
 def get_expected_asset_filenames(recipe: PackageRecipe) -> set[str]:

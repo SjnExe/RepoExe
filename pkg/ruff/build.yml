@@ -16,7 +16,7 @@ channels:
     version: 0.16.1
     auto_update: true
     update_strategy: github_release
-    source_url: https://github.com/astral-sh/ruff/releases/download/0.16.0/ruff-aarch64-unknown-linux-musl.tar.gz
+    source_url: https://github.com/astral-sh/ruff/releases/download/{version}/ruff-aarch64-unknown-linux-musl.tar.gz
     revision: 0
 build_system: custom
 phases:

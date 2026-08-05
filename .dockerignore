@@ -13,3 +13,14 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+build/
+output/
+artifacts/
+apt_staging/
+build_logs/
+.sccache/
+*.deb
+*.apk
+*.pkg.tar.zst
+*.whl
+*.tgz

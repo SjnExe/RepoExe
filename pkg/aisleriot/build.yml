@@ -1,0 +1,47 @@
+name: aisleriot
+version: "3.22.24"
+revision: 0
+architecture: aarch64
+description: Solitaire card games collection compiled for Termux X11
+license: GPL-3.0-or-later
+homepage: https://wiki.gnome.org/Apps/AisleRiot
+maintainer: SjnExe
+component: x11
+build_system: custom
+
+source_url: https://gitlab.gnome.org/GNOME/aisleriot.git
+
+formats:
+  - apt
+  - pacman
+  - apk
+
+deps:
+  - gtk3
+  - guile
+  - librsvg
+  - libcanberra
+  - libxml2
+  - desktop-file-utils
+  - shared-mime-info appstream-util yelp-tools qtbase5-dev libqt5svg5-dev
+
+phases:
+  prepare: |
+    sudo apt-get update && sudo apt-get install -y cmake ninja-build meson itstool gettext intltool pkg-config libcairo2-dev libgtk-3-dev guile-3.0-dev librsvg2-dev libcanberra-dev libcanberra-gtk3-dev libxml2-dev libxml2-utils desktop-file-utils shared-mime-info appstream-util yelp-tools qtbase5-dev libqt5svg5-dev
+
+  configure: |
+    export SCCACHE_DISABLE=1
+    meson setup build \
+      --prefix="${PREFIX}" \
+      --libdir="${PREFIX}/lib" \
+      -Dguile=3.0 \
+  make: |
+    ninja -C build -j4
+  install: |
+    DESTDIR="${DESTDIR}" ninja -C build install
+    if command -v termux-elf-cleaner >/dev/null 2>&1; then
+      termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/sol"
+      termux-elf-cleaner "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true
+    fi
+  test: |
+    sol --version || true
