@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from core.health import audit_repository_health
-from core.npm import generate_npm_index
-from core.parser import parse_recipe
-from core.pip import generate_pip_index
+from utils.health import audit_repository_health
+from builders.npm import generate_npm_index
+from utils.parser import parse_recipe
+from builders.pip import generate_pip_index
 
 REPO_ROOT = Path(__file__).resolve().parents[1].parent
 

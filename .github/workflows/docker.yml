@@ -56,7 +56,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,mode=max' || '' }}
+          cache-to: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'type=gha,mode=max' || '' }}
           provenance: false
 
       - name: Fast Docker Container Verification
