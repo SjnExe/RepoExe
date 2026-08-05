@@ -86,10 +86,12 @@ jobs:
           GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
           JSON_OUT="$(python scripts/cli/generate_shards.py)"
-          echo "layer_0=$(echo "$JSON_OUT" | jq -c '.layer_0')" >> "$GITHUB_OUTPUT"
-          echo "layer_1=$(echo "$JSON_OUT" | jq -c '.layer_1')" >> "$GITHUB_OUTPUT"
-          echo "layer_2=$(echo "$JSON_OUT" | jq -c '.layer_2')" >> "$GITHUB_OUTPUT"
-          echo "layer_3=$(echo "$JSON_OUT" | jq -c '.layer_3')" >> "$GITHUB_OUTPUT"
+          {
+            echo "layer_0=$(echo "$JSON_OUT" | jq -c '.layer_0')"
+            echo "layer_1=$(echo "$JSON_OUT" | jq -c '.layer_1')"
+            echo "layer_2=$(echo "$JSON_OUT" | jq -c '.layer_2')"
+            echo "layer_3=$(echo "$JSON_OUT" | jq -c '.layer_3')"
+          } >> "$GITHUB_OUTPUT"
 
   build-layer-0:
     name: "0:${{ matrix.package }}@${{ matrix.channel }}"
