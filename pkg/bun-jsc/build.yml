@@ -29,7 +29,7 @@ formats:
 
 phases:
   prepare: |
-    sudo apt-get update && sudo apt-get install -y cmake ninja-build ruby-full gperf bison flex libicu-dev
+    sudo apt-get update && sudo apt-get install -y cmake ninja-build ruby-full gperf bison flex libicu-dev lld
 
   configure: |
     cmake -B build -G Ninja \

@@ -7,6 +7,7 @@ license: MIT
 homepage: https://bun.sh
 maintainer: SjnExe
 build_system: custom
+auto_update: false
 
 source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.3.14.tar.gz
 
@@ -20,21 +21,29 @@ build_deps:
 
 phases:
   prepare: |
+    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev
     echo "⚡ Downloading standalone Zig compiler..."
     curl -fsSL "https://ziglang.org/download/0.13.0/zig-linux-aarch64-0.13.0.tar.xz" | tar -xJ -C /tmp
-    export PATH="/tmp/zig-linux-aarch64-0.13.0:$PATH"
+
   make: |
     export PATH="/tmp/zig-linux-aarch64-0.13.0:$PATH"
+    export C_INCLUDE_PATH="${DESTDIR}${PREFIX}/include:${PREFIX}/include:${C_INCLUDE_PATH:-}"
+    export CPLUS_INCLUDE_PATH="${DESTDIR}${PREFIX}/include:${PREFIX}/include:${CPLUS_INCLUDE_PATH:-}"
+    export LIBRARY_PATH="${DESTDIR}${PREFIX}/lib:${PREFIX}/lib:${LIBRARY_PATH:-}"
+    export PKG_CONFIG_PATH="${DESTDIR}${PREFIX}/lib/pkgconfig:${PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+    
     mkdir -p build
-    zig build -Doptimize=ReleaseFast -Dtarget=aarch64-linux-android
+    zig build -Doptimize=ReleaseFast -Dtarget=aarch64-linux-android \
+      --search-prefix "${PREFIX}" \
+      --search-prefix "${DESTDIR}${PREFIX}"
+
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
-    cp zig-out/bin/bun 2>/dev/null || cp zig-out/bin/bun 2>/dev/null || cp zig-out/bin/bun 2>/dev/null || cp build/bun "${DESTDIR}${PREFIX}/bin/bun"
+    cp zig-out/bin/bun "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || cp build/bun "${DESTDIR}${PREFIX}/bin/bun"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
     if command -v termux-elf-cleaner >/dev/null 2>&1; then
       termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/bun"
     fi
+
   test: |
     bun --version
-
-auto_update: false
