@@ -7,7 +7,8 @@ license: LGPL-2.1
 homepage: https://github.com/oven-sh/webkit
 maintainer: SjnExe
 build_system: custom
-auto_update: false
+auto_update: true
+update_strategy: github_tag
 
 source_url: https://github.com/oven-sh/webkit.git
 
@@ -30,9 +31,9 @@ formats:
 phases:
   prepare: |
     sudo apt-get update && sudo apt-get install -y cmake ninja-build ruby-full gperf bison flex libicu-dev lld
-    echo "⚡ Fetching and checking out pinned WebKit commit (512b0afff969a81c97dd02524d1438c95114089f)..."
-    git fetch --depth 1 origin 512b0afff969a81c97dd02524d1438c95114089f || git fetch origin 512b0afff969a81c97dd02524d1438c95114089f
-    git checkout -f 512b0afff969a81c97dd02524d1438c95114089f
+    echo "⚡ Checking out exact WebKit commit for Bun 1.3.14 (5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b)..."
+    git fetch --depth 1 origin 5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b || git fetch origin 5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b
+    git checkout -f 5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b
 
   configure: |
     cmake -B build -G Ninja \
