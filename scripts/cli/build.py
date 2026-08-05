@@ -55,15 +55,25 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
         fetched_remote = False
 
         # 1. Check local workflow artifacts from previous layer
-        local_arts = list(Path("artifacts").glob(f"{dep}*.deb")) if Path("artifacts").exists() else []
+        local_arts = (
+            list(Path("artifacts").glob(f"{dep}*.deb"))
+            if Path("artifacts").exists()
+            else []
+        )
         if local_arts:
-            print(f"✓ Found local workflow artifact for dependency '{dep}': {local_arts[0].name}")
-            subprocess.run(["dpkg-deb", "-x", str(local_arts[0]), str(stage_dir)], check=True)
+            print(
+                f"✓ Found local workflow artifact for dependency '{dep}': {local_arts[0].name}"
+            )
+            subprocess.run(
+                ["dpkg-deb", "-x", str(local_arts[0]), str(stage_dir)], check=True
+            )
             fetched_remote = True
         else:
             # 2. Check remote GitHub releases
             tag = f"{dep}@latest"
-            api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
+            api_url = (
+                f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
+            )
             try:
                 req = urllib.request.Request(
                     api_url, headers={"User-Agent": "RepoExe-Orchestrator"}
@@ -72,36 +82,57 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
                     rel_data = json.loads(resp.read().decode("utf-8"))
 
                 deb_asset = next(
-                    (a for a in rel_data.get("assets", []) if a.get("name", "").endswith(".deb")),
+                    (
+                        a
+                        for a in rel_data.get("assets", [])
+                        if a.get("name", "").endswith(".deb")
+                    ),
                     None,
                 )
 
                 if deb_asset:
                     download_url = deb_asset["browser_download_url"]
                     dep_deb = destdir / deb_asset["name"]
-                    print(f"Fetching pre-built dependency '{dep}' from {download_url}...")
+                    print(
+                        f"Fetching pre-built dependency '{dep}' from {download_url}..."
+                    )
                     urllib.request.urlretrieve(download_url, dep_deb)
-                    subprocess.run(["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True)
-                    print(f"✓ Extracted pre-built dependency '{dep}' into build staging.")
+                    subprocess.run(
+                        ["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True
+                    )
+                    print(
+                        f"✓ Extracted pre-built dependency '{dep}' into build staging."
+                    )
                     fetched_remote = True
             except Exception as e:
-                print(f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e}).")
+                print(
+                    f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e})."
+                )
 
         # 3. Handle missing dependency gracefully
         if not fetched_remote:
             local_recipe_file = pkg_root / dep / "build.yml"
             if local_recipe_file.exists():
                 recipe_obj = parse_recipe(local_recipe_file)
-                if getattr(recipe_obj.resources, "zram", 0) == 0 and getattr(recipe_obj.resources, "swap", 0) == 0:
+                if (
+                    getattr(recipe_obj.resources, "zram", 0) == 0
+                    and getattr(recipe_obj.resources, "swap", 0) == 0
+                ):
                     print(f"⚡ Compiling light dependency '{dep}' locally...")
                     dep_destdir = (destdir.parent / f"build_{dep}").resolve()
-                    dep_stage_dir = execute_compile(recipe_obj, local_recipe_file.parent, dep_destdir)
+                    dep_stage_dir = execute_compile(
+                        recipe_obj, local_recipe_file.parent, dep_destdir
+                    )
                     if dep_stage_dir.exists():
                         shutil.copytree(dep_stage_dir, stage_dir, dirs_exist_ok=True)
-                        print(f"✓ Successfully built and staged local light dependency '{dep}'.")
+                        print(
+                            f"✓ Successfully built and staged local light dependency '{dep}'."
+                        )
                         continue
-            
-            print(f"⏭️ Skipping build: Required dependency '{dep}' is missing or failed in a previous stage.")
+
+            print(
+                f"⏭️ Skipping build: Required dependency '{dep}' is missing or failed in a previous stage."
+            )
             sys.exit(0)
 
 
@@ -160,14 +191,35 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         src_extract_dir = destdir / "src"
         src_extract_dir.mkdir(parents=True, exist_ok=True)
 
-        is_archive = any(ext in src_url_str for ext in [".tar.gz", ".tgz", ".tar.xz", ".tar.bz2", ".zip", ".crate", ".whl"])
-        if src_url_str.endswith(".git") or src_url_str.startswith("git://") or (not is_archive and "git" in src_url_str.split("/")[-1]):
+        is_archive = any(
+            ext in src_url_str
+            for ext in [
+                ".tar.gz",
+                ".tgz",
+                ".tar.xz",
+                ".tar.bz2",
+                ".zip",
+                ".crate",
+                ".whl",
+            ]
+        )
+        if not is_archive and (
+            src_url_str.endswith(".git")
+            or src_url_str.startswith("git://")
+            or "git" in src_url_str.split("/")[-1]
+        ):
             print(f"⚡ Cloning Git source repository: {src_url_str}...")
-            subprocess.run(["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)], check=True)
+            subprocess.run(
+                ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)],
+                check=True,
+            )
             work_dir = src_extract_dir
         else:
             print(f"⚡ Downloading archive source: {src_url_str}...")
-            subprocess.run(["curl", "-fsSL", src_url_str, "-o", str(archive_path)], check=True)
+            subprocess.run(
+                ["curl", "-fsSL", src_url_str, "-o", str(archive_path)],
+                check=True,
+            )
             if archive_path.exists():
                 subprocess.run(
                     [
@@ -182,7 +234,13 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                 )
                 if not any(src_extract_dir.iterdir()):
                     subprocess.run(
-                        ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
+                        [
+                            "tar",
+                            "-xf",
+                            str(archive_path),
+                            "-C",
+                            str(src_extract_dir),
+                        ],
                         check=True,
                     )
                 work_dir = src_extract_dir
@@ -196,14 +254,12 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     make_cmd = phases.get("make")
     install_cmd = phases.get("install")
 
-    
-
-    if configure_cmd:
+    if prepare_cmd:
         res = subprocess.run(
-            configure_cmd, shell=True, cwd=work_dir, env=env, check=False
+            prepare_cmd, shell=True, cwd=work_dir, env=env, check=False
         )
         if res.returncode != 0:
-            raise RuntimeError(f"Configure phase failed for {recipe.name}")
+            raise RuntimeError(f"Prepare phase failed for {recipe.name}")
 
     if configure_cmd:
         res = subprocess.run(
@@ -213,7 +269,9 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
             raise RuntimeError(f"Configure phase failed for {recipe.name}")
 
     if make_cmd:
-        res = subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
+        res = subprocess.run(
+            make_cmd, shell=True, cwd=work_dir, env=env, check=False
+        )
         if res.returncode != 0:
             raise RuntimeError(f"Make phase failed for {recipe.name}")
 
