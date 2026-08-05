@@ -268,6 +268,13 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         if res.returncode != 0:
             raise RuntimeError(f"Configure phase failed for {recipe.name}")
 
+    if configure_cmd:
+        res = subprocess.run(
+            configure_cmd, shell=True, cwd=work_dir, env=env, check=False
+        )
+        if res.returncode != 0:
+            raise RuntimeError(f"Configure phase failed for {recipe.name}")
+
     if make_cmd:
         res = subprocess.run(
             make_cmd, shell=True, cwd=work_dir, env=env, check=False
