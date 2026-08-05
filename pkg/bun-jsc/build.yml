@@ -18,8 +18,8 @@ resources:
 
 vars:
   NINJA_JOBS: "4"
-  CFLAGS: "-O2 -g0 -pipe -DENABLE_BUN=1"
-  CXXFLAGS: "-O2 -g0 -pipe -DENABLE_BUN=1"
+  CFLAGS: "-O2 -g0 -pipe -Wno-undef -Wno-format -Wno-format-truncation"
+  CXXFLAGS: "-O2 -g0 -pipe -Wno-undef -Wno-format -Wno-format-truncation"
   LDFLAGS: "-fuse-ld=lld -Wl,--thread-count=4 -Wl,-z,max-page-size=65536"
 
 formats:
@@ -38,9 +38,9 @@ phases:
       -DPORT=JSCOnly \
       -DENABLE_STATIC_JSC=ON \
       -DENABLE_C_LOOP=OFF \
-      -DENABLE_BUN=ON \
-      -DCMAKE_C_FLAGS="-O2 -g0 -pipe -DENABLE_BUN=1" \
-      -DCMAKE_CXX_FLAGS="-O2 -g0 -pipe -DENABLE_BUN=1"
+      -DUSE_BUN_JSC_ADDITIONS=ON \
+      -DUSE_BUN_EVENT_LOOP=ON \
+      -DENABLE_TOOLS=OFF
   make: |
     cmake --build build -j4
   install: |
