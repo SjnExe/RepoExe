@@ -22,7 +22,6 @@ RUN curl -L -sS "https://github.com/mozilla/sccache/releases/download/${SCCACHE_
   && chmod +x /usr/local/bin/sccache \
   && rm -rf /tmp/sccache*
 
-ENV SCCACHE_GHA_ENABLED=true
 ENV SCCACHE_DIR=/home/builder/.cache/sccache
 
 # Setup HomuHomu833 Android NDK r29 for ARM64
