@@ -35,7 +35,6 @@ phases:
       --prefix="${PREFIX}" \
       --libdir="${PREFIX}/lib" \
       -Dguile=3.0 \
-      -Dkcard_theme=true
   make: |
     ninja -C build -j4
   install: |
