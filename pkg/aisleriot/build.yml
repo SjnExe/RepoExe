@@ -27,9 +27,8 @@ deps:
 
 phases:
   prepare: |
-    if ! command -v ninja >/dev/null 2>&1 || ! command -v meson >/dev/null 2>&1; then
-      sudo apt-get update && sudo apt-get install -y cmake ninja-build meson itstool gettext intltool pkg-config
-    fi
+    export SCCACHE_DISABLE=1
+    sudo apt-get update && sudo apt-get install -y cmake ninja-build meson itstool gettext intltool pkg-config
   configure: |
     meson setup build \
       --prefix="${PREFIX}" \
