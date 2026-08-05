@@ -30,6 +30,9 @@ formats:
 phases:
   prepare: |
     sudo apt-get update && sudo apt-get install -y cmake ninja-build ruby-full gperf bison flex libicu-dev lld
+    echo "⚡ Fetching and checking out pinned WebKit commit (512b0afff969a81c97dd02524d1438c95114089f)..."
+    git fetch --depth 1 origin 512b0afff969a81c97dd02524d1438c95114089f || git fetch origin 512b0afff969a81c97dd02524d1438c95114089f
+    git checkout -f 512b0afff969a81c97dd02524d1438c95114089f
 
   configure: |
     cmake -B build -G Ninja \
@@ -46,7 +49,11 @@ phases:
       -DENABLE_MEDIA_SOURCE=OFF \
       -DENABLE_MEDIA_STREAM=OFF \
       -DENABLE_WEB_RTC=OFF \
-      -DENABLE_TOOLS=OFF
+      -DENABLE_TOOLS=OFF \
+      -DENABLE_TESTS=OFF \
+      -DENABLE_API_TESTS=OFF \
+      -DENABLE_GTEST=OFF \
+      -DBUILD_TESTING=OFF
   make: |
     cmake --build build -j4
   install: |
