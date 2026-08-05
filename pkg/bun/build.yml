@@ -29,7 +29,7 @@ phases:
     zig build -Doptimize=ReleaseFast -Dtarget=aarch64-linux-android
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
-    cp build/bun "${DESTDIR}${PREFIX}/bin/bun"
+    cp zig-out/bin/bun 2>/dev/null || cp build/bun "${DESTDIR}${PREFIX}/bin/bun"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
     if command -v termux-elf-cleaner >/dev/null 2>&1; then
       termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/bun"

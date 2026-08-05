@@ -196,12 +196,14 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     make_cmd = phases.get("make")
     install_cmd = phases.get("install")
 
-    if prepare_cmd:
+    
+
+    if configure_cmd:
         res = subprocess.run(
-            prepare_cmd, shell=True, cwd=work_dir, env=env, check=False
+            configure_cmd, shell=True, cwd=work_dir, env=env, check=False
         )
         if res.returncode != 0:
-            raise RuntimeError(f"Prepare phase failed for {recipe.name}")
+            raise RuntimeError(f"Configure phase failed for {recipe.name}")
 
     if configure_cmd:
         res = subprocess.run(
