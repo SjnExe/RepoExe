@@ -54,7 +54,6 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
     for dep in build_deps:
         fetched_remote = False
 
-        # 1. Check local workflow artifacts from previous layer
         local_arts = (
             list(Path("artifacts").glob(f"{dep}*.deb"))
             if Path("artifacts").exists()
@@ -69,7 +68,6 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
             )
             fetched_remote = True
         else:
-            # 2. Check remote GitHub releases
             tag = f"{dep}@latest"
             api_url = (
                 f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
@@ -109,7 +107,6 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
                     f"Notice: Pre-built artifact for dependency '{dep}' could not be fetched ({e})."
                 )
 
-        # 3. Handle missing dependency gracefully
         if not fetched_remote:
             local_recipe_file = pkg_root / dep / "build.yml"
             if local_recipe_file.exists():
@@ -260,13 +257,6 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         )
         if res.returncode != 0:
             raise RuntimeError(f"Prepare phase failed for {recipe.name}")
-
-    if configure_cmd:
-        res = subprocess.run(
-            configure_cmd, shell=True, cwd=work_dir, env=env, check=False
-        )
-        if res.returncode != 0:
-            raise RuntimeError(f"Configure phase failed for {recipe.name}")
 
     if configure_cmd:
         res = subprocess.run(
