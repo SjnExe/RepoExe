@@ -208,7 +208,9 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         ):
             print(f"⚡ Cloning Git source repository: {src_url_str}...")
             if "#" in src_url_str:
-                repo_url, branch = src_url_str.split("#", 1)
+                parts = [x for x in src_url_str.split("#") if x]
+                repo_url = parts[0]
+                branch = parts[1]
                 clone_cmd = ["git", "clone", "--depth", "1", "--branch", branch, repo_url, str(src_extract_dir)]
             else:
                 clone_cmd = ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)]
@@ -244,6 +246,12 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                         check=True,
                     )
                 work_dir = src_extract_dir
+
+    if shutil.which("sccache"):
+        env["RUSTC_WRAPPER"] = "sccache"
+        env["CMAKE_C_COMPILER_LAUNCHER"] = "sccache"
+        env["CMAKE_CXX_COMPILER_LAUNCHER"] = "sccache"
+        env["SCCACHE_DIR"] = "/home/builder/.cache/sccache"
 
     env["DESTDIR"] = str(stage_dir.resolve())
     env["PREFIX"] = "/data/data/com.termux/files/usr"
