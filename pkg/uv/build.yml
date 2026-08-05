@@ -1,5 +1,5 @@
 name: uv
-version: 0.12.1
+version: 0.12.2
 revision: 0
 architecture: aarch64
 description: Fast Python package installer and resolver written in Rust
@@ -13,7 +13,7 @@ formats:
 - pip
 channels:
   latest:
-    version: 0.12.1
+    version: 0.12.2
     auto_update: true
     update_strategy: github_release
     source_url: https://github.com/astral-sh/uv/releases/download/0.11.33/uv-aarch64-unknown-linux-musl.tar.gz
