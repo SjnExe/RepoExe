@@ -160,7 +160,8 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         src_extract_dir = destdir / "src"
         src_extract_dir.mkdir(parents=True, exist_ok=True)
 
-        if src_url_str.endswith(".git") or "git" in src_url_str:
+        is_archive = any(ext in src_url_str for ext in [".tar.gz", ".tgz", ".tar.xz", ".tar.bz2", ".zip", ".crate", ".whl"])
+        if src_url_str.endswith(".git") or src_url_str.startswith("git://") or (not is_archive and "git" in src_url_str.split("/")[-1]):
             print(f"⚡ Cloning Git source repository: {src_url_str}...")
             subprocess.run(["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)], check=True)
             work_dir = src_extract_dir
@@ -191,6 +192,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
 
     phases = getattr(recipe, "phases", {})
     prepare_cmd = phases.get("prepare")
+    configure_cmd = phases.get("configure")
     make_cmd = phases.get("make")
     install_cmd = phases.get("install")
 
@@ -200,6 +202,13 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         )
         if res.returncode != 0:
             raise RuntimeError(f"Prepare phase failed for {recipe.name}")
+
+    if configure_cmd:
+        res = subprocess.run(
+            configure_cmd, shell=True, cwd=work_dir, env=env, check=False
+        )
+        if res.returncode != 0:
+            raise RuntimeError(f"Configure phase failed for {recipe.name}")
 
     if make_cmd:
         res = subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
