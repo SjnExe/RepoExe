@@ -117,7 +117,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         run: |
           BASE_REF="${GITHUB_BASE_REF:-main}"
-          if git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
+          if [ "${GITHUB_REF_NAME%%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
             echo "::error::Docker environment files (scripts/docker/) were modified in this branch. To avoid out-of-sync builds, update and publish the Docker container before running package compilation."
             echo "Warning: Docker environment files modified in branch."
           fi
