@@ -39,7 +39,7 @@ phases:
       -DENABLE_STATIC_JSC=ON \
       -DENABLE_C_LOOP=OFF \
       -DUSE_BUN_JSC_ADDITIONS=ON \
-      -DUSE_BUN_EVENT_LOOP=ON \
+      -DUSE_BUN_EVENT_LOOP=OFF \
       -DENABLE_TOOLS=OFF
   make: |
     cmake --build build -j4
