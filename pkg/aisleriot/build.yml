@@ -27,7 +27,7 @@ deps:
 
 phases:
   prepare: |
-    sudo apt-get update && sudo apt-get install -y cmake ninja-build meson itstool gettext intltool pkg-config libcairo2-dev libgtk-3-dev guile-3.0-dev librsvg2-dev libcanberra-dev libxml2-dev desktop-file-utils shared-mime-info
+    sudo apt-get update && sudo apt-get install -y cmake ninja-build meson itstool gettext intltool pkg-config libcairo2-dev libgtk-3-dev guile-3.0-dev librsvg2-dev libcanberra-dev libcanberra-gtk3-dev libxml2-dev desktop-file-utils shared-mime-info
 
   configure: |
     export SCCACHE_DISABLE=1
