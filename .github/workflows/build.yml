@@ -144,6 +144,11 @@ jobs:
             sccache-${{ matrix.package }}-
             sccache-
 
+      - name: Fix Cache Permissions
+        run: |
+          mkdir -p .sccache
+          sudo chmod -R 777 .sccache
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0
         with:
@@ -293,6 +298,11 @@ jobs:
             sccache-${{ matrix.package }}-${{ matrix.channel }}-
             sccache-${{ matrix.package }}-
             sccache-
+
+      - name: Fix Cache Permissions
+        run: |
+          mkdir -p .sccache
+          sudo chmod -R 777 .sccache
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0

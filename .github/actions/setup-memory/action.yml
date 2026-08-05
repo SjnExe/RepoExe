@@ -27,26 +27,9 @@ runs:
         if [ "$ZRAM_GB" -gt 0 ]; then
           echo "⚡ Configuring ${ZRAM_GB}GB zram compressed swap..."
           if ! sudo modprobe zram 2>/dev/null; then
-            echo "Notice: zram module not found in runner kernel. Compiling zram module..."
-            FULL_KERNEL_VERSION="$(uname -r)"
-            KERNEL_VERSION="$(grep -o "^[0-9\.]*" <<< "${FULL_KERNEL_VERSION}")"
-            TAR_KERNEL_VERSION="${KERNEL_VERSION%\.0}"
-            MODULES_DIR="/lib/modules/${FULL_KERNEL_VERSION}"
-
-            LINUX_CHECKOUT_DIR=$(mktemp -d)
-            cd "$LINUX_CHECKOUT_DIR"
-            curl -sSL "https://cdn.kernel.org/pub/linux/kernel/v${KERNEL_VERSION%%.*}.x/linux-${TAR_KERNEL_VERSION}.tar.xz" | tar -xJ || true
-            if [ -d "linux-${TAR_KERNEL_VERSION}/drivers/block/zram" ]; then
-              cd "linux-${TAR_KERNEL_VERSION}/drivers/block/zram"
-              make -C "${MODULES_DIR}/build" M="$PWD" -j$(nproc) || true
-              if [ -f zram.ko ]; then
-                sudo cp zram.ko "${MODULES_DIR}/kernel/" || true
-                sudo depmod || true
-                sudo insmod zram.ko || sudo modprobe zram || true
-              fi
-            fi
-            cd /
-            rm -rf "$LINUX_CHECKOUT_DIR"
+            echo "Notice: Loading native zram module via linux-modules-extra..."
+            sudo apt-get update -qq && sudo apt-get install -y -qq "linux-modules-extra-$(uname -r)" 2>/dev/null || true
+            sudo modprobe zram 2>/dev/null || true
           fi
 
           if sudo zramctl --find --algorithm ${{ inputs.algorithm }} --size "${ZRAM_GB}G" 2>/dev/null; then
