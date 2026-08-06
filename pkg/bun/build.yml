@@ -25,6 +25,9 @@ phases:
     sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev
     echo "⚡ Downloading standalone Zig compiler..."
     curl -fsSL "https://ziglang.org/download/0.13.0/zig-linux-aarch64-0.13.0.tar.xz" | tar -xJ -C /tmp
+    echo "⚡ Patching build.zig for Zig 0.13.0 compatibility..."
+    sed -i '/incremental/d' build.zig src/build.zig 2>/dev/null || true
+    sed -i 's/\.isAndroid()/ == .android/g' build.zig src/build.zig 2>/dev/null || true
 
   make: |
     export PATH="/tmp/zig-linux-aarch64-0.13.0:$PATH"

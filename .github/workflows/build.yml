@@ -110,14 +110,15 @@ jobs:
 
       - name: Prepare Workspace Permissions
         run: |
-          mkdir -p build output build_logs .sccache
+          mkdir -p build output build_logs .sccache .gocache .gomodcache .cargoregistry .cargogit
           sudo chmod -R 777 .
 
       - name: Verify Docker Image Freshness
         if: github.event_name != 'workflow_dispatch'
         run: |
           BASE_REF="${GITHUB_BASE_REF:-main}"
-          if [ "${GITHUB_REF_NAME%%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
+          REF_NAME="${GITHUB_REF_NAME:-}"
+          if [ "${REF_NAME%%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
             echo "::error::Docker environment files (scripts/docker/) were modified in this branch. To avoid out-of-sync builds, update and publish the Docker container before running package compilation."
             echo "Warning: Docker environment files modified in branch."
           fi
@@ -138,10 +139,10 @@ jobs:
         with:
           path: |
             .sccache
-            ~/.cache/go-build
-            ~/go/pkg/mod
-            ~/.cargo/registry
-            ~/.cargo/git
+            .gocache
+            .gomodcache
+            .cargoregistry
+            .cargogit
           key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
           restore-keys: |
             build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-
@@ -151,8 +152,8 @@ jobs:
 
       - name: Fix Cache Permissions
         run: |
-          mkdir -p .sccache ~/.cache/go-build ~/go/pkg/mod ~/.cargo/registry ~/.cargo/git
-          sudo chmod -R 777 .sccache ~/.cache/go-build ~/go/pkg/mod ~/.cargo/registry ~/.cargo/git 2>/dev/null || true
+          mkdir -p .sccache .gocache .gomodcache .cargoregistry .cargogit
+          sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit 2>/dev/null || true
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0
@@ -180,9 +181,34 @@ jobs:
             -e PYTHONPATH="scripts" \
             -e GITHUB_WORKSPACE="${{ github.workspace }}" \
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
+            -e GOCACHE="/home/builder/.cache/go-build" \
+            -e GOMODCACHE="/home/builder/go/pkg/mod" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+
+      - name: Profile Build Memory Peak
+        if: always()
+        run: |
+          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
+          [ -f "$CG_DIR/memory.peak" ] || CG_DIR="/sys/fs/cgroup"
+          if [ -f "$CG_DIR/memory.peak" ]; then
+            PEAK_BYTES="$(cat "$CG_DIR/memory.peak")"
+            PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
+            echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f "$CG_DIR/memory.swap.peak" ]; then
+            SWAP_PEAK_BYTES="$(cat "$CG_DIR/memory.swap.peak")"
+            SWAP_PEAK_GB="$(awk -v b="$SWAP_PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
+            echo "Peak Swap Usage: ${SWAP_PEAK_GB} GB (${SWAP_PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
         env:
@@ -202,7 +228,13 @@ jobs:
             -e PYTHONPATH="scripts" \
             -e GITHUB_WORKSPACE="${{ github.workspace }}" \
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
+            -e GOCACHE="/home/builder/.cache/go-build" \
+            -e GOMODCACHE="/home/builder/go/pkg/mod" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -236,10 +268,10 @@ jobs:
         with:
           path: |
             .sccache
-            ~/.cache/go-build
-            ~/go/pkg/mod
-            ~/.cargo/registry
-            ~/.cargo/git
+            .gocache
+            .gomodcache
+            .cargoregistry
+            .cargogit
           key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
 
       - name: Save Package Build Artifact
@@ -275,7 +307,7 @@ jobs:
 
       - name: Prepare Workspace Permissions
         run: |
-          mkdir -p build output build_logs .sccache
+          mkdir -p build output build_logs .sccache .gocache .gomodcache .cargoregistry .cargogit
           sudo chmod -R 777 .
 
       - name: Download Layer 0 Dependency Artifacts
@@ -302,10 +334,10 @@ jobs:
         with:
           path: |
             .sccache
-            ~/.cache/go-build
-            ~/go/pkg/mod
-            ~/.cargo/registry
-            ~/.cargo/git
+            .gocache
+            .gomodcache
+            .cargoregistry
+            .cargogit
           key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
           restore-keys: |
             build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-
@@ -315,8 +347,8 @@ jobs:
 
       - name: Fix Cache Permissions
         run: |
-          mkdir -p .sccache ~/.cache/go-build ~/go/pkg/mod ~/.cargo/registry ~/.cargo/git
-          sudo chmod -R 777 .sccache ~/.cache/go-build ~/go/pkg/mod ~/.cargo/registry ~/.cargo/git 2>/dev/null || true
+          mkdir -p .sccache .gocache .gomodcache .cargoregistry .cargogit
+          sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit 2>/dev/null || true
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0
@@ -344,9 +376,34 @@ jobs:
             -e PYTHONPATH="scripts" \
             -e GITHUB_WORKSPACE="${{ github.workspace }}" \
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
+            -e GOCACHE="/home/builder/.cache/go-build" \
+            -e GOMODCACHE="/home/builder/go/pkg/mod" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+
+      - name: Profile Build Memory Peak
+        if: always()
+        run: |
+          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
+          [ -f "$CG_DIR/memory.peak" ] || CG_DIR="/sys/fs/cgroup"
+          if [ -f "$CG_DIR/memory.peak" ]; then
+            PEAK_BYTES="$(cat "$CG_DIR/memory.peak")"
+            PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
+            echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f "$CG_DIR/memory.swap.peak" ]; then
+            SWAP_PEAK_BYTES="$(cat "$CG_DIR/memory.swap.peak")"
+            SWAP_PEAK_GB="$(awk -v b="$SWAP_PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
+            echo "Peak Swap Usage: ${SWAP_PEAK_GB} GB (${SWAP_PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
         env:
@@ -366,7 +423,13 @@ jobs:
             -e PYTHONPATH="scripts" \
             -e GITHUB_WORKSPACE="${{ github.workspace }}" \
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
+            -e GOCACHE="/home/builder/.cache/go-build" \
+            -e GOMODCACHE="/home/builder/go/pkg/mod" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -400,10 +463,10 @@ jobs:
         with:
           path: |
             .sccache
-            ~/.cache/go-build
-            ~/go/pkg/mod
-            ~/.cargo/registry
-            ~/.cargo/git
+            .gocache
+            .gomodcache
+            .cargoregistry
+            .cargogit
           key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
 
       - name: Save Package Build Artifact
@@ -459,11 +522,19 @@ jobs:
   publish-site:
     name: Deploy
     needs: [generate-matrix, build-layer-0, build-layer-1]
-    if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') && (needs.build-layer-1.result == 'success' || needs.build-layer-1.result == 'skipped')
+    if: always() && needs.generate-matrix.outputs.should_publish == 'true' && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
+
+      - name: Download All Build Artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: package-artifact-*
+          path: artifacts
+          merge-multiple: true
+        continue-on-error: true
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -480,10 +551,7 @@ jobs:
         env:
           PYTHONPATH: scripts
         run: |
-          python -c "
-          from cli.index_gen import prepare_site
-          prepare_site('site', 'artifacts')
-          "
+          python scripts/cli/index_gen.py
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v6
