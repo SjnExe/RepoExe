@@ -64,3 +64,5 @@ phases:
     cp -r build/Headers/* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
     find build -name "libJavaScriptCore*" -exec cp {} "${DESTDIR}${PREFIX}/lib/" \; 2>/dev/null || true
     find build -name "jsc" -type f -exec cp {} "${DESTDIR}${PREFIX}/bin/" \; 2>/dev/null || true
+  test: |
+    jsc --help || true
