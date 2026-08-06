@@ -196,13 +196,15 @@ jobs:
         run: |
           echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
-          if [ -f /sys/fs/cgroup/memory.peak ]; then
-            PEAK_BYTES="$(cat /sys/fs/cgroup/memory.peak)"
+          CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
+          [ -f "$CG_DIR/memory.peak" ] || CG_DIR="/sys/fs/cgroup"
+          if [ -f "$CG_DIR/memory.peak" ]; then
+            PEAK_BYTES="$(cat "$CG_DIR/memory.peak")"
             PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
             echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
           fi
-          if [ -f /sys/fs/cgroup/memory.swap.peak ]; then
-            SWAP_PEAK_BYTES="$(cat /sys/fs/cgroup/memory.swap.peak)"
+          if [ -f "$CG_DIR/memory.swap.peak" ]; then
+            SWAP_PEAK_BYTES="$(cat "$CG_DIR/memory.swap.peak")"
             SWAP_PEAK_GB="$(awk -v b="$SWAP_PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
             echo "Peak Swap Usage: ${SWAP_PEAK_GB} GB (${SWAP_PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -389,13 +391,15 @@ jobs:
         run: |
           echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
-          if [ -f /sys/fs/cgroup/memory.peak ]; then
-            PEAK_BYTES="$(cat /sys/fs/cgroup/memory.peak)"
+          CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
+          [ -f "$CG_DIR/memory.peak" ] || CG_DIR="/sys/fs/cgroup"
+          if [ -f "$CG_DIR/memory.peak" ]; then
+            PEAK_BYTES="$(cat "$CG_DIR/memory.peak")"
             PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
             echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
           fi
-          if [ -f /sys/fs/cgroup/memory.swap.peak ]; then
-            SWAP_PEAK_BYTES="$(cat /sys/fs/cgroup/memory.swap.peak)"
+          if [ -f "$CG_DIR/memory.swap.peak" ]; then
+            SWAP_PEAK_BYTES="$(cat "$CG_DIR/memory.swap.peak")"
             SWAP_PEAK_GB="$(awk -v b="$SWAP_PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
             echo "Peak Swap Usage: ${SWAP_PEAK_GB} GB (${SWAP_PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
           fi
