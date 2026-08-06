@@ -133,21 +133,26 @@ jobs:
           zram: ${{ matrix.zram }}
           swap: ${{ matrix.swap }}
 
-      
-      - name: Restore Compiler Cache
+      - name: Restore Toolchain & Build Caches
         uses: actions/cache/restore@v6
         with:
-          path: .sccache
-          key: sccache-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
+          path: |
+            .sccache
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
           restore-keys: |
-            sccache-${{ matrix.package }}-${{ matrix.channel }}-
-            sccache-${{ matrix.package }}-
-            sccache-
+            build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-
+            build-cache-${{ matrix.build_system }}-${{ matrix.package }}-
+            build-cache-${{ matrix.build_system }}-
+            build-cache-
 
       - name: Fix Cache Permissions
         run: |
-          mkdir -p .sccache
-          sudo chmod -R 777 .sccache
+          mkdir -p .sccache ~/.cache/go-build ~/go/pkg/mod ~/.cargo/registry ~/.cargo/git
+          sudo chmod -R 777 .sccache ~/.cache/go-build ~/go/pkg/mod ~/.cargo/registry ~/.cargo/git 2>/dev/null || true
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0
@@ -225,13 +230,17 @@ jobs:
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
-      
-      - name: Save Compiler Cache
+      - name: Save Toolchain & Build Caches
         uses: actions/cache/save@v6
-        if: always()
+        if: always() && github.ref == 'refs/heads/main'
         with:
-          path: .sccache
-          key: sccache-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
+          path: |
+            .sccache
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
 
       - name: Save Package Build Artifact
         if: success()
@@ -288,21 +297,26 @@ jobs:
           zram: ${{ matrix.zram }}
           swap: ${{ matrix.swap }}
 
-      
-      - name: Restore Compiler Cache
+      - name: Restore Toolchain & Build Caches
         uses: actions/cache/restore@v6
         with:
-          path: .sccache
-          key: sccache-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
+          path: |
+            .sccache
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
           restore-keys: |
-            sccache-${{ matrix.package }}-${{ matrix.channel }}-
-            sccache-${{ matrix.package }}-
-            sccache-
+            build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-
+            build-cache-${{ matrix.build_system }}-${{ matrix.package }}-
+            build-cache-${{ matrix.build_system }}-
+            build-cache-
 
       - name: Fix Cache Permissions
         run: |
-          mkdir -p .sccache
-          sudo chmod -R 777 .sccache
+          mkdir -p .sccache ~/.cache/go-build ~/go/pkg/mod ~/.cargo/registry ~/.cargo/git
+          sudo chmod -R 777 .sccache ~/.cache/go-build ~/go/pkg/mod ~/.cargo/registry ~/.cargo/git 2>/dev/null || true
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0
@@ -380,13 +394,17 @@ jobs:
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
-      
-      - name: Save Compiler Cache
+      - name: Save Toolchain & Build Caches
         uses: actions/cache/save@v6
-        if: always()
+        if: always() && github.ref == 'refs/heads/main'
         with:
-          path: .sccache
-          key: sccache-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
+          path: |
+            .sccache
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
 
       - name: Save Package Build Artifact
         if: success()

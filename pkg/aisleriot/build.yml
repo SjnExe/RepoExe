@@ -34,7 +34,7 @@ phases:
     meson setup build \
       --prefix="${PREFIX}" \
       --libdir="${PREFIX}/lib" \
-      -Dguile=3.0 \
+      -Dguile=3.0
   make: |
     ninja -C build -j4
   install: |
