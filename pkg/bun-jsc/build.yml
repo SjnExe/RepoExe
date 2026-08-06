@@ -58,4 +58,9 @@ phases:
   make: |
     cmake --build build -j4
   install: |
-    DESTDIR="${DESTDIR}" cmake --install build
+    mkdir -p "${DESTDIR}${PREFIX}/lib" "${DESTDIR}${PREFIX}/include" "${DESTDIR}${PREFIX}/bin"
+    DESTDIR="${DESTDIR}" cmake --install build || true
+    cp -r Source/JavaScriptCore/Headers/* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
+    cp -r build/Headers/* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
+    find build -name "libJavaScriptCore*" -exec cp {} "${DESTDIR}${PREFIX}/lib/" \; 2>/dev/null || true
+    find build -name "jsc" -type f -exec cp {} "${DESTDIR}${PREFIX}/bin/" \; 2>/dev/null || true
