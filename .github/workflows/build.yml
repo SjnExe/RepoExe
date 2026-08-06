@@ -483,11 +483,19 @@ jobs:
   publish-site:
     name: Deploy
     needs: [generate-matrix, build-layer-0, build-layer-1]
-    if: always() if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') && (needs.build-layer-1.result == 'success' || needs.build-layer-1.result == 'skipped')if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') && (needs.build-layer-1.result == 'success' || needs.build-layer-1.result == 'skipped') needs.generate-matrix.outputs.should_publish == 'true' if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') && (needs.build-layer-1.result == 'success' || needs.build-layer-1.result == 'skipped')if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') && (needs.build-layer-1.result == 'success' || needs.build-layer-1.result == 'skipped') !cancelled() if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') && (needs.build-layer-1.result == 'success' || needs.build-layer-1.result == 'skipped')if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') && (needs.build-layer-1.result == 'success' || needs.build-layer-1.result == 'skipped') needs.build-layer-0.result != 'cancelled' if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') && (needs.build-layer-1.result == 'success' || needs.build-layer-1.result == 'skipped')if: always() && needs.generate-matrix.outputs.should_publish == 'true' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped') && (needs.build-layer-1.result == 'success' || needs.build-layer-1.result == 'skipped') needs.build-layer-1.result != 'cancelled'
+    if: always() && needs.generate-matrix.outputs.should_publish == 'true' && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
+
+      - name: Download All Build Artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: package-artifact-*
+          path: artifacts
+          merge-multiple: true
+        continue-on-error: true
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -504,10 +512,7 @@ jobs:
         env:
           PYTHONPATH: scripts
         run: |
-          python -c "
-          from cli.index_gen import prepare_site
-          prepare_site('site', 'artifacts')
-          "
+          python scripts/cli/index_gen.py
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v6
