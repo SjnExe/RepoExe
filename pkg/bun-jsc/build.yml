@@ -13,15 +13,15 @@ update_strategy: github_tag
 source_url: https://github.com/oven-sh/webkit.git
 
 resources:
-  zram: 24
-  swap: 10
-  free_space: true
+  zram: 0
+  swap: 16
+  free_space: false
 
 vars:
-  NINJA_JOBS: "8"
+  NINJA_JOBS: "4"
   CFLAGS: "-O2 -g0 -pipe -Wno-undef -Wno-format -Wno-format-truncation"
   CXXFLAGS: "-O2 -g0 -pipe -Wno-undef -Wno-format -Wno-format-truncation"
-  LDFLAGS: "-fuse-ld=lld -Wl,--thread-count=8 -Wl,-z,max-page-size=65536"
+  LDFLAGS: "-fuse-ld=lld -Wl,--thread-count=4 -Wl,-z,max-page-size=65536"
 
 formats:
   - apt
@@ -56,7 +56,7 @@ phases:
       -DENABLE_GTEST=OFF \
       -DBUILD_TESTING=OFF
   make: |
-    cmake --build build -j$(nproc)
+    cmake --build build -j4
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/lib" "${DESTDIR}${PREFIX}/include" "${DESTDIR}${PREFIX}/bin"
     DESTDIR="${DESTDIR}" cmake --install build || true
