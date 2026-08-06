@@ -18,10 +18,10 @@ resources:
   free_space: true
 
 vars:
-  NINJA_JOBS: "4"
+  NINJA_JOBS: "8"
   CFLAGS: "-O2 -g0 -pipe -Wno-undef -Wno-format -Wno-format-truncation"
   CXXFLAGS: "-O2 -g0 -pipe -Wno-undef -Wno-format -Wno-format-truncation"
-  LDFLAGS: "-fuse-ld=lld -Wl,--thread-count=4 -Wl,-z,max-page-size=65536"
+  LDFLAGS: "-fuse-ld=lld -Wl,--thread-count=8 -Wl,-z,max-page-size=65536"
 
 formats:
   - apt
@@ -56,7 +56,7 @@ phases:
       -DENABLE_GTEST=OFF \
       -DBUILD_TESTING=OFF
   make: |
-    cmake --build build -j4
+    cmake --build build -j$(nproc)
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/lib" "${DESTDIR}${PREFIX}/include" "${DESTDIR}${PREFIX}/bin"
     DESTDIR="${DESTDIR}" cmake --install build || true
