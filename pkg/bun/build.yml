@@ -24,10 +24,14 @@ phases:
   prepare: |
     sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev
     echo "⚡ Downloading standalone Zig compiler..."
-    curl -fsSL "https://ziglang.org/download/0.12.0/zig-linux-aarch64-0.12.0.tar.xz" | tar -xJ -C /tmp
+    ZIG_TAG=$(curl -s https://api.github.com/repos/oven-sh/zig/releases | grep -oP "autobuild-[a-f0-9]+" | head -n 1)
+    echo "⚡ Downloading oven-sh/zig release (${ZIG_TAG})..."
+    curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/zig-linux-aarch64.zip" -o /tmp/zig.zip ||     curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/bootstrap-aarch64-linux-musl.zip" -o /tmp/zig.zip
+    unzip -q /tmp/zig.zip -d /tmp/
+    mv /tmp/zig-linux-aarch64* /tmp/zig-custom 2>/dev/null || mv /tmp/bootstrap* /tmp/zig-custom 2>/dev/null
 
   make: |
-    export PATH="/tmp/zig-linux-aarch64-0.12.0:$PATH"
+    export PATH="/tmp/zig-custom:$PATH"
     export C_INCLUDE_PATH="${DESTDIR}${PREFIX}/include:${PREFIX}/include:${C_INCLUDE_PATH:-}"
     export CPLUS_INCLUDE_PATH="${DESTDIR}${PREFIX}/include:${PREFIX}/include:${CPLUS_INCLUDE_PATH:-}"
     export LIBRARY_PATH="${DESTDIR}${PREFIX}/lib:${PREFIX}/lib:${LIBRARY_PATH:-}"
