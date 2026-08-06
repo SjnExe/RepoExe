@@ -115,7 +115,8 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         run: |
           BASE_REF="${GITHUB_BASE_REF:-main}"
-          if [ "${GITHUB_REF_NAME\%\%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
+          REF_NAME="${GITHUB_REF_NAME:-}"
+          if [ "${REF_NAME\%\%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
             echo "::error::Docker environment files (scripts/docker/) were modified in this branch. To avoid out-of-sync builds, update and publish the Docker container before running package compilation."
             echo "Warning: Docker environment files modified in branch."
           fi
@@ -191,19 +192,19 @@ jobs:
       - name: Profile Build Memory Peak
         if: always()
         run: |
-          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> $GITHUB_STEP_SUMMARY
-          echo '```text' >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
           if [ -f /sys/fs/cgroup/memory.peak ]; then
-            PEAK_BYTES=$(cat /sys/fs/cgroup/memory.peak)
-            PEAK_GB=$(awk "BEGIN {printf \"%.2f\", $PEAK_BYTES/1024/1024/1024}")
-            echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> $GITHUB_STEP_SUMMARY
+            PEAK_BYTES="$(cat /sys/fs/cgroup/memory.peak)"
+            PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
+            echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
           fi
           if [ -f /sys/fs/cgroup/memory.swap.peak ]; then
-            SWAP_PEAK_BYTES=$(cat /sys/fs/cgroup/memory.swap.peak)
-            SWAP_PEAK_GB=$(awk "BEGIN {printf \"%.2f\", $SWAP_PEAK_BYTES/1024/1024/1024}")
-            echo "Peak Swap Usage: ${SWAP_PEAK_GB} GB (${SWAP_PEAK_BYTES} bytes)" >> $GITHUB_STEP_SUMMARY
+            SWAP_PEAK_BYTES="$(cat /sys/fs/cgroup/memory.swap.peak)"
+            SWAP_PEAK_GB="$(awk -v b="$SWAP_PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
+            echo "Peak Swap Usage: ${SWAP_PEAK_GB} GB (${SWAP_PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
         env:
@@ -384,19 +385,19 @@ jobs:
       - name: Profile Build Memory Peak
         if: always()
         run: |
-          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> $GITHUB_STEP_SUMMARY
-          echo '```text' >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
           if [ -f /sys/fs/cgroup/memory.peak ]; then
-            PEAK_BYTES=$(cat /sys/fs/cgroup/memory.peak)
-            PEAK_GB=$(awk "BEGIN {printf \"\%.2f\", $PEAK_BYTES/1024/1024/1024}")
-            echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> $GITHUB_STEP_SUMMARY
+            PEAK_BYTES="$(cat /sys/fs/cgroup/memory.peak)"
+            PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
+            echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
           fi
           if [ -f /sys/fs/cgroup/memory.swap.peak ]; then
-            SWAP_PEAK_BYTES=$(cat /sys/fs/cgroup/memory.swap.peak)
-            SWAP_PEAK_GB=$(awk "BEGIN {printf \"\%.2f\", $SWAP_PEAK_BYTES/1024/1024/1024}")
-            echo "Peak Swap Usage: ${SWAP_PEAK_GB} GB (${SWAP_PEAK_BYTES} bytes)" >> $GITHUB_STEP_SUMMARY
+            SWAP_PEAK_BYTES="$(cat /sys/fs/cgroup/memory.swap.peak)"
+            SWAP_PEAK_GB="$(awk -v b="$SWAP_PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
+            echo "Peak Swap Usage: ${SWAP_PEAK_GB} GB (${SWAP_PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
         env:
