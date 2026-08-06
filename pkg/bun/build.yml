@@ -24,13 +24,10 @@ phases:
   prepare: |
     sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev
     echo "⚡ Downloading standalone Zig compiler..."
-    curl -fsSL "https://ziglang.org/download/0.13.0/zig-linux-aarch64-0.13.0.tar.xz" | tar -xJ -C /tmp
-    echo "⚡ Patching build.zig for Zig 0.13.0 compatibility..."
-    sed -i '/incremental/d' build.zig src/build.zig 2>/dev/null || true
-    sed -i 's/\.isAndroid()/ == .android/g' build.zig src/build.zig 2>/dev/null || true
+    curl -fsSL "https://ziglang.org/download/0.12.0/zig-linux-aarch64-0.12.0.tar.xz" | tar -xJ -C /tmp
 
   make: |
-    export PATH="/tmp/zig-linux-aarch64-0.13.0:$PATH"
+    export PATH="/tmp/zig-linux-aarch64-0.12.0:$PATH"
     export C_INCLUDE_PATH="${DESTDIR}${PREFIX}/include:${PREFIX}/include:${C_INCLUDE_PATH:-}"
     export CPLUS_INCLUDE_PATH="${DESTDIR}${PREFIX}/include:${PREFIX}/include:${CPLUS_INCLUDE_PATH:-}"
     export LIBRARY_PATH="${DESTDIR}${PREFIX}/lib:${PREFIX}/lib:${LIBRARY_PATH:-}"

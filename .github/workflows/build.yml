@@ -262,6 +262,11 @@ jobs:
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
+      - name: Fix Cache Permissions Before Save
+        if: always() && github.ref == 'refs/heads/main'
+        run: |
+          sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit 2>/dev/null || true
+
       - name: Save Toolchain & Build Caches
         uses: actions/cache/save@v6
         if: always() && github.ref == 'refs/heads/main'
@@ -456,6 +461,11 @@ jobs:
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+
+      - name: Fix Cache Permissions Before Save
+        if: always() && github.ref == 'refs/heads/main'
+        run: |
+          sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit 2>/dev/null || true
 
       - name: Save Toolchain & Build Caches
         uses: actions/cache/save@v6
