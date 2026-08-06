@@ -6,33 +6,54 @@ homepage: https://bun.sh
 license: MIT
 build_system: custom
 
-depends_on:
+build_deps:
   - bun-jsc
 
 update_strategy: github_tag
 source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.3.14.tar.gz
 
 resources:
-  zram: 0
   swap: 16
-  free_space: false
 
 phases:
   prepare: |
     echo "⚡ Installing host Bun CLI runtime for build codegen..."
     curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" || true
-    export PATH="$HOME/.bun/bin:$PATH"
 
     echo "⚡ Downloading oven-sh/zig custom compiler binary..."
-    ZIG_TAG=$(curl -s https://api.github.com/repos/oven-sh/zig/releases | grep -oP "autobuild-[a-f0-9]+" | head -n 1)
+    ZIG_TAG=$(curl -sH "User-Agent: RepoExe" -H "Authorization: token ${GH_TOKEN:-}" https://api.github.com/repos/oven-sh/zig/releases | grep -oP "autobuild-[a-f0-9]+" | head -n 1)
+    if [ -z "$ZIG_TAG" ]; then
+      ZIG_TAG="autobuild-latest"
+    fi
     mkdir -p /tmp/zig-custom
     curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/bootstrap-aarch64-linux-musl.zip" -o /tmp/zig.zip || \
     curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/zig-linux-aarch64.zip" -o /tmp/zig.zip
     unzip -q -o /tmp/zig.zip -d /tmp/zig-custom/
 
   make: |
-    export PATH="$HOME/.bun/bin:$(find /tmp/zig-custom -type d -name "bootstrap*" -o -name "zig-linux*"):$PATH"
+    ZIG_BIN_DIR=$(find /tmp/zig-custom -type f -name "zig" -exec dirname {} \; | head -n 1)
+    export PATH="$HOME/.bun/bin:${ZIG_BIN_DIR}:${PATH}"
+    export C_INCLUDE_PATH="${DESTDIR}/usr/include:${DESTDIR}/usr/include/JavaScriptCore:${C_INCLUDE_PATH:-}"
+    export CPLUS_INCLUDE_PATH="${DESTDIR}/usr/include:${DESTDIR}/usr/include/JavaScriptCore:${CPLUS_INCLUDE_PATH:-}"
+    export LIBRARY_PATH="${DESTDIR}/usr/lib:${LIBRARY_PATH:-}"
+
     if [ -f rust-toolchain.toml ]; then
       rustup show
     fi
     bun run build --release
+
+  install: |
+    mkdir -p "${DESTDIR}/usr/bin"
+    BUN_BIN=$(find . -type f -name "bun" -executable 2>/dev/null | grep -v "node_modules" | head -n 1)
+    if [ -z "$BUN_BIN" ]; then
+      BUN_BIN=$(find build -type f -name "bun" 2>/dev/null | head -n 1)
+    fi
+    if [ -n "$BUN_BIN" ]; then
+      install -Dm755 "$BUN_BIN" "${DESTDIR}/usr/bin/bun"
+    else
+      echo "::error::bun executable binary not found after build!"
+      exit 1
+    fi
+
+  test: |
+    "${DESTDIR}/usr/bin/bun" --version || true

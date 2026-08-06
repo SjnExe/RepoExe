@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: 'Target specs (e.g. "aisleriot bun", "all@all", "!jscpd")'
+        description: 'Target specs (e.g. "aisleriot bun", "all@all", "type:npm !tsc")'
         required: false
         type: string
         default: 'all@all'
@@ -119,8 +119,7 @@ jobs:
           BASE_REF="${GITHUB_BASE_REF:-main}"
           REF_NAME="${GITHUB_REF_NAME:-}"
           if [ "${REF_NAME%%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
-            echo "::error::Docker environment files (scripts/docker/) were modified in this branch. To avoid out-of-sync builds, update and publish the Docker container before running package compilation."
-            echo "Warning: Docker environment files modified in branch."
+            echo "::error::Docker environment files modified in branch."
           fi
 
       - name: Free Disk Space
@@ -203,11 +202,6 @@ jobs:
             PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
             echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
           fi
-          if [ -f "$CG_DIR/memory.swap.peak" ]; then
-            SWAP_PEAK_BYTES="$(cat "$CG_DIR/memory.swap.peak")"
-            SWAP_PEAK_GB="$(awk -v b="$SWAP_PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
-            echo "Peak Swap Usage: ${SWAP_PEAK_GB} GB (${SWAP_PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
-          fi
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
@@ -228,39 +222,9 @@ jobs:
             -e PYTHONPATH="scripts" \
             -e GITHUB_WORKSPACE="${{ github.workspace }}" \
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -e GOCACHE="/home/builder/.cache/go-build" \
-            -e GOMODCACHE="/home/builder/go/pkg/mod" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
-
-      - name: Termux Docker Smoke Test
-        continue-on-error: true
-        id: test_step
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PKG_NAME: ${{ matrix.package }}
-          CHANNEL: ${{ matrix.channel }}
-        run: |
-          set -o pipefail
-          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
-          LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
-          echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
-
-          docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Fix Cache Permissions Before Save
         if: always() && github.ref == 'refs/heads/main'
@@ -280,25 +244,17 @@ jobs:
           key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
 
       - name: Save Package Build Artifact
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: "package-artifact-${{ matrix.package }}"
           path: output/
           retention-days: 1
 
-      - name: Save Build Log Artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: "build-log-${{ matrix.package }}-${{ matrix.channel }}"
-          path: build_logs/
-          retention-days: 1
-
   build-layer-1:
     name: "1:${{ matrix.package }}@${{ matrix.channel }}"
     needs: [generate-matrix, build-layer-0]
-    if: ${{ always() && needs.generate-matrix.outputs.layer_1 != '[]' && (needs.build-layer-0.result == 'success' || needs.build-layer-0.result == 'skipped' || needs.build-layer-0.result == 'failure') }}
+    if: ${{ always() && needs.generate-matrix.outputs.layer_1 != '[]' }}
     runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false
@@ -307,8 +263,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: Prepare Workspace Permissions
         run: |
@@ -323,37 +277,12 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
-      - name: Free Disk Space
-        if: matrix.free_space
-        uses: ./.github/actions/free-space
-
       - name: Setup Memory & Swap
         if: matrix.zram > 0 || matrix.swap > 0
         uses: ./.github/actions/setup-memory
         with:
           zram: ${{ matrix.zram }}
           swap: ${{ matrix.swap }}
-
-      - name: Restore Toolchain & Build Caches
-        uses: actions/cache/restore@v6
-        with:
-          path: |
-            .sccache
-            .gocache
-            .gomodcache
-            .cargoregistry
-            .cargogit
-          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
-          restore-keys: |
-            build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-
-            build-cache-${{ matrix.build_system }}-${{ matrix.package }}-
-            build-cache-${{ matrix.build_system }}-
-            build-cache-
-
-      - name: Fix Cache Permissions
-        run: |
-          mkdir -p .sccache .gocache .gomodcache .cargoregistry .cargogit
-          sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit 2>/dev/null || true
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0
@@ -381,34 +310,9 @@ jobs:
             -e PYTHONPATH="scripts" \
             -e GITHUB_WORKSPACE="${{ github.workspace }}" \
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -e GOCACHE="/home/builder/.cache/go-build" \
-            -e GOMODCACHE="/home/builder/go/pkg/mod" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
-
-      - name: Profile Build Memory Peak
-        if: always()
-        run: |
-          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
-          echo '```text' >> "$GITHUB_STEP_SUMMARY"
-          CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
-          [ -f "$CG_DIR/memory.peak" ] || CG_DIR="/sys/fs/cgroup"
-          if [ -f "$CG_DIR/memory.peak" ]; then
-            PEAK_BYTES="$(cat "$CG_DIR/memory.peak")"
-            PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
-            echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [ -f "$CG_DIR/memory.swap.peak" ]; then
-            SWAP_PEAK_BYTES="$(cat "$CG_DIR/memory.swap.peak")"
-            SWAP_PEAK_GB="$(awk -v b="$SWAP_PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
-            echo "Peak Swap Usage: ${SWAP_PEAK_GB} GB (${SWAP_PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
         env:
@@ -428,76 +332,163 @@ jobs:
             -e PYTHONPATH="scripts" \
             -e GITHUB_WORKSPACE="${{ github.workspace }}" \
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -e GOCACHE="/home/builder/.cache/go-build" \
-            -e GOMODCACHE="/home/builder/go/pkg/mod" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
-      - name: Termux Docker Smoke Test
-        continue-on-error: true
-        id: test_step
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PKG_NAME: ${{ matrix.package }}
-          CHANNEL: ${{ matrix.channel }}
-        run: |
-          set -o pipefail
-          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
-          LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
-          echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
-
-          docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
-
-      - name: Fix Cache Permissions Before Save
-        if: always() && github.ref == 'refs/heads/main'
-        run: |
-          sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit 2>/dev/null || true
-
-      - name: Save Toolchain & Build Caches
-        uses: actions/cache/save@v6
-        if: always() && github.ref == 'refs/heads/main'
-        with:
-          path: |
-            .sccache
-            .gocache
-            .gomodcache
-            .cargoregistry
-            .cargogit
-          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
-
       - name: Save Package Build Artifact
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: "package-artifact-${{ matrix.package }}"
           path: output/
           retention-days: 1
 
-      - name: Save Build Log Artifact
+  build-layer-2:
+    name: "2:${{ matrix.package }}@${{ matrix.channel }}"
+    needs: [generate-matrix, build-layer-0, build-layer-1]
+    if: ${{ always() && needs.generate-matrix.outputs.layer_2 != '[]' }}
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.layer_2) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Prepare Workspace Permissions
+        run: |
+          mkdir -p build output build_logs .sccache .gocache .gomodcache .cargoregistry .cargogit
+          sudo chmod -R 777 .
+
+      - name: Download Prior Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: package-artifact-*
+          path: artifacts
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compile Package Payload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          docker run --rm \
+            -v "${{ github.workspace }}:/home/builder/RepoExe" \
+            -w /home/builder/RepoExe \
+            -e GH_TOKEN="${GH_TOKEN}" \
+            -e PYTHONPATH="scripts" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}"
+
+      - name: Assemble Package Archives
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          docker run --rm \
+            -v "${{ github.workspace }}:/home/builder/RepoExe" \
+            -w /home/builder/RepoExe \
+            -e GH_TOKEN="${GH_TOKEN}" \
+            -e PYTHONPATH="scripts" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}"
+
+      - name: Save Package Build Artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: "build-log-${{ matrix.package }}-${{ matrix.channel }}"
-          path: build_logs/
+          name: "package-artifact-${{ matrix.package }}"
+          path: output/
+          retention-days: 1
+
+  build-layer-3:
+    name: "3:${{ matrix.package }}@${{ matrix.channel }}"
+    needs: [generate-matrix, build-layer-0, build-layer-1, build-layer-2]
+    if: ${{ always() && needs.generate-matrix.outputs.layer_3 != '[]' }}
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.layer_3) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Prepare Workspace Permissions
+        run: |
+          mkdir -p build output build_logs .sccache .gocache .gomodcache .cargoregistry .cargogit
+          sudo chmod -R 777 .
+
+      - name: Download Prior Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: package-artifact-*
+          path: artifacts
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compile Package Payload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          docker run --rm \
+            -v "${{ github.workspace }}:/home/builder/RepoExe" \
+            -w /home/builder/RepoExe \
+            -e GH_TOKEN="${GH_TOKEN}" \
+            -e PYTHONPATH="scripts" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}"
+
+      - name: Assemble Package Archives
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          docker run --rm \
+            -v "${{ github.workspace }}:/home/builder/RepoExe" \
+            -w /home/builder/RepoExe \
+            -e GH_TOKEN="${GH_TOKEN}" \
+            -e PYTHONPATH="scripts" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}"
+
+      - name: Save Package Build Artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: "package-artifact-${{ matrix.package }}"
+          path: output/
           retention-days: 1
 
   build-status:
     name: Build Status & Log Aggregator
-    needs: [generate-matrix, build-layer-0, build-layer-1]
+    needs: [generate-matrix, build-layer-0, build-layer-1, build-layer-2, build-layer-3]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -531,7 +522,7 @@ jobs:
 
   publish-site:
     name: Deploy
-    needs: [generate-matrix, build-layer-0, build-layer-1]
+    needs: [generate-matrix, build-layer-0, build-layer-1, build-layer-2, build-layer-3]
     if: always() && needs.generate-matrix.outputs.should_publish == 'true' && !cancelled()
     runs-on: ubuntu-latest
     steps:

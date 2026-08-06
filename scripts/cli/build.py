@@ -50,18 +50,19 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
     print(f"Resolving build dependencies: {', '.join(build_deps)}")
     stage_dir = destdir / "stage"
     pkg_root = Path(__file__).resolve().parents[2] / "pkg"
+    output_dir = (Path.cwd() / "output").resolve()
 
     for dep in build_deps:
         fetched_remote = False
 
         local_arts = (
-            list(Path("artifacts").glob(f"{dep}*.deb"))
-            if Path("artifacts").exists()
-            else []
+            list(Path("artifacts").glob(f"{dep}*.deb")) if Path("artifacts").exists() else []
+        ) + (
+            list(output_dir.glob(f"{dep}*.deb")) if output_dir.exists() else []
         )
         if local_arts:
             print(
-                f"✓ Found local workflow artifact for dependency '{dep}': {local_arts[0].name}"
+                f"✓ Found local artifact for dependency '{dep}': {local_arts[0].name}"
             )
             subprocess.run(
                 ["dpkg-deb", "-x", str(local_arts[0]), str(stage_dir)], check=True
@@ -111,26 +112,23 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
             local_recipe_file = pkg_root / dep / "build.yml"
             if local_recipe_file.exists():
                 recipe_obj = parse_recipe(local_recipe_file)
-                if (
-                    getattr(recipe_obj.resources, "zram", 0) == 0
-                    and getattr(recipe_obj.resources, "swap", 0) == 0
-                ):
-                    print(f"⚡ Compiling light dependency '{dep}' locally...")
-                    dep_destdir = (destdir.parent / f"build_{dep}").resolve()
-                    dep_stage_dir = execute_compile(
-                        recipe_obj, local_recipe_file.parent, dep_destdir
+                print(f"⚡ Compiling dependency '{dep}' inline in job...")
+                dep_destdir = (destdir.parent / f"build_{dep}").resolve()
+                dep_stage_dir = execute_compile(
+                    recipe_obj, local_recipe_file.parent, dep_destdir
+                )
+                if dep_stage_dir.exists():
+                    shutil.copytree(dep_stage_dir, stage_dir, dirs_exist_ok=True)
+                    execute_pack(recipe_obj, local_recipe_file.parent, dep_destdir, output_dir)
+                    print(
+                        f"✓ Successfully compiled and packed inline dependency '{dep}'."
                     )
-                    if dep_stage_dir.exists():
-                        shutil.copytree(dep_stage_dir, stage_dir, dirs_exist_ok=True)
-                        print(
-                            f"✓ Successfully built and staged local light dependency '{dep}'."
-                        )
-                        continue
+                    continue
 
             print(
-                f"⏭️ Skipping build: Required dependency '{dep}' is missing or failed in a previous stage."
+                f"::error:: Missing required build dependency '{dep}' and compilation failed."
             )
-            sys.exit(0)
+            sys.exit(1)
 
 
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
