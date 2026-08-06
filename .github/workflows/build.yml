@@ -110,7 +110,7 @@ jobs:
 
       - name: Prepare Workspace Permissions
         run: |
-          mkdir -p build output build_logs .sccache .gocache .gomodcache .cargohome
+          mkdir -p build output build_logs .sccache .gocache .gomodcache .cargoregistry .cargogit
           sudo chmod -R 777 .
 
       - name: Verify Docker Image Freshness
@@ -140,7 +140,8 @@ jobs:
             .sccache
             .gocache
             .gomodcache
-            .cargohome
+            .cargoregistry
+            .cargogit
           key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
           restore-keys: |
             build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-
@@ -150,8 +151,8 @@ jobs:
 
       - name: Fix Cache Permissions
         run: |
-          mkdir -p .sccache .gocache .gomodcache .cargohome
-          sudo chmod -R 777 .sccache .gocache .gomodcache .cargohome 2>/dev/null || true
+          mkdir -p .sccache .gocache .gomodcache .cargoregistry .cargogit
+          sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit 2>/dev/null || true
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0
@@ -181,11 +182,11 @@ jobs:
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
             -e GOCACHE="/home/builder/.cache/go-build" \
             -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -e CARGO_HOME="/home/builder/.cargo" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
             -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargohome:/home/builder/.cargo" \
+            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -209,11 +210,11 @@ jobs:
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
             -e GOCACHE="/home/builder/.cache/go-build" \
             -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -e CARGO_HOME="/home/builder/.cargo" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
             -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargohome:/home/builder/.cargo" \
+            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -249,7 +250,8 @@ jobs:
             .sccache
             .gocache
             .gomodcache
-            .cargohome
+            .cargoregistry
+            .cargogit
           key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
 
       - name: Save Package Build Artifact
@@ -285,7 +287,7 @@ jobs:
 
       - name: Prepare Workspace Permissions
         run: |
-          mkdir -p build output build_logs .sccache .gocache .gomodcache .cargohome
+          mkdir -p build output build_logs .sccache .gocache .gomodcache .cargoregistry .cargogit
           sudo chmod -R 777 .
 
       - name: Download Layer 0 Dependency Artifacts
@@ -314,7 +316,8 @@ jobs:
             .sccache
             .gocache
             .gomodcache
-            .cargohome
+            .cargoregistry
+            .cargogit
           key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
           restore-keys: |
             build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-
@@ -324,8 +327,8 @@ jobs:
 
       - name: Fix Cache Permissions
         run: |
-          mkdir -p .sccache .gocache .gomodcache .cargohome
-          sudo chmod -R 777 .sccache .gocache .gomodcache .cargohome 2>/dev/null || true
+          mkdir -p .sccache .gocache .gomodcache .cargoregistry .cargogit
+          sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit 2>/dev/null || true
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0
@@ -355,11 +358,11 @@ jobs:
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
             -e GOCACHE="/home/builder/.cache/go-build" \
             -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -e CARGO_HOME="/home/builder/.cargo" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
             -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargohome:/home/builder/.cargo" \
+            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -383,11 +386,11 @@ jobs:
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
             -e GOCACHE="/home/builder/.cache/go-build" \
             -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -e CARGO_HOME="/home/builder/.cargo" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
             -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargohome:/home/builder/.cargo" \
+            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -423,7 +426,8 @@ jobs:
             .sccache
             .gocache
             .gomodcache
-            .cargohome
+            .cargoregistry
+            .cargogit
           key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
 
       - name: Save Package Build Artifact
