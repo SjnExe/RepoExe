@@ -39,8 +39,10 @@ jobs:
     name: Matrix
     runs-on: ubuntu-latest
     outputs:
-      layer_0: ${{ steps.matrix.outputs.layer_0 }}       layer_1:${{ steps.matrix.outputs.layer_1 }}
-      layer_2: ${{ steps.matrix.outputs.layer_2 }}       layer_3:${{ steps.matrix.outputs.layer_3 }}
+      layer_0: ${{ steps.matrix.outputs.layer_0 }}
+      layer_1: ${{ steps.matrix.outputs.layer_1 }}
+      layer_2: ${{ steps.matrix.outputs.layer_2 }}
+      layer_3: ${{ steps.matrix.outputs.layer_3 }}
       should_publish: ${{ steps.decision.outputs.should_publish }}
     steps:
       - name: Checkout Code
@@ -116,7 +118,7 @@ jobs:
         run: |
           BASE_REF="${GITHUB_BASE_REF:-main}"
           REF_NAME="${GITHUB_REF_NAME:-}"
-          if [ "${REF_NAME\%\%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
+          if [ "${REF_NAME%%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
             echo "::error::Docker environment files (scripts/docker/) were modified in this branch. To avoid out-of-sync builds, update and publish the Docker container before running package compilation."
             echo "Warning: Docker environment files modified in branch."
           fi
@@ -187,7 +189,7 @@ jobs:
             -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 \vert{} tee -a "${LOG_FILE}"
+            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Profile Build Memory Peak
         if: always()
@@ -232,7 +234,7 @@ jobs:
             -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 \vert{} tee -a "${LOG_FILE}"
+            python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Termux Docker Smoke Test
         continue-on-error: true
@@ -256,7 +258,7 @@ jobs:
             -e SCCACHE_DIR="/home/builder/.cache/sccache" \
             -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 \vert{} tee -a "${LOG_FILE}"
+            python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Save Toolchain & Build Caches
         uses: actions/cache/save@v6
@@ -380,7 +382,7 @@ jobs:
             -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 \vert{} tee -a "${LOG_FILE}"
+            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Profile Build Memory Peak
         if: always()
