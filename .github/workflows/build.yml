@@ -316,7 +316,7 @@ jobs:
           sudo chmod -R 777 .
 
       - name: Download Layer 0 Dependency Artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: package-artifact-*
           path: artifacts
@@ -505,7 +505,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Download All Target Build Logs
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: build-log-*
           path: all_logs
@@ -539,7 +539,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Download All Build Artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: package-artifact-*
           path: artifacts
@@ -567,7 +567,7 @@ jobs:
         uses: actions/configure-pages@v6
 
       - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: 'site'
 
