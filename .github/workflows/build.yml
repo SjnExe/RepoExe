@@ -219,13 +219,11 @@ jobs:
               SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
             fi
           fi
-          {
-            echo "### 📊 Peak Memory Consumption (${{ matrix.package }})"
-            echo '```text'
-            echo "Peak RAM Usage:  ${RAM_STR}"
-            echo "Peak Swap Usage: ${SWAP_STR}"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak RAM Usage:  ${RAM_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak Swap Usage: ${SWAP_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
         env:
@@ -832,7 +830,7 @@ jobs:
             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee a "${LOG_FILE}"
 
       - name: Profile Build Memory Peak
         if: always()
