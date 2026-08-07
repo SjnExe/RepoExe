@@ -7,7 +7,7 @@ license: LGPL-2.1
 build_system: custom
 
 update_strategy: github_tag
-source_url: https://github.com/oven-sh/webkit.git
+source_url: https://github.com/oven-sh/webkit/archive/b8a032338c3505c21f7596bf764f693240fbfdbb.tar.gz
 
 vars:
   NINJA_JOBS: "4"
@@ -24,6 +24,7 @@ phases:
       -DCMAKE_BUILD_TYPE=Release \
       -DPORT=JSCOnly \
       -DENABLE_STATIC_JSC=ON \
+      -DENABLE_UNIFIED_BUILDS=OFF \
       -DENABLE_SAMPLING_PROFILER=OFF
     ninja -j"${NINJA_JOBS}" jsc
 
