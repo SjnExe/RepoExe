@@ -27,7 +27,7 @@ phases:
     WEBKIT_SHA=$(python3 -c "import re, os; p='scripts/build/deps/webkit.ts'; c=open(p).read() if os.path.exists(p) else ''; m=re.search(r'[a-f0-9]{40}', c); print(m.group(0) if m else '5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b')")
     echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
 
-    JSC_CACHE_DIR="${GITHUB_WORKSPACE:-/home/builder/RepoExe}/.cache/bun-jsc-${WEBKIT_SHA}"
+    JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}"
     mkdir -p "${DESTDIR}/usr/lib" "${DESTDIR}/usr/include/JavaScriptCore"
 
     if [ -f "${JSC_CACHE_DIR}/lib/libJavaScriptCore.a" ]; then
@@ -44,7 +44,7 @@ phases:
       git -C "$WK_SRC" checkout FETCH_HEAD
 
       mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
-      cmake -G Ninja ..         -DCMAKE_BUILD_TYPE=Release         -DPORT=JSCOnly         -DENABLE_STATIC_JSC=ON         -DENABLE_BUN=ON         -DENABLE_SAMPLING_PROFILER=OFF
+      cmake -G Ninja ..         -DCMAKE_BUILD_TYPE=Release         -DPORT=JSCOnly         -DENABLE_STATIC_JSC=ON         -DENABLE_BUN=ON         -DENABLE_BUN_JSC=ON         -DENABLE_SAMPLING_PROFILER=OFF         -DCMAKE_C_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN=1"         -DCMAKE_CXX_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN=1"
       ninja -j4 jsc
 
       mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"
@@ -53,7 +53,7 @@ phases:
 
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}/usr/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/JavaScriptCore/"* "${DESTDIR}/usr/include/JavaScriptCore/" 2>/dev/null || true
-      cd "${GITHUB_WORKSPACE:-/home/builder/RepoExe}"
+      cd /home/builder/RepoExe
     fi
 
   make: |
