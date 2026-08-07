@@ -53,12 +53,31 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Restore Matrix Dependency Cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.cache/pip
+          key: matrix-deps-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            matrix-deps-${{ runner.os }}-
+
       - name: Install Dependencies
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           uv pip install --system -r pyproject.toml || true
           pip install pytest ruff pydantic pyyaml
+
+      - name: Save Matrix Dependency Cache
+        uses: actions/cache/save@v6
+        if: always() && github.ref == 'refs/heads/main'
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.cache/pip
+          key: matrix-deps-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
 
       - name: Audit & Health Check
         env:
@@ -70,7 +89,7 @@ jobs:
       - name: Determine Publish Decision
         id: decision
         run: |
-          if [ "${{ github.ref }}" == "refs/heads/main" ] && [ "${{ inputs.publish }}" != "false" ]; then
+          if { [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; } && [ "${{ inputs.publish }}" != "false" ]; then
             echo "should_publish=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_publish=false" >> "$GITHUB_OUTPUT"
@@ -110,6 +129,15 @@ jobs:
         run: |
           mkdir -p build output build_logs .sccache .gocache .gomodcache .cargoregistry .cargogit
           sudo chmod -R 777 .
+
+      - name: Verify Docker Image Freshness
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          BASE_REF="${GITHUB_BASE_REF:-main}"
+          REF_NAME="${GITHUB_REF_NAME:-}"
+          if [ "${REF_NAME\%\%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
+            echo "::error::Docker environment files modified in branch."
+          fi
 
       - name: Free Disk Space
         if: matrix.free_space
@@ -184,13 +212,29 @@ jobs:
         run: |
           echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          RAM_STR="N/A"
+          SWAP_STR="N/A"
           CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
-          [ -f "$CG_DIR/memory.peak" ] || CG_DIR="/sys/fs/cgroup"
+          [ -d "$CG_DIR" ] || CG_DIR="/sys/fs/cgroup"
           if [ -f "$CG_DIR/memory.peak" ]; then
-            PEAK_BYTES="$(cat "$CG_DIR/memory.peak")"
-            PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
-            echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
+            BYTES="$(cat "$CG_DIR/memory.peak" 2>/dev/null || echo 0)"
+            if [ "$BYTES" -gt 0 ] 2>/dev/null; then
+              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
+          elif [ -f "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" ]; then
+            BYTES="$(cat "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" 2>/dev/null || echo 0)"
+            if [ "$BYTES" -gt 0 ] 2>/dev/null; then
+              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
           fi
+          if [ -f "$CG_DIR/memory.swap.peak" ]; then
+            SBYTES="$(cat "$CG_DIR/memory.swap.peak" 2>/dev/null || echo 0)"
+            if [ "$SBYTES" -gt 0 ] 2>/dev/null; then
+              SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
+          fi
+          echo "Peak RAM Usage:  ${RAM_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak Swap Usage: ${SWAP_STR}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
@@ -379,13 +423,29 @@ jobs:
         run: |
           echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          RAM_STR="N/A"
+          SWAP_STR="N/A"
           CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
-          [ -f "$CG_DIR/memory.peak" ] || CG_DIR="/sys/fs/cgroup"
+          [ -d "$CG_DIR" ] || CG_DIR="/sys/fs/cgroup"
           if [ -f "$CG_DIR/memory.peak" ]; then
-            PEAK_BYTES="$(cat "$CG_DIR/memory.peak")"
-            PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
-            echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
+            BYTES="$(cat "$CG_DIR/memory.peak" 2>/dev/null || echo 0)"
+            if [ "$BYTES" -gt 0 ] 2>/dev/null; then
+              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
+          elif [ -f "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" ]; then
+            BYTES="$(cat "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" 2>/dev/null || echo 0)"
+            if [ "$BYTES" -gt 0 ] 2>/dev/null; then
+              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
           fi
+          if [ -f "$CG_DIR/memory.swap.peak" ]; then
+            SBYTES="$(cat "$CG_DIR/memory.swap.peak" 2>/dev/null || echo 0)"
+            if [ "$SBYTES" -gt 0 ] 2>/dev/null; then
+              SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
+          fi
+          echo "Peak RAM Usage:  ${RAM_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak Swap Usage: ${SWAP_STR}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
@@ -574,13 +634,29 @@ jobs:
         run: |
           echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          RAM_STR="N/A"
+          SWAP_STR="N/A"
           CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
-          [ -f "$CG_DIR/memory.peak" ] || CG_DIR="/sys/fs/cgroup"
+          [ -d "$CG_DIR" ] || CG_DIR="/sys/fs/cgroup"
           if [ -f "$CG_DIR/memory.peak" ]; then
-            PEAK_BYTES="$(cat "$CG_DIR/memory.peak")"
-            PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
-            echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
+            BYTES="$(cat "$CG_DIR/memory.peak" 2>/dev/null || echo 0)"
+            if [ "$BYTES" -gt 0 ] 2>/dev/null; then
+              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
+          elif [ -f "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" ]; then
+            BYTES="$(cat "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" 2>/dev/null || echo 0)"
+            if [ "$BYTES" -gt 0 ] 2>/dev/null; then
+              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
           fi
+          if [ -f "$CG_DIR/memory.swap.peak" ]; then
+            SBYTES="$(cat "$CG_DIR/memory.swap.peak" 2>/dev/null || echo 0)"
+            if [ "$SBYTES" -gt 0 ] 2>/dev/null; then
+              SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
+          fi
+          echo "Peak RAM Usage:  ${RAM_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak Swap Usage: ${SWAP_STR}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
@@ -769,13 +845,29 @@ jobs:
         run: |
           echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          RAM_STR="N/A"
+          SWAP_STR="N/A"
           CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
-          [ -f "$CG_DIR/memory.peak" ] || CG_DIR="/sys/fs/cgroup"
+          [ -d "$CG_DIR" ] || CG_DIR="/sys/fs/cgroup"
           if [ -f "$CG_DIR/memory.peak" ]; then
-            PEAK_BYTES="$(cat "$CG_DIR/memory.peak")"
-            PEAK_GB="$(awk -v b="$PEAK_BYTES" 'BEGIN {printf "%.2f", b/1024/1024/1024}')"
-            echo "Peak RAM Usage:  ${PEAK_GB} GB (${PEAK_BYTES} bytes)" >> "$GITHUB_STEP_SUMMARY"
+            BYTES="$(cat "$CG_DIR/memory.peak" 2>/dev/null || echo 0)"
+            if [ "$BYTES" -gt 0 ] 2>/dev/null; then
+              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
+          elif [ -f "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" ]; then
+            BYTES="$(cat "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" 2>/dev/null || echo 0)"
+            if [ "$BYTES" -gt 0 ] 2>/dev/null; then
+              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
           fi
+          if [ -f "$CG_DIR/memory.swap.peak" ]; then
+            SBYTES="$(cat "$CG_DIR/memory.swap.peak" 2>/dev/null || echo 0)"
+            if [ "$SBYTES" -gt 0 ] 2>/dev/null; then
+              SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            fi
+          fi
+          echo "Peak RAM Usage:  ${RAM_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak Swap Usage: ${SWAP_STR}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
@@ -919,11 +1011,30 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Restore Deploy Pipeline Cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/uv
+          key: deploy-tools-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            deploy-tools-${{ runner.os }}-
+
       - name: Install Build Tools & GPG
         run: |
           sudo apt-get update
           sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
           pip install pydantic pyyaml
+
+      - name: Save Deploy Pipeline Cache
+        uses: actions/cache/save@v6
+        if: always() && github.ref == 'refs/heads/main'
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/uv
+          key: deploy-tools-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
 
       - name: Build Full Site & Repository Indexes
         env:
