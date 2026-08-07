@@ -117,6 +117,8 @@ phases:
   make: |
     ZIG_BIN_DIR=$(find /tmp/zig-custom -type f -name "zig" -exec dirname {} \; | head -n 1)
     export PATH="$HOME/.bun/bin:${ZIG_BIN_DIR}:${PATH}"
+    export WEBKIT_DIR="${DESTDIR}/usr"
+    export WEBKIT_OUT_DIR="${DESTDIR}/usr"
     export C_INCLUDE_PATH="${DESTDIR}/usr/include:${DESTDIR}/usr/include/JavaScriptCore:${C_INCLUDE_PATH:-}"
     export CPLUS_INCLUDE_PATH="${DESTDIR}/usr/include:${DESTDIR}/usr/include/JavaScriptCore:${CPLUS_INCLUDE_PATH:-}"
     export LIBRARY_PATH="${DESTDIR}/usr/lib:${LIBRARY_PATH:-}"
@@ -126,6 +128,9 @@ phases:
     fi
 
     bun run build:release
+    if [ -d "build/release" ]; then
+      cd build/release && ninja bun
+    fi
 
   install: |
     mkdir -p "${DESTDIR}/usr/bin"
