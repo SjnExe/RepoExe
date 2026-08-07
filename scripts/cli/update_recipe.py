@@ -26,16 +26,16 @@ def update_recipe(pkg: str, channel: str, new_version: str) -> None:
         jsc_recipe = Path("pkg/bun-jsc/build.yml")
         if jsc_recipe.exists():
             content = jsc_recipe.read_text()
-            content = re.sub(r'version:\s*[“"]?[0-9\.]+[“"]?', f'version: {new_version}', content)
+            content = re.sub(r'version:\s*[“"]?[0-9\.]+[“"]?', f'version: "{new_version}"', content)
             content = re.sub(r'revision:\s*\d+', 'revision: 0', content)
             content = re.sub(r'[a-f0-9]{40}', sha, content)
             jsc_recipe.write_text(content)
-            print(f"✓ Updated pkg/bun-jsc/build.yml to version {new_version}")
+            print(f"✓ Updated pkg/bun-jsc/build.yml to version {new_version} (SHA: {sha})")
 
         bun_recipe = Path("pkg/bun/build.yml")
         if bun_recipe.exists():
             content = bun_recipe.read_text()
-            content = re.sub(r'version:\s*[“"]?[0-9\.]+[“"]?', f'version: {new_version}', content)
+            content = re.sub(r'version:\s*[“"]?[0-9\.]+[“"]?', f'version: "{new_version}"', content)
             content = re.sub(r'revision:\s*\d+', 'revision: 0', content)
             content = re.sub(
                 r'source_url:\s*https://github.com/oven-sh/bun/archive/refs/tags/bun-v[^"]+\.tar\.gz',

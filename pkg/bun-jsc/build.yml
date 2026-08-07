@@ -17,9 +17,9 @@ phases:
     echo "⚡ Preparing WebKit build environment..."
     sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev lld
     
-    # Safely checkout the exact WebKit commit associated with Bun v1.3.14
+    # Exact WebKit commit pinned by Bun v1.3.14 in scripts/build/deps/webkit.ts
     WEBKIT_SHA="5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b"
-    echo "⚡ Fetching WebKit commit ${WEBKIT_SHA}..."
+    echo "⚡ Performing shallow fetch for WebKit commit ${WEBKIT_SHA}..."
     git fetch --depth 1 origin "${WEBKIT_SHA}" || git fetch origin "${WEBKIT_SHA}"
     git checkout -f "${WEBKIT_SHA}"
 
@@ -30,7 +30,6 @@ phases:
       -DCMAKE_BUILD_TYPE=Release \
       -DPORT=JSCOnly \
       -DENABLE_STATIC_JSC=ON \
-      -DENABLE_UNIFIED_BUILDS=OFF \
       -DENABLE_SAMPLING_PROFILER=OFF
     ninja -j"${NINJA_JOBS}" jsc
 
