@@ -197,11 +197,13 @@ jobs:
               SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
             fi
           fi
-          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
-          echo '```text' >> "$GITHUB_STEP_SUMMARY"
-          echo "Peak RAM Usage:  ${RAM_STR}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Peak Swap Usage: ${SWAP_STR}" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### 📊 Peak Memory Consumption (${{ matrix.package }})"
+            echo '```text'
+            echo "Peak RAM Usage:  ${RAM_STR}"
+            echo "Peak Swap Usage: ${SWAP_STR}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
         env:
