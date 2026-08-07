@@ -23,15 +23,27 @@ phases:
     echo "⚡ Installing host Bun CLI runtime for build codegen..."
     curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" || true
 
-    echo "⚡ Fetching oven-sh/zig custom compiler binary..."
-    ZIG_TAG=$(python3 -c "import urllib.request, json; req=urllib.request.Request('https://api.github.com/repos/oven-sh/zig/releases', headers={'User-Agent': 'RepoExe'}); res=json.loads(urllib.request.urlopen(req).read()); print(res[0]['tag_name'])" 2>/dev/null || echo "autobuild-latest")
+    echo "⚡ Reading exact Zig tag pinned by Bun source..."
+    if [ -f "src/deps/zig/tag.txt" ]; then
+      ZIG_TAG=$(cat src/deps/zig/tag.txt | tr -d '\r\n')
+    elif [ -f "Makefile" ] && grep -q "ZIG_TAG" Makefile; then
+      ZIG_TAG=$(grep -oP 'ZIG_TAG\s*\??=\s*\K\S+' Makefile | head -n 1)
+    else
+      ZIG_TAG="autobuild-2024-11-20-a1b2c3d"
+    fi
+    echo "🔒 Bun pinned Zig tag: ${ZIG_TAG}"
+
     mkdir -p /tmp/zig-custom
     curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/bootstrap-aarch64-linux-musl.zip" -o /tmp/zig.zip || \
     curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/zig-linux-aarch64.zip" -o /tmp/zig.zip
     unzip -q -o /tmp/zig.zip -d /tmp/zig-custom/
 
     echo "⚡ Resolving WebKit commit SHA from Bun source..."
-    WEBKIT_SHA=$(python3 -c "import re, os; p='scripts/build/deps/webkit.ts'; c=open(p).read() if os.path.exists(p) else ''; m=re.search(r'[a-f0-9]{40}', c); print(m.group(0) if m else '5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b')")
+    if [ -f "scripts/build/deps/webkit.ts" ]; then
+      WEBKIT_SHA=$(grep -oP 'WEBKIT_VERSION\s*=\s*["\']\K[a-f0-9]{40}' scripts/build/deps/webkit.ts || echo "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
+    else
+      WEBKIT_SHA="5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b"
+    fi
     echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
 
     JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}"
@@ -57,15 +69,22 @@ phases:
         -DENABLE_STATIC_JSC=ON \
         -DENABLE_BUN=ON \
         -DENABLE_BUN_JSC=ON \
-        -DENABLE_SAMPLING_PROFILER=OFF
+        -DENABLE_SAMPLING_PROFILER=OFF \
+        -DCMAKE_C_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1" \
+        -DCMAKE_CXX_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1"
       ninja -j4 jsc
 
       mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"
       cp -a lib/lib* "${JSC_CACHE_DIR}/lib/" 2>/dev/null || true
       cp -a "${WK_SRC}/Source/JavaScriptCore/API/"*.h "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
+      cp -a JavaScriptCore/Headers/* "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
+      cp -a JavaScriptCore/PrivateHeaders/* "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
+      cp -a JavaScriptCore/DerivedSources/JavaScriptCore/* "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
+      cp -a WTF/Headers/* "${JSC_CACHE_DIR}/include/" 2>/dev/null || true
+      cp -a bmalloc/Headers/* "${JSC_CACHE_DIR}/include/" 2>/dev/null || true
 
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}/usr/lib/" 2>/dev/null || true
-      cp -a "${JSC_CACHE_DIR}/include/JavaScriptCore/"* "${DESTDIR}/usr/include/JavaScriptCore/" 2>/dev/null || true
+      cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}/usr/include/" 2>/dev/null || true
       cd /home/builder/RepoExe
     fi
 
