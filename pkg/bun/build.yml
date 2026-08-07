@@ -9,9 +9,6 @@ build_system: custom
 update_strategy: github_tag
 source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.3.14.tar.gz
 
-resources:
-  swap: 16
-
 phases:
   prepare: |
     echo "⚡ Preparing Bun & WebKit build environment..."
@@ -21,19 +18,13 @@ phases:
     curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" || true
 
     echo "⚡ Fetching oven-sh/zig custom compiler binary..."
-    ZIG_TAG=$(curl -sH "User-Agent: RepoExe" -H "Authorization: token ${GH_TOKEN:-}" https://api.github.com/repos/oven-sh/zig/releases | grep -oP "autobuild-[a-f0-9]+" | head -n 1 || echo "autobuild-latest")
+    ZIG_TAG=$(python3 -c "import urllib.request, json; req=urllib.request.Request('https://api.github.com/repos/oven-sh/zig/releases', headers={'User-Agent': 'RepoExe'}); res=json.loads(urllib.request.urlopen(req).read()); print(res[0]['tag_name'])" 2>/dev/null || echo "autobuild-latest")
     mkdir -p /tmp/zig-custom
-    curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/bootstrap-aarch64-linux-musl.zip" -o /tmp/zig.zip || \
-    curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/zig-linux-aarch64.zip" -o /tmp/zig.zip
+    curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/bootstrap-aarch64-linux-musl.zip" -o /tmp/zig.zip ||     curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/zig-linux-aarch64.zip" -o /tmp/zig.zip
     unzip -q -o /tmp/zig.zip -d /tmp/zig-custom/
 
     echo "⚡ Resolving WebKit commit SHA from Bun source..."
-    WEBKIT_TS="scripts/build/deps/webkit.ts"
-    if [ -f "$WEBKIT_TS" ]; then
-      WEBKIT_SHA=$(grep -oP 'WEBKIT_VERSION\s*=\s*["\']\K[a-f0-9]{40}' "$WEBKIT_TS" || echo "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
-    else
-      WEBKIT_SHA="5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b"
-    fi
+    WEBKIT_SHA=$(python3 -c "import re, os; p='scripts/build/deps/webkit.ts'; c=open(p).read() if os.path.exists(p) else ''; m=re.search(r'[a-f0-9]{40}', c); print(m.group(0) if m else '5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b')")
     echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
 
     JSC_CACHE_DIR="${GITHUB_WORKSPACE:-/home/builder/RepoExe}/.cache/bun-jsc-${WEBKIT_SHA}"
@@ -53,12 +44,7 @@ phases:
       git -C "$WK_SRC" checkout FETCH_HEAD
 
       mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
-      cmake -G Ninja .. \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DPORT=JSCOnly \
-        -DENABLE_STATIC_JSC=ON \
-        -DENABLE_BUN=ON \
-        -DENABLE_SAMPLING_PROFILER=OFF
+      cmake -G Ninja ..         -DCMAKE_BUILD_TYPE=Release         -DPORT=JSCOnly         -DENABLE_STATIC_JSC=ON         -DENABLE_BUN=ON         -DENABLE_SAMPLING_PROFILER=OFF
       ninja -j4 jsc
 
       mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"

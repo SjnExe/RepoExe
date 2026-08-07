@@ -93,7 +93,6 @@ def parse_target_tokens(raw_input: str, dag: DependencyGraph, pkgs_dir: Path) ->
 
     final_requested = selected - excluded
 
-    # Pre-flight Exclusion Audit
     for pkg in list(final_requested):
         recipe = dag.recipes.get(pkg)
         if recipe:
@@ -106,7 +105,6 @@ def parse_target_tokens(raw_input: str, dag: DependencyGraph, pkgs_dir: Path) ->
                         )
                         sys.exit(1)
 
-    # Expand transitive dependencies automatically
     expanded_targets = set(final_requested)
     for pkg in list(final_requested):
         recipe = dag.recipes.get(pkg)
@@ -121,7 +119,7 @@ def parse_target_tokens(raw_input: str, dag: DependencyGraph, pkgs_dir: Path) ->
 
 def build_matrix_layer(pkgs_list: list[str], pkgs_dir: Path, dag: DependencyGraph) -> list[dict]:
     matrix = []
-    for p in pkgs_list:
+    for p in sorted(pkgs_list):
         recipe_path = pkgs_dir / p / "build.yml"
         if not recipe_path.exists():
             continue
@@ -170,16 +168,8 @@ def main() -> None:
     else:
         target_pkgs = parse_target_tokens(raw_input, dag, pkgs_dir)
 
-    layers = dag.get_layers(target_pkgs)
-
-    output = {
-        "layer_0": build_matrix_layer(layers[0] if len(layers) > 0 else [], pkgs_dir, dag),
-        "layer_1": build_matrix_layer(layers[1] if len(layers) > 1 else [], pkgs_dir, dag),
-        "layer_2": build_matrix_layer(layers[2] if len(layers) > 2 else [], pkgs_dir, dag),
-        "layer_3": build_matrix_layer(layers[3] if len(layers) > 3 else [], pkgs_dir, dag),
-    }
-
-    print(json.dumps(output))
+    matrix = build_matrix_layer(target_pkgs, pkgs_dir, dag)
+    print(json.dumps({"matrix": matrix}))
 
 
 if __name__ == "__main__":
