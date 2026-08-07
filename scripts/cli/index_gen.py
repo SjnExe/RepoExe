@@ -1,3 +1,5 @@
+import json
+import subprocess
 import shutil
 from pathlib import Path
 
@@ -86,6 +88,27 @@ def prepare_site(
         src = root_dir / key
         if src.exists():
             shutil.copy2(src, s_path / src.name)
+
+
+    # 5. Create / Update GitHub Release tags for built package artifacts
+    if art_path.exists() and shutil.which("gh"):
+        print("⚡ Publishing release artifacts to GitHub Releases...")
+        for pkg_meta_file in art_path.rglob("*_metadata.json"):
+            try:
+                meta = json.loads(pkg_meta_file.read_text(encoding="utf-8"))
+                pkg_name = meta.get("name")
+                channel = meta.get("channel", "latest")
+                tag = f"{pkg_name}@{channel}"
+
+                matching_files = list(art_path.rglob(f"{pkg_name}*"))
+                upload_args = [str(f) for f in matching_files if f.is_file()]
+
+                subprocess.run(["gh", "release", "view", tag], capture_output=True, check=False)
+                res = subprocess.run(["gh", "release", "create", tag] + upload_args + ["--title", tag, "--notes", f"Automated release for {tag}", "--clobber"], capture_output=True, check=False)
+                if res.returncode == 0:
+                    print(f"✓ Successfully published GitHub release tag: {tag}")
+            except Exception as e:
+                print(f"Notice: Failed publishing release tag for {pkg_meta_file.name}: {e}")
 
     (s_path / ".nojekyll").touch()
     print(f"✓ Complete RepoExe site environment successfully generated at {s_path}")

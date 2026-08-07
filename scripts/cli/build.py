@@ -109,25 +109,7 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
                 )
 
         if not fetched_remote:
-            local_recipe_file = pkg_root / dep / "build.yml"
-            if local_recipe_file.exists():
-                recipe_obj = parse_recipe(local_recipe_file)
-                print(f"⚡ Compiling dependency '{dep}' inline in job...")
-                dep_destdir = (destdir.parent / f"build_{dep}").resolve()
-                dep_stage_dir = execute_compile(
-                    recipe_obj, local_recipe_file.parent, dep_destdir
-                )
-                if dep_stage_dir.exists():
-                    shutil.copytree(dep_stage_dir, stage_dir, dirs_exist_ok=True)
-                    execute_pack(recipe_obj, local_recipe_file.parent, dep_destdir, output_dir)
-                    print(
-                        f"✓ Successfully compiled and packed inline dependency '{dep}'."
-                    )
-                    continue
-
-            print(
-                f"::error:: Missing required build dependency '{dep}' and compilation failed."
-            )
+            print(f"::error:: Missing required build dependency '{dep}' and no pre-built artifact or release exists.")
             sys.exit(1)
 
 

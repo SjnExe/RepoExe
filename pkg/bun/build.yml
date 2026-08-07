@@ -6,9 +6,6 @@ homepage: https://bun.sh
 license: MIT
 build_system: custom
 
-build_deps:
-  - bun-jsc
-
 update_strategy: github_tag
 source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.3.14.tar.gz
 
@@ -17,18 +14,61 @@ resources:
 
 phases:
   prepare: |
+    echo "⚡ Preparing Bun & WebKit build environment..."
+    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev lld unzip
+
     echo "⚡ Installing host Bun CLI runtime for build codegen..."
     curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" || true
 
-    echo "⚡ Downloading oven-sh/zig custom compiler binary..."
-    ZIG_TAG=$(curl -sH "User-Agent: RepoExe" -H "Authorization: token ${GH_TOKEN:-}" https://api.github.com/repos/oven-sh/zig/releases | grep -oP "autobuild-[a-f0-9]+" | head -n 1)
-    if [ -z "$ZIG_TAG" ]; then
-      ZIG_TAG="autobuild-latest"
-    fi
+    echo "⚡ Fetching oven-sh/zig custom compiler binary..."
+    ZIG_TAG=$(curl -sH "User-Agent: RepoExe" -H "Authorization: token ${GH_TOKEN:-}" https://api.github.com/repos/oven-sh/zig/releases | grep -oP "autobuild-[a-f0-9]+" | head -n 1 || echo "autobuild-latest")
     mkdir -p /tmp/zig-custom
     curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/bootstrap-aarch64-linux-musl.zip" -o /tmp/zig.zip || \
     curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/zig-linux-aarch64.zip" -o /tmp/zig.zip
     unzip -q -o /tmp/zig.zip -d /tmp/zig-custom/
+
+    echo "⚡ Resolving WebKit commit SHA from Bun source..."
+    WEBKIT_TS="scripts/build/deps/webkit.ts"
+    if [ -f "$WEBKIT_TS" ]; then
+      WEBKIT_SHA=$(grep -oP 'WEBKIT_VERSION\s*=\s*["\']\K[a-f0-9]{40}' "$WEBKIT_TS" || echo "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
+    else
+      WEBKIT_SHA="5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b"
+    fi
+    echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
+
+    JSC_CACHE_DIR="${GITHUB_WORKSPACE:-/home/builder/RepoExe}/.cache/bun-jsc-${WEBKIT_SHA}"
+    mkdir -p "${DESTDIR}/usr/lib" "${DESTDIR}/usr/include/JavaScriptCore"
+
+    if [ -f "${JSC_CACHE_DIR}/lib/libJavaScriptCore.a" ]; then
+      echo "✓ WebKit cache hit for SHA ${WEBKIT_SHA}. Restoring headers and libraries..."
+      cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}/usr/lib/" 2>/dev/null || true
+      cp -a "${JSC_CACHE_DIR}/include/JavaScriptCore/"* "${DESTDIR}/usr/include/JavaScriptCore/" 2>/dev/null || true
+    else
+      echo "⚡ WebKit cache miss. Compiling JavaScriptCore for SHA ${WEBKIT_SHA}..."
+      WK_SRC="/tmp/webkit-src"
+      mkdir -p "$WK_SRC"
+      git init "$WK_SRC"
+      git -C "$WK_SRC" remote add origin https://github.com/oven-sh/webkit.git
+      git -C "$WK_SRC" fetch --depth 1 origin "$WEBKIT_SHA"
+      git -C "$WK_SRC" checkout FETCH_HEAD
+
+      mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
+      cmake -G Ninja .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPORT=JSCOnly \
+        -DENABLE_STATIC_JSC=ON \
+        -DENABLE_BUN=ON \
+        -DENABLE_SAMPLING_PROFILER=OFF
+      ninja -j4 jsc
+
+      mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"
+      cp -a lib/lib* "${JSC_CACHE_DIR}/lib/" 2>/dev/null || true
+      cp -a "${WK_SRC}/Source/JavaScriptCore/API/"*.h "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
+
+      cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}/usr/lib/" 2>/dev/null || true
+      cp -a "${JSC_CACHE_DIR}/include/JavaScriptCore/"* "${DESTDIR}/usr/include/JavaScriptCore/" 2>/dev/null || true
+      cd "${GITHUB_WORKSPACE:-/home/builder/RepoExe}"
+    fi
 
   make: |
     ZIG_BIN_DIR=$(find /tmp/zig-custom -type f -name "zig" -exec dirname {} \; | head -n 1)
