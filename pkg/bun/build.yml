@@ -9,10 +9,12 @@ build_system: custom
 update_strategy: github_tag
 source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.3.14.tar.gz
 
+cflags: "-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1"
+cxxflags: "-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1"
+
 phases:
   prepare: |
     echo "⚡ Preparing Bun & WebKit build environment..."
-    export PATH="/usr/lib/llvm-21/bin:${PATH}"
     if ! command -v clang-21 >/dev/null 2>&1; then
       sudo apt-get update && sudo apt-get install -y lsb-release software-properties-common wget gnupg
       wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
@@ -91,9 +93,11 @@ phases:
         -DENABLE_JIT=ON \
         -DENABLE_DFG_JIT=ON \
         -DENABLE_FTL_JIT=ON \
+        -DENABLE_YARR_JIT=ON \
+        -DENABLE_WEBASSEMBLY=ON \
         -DENABLE_C_LOOP=OFF \
-        -DCMAKE_C_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DNDEBUG" \
-        -DCMAKE_CXX_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DNDEBUG"
+        -DCMAKE_C_FLAGS="${CFLAGS}" \
+        -DCMAKE_CXX_FLAGS="${CXXFLAGS}"
       ninja -j4 jsc
 
       mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"
@@ -111,7 +115,6 @@ phases:
     fi
 
   make: |
-    export PATH="/usr/lib/llvm-21/bin:${PATH}"
     ZIG_BIN_DIR=$(find /tmp/zig-custom -type f -name "zig" -exec dirname {} \; | head -n 1)
     export PATH="$HOME/.bun/bin:${ZIG_BIN_DIR}:${PATH}"
     export C_INCLUDE_PATH="${DESTDIR}/usr/include:${DESTDIR}/usr/include/JavaScriptCore:${C_INCLUDE_PATH:-}"
@@ -122,13 +125,7 @@ phases:
       rustup show
     fi
 
-    mkdir -p build && cd build
-    cmake -G Ninja .. \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DWEBKIT_OUT_DIR="${DESTDIR}/usr" \
-      -DCMAKE_C_COMPILER="/usr/lib/llvm-21/bin/clang" \
-      -DCMAKE_CXX_COMPILER="/usr/lib/llvm-21/bin/clang++"
-    ninja -j4 bun
+    bun run build:release
 
   install: |
     mkdir -p "${DESTDIR}/usr/bin"

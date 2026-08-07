@@ -4,6 +4,20 @@ import json
 import os
 import shutil
 import subprocess
+
+DEFAULT_BIONIC_ENV = {
+    "CC": "/usr/lib/llvm-21/bin/clang",
+    "CXX": "/usr/lib/llvm-21/bin/clang++",
+    "LD": "/usr/lib/llvm-21/bin/ld.lld",
+    "CFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
+    "CXXFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
+    "LDFLAGS": "-Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-icf=safe -Wl,--gc-sections -Wl,-z,pack-relative-relocs",
+    "CARGO_BUILD_TARGET": "aarch64-linux-android",
+    "GOOS": "android",
+    "GOARCH": "arm64",
+    "CGO_ENABLED": "1",
+}
+
 import sys
 import urllib.request
 from pathlib import Path
@@ -131,6 +145,16 @@ def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
 
 def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     env = os.environ.copy()
+    for k, v in DEFAULT_BIONIC_ENV.items():
+        if k not in env:
+            env[k] = v
+    if getattr(recipe, 'cflags', None):
+        env['CFLAGS'] = f"{env.get('CFLAGS', '')} {recipe.cflags}".strip()
+    if getattr(recipe, 'cxxflags', None):
+        env['CXXFLAGS'] = f"{env.get('CXXFLAGS', '')} {recipe.cxxflags}".strip()
+    if getattr(recipe, 'ldflags', None):
+        env['LDFLAGS'] = f"{env.get('LDFLAGS', '')} {recipe.ldflags}".strip()
+    env['PATH'] = f"/usr/lib/llvm-21/bin:{env.get('PATH', '')}\"
     env["MAKEFLAGS"] = "-j4"
     env["NINJA_JOBS"] = "4"
     env["CARGO_BUILD_JOBS"] = "4"
