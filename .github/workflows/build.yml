@@ -91,12 +91,12 @@ jobs:
           L1="$(echo "$JSON_OUT" | jq -c '.layer_1')"
           L2="$(echo "$JSON_OUT" | jq -c '.layer_2')"
           L3="$(echo "$JSON_OUT" | jq -c '.layer_3')"
-          {
-            echo "layer_0=${L0}"
-            echo "layer_1=${L1}"
-            echo "layer_2=${L2}"
-            echo "layer_3=${L3}"
-          } >> "$GITHUB_OUTPUT"
+          
+          # shellcheck disable=SC2129
+          echo "layer_0=${L0}" >> "$GITHUB_OUTPUT"
+          echo "layer_1=${L1}" >> "$GITHUB_OUTPUT"
+          echo "layer_2=${L2}" >> "$GITHUB_OUTPUT"
+          echo "layer_3=${L3}" >> "$GITHUB_OUTPUT"
 
   build-layer-0:
     name: "0:${{ matrix.package }}@${{ matrix.channel }}"
@@ -179,19 +179,19 @@ jobs:
           echo "=== STAGE: COMPILE ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -e GOCACHE="/home/builder/.cache/go-build" \
-            -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 \vert{} tee -a "${LOG_FILE}"
 
@@ -239,19 +239,19 @@ jobs:
           echo "=== STAGE: PACK ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -e GOCACHE="/home/builder/.cache/go-build" \
-            -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -269,13 +269,13 @@ jobs:
           echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -392,19 +392,19 @@ jobs:
           echo "=== STAGE: COMPILE ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -e GOCACHE="/home/builder/.cache/go-build" \
-            -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -452,19 +452,19 @@ jobs:
           echo "=== STAGE: PACK ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -e GOCACHE="/home/builder/.cache/go-build" \
-            -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -482,13 +482,13 @@ jobs:
           echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -605,19 +605,19 @@ jobs:
           echo "=== STAGE: COMPILE ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -e GOCACHE="/home/builder/.cache/go-build" \
-            -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -665,19 +665,19 @@ jobs:
           echo "=== STAGE: PACK ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -e GOCACHE="/home/builder/.cache/go-build" \
-            -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -695,13 +695,13 @@ jobs:
           echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -818,19 +818,19 @@ jobs:
           echo "=== STAGE: COMPILE ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -e GOCACHE="/home/builder/.cache/go-build" \
-            -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -878,19 +878,19 @@ jobs:
           echo "=== STAGE: PACK ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -e GOCACHE="/home/builder/.cache/go-build" \
-            -e GOMODCACHE="/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            -v "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            -v "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            -v "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
@@ -908,13 +908,13 @@ jobs:
           echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
 
           docker run --rm \
-            -v "${{ github.workspace }}:/home/builder/RepoExe" \
-            -w /home/builder/RepoExe \
-            -e GH_TOKEN="${GH_TOKEN}" \
-            -e PYTHONPATH="scripts" \
-            -e GITHUB_WORKSPACE="${{ github.workspace }}" \
-            -e SCCACHE_DIR="/home/builder/.cache/sccache" \
-            -v "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
