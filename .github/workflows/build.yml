@@ -53,31 +53,15 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Restore Matrix Dependency Cache
-        uses: actions/cache/restore@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
         with:
-          path: |
-            ~/.cache/uv
-            ~/.cache/pip
-          key: matrix-deps-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
-          restore-keys: |
-            matrix-deps-${{ runner.os }}-
+          enable-cache: true
 
       - name: Install Dependencies
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           uv pip install --system -r pyproject.toml || true
           pip install pytest ruff pydantic pyyaml
-
-      - name: Save Matrix Dependency Cache
-        uses: actions/cache/save@v6
-        if: always() && github.ref == 'refs/heads/main'
-        with:
-          path: |
-            ~/.cache/uv
-            ~/.cache/pip
-          key: matrix-deps-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
 
       - name: Audit & Health Check
         env:
@@ -103,12 +87,14 @@ jobs:
           GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
           JSON_OUT="$(python scripts/cli/generate_shards.py)"
-          {
-            echo "layer_0=$(echo "$JSON_OUT" | jq -c '.layer_0')"
-            echo "layer_1=$(echo "$JSON_OUT" | jq -c '.layer_1')"
-            echo "layer_2=$(echo "$JSON_OUT" | jq -c '.layer_2')"
-            echo "layer_3=$(echo "$JSON_OUT" | jq -c '.layer_3')"
-          } >> "$GITHUB_OUTPUT"
+          L0="$(echo "$JSON_OUT" | jq -c '.layer_0')"
+          L1="$(echo "$JSON_OUT" | jq -c '.layer_1')"
+          L2="$(echo "$JSON_OUT" | jq -c '.layer_2')"
+          L3="$(echo "$JSON_OUT" | jq -c '.layer_3')"
+          echo "layer_0=$L0" >> "$GITHUB_OUTPUT"
+          echo "layer_1=$L1" >> "$GITHUB_OUTPUT"
+          echo "layer_2=$L2" >> "$GITHUB_OUTPUT"
+          echo "layer_3=$L3" >> "$GITHUB_OUTPUT"
 
   build-layer-0:
     name: "0:${{ matrix.package }}@${{ matrix.channel }}"
@@ -1019,30 +1005,16 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Restore Deploy Pipeline Cache
-        uses: actions/cache/restore@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
         with:
-          path: |
-            ~/.cache/pip
-            ~/.cache/uv
-          key: deploy-tools-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
-          restore-keys: |
-            deploy-tools-${{ runner.os }}-
+          enable-cache: true
 
       - name: Install Build Tools & GPG
         run: |
           sudo apt-get update
           sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
           pip install pydantic pyyaml
-
-      - name: Save Deploy Pipeline Cache
-        uses: actions/cache/save@v6
-        if: always() && github.ref == 'refs/heads/main'
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.cache/uv
-          key: deploy-tools-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
 
       - name: Build Full Site & Repository Indexes
         env:
