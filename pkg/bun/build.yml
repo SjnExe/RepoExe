@@ -12,7 +12,13 @@ source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.3.14.tar.gz
 phases:
   prepare: |
     echo "⚡ Preparing Bun & WebKit build environment..."
-    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev lld unzip
+    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev lld unzip wget gnupg
+
+    echo "⚡ Installing LLVM 21 / Clang 21 for Bun..."
+    wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+    chmod +x /tmp/llvm.sh
+    sudo /tmp/llvm.sh 21 || sudo apt-get install -y clang-21 lld-21 || true
+    export PATH="/usr/lib/llvm-21/bin:${PATH}"
 
     echo "⚡ Installing host Bun CLI runtime for build codegen..."
     curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" || true
@@ -20,7 +26,8 @@ phases:
     echo "⚡ Fetching oven-sh/zig custom compiler binary..."
     ZIG_TAG=$(python3 -c "import urllib.request, json; req=urllib.request.Request('https://api.github.com/repos/oven-sh/zig/releases', headers={'User-Agent': 'RepoExe'}); res=json.loads(urllib.request.urlopen(req).read()); print(res[0]['tag_name'])" 2>/dev/null || echo "autobuild-latest")
     mkdir -p /tmp/zig-custom
-    curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/bootstrap-aarch64-linux-musl.zip" -o /tmp/zig.zip ||     curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/zig-linux-aarch64.zip" -o /tmp/zig.zip
+    curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/bootstrap-aarch64-linux-musl.zip" -o /tmp/zig.zip || \
+    curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/zig-linux-aarch64.zip" -o /tmp/zig.zip
     unzip -q -o /tmp/zig.zip -d /tmp/zig-custom/
 
     echo "⚡ Resolving WebKit commit SHA from Bun source..."
@@ -44,7 +51,13 @@ phases:
       git -C "$WK_SRC" checkout FETCH_HEAD
 
       mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
-      cmake -G Ninja ..         -DCMAKE_BUILD_TYPE=Release         -DPORT=JSCOnly         -DENABLE_STATIC_JSC=ON         -DENABLE_BUN=ON         -DENABLE_BUN_JSC=ON         -DENABLE_SAMPLING_PROFILER=OFF         -DCMAKE_C_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN=1"         -DCMAKE_CXX_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN=1"
+      cmake -G Ninja .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPORT=JSCOnly \
+        -DENABLE_STATIC_JSC=ON \
+        -DENABLE_BUN=ON \
+        -DENABLE_BUN_JSC=ON \
+        -DENABLE_SAMPLING_PROFILER=OFF
       ninja -j4 jsc
 
       mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"
@@ -57,6 +70,7 @@ phases:
     fi
 
   make: |
+    export PATH="/usr/lib/llvm-21/bin:${PATH}"
     ZIG_BIN_DIR=$(find /tmp/zig-custom -type f -name "zig" -exec dirname {} \; | head -n 1)
     export PATH="$HOME/.bun/bin:${ZIG_BIN_DIR}:${PATH}"
     export C_INCLUDE_PATH="${DESTDIR}/usr/include:${DESTDIR}/usr/include/JavaScriptCore:${C_INCLUDE_PATH:-}"
