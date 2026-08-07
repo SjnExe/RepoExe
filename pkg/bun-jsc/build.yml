@@ -15,7 +15,7 @@ vars:
 phases:
   prepare: |
     echo "⚡ Preparing WebKit build environment..."
-    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev
+    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev
 
   make: |
     echo "⚡ Compiling JavaScriptCore for Bun..."
