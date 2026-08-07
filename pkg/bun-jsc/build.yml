@@ -7,7 +7,7 @@ license: LGPL-2.1
 build_system: custom
 
 update_strategy: github_tag
-source_url: https://github.com/oven-sh/webkit/archive/b8a032338c3505c21f7596bf764f693240fbfdbb.tar.gz
+source_url: https://github.com/oven-sh/webkit.git
 
 vars:
   NINJA_JOBS: "4"
@@ -15,7 +15,13 @@ vars:
 phases:
   prepare: |
     echo "⚡ Preparing WebKit build environment..."
-    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev
+    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev lld
+    
+    # Safely checkout the exact WebKit commit associated with Bun v1.3.14
+    WEBKIT_SHA="5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b"
+    echo "⚡ Fetching WebKit commit ${WEBKIT_SHA}..."
+    git fetch --depth 1 origin "${WEBKIT_SHA}" || git fetch origin "${WEBKIT_SHA}"
+    git checkout -f "${WEBKIT_SHA}"
 
   make: |
     echo "⚡ Compiling JavaScriptCore for Bun..."
