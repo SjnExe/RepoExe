@@ -54,7 +54,7 @@ jobs:
           python-version: "3.13"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
         with:
           enable-cache: true
 
@@ -87,14 +87,12 @@ jobs:
           GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
           JSON_OUT="$(python scripts/cli/generate_shards.py)"
-          L0="$(echo "$JSON_OUT" | jq -c '.layer_0')"
-          L1="$(echo "$JSON_OUT" | jq -c '.layer_1')"
-          L2="$(echo "$JSON_OUT" | jq -c '.layer_2')"
-          L3="$(echo "$JSON_OUT" | jq -c '.layer_3')"
-          echo "layer_0=$L0" >> "$GITHUB_OUTPUT"
-          echo "layer_1=$L1" >> "$GITHUB_OUTPUT"
-          echo "layer_2=$L2" >> "$GITHUB_OUTPUT"
-          echo "layer_3=$L3" >> "$GITHUB_OUTPUT"
+          {
+            echo "layer_0=$(echo "$JSON_OUT" | jq -c '.layer_0')"
+            echo "layer_1=$(echo "$JSON_OUT" | jq -c '.layer_1')"
+            echo "layer_2=$(echo "$JSON_OUT" | jq -c '.layer_2')"
+            echo "layer_3=$(echo "$JSON_OUT" | jq -c '.layer_3')"
+          } >> "$GITHUB_OUTPUT"
 
   build-layer-0:
     name: "0:${{ matrix.package }}@${{ matrix.channel }}"
@@ -1006,7 +1004,7 @@ jobs:
           python-version: "3.13"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
         with:
           enable-cache: true
 
