@@ -12,38 +12,52 @@ source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.3.14.tar.gz
 phases:
   prepare: |
     echo "⚡ Preparing Bun & WebKit build environment..."
-    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev lld unzip wget gnupg
-
-    echo "⚡ Installing LLVM 21 / Clang 21 for Bun..."
-    wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
-    chmod +x /tmp/llvm.sh
-    sudo /tmp/llvm.sh 21 || sudo apt-get install -y clang-21 lld-21 || true
     export PATH="/usr/lib/llvm-21/bin:${PATH}"
+    if ! command -v clang-21 >/dev/null 2>&1; then
+      sudo apt-get update && sudo apt-get install -y lsb-release software-properties-common wget gnupg
+      wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+      chmod +x /tmp/llvm.sh
+      sudo /tmp/llvm.sh 21 || sudo apt-get install -y clang-21 lld-21 || true
+    fi
 
     echo "⚡ Installing host Bun CLI runtime for build codegen..."
     curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" || true
 
-    echo "⚡ Reading exact Zig tag pinned by Bun source..."
-    if [ -f "src/deps/zig/tag.txt" ]; then
-      ZIG_TAG=$(cat src/deps/zig/tag.txt | tr -d '\r\n')
-    elif [ -f "Makefile" ] && grep -q "ZIG_TAG" Makefile; then
-      ZIG_TAG=$(grep -oP 'ZIG_TAG\s*\??=\s*\K\S+' Makefile | head -n 1)
-    else
-      ZIG_TAG="autobuild-2024-11-20-a1b2c3d"
-    fi
-    echo "🔒 Bun pinned Zig tag: ${ZIG_TAG}"
+    echo "⚡ Fetching oven-sh/zig custom compiler release..."
+    python3 -c "
+import urllib.request, json, os, subprocess
+url = 'https://api.github.com/repos/oven-sh/zig/releases'
+headers = {'User-Agent': 'RepoExe'}
+req = urllib.request.Request(url, headers=headers)
+try:
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        releases = json.loads(resp.read().decode('utf-8'))
+        tag = releases[0]['tag_name']
+except Exception as e:
+    print(f'Notice: release query error: {e}')
+    tag = 'autobuild-latest'
 
-    mkdir -p /tmp/zig-custom
-    curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/bootstrap-aarch64-linux-musl.zip" -o /tmp/zig.zip || \
-    curl -fsSL "https://github.com/oven-sh/zig/releases/download/${ZIG_TAG}/zig-linux-aarch64.zip" -o /tmp/zig.zip
-    unzip -q -o /tmp/zig.zip -d /tmp/zig-custom/
+os.makedirs('/tmp/zig-custom', exist_ok=True)
+dl_url = f'https://github.com/oven-sh/zig/releases/download/{tag}/bootstrap-aarch64-linux-musl.zip'
+zip_path = '/tmp/zig.zip'
+print(f'Downloading Zig tag {tag} from {dl_url}...')
+try:
+    urllib.request.urlretrieve(dl_url, zip_path)
+    subprocess.run(['unzip', '-q', '-o', zip_path, '-d', '/tmp/zig-custom/'], check=True)
+except Exception:
+    dl_url_fallback = f'https://github.com/oven-sh/zig/releases/download/{tag}/zig-linux-aarch64.zip'
+    urllib.request.urlretrieve(dl_url_fallback, zip_path)
+    subprocess.run(['unzip', '-q', '-o', zip_path, '-d', '/tmp/zig-custom/'], check=True)
+"
 
     echo "⚡ Resolving WebKit commit SHA from Bun source..."
-    if [ -f "scripts/build/deps/webkit.ts" ]; then
-      WEBKIT_SHA=$(grep -oP 'WEBKIT_VERSION\s*=\s*["\']\K[a-f0-9]{40}' scripts/build/deps/webkit.ts || echo "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
-    else
-      WEBKIT_SHA="5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b"
-    fi
+    WEBKIT_SHA=$(python3 -c "
+import re, os
+p = 'scripts/build/deps/webkit.ts'
+c = open(p).read() if os.path.exists(p) else ''
+m = re.search(r'[a-f0-9]{40}', c)
+print(m.group(0) if m else '5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b')
+")
     echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
 
     JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}"
@@ -52,7 +66,7 @@ phases:
     if [ -f "${JSC_CACHE_DIR}/lib/libJavaScriptCore.a" ]; then
       echo "✓ WebKit cache hit for SHA ${WEBKIT_SHA}. Restoring headers and libraries..."
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}/usr/lib/" 2>/dev/null || true
-      cp -a "${JSC_CACHE_DIR}/include/JavaScriptCore/"* "${DESTDIR}/usr/include/JavaScriptCore/" 2>/dev/null || true
+      cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}/usr/include/" 2>/dev/null || true
     else
       echo "⚡ WebKit cache miss. Compiling JavaScriptCore for SHA ${WEBKIT_SHA}..."
       WK_SRC="/tmp/webkit-src"
