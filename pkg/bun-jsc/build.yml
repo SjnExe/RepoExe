@@ -24,6 +24,7 @@ phases:
       -DCMAKE_BUILD_TYPE=Release \
       -DPORT=JSCOnly \
       -DENABLE_STATIC_JSC=ON \
+      -DENABLE_BUN=ON \
       -DENABLE_SAMPLING_PROFILER=OFF
     ninja -j"${NINJA_JOBS}" jsc
 
