@@ -208,11 +208,18 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
             if "#" in src_url_str:
                 parts = [x for x in src_url_str.split("#") if x]
                 repo_url = parts[0]
-                branch = parts[1]
-                clone_cmd = ["git", "clone", "--depth", "1", "--branch", branch, repo_url, str(src_extract_dir)]
+                ref = parts[1]
+                if len(ref) == 40 and all(c in "0123456789abcdefABCDEF" for c in ref):
+                    subprocess.run(["git", "init", str(src_extract_dir)], check=True)
+                    subprocess.run(["git", "-C", str(src_extract_dir), "remote", "add", "origin", repo_url], check=True)
+                    subprocess.run(["git", "-C", str(src_extract_dir), "fetch", "--depth", "1", "origin", ref], check=True)
+                    subprocess.run(["git", "-C", str(src_extract_dir), "checkout", "FETCH_HEAD"], check=True)
+                else:
+                    clone_cmd = ["git", "clone", "--depth", "1", "--branch", ref, repo_url, str(src_extract_dir)]
+                    subprocess.run(clone_cmd, check=True)
             else:
                 clone_cmd = ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)]
-            subprocess.run(clone_cmd, check=True)
+                subprocess.run(clone_cmd, check=True)
             work_dir = src_extract_dir
         else:
             print(f"⚡ Downloading archive source: {src_url_str}...")

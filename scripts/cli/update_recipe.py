@@ -29,8 +29,8 @@ def update_recipe(pkg: str, channel: str, new_version: str) -> None:
             content = re.sub(r'version:\s*[“"]?[0-9\.]+[“"]?', f'version: "{new_version}"', content)
             content = re.sub(r'revision:\s*\d+', 'revision: 0', content)
             content = re.sub(
-                r'source_url:\s*https://github.com/oven-sh/webkit/archive/[a-f0-9]{40}\.tar\.gz',
-                f'source_url: https://github.com/oven-sh/webkit/archive/{sha}.tar.gz',
+                r'source_url:\s*https://github\.com/oven-sh/webkit\.git#[a-f0-9]{40}',
+                f'source_url: https://github.com/oven-sh/webkit.git#{sha}',
                 content
             )
             content = re.sub(r'[a-f0-9]{40}', sha, content)
@@ -43,7 +43,7 @@ def update_recipe(pkg: str, channel: str, new_version: str) -> None:
             content = re.sub(r'version:\s*[“"]?[0-9\.]+[“"]?', f'version: "{new_version}"', content)
             content = re.sub(r'revision:\s*\d+', 'revision: 0', content)
             content = re.sub(
-                r'source_url:\s*https://github.com/oven-sh/bun/archive/refs/tags/bun-v[^"]+\.tar\.gz',
+                r'source_url:\s*https://github\.com/oven-sh/bun/archive/refs/tags/bun-v[^"]+\.tar\.gz',
                 f'source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v{new_version}.tar.gz',
                 content
             )

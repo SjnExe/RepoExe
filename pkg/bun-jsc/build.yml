@@ -7,7 +7,7 @@ license: LGPL-2.1
 build_system: custom
 
 update_strategy: github_tag
-source_url: https://github.com/oven-sh/webkit/archive/5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b.tar.gz
+source_url: https://github.com/oven-sh/webkit.git#5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b
 
 vars:
   NINJA_JOBS: "4"
