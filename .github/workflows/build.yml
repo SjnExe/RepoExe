@@ -87,12 +87,10 @@ jobs:
           GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
           JSON_OUT="$(python scripts/cli/generate_shards.py)"
-          {
-            echo "layer_0=$(echo "$JSON_OUT" | jq -c '.layer_0')"
-            echo "layer_1=$(echo "$JSON_OUT" | jq -c '.layer_1')"
-            echo "layer_2=$(echo "$JSON_OUT" | jq -c '.layer_2')"
-            echo "layer_3=$(echo "$JSON_OUT" | jq -c '.layer_3')"
-          } >> "$GITHUB_OUTPUT"
+          echo "layer_0=$(echo "$JSON_OUT" \vert{} jq -c '.layer_0')" >> "$GITHUB_OUTPUT"
+          echo "layer_1=$(echo "$JSON_OUT" \vert{} jq -c '.layer_1')" >> "$GITHUB_OUTPUT"
+          echo "layer_2=$(echo "$JSON_OUT" \vert{} jq -c '.layer_2')" >> "$GITHUB_OUTPUT"
+          echo "layer_3=$(echo "$JSON_OUT" \vert{} jq -c '.layer_3')" >> "$GITHUB_OUTPUT"
 
   build-layer-0:
     name: "0:${{ matrix.package }}@${{ matrix.channel }}"
@@ -119,7 +117,7 @@ jobs:
         run: |
           BASE_REF="${GITHUB_BASE_REF:-main}"
           REF_NAME="${GITHUB_REF_NAME:-}"
-          if [ "${REF_NAME\%\%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^\.github/workflows/docker\.yml'; then
+          if [ "${REF_NAME\%\%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^.github/workflows/docker.yml'; then
             echo "::error::Docker environment files modified in branch."
           fi
 
@@ -215,13 +213,11 @@ jobs:
               SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
             fi
           fi
-          {
-            echo "### 📊 Peak Memory Consumption (${{ matrix.package }})"
-            echo '```text'
-            echo "Peak RAM Usage:  ${RAM_STR}"
-            echo "Peak Swap Usage: ${SWAP_STR}"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak RAM Usage:  ${RAM_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak Swap Usage: ${SWAP_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
         env:
@@ -428,13 +424,11 @@ jobs:
               SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
             fi
           fi
-          {
-            echo "### 📊 Peak Memory Consumption (${{ matrix.package }})"
-            echo '```text'
-            echo "Peak RAM Usage:  ${RAM_STR}"
-            echo "Peak Swap Usage: ${SWAP_STR}"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak RAM Usage:  ${RAM_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak Swap Usage: ${SWAP_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
         env:
@@ -641,13 +635,11 @@ jobs:
               SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
             fi
           fi
-          {
-            echo "### 📊 Peak Memory Consumption (${{ matrix.package }})"
-            echo '```text'
-            echo "Peak RAM Usage:  ${RAM_STR}"
-            echo "Peak Swap Usage: ${SWAP_STR}"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak RAM Usage:  ${RAM_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak Swap Usage: ${SWAP_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
         env:
@@ -854,13 +846,11 @@ jobs:
               SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
             fi
           fi
-          {
-            echo "### 📊 Peak Memory Consumption (${{ matrix.package }})"
-            echo '```text'
-            echo "Peak RAM Usage:  ${RAM_STR}"
-            echo "Peak Swap Usage: ${SWAP_STR}"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "### 📊 Peak Memory Consumption (${{ matrix.package }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak RAM Usage:  ${RAM_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Peak Swap Usage: ${SWAP_STR}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
         env:
