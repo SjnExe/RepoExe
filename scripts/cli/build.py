@@ -154,7 +154,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         env['CXXFLAGS'] = f"{env.get('CXXFLAGS', '')} {recipe.cxxflags}".strip()
     if getattr(recipe, 'ldflags', None):
         env['LDFLAGS'] = f"{env.get('LDFLAGS', '')} {recipe.ldflags}".strip()
-    env['PATH'] = f"/usr/lib/llvm-21/bin:{env.get('PATH', '')}\"
+    env['PATH'] = f"/usr/lib/llvm-21/bin:{env.get('PATH', '')}"
     env["MAKEFLAGS"] = "-j4"
     env["NINJA_JOBS"] = "4"
     env["CARGO_BUILD_JOBS"] = "4"
