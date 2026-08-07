@@ -83,9 +83,17 @@ phases:
         -DENABLE_STATIC_JSC=ON \
         -DENABLE_BUN=ON \
         -DENABLE_BUN_JSC=ON \
+        -DDEVELOPER_MODE=OFF \
+        -DUSE_THINLTO=OFF \
         -DENABLE_SAMPLING_PROFILER=OFF \
-        -DCMAKE_C_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1" \
-        -DCMAKE_CXX_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1"
+        -DENABLE_REMOTE_INSPECTOR=OFF \
+        -DENABLE_EXTRA_BYTECODE_VERIFICATION=OFF \
+        -DENABLE_JIT=ON \
+        -DENABLE_DFG_JIT=ON \
+        -DENABLE_FTL_JIT=ON \
+        -DENABLE_C_LOOP=OFF \
+        -DCMAKE_C_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DNDEBUG" \
+        -DCMAKE_CXX_FLAGS="-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DNDEBUG"
       ninja -j4 jsc
 
       mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"
@@ -113,7 +121,14 @@ phases:
     if [ -f rust-toolchain.toml ]; then
       rustup show
     fi
-    bun run build:release
+
+    mkdir -p build && cd build
+    cmake -G Ninja .. \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DWEBKIT_OUT_DIR="${DESTDIR}/usr" \
+      -DCMAKE_C_COMPILER="/usr/lib/llvm-21/bin/clang" \
+      -DCMAKE_CXX_COMPILER="/usr/lib/llvm-21/bin/clang++"
+    ninja -j4 bun
 
   install: |
     mkdir -p "${DESTDIR}/usr/bin"
