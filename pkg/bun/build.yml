@@ -35,7 +35,7 @@ phases:
     fi
 
     echo "⚡ Executing Bun release build with --ci..."
-    bun scripts/build.ts --profile=release --ci
+    bun scripts/build.ts --profile=release --ci=true
 
   install: |
     mkdir -p "${DESTDIR}/usr/bin"
