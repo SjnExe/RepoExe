@@ -9,9 +9,6 @@ build_system: custom
 update_strategy: github_tag
 source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.3.14.tar.gz
 
-cflags: "-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -Wno-undefined-var-template"
-cxxflags: "-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -Wno-undefined-var-template"
-
 phases:
   prepare: |
     echo "⚡ Preparing Bun build environment..."
@@ -29,12 +26,19 @@ phases:
     export PATH="$HOME/.bun/bin:${PATH}"
     export CC="/usr/lib/llvm-21/bin/clang"
     export CXX="/usr/lib/llvm-21/bin/clang++"
-    export CFLAGS="${CFLAGS:-} -Wno-undefined-var-template"
-    export CXXFLAGS="${CXXFLAGS:-} -Wno-undefined-var-template"
 
     if [ -f rust-toolchain.toml ]; then
       rustup show
     fi
+
+    echo "⚡ Patching CMakeLists.txt to inject Clang 21 warning suppression..."
+    python3 -c "
+    import glob, os
+    for p in glob.glob('**/CMakeLists.txt', recursive=True):
+        if os.path.isfile(p):
+            with open(p, 'a', encoding='utf-8') as f:
+                f.write('\nadd_compile_options(-Wno-undefined-var-template)\n')
+    "
 
     echo "⚡ Executing Bun release build with --ci=true..."
     bun scripts/build.ts --profile=release --ci=true
