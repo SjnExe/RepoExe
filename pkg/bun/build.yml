@@ -34,23 +34,16 @@ phases:
       rustup show
     fi
 
-    echo "⚡ Executing Bun release build..."
-    bun run build:release || true
-
-    echo "⚡ Staging generated Zig object files to build target directory..."
-    if [ -d "build/release" ]; then
-      cp -f bun-zig*.o build/release/ 2>/dev/null || true
-      find . -maxdepth 2 -name "bun-zig*.o" -exec cp -f {} build/release/ \; 2>/dev/null || true
-      echo "⚡ Re-linking Bun binary..."
-      (cd build/release && ninja bun-profile)
-    fi
+    echo "⚡ Executing Bun release build with --ci..."
+    bun scripts/build.ts --profile=release --ci
 
   install: |
     mkdir -p "${DESTDIR}/usr/bin"
-    BUN_BIN=$(find . -type f -name "bun" -executable 2>/dev/null | grep -v "node_modules" | head -n 1)
+    BUN_BIN=$(find build -type f \( -name "bun" -o -name "bun-profile" \) -executable 2>/dev/null | grep -v "node_modules" | head -n 1)
     if [ -z "$BUN_BIN" ]; then
-      BUN_BIN=$(find build -type f -name "bun" 2>/dev/null | head -n 1)
+      BUN_BIN=$(find . -type f \( -name "bun" -o -name "bun-profile" \) -executable 2>/dev/null | grep -v "node_modules" | head -n 1)
     fi
+
     if [ -n "$BUN_BIN" ]; then
       install -Dm755 "$BUN_BIN" "${DESTDIR}/usr/bin/bun"
     else
