@@ -11,7 +11,7 @@ DEFAULT_BIONIC_ENV = {
     "LD": "/usr/lib/llvm-21/bin/ld.lld",
     "CFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
     "CXXFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
-    "LDFLAGS": "-Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-icf=safe -Wl,--gc-sections -Wl,-z,pack-relative-relocs",
+    "LDFLAGS": "-fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-icf=safe -Wl,--gc-sections -Wl,-z,pack-relative-relocs",
     "CARGO_BUILD_TARGET": "aarch64-linux-android",
     "GOOS": "android",
     "GOARCH": "arm64",

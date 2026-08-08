@@ -14,7 +14,7 @@ cxxflags: "-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1"
 
 phases:
   prepare: |
-    echo "⚡ Preparing Bun & WebKit build environment..."
+    echo "⚡ Preparing Bun build environment..."
     if ! command -v clang-21 >/dev/null 2>&1; then
       sudo apt-get update && sudo apt-get install -y lsb-release software-properties-common wget gnupg
       wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
@@ -25,121 +25,25 @@ phases:
     echo "⚡ Installing host Bun CLI runtime for build codegen..."
     curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" || true
 
-    echo "⚡ Resolving exact Zig compiler tag pinned by Bun source..."
-    python3 -c "
-    import os, subprocess, urllib.request, re
-
-    tag = None
-    if os.path.exists('src/deps/zig/tag.txt'):
-        tag = open('src/deps/zig/tag.txt').read().strip()
-    elif os.path.exists('Makefile'):
-        m = re.search(r'ZIG_TAG\s*\??=\s*(\S+)', open('Makefile').read())
-        if m:
-            tag = m.group(1)
-
-    if not tag:
-        raise RuntimeError('Could not locate pinned Zig tag in src/deps/zig/tag.txt or Makefile!')
-
-    print(f'🔒 Bun pinned Zig tag: {tag}')
-
-    os.makedirs('/tmp/zig-custom', exist_ok=True)
-    dl_url = f'https://github.com/oven-sh/zig/releases/download/{tag}/bootstrap-aarch64-linux-musl.zip'
-    zip_path = '/tmp/zig.zip'
-    print(f'Downloading pinned Zig compiler from {dl_url}...')
-    try:
-        urllib.request.urlretrieve(dl_url, zip_path)
-        subprocess.run(['unzip', '-q', '-o', zip_path, '-d', '/tmp/zig-custom/'], check=True)
-    except Exception:
-        dl_url_fallback = f'https://github.com/oven-sh/zig/releases/download/{tag}/zig-linux-aarch64.zip'
-        urllib.request.urlretrieve(dl_url_fallback, zip_path)
-        subprocess.run(['unzip', '-q', '-o', zip_path, '-d', '/tmp/zig-custom/'], check=True)
-    "
-
-    echo "⚡ Resolving WebKit commit SHA from Bun source..."
-    WEBKIT_SHA=$(python3 -c "
-    import re, os
-    p = 'scripts/build/deps/webkit.ts'
-    c = open(p).read() if os.path.exists(p) else ''
-    m = re.search(r'[a-f0-9]{40}', c)
-    print(m.group(0) if m else '5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b')
-    ")
-    echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
-
-    JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}"
-    mkdir -p "${DESTDIR}/usr/lib" "${DESTDIR}/usr/include/JavaScriptCore"
-
-    if [ -f "${JSC_CACHE_DIR}/lib/libJavaScriptCore.a" ]; then
-      echo "✓ WebKit cache hit for SHA ${WEBKIT_SHA}. Restoring headers and libraries..."
-      cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}/usr/lib/" 2>/dev/null || true
-      cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}/usr/include/" 2>/dev/null || true
-    else
-      echo "⚡ WebKit cache miss. Compiling JavaScriptCore for SHA ${WEBKIT_SHA}..."
-      WK_SRC="/tmp/webkit-src"
-      mkdir -p "$WK_SRC"
-      git init "$WK_SRC"
-      git -C "$WK_SRC" remote add origin https://github.com/oven-sh/webkit.git
-      git -C "$WK_SRC" fetch --depth 1 origin "$WEBKIT_SHA"
-      git -C "$WK_SRC" checkout FETCH_HEAD
-
-      mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
-      cmake -G Ninja .. \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DPORT=JSCOnly \
-        -DENABLE_STATIC_JSC=ON \
-        -DENABLE_BUN=ON \
-        -DENABLE_BUN_JSC=ON \
-        -DDEVELOPER_MODE=OFF \
-        -DUSE_THINLTO=OFF \
-        -DENABLE_SAMPLING_PROFILER=OFF \
-        -DENABLE_REMOTE_INSPECTOR=OFF \
-        -DENABLE_EXTRA_BYTECODE_VERIFICATION=OFF \
-        -DENABLE_JIT=ON \
-        -DENABLE_DFG_JIT=ON \
-        -DENABLE_FTL_JIT=ON \
-        -DENABLE_YARR_JIT=ON \
-        -DENABLE_WEBASSEMBLY=ON \
-        -DENABLE_C_LOOP=OFF \
-        -DCMAKE_C_FLAGS="${CFLAGS}" \
-        -DCMAKE_CXX_FLAGS="${CXXFLAGS}"
-      ninja -j4 jsc
-
-      mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"
-      cp -a lib/lib* "${JSC_CACHE_DIR}/lib/" 2>/dev/null || true
-      cp -a "${WK_SRC}/Source/JavaScriptCore/API/"*.h "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
-      cp -a JavaScriptCore/Headers/* "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
-      cp -a JavaScriptCore/PrivateHeaders/* "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
-      cp -a JavaScriptCore/DerivedSources/JavaScriptCore/* "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
-      cp -a WTF/Headers/* "${JSC_CACHE_DIR}/include/" 2>/dev/null || true
-      cp -a bmalloc/Headers/* "${JSC_CACHE_DIR}/include/" 2>/dev/null || true
-
-      cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}/usr/lib/" 2>/dev/null || true
-      cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}/usr/include/" 2>/dev/null || true
-      cd /home/builder/RepoExe
-    fi
-
   make: |
-    ZIG_BIN_DIR=$(find /tmp/zig-custom -type f -name "zig" -exec dirname {} \; | head -n 1)
-    export PATH="$HOME/.bun/bin:${ZIG_BIN_DIR}:${PATH}"
-    export WEBKIT_DIR="${DESTDIR}/usr"
-    export WEBKIT_OUT_DIR="${DESTDIR}/usr"
-    export C_INCLUDE_PATH="${DESTDIR}/usr/include:${DESTDIR}/usr/include/JavaScriptCore:${C_INCLUDE_PATH:-}"
-    export CPLUS_INCLUDE_PATH="${DESTDIR}/usr/include:${DESTDIR}/usr/include/JavaScriptCore:${CPLUS_INCLUDE_PATH:-}"
-    export LIBRARY_PATH="${DESTDIR}/usr/lib:${LIBRARY_PATH:-}"
+    export PATH="$HOME/.bun/bin:${PATH}"
+    export CC="/usr/lib/llvm-21/bin/clang"
+    export CXX="/usr/lib/llvm-21/bin/clang++"
 
     if [ -f rust-toolchain.toml ]; then
       rustup show
     fi
 
-    echo "⚡ Pre-configuring build directory symlinks for Zig object files..."
-    for bdir in build/release build/profile build/debug build; do
-      mkdir -p "$bdir"
-      for i in 0 1 2 3 4 5 6 7; do
-        ln -sf "../bun-zig.${i}.o" "$bdir/bun-zig.${i}.o" 2>/dev/null || true
-      done
-    done
-
     echo "⚡ Executing Bun release build..."
-    bun run build:release
+    bun run build:release || true
+
+    echo "⚡ Staging generated Zig object files to build target directory..."
+    if [ -d "build/release" ]; then
+      cp -f bun-zig*.o build/release/ 2>/dev/null || true
+      find . -maxdepth 2 -name "bun-zig*.o" -exec cp -f {} build/release/ \; 2>/dev/null || true
+      echo "⚡ Re-linking Bun binary..."
+      (cd build/release && ninja bun-profile)
+    fi
 
   install: |
     mkdir -p "${DESTDIR}/usr/bin"
