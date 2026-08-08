@@ -25,33 +25,17 @@ phases:
   make: |
     export PATH="$HOME/.bun/bin:${PATH}"
     export CC="/usr/lib/llvm-21/bin/clang"
-
-    echo "⚡ Creating dynamic CXX wrapper to resolve bun-zig.o at link time..."
-    python3 -c '
-    import os
-    wrapper_script = """#!/bin/bash
-    if [[ "$*" == *"bun-zig.o"* ]] || [[ "$*" == *"@bun-profile.rsp"* ]]; then
-        if [ ! -f "bun-zig.o" ]; then
-            FOUND=$(find /home/builder/RepoExe/build/build_bun/src -name "bun-zig.o" -type f 2>/dev/null | head -n 1)
-            if [ -n "$FOUND" ]; then
-                cp -f "$FOUND" ./bun-zig.o
-                echo "[CXX Wrapper] Successfully located and synced bun-zig.o from $FOUND"
-            fi
-        fi
-    fi
-    exec /usr/lib/llvm-21/bin/clang++ "$@"
-    """
-    with open("/tmp/clang++-wrapper", "w", encoding="utf-8") as f:
-        f.write(wrapper_script)
-    os.chmod("/tmp/clang++-wrapper", 0o755)
-    '
-    export CXX="/tmp/clang++-wrapper"
+    export CXX="/usr/lib/llvm-21/bin/clang++"
 
     if [ -f rust-toolchain.toml ]; then
       rustup show
     fi
 
-    echo "⚡ Suppressing Clang 21 C++23 template warnings in bindings..."
+    echo "⚡ Pre-creating build/release target directory and dangling relative symlink for bun-zig.o..."
+    mkdir -p build/release
+    ln -sf ../../bun-zig.o build/release/bun-zig.o
+
+    echo "⚡ Suppressing Clang 21 C++23 template warnings in binding C++ files..."
     python3 -c '
     import glob, os
     for cpp in glob.glob("src/jsc/bindings/**/*.cpp", recursive=True) + glob.glob("src/jsc/bindings/*.cpp"):
@@ -62,6 +46,11 @@ phases:
             if pragma not in code:
                 with open(cpp, "w", encoding="utf-8") as f:
                     f.write(pragma + code)
+
+    for p in glob.glob("**/CMakeLists.txt", recursive=True):
+        if os.path.isfile(p):
+            with open(p, "a", encoding="utf-8") as f:
+                f.write("\nadd_compile_options(-Wno-undefined-var-template)\n")
     '
 
     echo "⚡ Executing Bun release build with --ci=true..."
