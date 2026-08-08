@@ -10,7 +10,7 @@ update_strategy: github_tag
 source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.3.14.tar.gz
 
 cflags: "-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1"
-cxxflags: "-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1"
+cxxflags: "-DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -Wno-undefined-var-template"
 
 phases:
   prepare: |
@@ -29,6 +29,7 @@ phases:
     export PATH="$HOME/.bun/bin:${PATH}"
     export CC="/usr/lib/llvm-21/bin/clang"
     export CXX="/usr/lib/llvm-21/bin/clang++"
+    export CXXFLAGS="${CXXFLAGS:-} -Wno-undefined-var-template"
 
     if [ -f rust-toolchain.toml ]; then
       rustup show
