@@ -31,20 +31,37 @@ phases:
       rustup show
     fi
 
-    echo "⚡ Patching scripts/build.ts and C++ sources to suppress Clang 21 template warnings..."
+    echo "⚡ Patching scripts/build.ts to suppress Clang 21 warnings and sync bun-zig.o path..."
     python3 -c '
-    import glob, os
+    import glob, os, shutil
 
-    # 1. Patch Bun build orchestrator flags
+    # 1. Patch scripts/build.ts warning flags and ensure bun-zig.o is synced to release dir
     if os.path.isfile("scripts/build.ts"):
         with open("scripts/build.ts", "r", encoding="utf-8") as f:
             content = f.read()
+        
+        # Inject warning suppression flags
         content = content.replace("\"-Wno-character-conversion\"", "\"-Wno-character-conversion\", \"-Wno-undefined-var-template\", \"-Wno-error=undefined-var-template\"")
         content = content.replace("\"-Werror\"", "\"-Werror\", \"-Wno-undefined-var-template\", \"-Wno-error=undefined-var-template\"")
+
+        # Inject automatic bun-zig.o relocation logic into build.ts
+        sync_code = """
+    // Automatically ensure bun-zig.o is synced to release directory
+    for (const searchPath of ["bun-zig.o", "zig-out/lib/bun-zig.o", "zig-out/bin/bun-zig.o"]) {
+      if (require("fs").existsSync(searchPath)) {
+        require("fs").mkdirSync("build/release", { recursive: true });
+        require("fs").copyFileSync(searchPath, "build/release/bun-zig.o");
+        break;
+      }
+    }
+    """
+        if "bun-zig.o" not in content or "copyFileSync" not in content:
+            content = content.replace("await runNinja(", sync_code + "\n    await runNinja(");
+
         with open("scripts/build.ts", "w", encoding="utf-8") as f:
             f.write(content)
 
-    # 2. Inject diagnostic pragmas directly into binding C++ files
+    # 2. Inject diagnostic pragmas directly into C++ binding files
     for cpp in glob.glob("src/jsc/bindings/**/*.cpp", recursive=True) + glob.glob("src/jsc/bindings/*.cpp"):
         if os.path.isfile(cpp):
             with open(cpp, "r", encoding="utf-8") as f:
@@ -53,12 +70,6 @@ phases:
             if pragma not in code:
                 with open(cpp, "w", encoding="utf-8") as f:
                     f.write(pragma + code)
-
-    # 3. Fallback patch for vendor CMake sub-projects
-    for p in glob.glob("**/CMakeLists.txt", recursive=True):
-        if os.path.isfile(p):
-            with open(p, "a", encoding="utf-8") as f:
-                f.write("\nadd_compile_options(-Wno-undefined-var-template)\n")
     '
 
     echo "⚡ Executing Bun release build with --ci=true..."

@@ -4,6 +4,11 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=en_US.UTF-8
 
+# Pre-create systemd groups and users to prevent tmpfiles warning logs during APT package setup
+RUN groupadd -r systemd-journal -g 999 2>/dev/null || true \
+ && groupadd -r systemd-network -g 998 2>/dev/null || true \
+ && useradd -r -g systemd-network -u 998 -d /run/systemd -s /bin/false systemd-network 2>/dev/null || true
+
 # Base dependencies with APT cache mounts
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
@@ -73,7 +78,7 @@ RUN --mount=type=cache,target=/home/builder/.cargo/registry \
     cargo install cargo-c cargo-audit || true
 
 USER root
-# Apply NDK Patches dynamically (deferred to prevent breaking toolchain layers)
+# Apply NDK Patches dynamically
 COPY scripts/docker/ndk-patches /tmp/ndk-patches
 RUN PREBUILT_DIR=$(ls ${NDK}/toolchains/llvm/prebuilt | head -n1) \
   && cd ${NDK}/toolchains/llvm/prebuilt/${PREBUILT_DIR}/sysroot \
