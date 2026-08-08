@@ -31,14 +31,35 @@ phases:
       rustup show
     fi
 
-    echo "⚡ Patching CMakeLists.txt to inject Clang 21 warning suppression..."
-    python3 -c "
+    echo "⚡ Patching scripts/build.ts and C++ sources to suppress Clang 21 template warnings..."
+    python3 -c '
     import glob, os
-    for p in glob.glob('**/CMakeLists.txt', recursive=True):
+
+    # 1. Patch Bun build orchestrator flags
+    if os.path.isfile("scripts/build.ts"):
+        with open("scripts/build.ts", "r", encoding="utf-8") as f:
+            content = f.read()
+        content = content.replace("\"-Wno-character-conversion\"", "\"-Wno-character-conversion\", \"-Wno-undefined-var-template\", \"-Wno-error=undefined-var-template\"")
+        content = content.replace("\"-Werror\"", "\"-Werror\", \"-Wno-undefined-var-template\", \"-Wno-error=undefined-var-template\"")
+        with open("scripts/build.ts", "w", encoding="utf-8") as f:
+            f.write(content)
+
+    # 2. Inject diagnostic pragmas directly into binding C++ files
+    for cpp in glob.glob("src/jsc/bindings/**/*.cpp", recursive=True) + glob.glob("src/jsc/bindings/*.cpp"):
+        if os.path.isfile(cpp):
+            with open(cpp, "r", encoding="utf-8") as f:
+                code = f.read()
+            pragma = "#pragma clang diagnostic ignored \"-Wundefined-var-template\"\n"
+            if pragma not in code:
+                with open(cpp, "w", encoding="utf-8") as f:
+                    f.write(pragma + code)
+
+    # 3. Fallback patch for vendor CMake sub-projects
+    for p in glob.glob("**/CMakeLists.txt", recursive=True):
         if os.path.isfile(p):
-            with open(p, 'a', encoding='utf-8') as f:
-                f.write('\nadd_compile_options(-Wno-undefined-var-template)\n')
-    "
+            with open(p, "a", encoding="utf-8") as f:
+                f.write("\nadd_compile_options(-Wno-undefined-var-template)\n")
+    '
 
     echo "⚡ Executing Bun release build with --ci=true..."
     bun scripts/build.ts --profile=release --ci=true
