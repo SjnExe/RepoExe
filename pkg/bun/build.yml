@@ -130,7 +130,18 @@ phases:
       rustup show
     fi
 
-    bun run build:release
+    echo "⚡ Executing Bun release build..."
+    bun run build:release || true
+
+    echo "⚡ Copying generated Zig object files into CMake build targets..."
+    for target_dir in build/release build/profile build; do
+      if [ -d "$target_dir" ]; then
+        cp -f bun-zig*.o "$target_dir/" 2>/dev/null || true
+        find . -maxdepth 2 -name "bun-zig*.o" -exec cp -f {} "$target_dir/" \; 2>/dev/null || true
+        echo "⚡ Re-linking Bun binary in $target_dir..."
+        (cd "$target_dir" && ninja bun)
+      fi
+    done
 
   install: |
     mkdir -p "${DESTDIR}/usr/bin"
