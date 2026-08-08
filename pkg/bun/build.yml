@@ -25,30 +25,35 @@ phases:
   make: |
     export PATH="$HOME/.bun/bin:${PATH}"
     export CC="/usr/lib/llvm-21/bin/clang"
-    export CXX="/usr/lib/llvm-21/bin/clang++"
+
+    echo "⚡ Creating dynamic CXX wrapper to resolve bun-zig.o at link time..."
+    python3 -c '
+    import os
+    wrapper_script = """#!/bin/bash
+    if [[ "$*" == *"bun-zig.o"* ]] || [[ "$*" == *"@bun-profile.rsp"* ]]; then
+        if [ ! -f "bun-zig.o" ]; then
+            FOUND=$(find /home/builder/RepoExe/build/build_bun/src -name "bun-zig.o" -type f 2>/dev/null | head -n 1)
+            if [ -n "$FOUND" ]; then
+                cp -f "$FOUND" ./bun-zig.o
+                echo "[CXX Wrapper] Successfully located and synced bun-zig.o from $FOUND"
+            fi
+        fi
+    fi
+    exec /usr/lib/llvm-21/bin/clang++ "$@"
+    """
+    with open("/tmp/clang++-wrapper", "w", encoding="utf-8") as f:
+        f.write(wrapper_script)
+    os.chmod("/tmp/clang++-wrapper", 0o755)
+    '
+    export CXX="/tmp/clang++-wrapper"
 
     if [ -f rust-toolchain.toml ]; then
       rustup show
     fi
 
-    echo "⚡ Pre-creating build directory symlink for bun-zig.o..."
-    mkdir -p build/release
-    ln -sf ../../bun-zig.o build/release/bun-zig.o
-
-    echo "⚡ Patching build orchestrator and C++ sources for Clang 21 compatibility..."
+    echo "⚡ Suppressing Clang 21 C++23 template warnings in bindings..."
     python3 -c '
     import glob, os
-
-    # 1. Inject Clang 21 warning suppression into build.ts
-    if os.path.isfile("scripts/build.ts"):
-        with open("scripts/build.ts", "r", encoding="utf-8") as f:
-            content = f.read()
-        content = content.replace("\"-Wno-character-conversion\"", "\"-Wno-character-conversion\", \"-Wno-undefined-var-template\", \"-Wno-error=undefined-var-template\"")
-        content = content.replace("\"-Werror\"", "\"-Werror\", \"-Wno-undefined-var-template\", \"-Wno-error=undefined-var-template\"")
-        with open("scripts/build.ts", "w", encoding="utf-8") as f:
-            f.write(content)
-
-    # 2. Inject warning suppression pragmas into C++ binding files
     for cpp in glob.glob("src/jsc/bindings/**/*.cpp", recursive=True) + glob.glob("src/jsc/bindings/*.cpp"):
         if os.path.isfile(cpp):
             with open(cpp, "r", encoding="utf-8") as f:
