@@ -31,33 +31,21 @@ phases:
       rustup show
     fi
 
-    echo "⚡ Patching scripts/build.ts to suppress Clang 21 warnings and sync bun-zig.o path..."
-    python3 -c '
-    import glob, os, shutil
+    echo "⚡ Pre-creating build directory symlinks for bun-zig.o..."
+    mkdir -p build/release
+    ln -sf ../../bun-zig.o build/release/bun-zig.o
+    ln -sf ../../zig-out/lib/bun-zig.o build/release/bun-zig.o 2>/dev/null || true
 
-    # 1. Patch scripts/build.ts warning flags and ensure bun-zig.o is synced to release dir
+    echo "⚡ Patching scripts/build.ts and C++ sources to suppress Clang 21 warnings..."
+    python3 -c '
+    import glob, os
+
+    # 1. Inject warning suppression flags into build.ts
     if os.path.isfile("scripts/build.ts"):
         with open("scripts/build.ts", "r", encoding="utf-8") as f:
             content = f.read()
-        
-        # Inject warning suppression flags
         content = content.replace("\"-Wno-character-conversion\"", "\"-Wno-character-conversion\", \"-Wno-undefined-var-template\", \"-Wno-error=undefined-var-template\"")
         content = content.replace("\"-Werror\"", "\"-Werror\", \"-Wno-undefined-var-template\", \"-Wno-error=undefined-var-template\"")
-
-        # Inject automatic bun-zig.o relocation logic into build.ts
-        sync_code = """
-    // Automatically ensure bun-zig.o is synced to release directory
-    for (const searchPath of ["bun-zig.o", "zig-out/lib/bun-zig.o", "zig-out/bin/bun-zig.o"]) {
-      if (require("fs").existsSync(searchPath)) {
-        require("fs").mkdirSync("build/release", { recursive: true });
-        require("fs").copyFileSync(searchPath, "build/release/bun-zig.o");
-        break;
-      }
-    }
-    """
-        if "bun-zig.o" not in content or "copyFileSync" not in content:
-            content = content.replace("await runNinja(", sync_code + "\n    await runNinja(");
-
         with open("scripts/build.ts", "w", encoding="utf-8") as f:
             f.write(content)
 
@@ -74,6 +62,11 @@ phases:
 
     echo "⚡ Executing Bun release build with --ci=true..."
     bun scripts/build.ts --profile=release --ci=true
+
+    # Post-build verification: Ensure link step finds bun-zig.o if Ninja re-executes
+    if [ ! -f "build/release/bun-zig.o" ] && [ -f "bun-zig.o" ]; then
+      cp -f bun-zig.o build/release/bun-zig.o
+    fi
 
   install: |
     mkdir -p "${DESTDIR}/usr/bin"
