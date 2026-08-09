@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -yq --no-install-recommends \
     zstd locales apt-utils eatmydata sudo curl git ca-certificates aria2 \
-    unzip patch build-essential cmake ninja-build meson pkg-config gettext intltool itstool nodejs npm shellcheck \
+    unzip patch xvfb xauth libgtk-3-dev libcanberra-gtk3-dev libcairo2-dev libx11-dev libxext-dev libxrender-dev build-essential cmake ninja-build meson pkg-config gettext intltool itstool nodejs npm shellcheck \
     proot abigail-tools graphviz dpkg-dev gcc g++ clang lld llvm ruby ruby-dev bison flex gperf libicu-dev python3-pip python3-yaml python3-pydantic docker.io \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \
@@ -69,7 +69,7 @@ RUN --mount=type=cache,target=/home/builder/.cache/pip \
 
 # Install Rust Toolchain for ARM64
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \
- && /home/builder/.cargo/bin/rustup target add aarch64-unknown-linux-musl aarch64-unknown-linux-gnu
+ && /home/builder/.cargo/bin/rustup target add aarch64-linux-android aarch64-unknown-linux-musl aarch64-unknown-linux-gnu
 ENV PATH="/home/builder/.cargo/bin:${PATH}"
 
 # Install Cargo tools with cache mounts
