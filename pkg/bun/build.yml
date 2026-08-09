@@ -11,6 +11,7 @@ build_system: custom
 deps:
   - libstdc++
   - zlib
+  - glibc-runner
 
 formats:
   - apt
@@ -28,7 +29,7 @@ phases:
     set -e
     echo "⚡ Preparing Bun build environment..."
     if ! command -v clang-21 >/dev/null 2>&1; then
-      sudo apt-get update && sudo apt-get install -y lsb-release software-properties-common wget gnupg
+      sudo apt-get update && sudo apt-get install -y lsb-release software-properties-common wget gnupg patchelf
       wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
       chmod +x /tmp/llvm.sh
       sudo /tmp/llvm.sh 21 || sudo apt-get install -y clang-21 lld-21 || true
@@ -107,6 +108,9 @@ phases:
 
     if [ -n "$BUN_BIN" ]; then
       install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
+    if command -v patchelf >/dev/null 2>&1; then
+      patchelf --set-interpreter "${PREFIX}/glibc/lib/ld-linux-aarch64.so.1" --set-rpath "${PREFIX}/glibc/lib:${PREFIX}/lib" "${DESTDIR}${PREFIX}/bin/bun" || true
+    fi
     else
       echo "::error::bun executable binary not found after build!"
       exit 1

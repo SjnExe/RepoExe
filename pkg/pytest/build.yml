@@ -16,6 +16,8 @@ formats:
 
 phases:
   install: |
+    git config --global --add safe.directory "*" || true
+    export SETUPTOOLS_SCM_PRETEND_VERSION="8.3.4"
     mkdir -p "${DESTDIR}${PREFIX}"
     python3 -m pip install --ignore-installed --prefix="${DESTDIR}${PREFIX}" .
   test: |
