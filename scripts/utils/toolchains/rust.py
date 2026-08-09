@@ -23,7 +23,7 @@ class RustToolchain:
         linker = native_env.get("CC", "clang")
         env = {
             "CARGO_BUILD_TARGET": self.target,
-            "RUSTFLAGS": f"-L{PREFIX}/lib -C linker={linker} -C link-arg=-Wl,-z,max-page-size=16384",
+            "RUSTFLAGS": f"-L{PREFIX}/lib -C linker={linker} -C link-arg=--target={self.target} -C link-arg=-Wl,-z,max-page-size=16384",
             f"CARGO_TARGET_{target_key}_LINKER": linker,
         }
         return env
