@@ -117,3 +117,6 @@ phases:
     "${DESTDIR}/usr/bin/bun" eval "console.log('Bun Android Bionic Runtime OK')"
     "${DESTDIR}/usr/bin/bun" eval "import { xxhash64 } from 'bun'; console.log('xxhash:', xxhash64('android'))"
     "${DESTDIR}/usr/bin/bun" --version
+
+vars:
+  RUSTC_BOOTSTRAP: "1"

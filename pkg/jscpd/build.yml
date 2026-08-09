@@ -7,8 +7,8 @@ license: MIT
 homepage: https://jscpd.dev
 maintainer: SjnExe
 auto_update: true
-update_strategy: github_tag
-source_url: https://github.com/kucherenko/jscpd/archive/refs/tags/v{version}.tar.gz
+update_strategy: crates
+source_url: https://static.crates.io/crates/jscpd/jscpd-{version}.crate
 build_system: cargo
 formats:
   - npm

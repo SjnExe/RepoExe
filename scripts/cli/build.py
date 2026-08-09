@@ -22,9 +22,9 @@ DEFAULT_BIONIC_ENV = {
     "CC": clang_bin,
     "CXX": clangxx_bin,
     "LD": ld_bin,
-    "CFLAGS": "--target=aarch64-linux-android24 -O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
-    "CXXFLAGS": "--target=aarch64-linux-android24 -O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
-    "LDFLAGS": "--target=aarch64-linux-android24 -fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-icf=safe -Wl,--gc-sections -Wl,-z,pack-relative-relocs",
+    "CFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
+    "CXXFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
+    "LDFLAGS": "-fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-icf=safe -Wl,--gc-sections -Wl,-z,pack-relative-relocs",
     "CARGO_BUILD_TARGET": "aarch64-linux-android",
     "GOOS": "android",
     "GOARCH": "arm64",
@@ -32,6 +32,7 @@ DEFAULT_BIONIC_ENV = {
     "TMPDIR": "/tmp",
     "GOTMPDIR": "/tmp",
     "RUSTUP_TOOLCHAIN": "stable",
+    "RUSTC_BOOTSTRAP": "1",
 }
 
 import sys
