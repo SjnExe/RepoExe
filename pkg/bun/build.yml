@@ -71,7 +71,7 @@ phases:
         "        fi",
         "    fi",
         "fi",
-        "exec /usr/lib/llvm-21/bin/clang++.real -Wno-undefined-var-template -Wno-error=undefined-var-template \"$@\" -lm -lc++",
+        "exec /usr/lib/llvm-21/bin/clang++.real -Wno-undefined-var-template -Wno-error=undefined-var-template -Wno-unused-command-line-argument \"$@\" -lm -lc++",
         ""
     ])
     with open(clang_bin, "w", encoding="utf-8") as f:
