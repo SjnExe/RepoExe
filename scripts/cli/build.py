@@ -1,3 +1,39 @@
+
+def fix_termux_shebangs(stage_dir):
+    """Normalizes host shebangs in staged binaries to Termux Bionic paths."""
+    if not stage_dir or not os.path.exists(stage_dir):
+        return
+    prefix = "/data/data/com.termux/files/usr"
+    replacements = {
+        "#!/bin/sh": f"#!{prefix}/bin/sh",
+        "#!/bin/bash": f"#!{prefix}/bin/bash",
+        "#!/usr/bin/env sh": f"#!{prefix}/bin/sh",
+        "#!/usr/bin/env bash": f"#!{prefix}/bin/bash",
+        "#!/usr/bin/env python": f"#!{prefix}/bin/python3",
+        "#!/usr/bin/env python3": f"#!{prefix}/bin/python3",
+        "#!/usr/bin/python": f"#!{prefix}/bin/python3",
+        "#!/usr/bin/python3": f"#!{prefix}/bin/python3",
+    }
+    for root, _, files in os.walk(stage_dir):
+        for file in files:
+            fpath = os.path.join(root, file)
+            try:
+                if os.path.islink(fpath) or os.path.getsize(fpath) > 2 * 1024 * 1024:
+                    continue
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                    first_line = f.readline().strip()
+                for old_sb, new_sb in replacements.items():
+                    if first_line == old_sb or first_line.startswith(f"{old_sb} "):
+                        with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                            file_content = f.read()
+                        new_content = file_content.replace(first_line, new_sb, 1)
+                        with open(fpath, "w", encoding="utf-8") as f:
+                            f.write(new_content)
+                        os.chmod(fpath, 0o755)
+                        break
+            except Exception:
+                pass
+
 import sys
 from pathlib import Path
 
@@ -465,6 +501,7 @@ def main() -> None:
 
         if args.command == "compile":
             execute_compile(recipe, p_dir, destdir)
+            fix_termux_shebangs(destdir)
         elif args.command == "pack":
             execute_pack(recipe, p_dir, destdir, output_dir)
         elif args.command == "test":

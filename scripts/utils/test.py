@@ -14,7 +14,7 @@ class ProotTestRunner:
         print(f"[{package_name}] Running tests in Termux Docker sandbox...")
 
         stage_dir = destdir / "stage" if destdir else None
-        
+
         repo_owner = os.environ.get("REPO_OWNER", "sjnexe").lower()
         default_image = f"ghcr.io/{repo_owner}/repoexe-tester:latest"
         termux_image = os.environ.get("TERMUX_TESTER_IMAGE", default_image)
@@ -25,10 +25,21 @@ class ProotTestRunner:
             "set -eo pipefail",
             f'export PREFIX="{self.prefix}"',
             f'export HOME="{self.home}"',
-            'export PATH="/tmp/stage/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PATH"',
-            'export LD_LIBRARY_PATH="/tmp/stage/data/data/com.termux/files/usr/lib:/tmp/stage/usr/lib:$PREFIX/lib:$LD_LIBRARY_PATH"',
-            'if command -v xvfb-run >/dev/null 2>&1 && [ -z "$DISPLAY" ]; then EXEC_PREFIX="xvfb-run -a "; else EXEC_PREFIX=""; fi',
-            f'eval "${{EXEC_PREFIX}}{test_commands}"',
+            'STAGE_BIN="$(find /tmp/stage -type d -name bin 2>/dev/null | paste -sd: -)"',
+            'export PATH="${STAGE_BIN:+$STAGE_BIN:}/tmp/stage/data/data/com.termux/files/usr/bin:/tmp/stage/usr/bin:$PREFIX/bin:$PATH"',
+            'STAGE_LIB="$(find /tmp/stage -type d -name lib 2>/dev/null | paste -sd: -)"',
+            'export LD_LIBRARY_PATH="${STAGE_LIB:+$STAGE_LIB:}/tmp/stage/data/data/com.termux/files/usr/lib:/tmp/stage/usr/lib:$PREFIX/lib:$LD_LIBRARY_PATH"',
+            'STAGE_PY="$(find /tmp/stage -type d -name site-packages 2>/dev/null | paste -sd: -)"',
+            'export PYTHONPATH="${STAGE_PY:+$STAGE_PY:}${PYTHONPATH}"',
+            "cat << 'TEST_EOF' > $HOME/test_payload.sh",
+            test_commands,
+            "TEST_EOF",
+            "chmod +x $HOME/test_payload.sh",
+            'if command -v xvfb-run >/dev/null 2>&1 && [ -z "$DISPLAY" ]; then',
+            '  xvfb-run -a $HOME/test_payload.sh',
+            'else',
+            '  $HOME/test_payload.sh',
+            'fi',
         ]
         script_content = "\n".join(script_lines) + "\n"
         script_path.write_text(script_content, encoding="utf-8")
