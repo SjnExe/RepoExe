@@ -25,7 +25,7 @@ def test_python_toolchain():
 def test_rust_toolchain():
     tc = RustToolchain("aarch64")
     env = tc.get_env({"CC": "myclang"})
-    assert env["CARGO_BUILD_TARGET"] == "aarch64-unknown-linux-musl"
+    assert env["CARGO_BUILD_TARGET"] == "aarch64-linux-android"
     assert env["CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"] == "myclang"
 
 

@@ -6,7 +6,9 @@ description: Simple powerful testing framework for Python
 license: MIT
 homepage: https://pytest.org
 maintainer: SjnExe
-source_url: https://files.pythonhosted.org/packages/source/p/pytest/pytest-8.3.4.tar.gz
+auto_update: true
+update_strategy: pypi
+source_url: https://files.pythonhosted.org/packages/source/p/pytest/pytest-{version}.tar.gz
 build_system: custom
 formats:
   - pip
