@@ -20,10 +20,14 @@ channels:
 build_system: custom
 phases:
   prepare: |
-    export PYO3_PYTHON="$(readlink -f $(which python3))"
+    PY_VER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+    export MATURIN_PEP517_ARGS="--interpreter python${PY_VER}"
+    export PYO3_PYTHON="$(which python${PY_VER})"
     python3 -m pip install --break-system-packages maturin
   make: |
-    export PYO3_PYTHON="$(readlink -f $(which python3))"
+    PY_VER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+    export MATURIN_PEP517_ARGS="--interpreter python${PY_VER}"
+    export PYO3_PYTHON="$(which python${PY_VER})"
     python3 -m pip wheel . -w output/ || true
     python3 -m pip install --break-system-packages --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
