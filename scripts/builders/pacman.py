@@ -21,7 +21,7 @@ def build_pacman(
         "arm": "armv7h",
         "i686": "pentium4",
     }
-    pkg_arch = arch_map.get(recipe.architecture or target_arch, "aarch64")
+    pkg_arch = arch_map.get(recipe.arch or target_arch, "aarch64")
     version_str = (
         f"{recipe.version}-{recipe.revision}"
         if recipe.revision > 0
@@ -36,6 +36,19 @@ def build_pacman(
         f"arch = {pkg_arch}",
         f"license = {recipe.license or 'MIT'}",
     ]
+    if recipe.deps:
+        for d in recipe.deps:
+            pkginfo_lines.append(f"depend = {d}")
+    if recipe.conflicts:
+        for c in recipe.conflicts:
+            pkginfo_lines.append(f"conflict = {c}")
+    if recipe.provides:
+        for p in recipe.provides:
+            pkginfo_lines.append(f"provides = {p}")
+    if recipe.replaces:
+        for r in recipe.replaces:
+            pkginfo_lines.append(f"replaces = {r}")
+
     (stage_dir / ".PKGINFO").write_text(
         "\n".join(pkginfo_lines) + "\n", encoding="utf-8"
     )

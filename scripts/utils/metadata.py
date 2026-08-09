@@ -34,7 +34,6 @@ def generate_packages_json(
                     recipe = parse_recipe(recipe_file)
                     formats = getattr(recipe, "formats", ["apt", "pacman", "apk"])
 
-                    # Aggregate channel versions
                     channels_list = []
                     ch_names = (
                         list(recipe.channels.keys()) if recipe.channels else ["latest"]
@@ -67,11 +66,17 @@ def generate_packages_json(
                             "name": recipe.name,
                             "description": recipe.description
                             or f"{recipe.name} binary package",
-                            "architecture": recipe.architecture or "aarch64",
+                            "arch": recipe.arch or "aarch64",
                             "license": recipe.license or "MIT",
                             "homepage": recipe.homepage
                             or "https://github.com/SjnExe/RepoExe",
                             "formats": sorted(set(formats)),
+                            "deps": recipe.deps,
+                            "recommends": recipe.recommends,
+                            "suggests": recipe.suggests,
+                            "conflicts": recipe.conflicts,
+                            "provides": recipe.provides,
+                            "replaces": recipe.replaces,
                             "channels": channels_list,
                             "verified_built": any(
                                 recipe.name in f for f in available_files

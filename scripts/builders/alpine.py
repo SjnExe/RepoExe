@@ -15,7 +15,7 @@ def build_alpine(
     out_path.mkdir(parents=True, exist_ok=True)
 
     arch_map = {"aarch64": "aarch64", "x86_64": "x86_64", "arm": "armhf"}
-    pkg_arch = arch_map.get(recipe.architecture or target_arch, "aarch64")
+    pkg_arch = arch_map.get(recipe.arch or target_arch, "aarch64")
     version_str = (
         f"{recipe.version}-r{recipe.revision}"
         if recipe.revision > 0
@@ -30,6 +30,9 @@ def build_alpine(
         f"arch = {pkg_arch}",
         f"license = {recipe.license or 'MIT'}",
     ]
+    if recipe.deps:
+        pkginfo_lines.append(f"depend = {' '.join(recipe.deps)}")
+
     (stage_dir / ".PKGINFO").write_text(
         "\n".join(pkginfo_lines) + "\n", encoding="utf-8"
     )

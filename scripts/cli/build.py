@@ -170,7 +170,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     build_sys = getattr(recipe, "build_system", None)
     if build_sys:
         with contextlib.suppress(Exception):
-            setup_build_environment(build_sys, recipe.architecture)
+            setup_build_environment(build_sys, recipe.arch)
 
     print(f"[COMPILING] Package: {recipe.name} (Channel: {recipe.active_channel})")
 
@@ -332,16 +332,16 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
             recipe,
             str(destdir),
             str(output_dir),
-            target_arch=recipe.architecture,
+            target_arch=recipe.arch,
             pkg_src_dir=pkg_dir,
         )
     if "pacman" in target_formats:
         build_pacman(
-            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+            recipe, str(destdir), str(output_dir), target_arch=recipe.arch
         )
     if "apk" in target_formats:
         build_alpine(
-            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+            recipe, str(destdir), str(output_dir), target_arch=recipe.arch
         )
     if "pip" in target_formats:
         build_pip(recipe, str(destdir), str(output_dir))
@@ -354,7 +354,7 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
         "name": recipe.name,
         "version": recipe.version,
         "revision": recipe.revision,
-        "architecture": recipe.architecture,
+        "arch": recipe.arch,
         "state_hash": recipe.state_hash,
         "channel": recipe.active_channel,
     }
