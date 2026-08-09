@@ -63,13 +63,14 @@ jobs:
           context: .
           file: ${{ matrix.file }}
           push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
-          load: true
+          load: ${{ github.ref != 'refs/heads/main' && github.event_name != 'workflow_dispatch' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'type=gha,mode=max' || '' }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
           provenance: false
 
       - name: Fast Docker Container Verification
+        if: github.ref != 'refs/heads/main' && github.event_name != 'workflow_dispatch'
         run: |
           docker run --rm "ghcr.io/${{ env.OWNER }}/${{ matrix.image }}:latest" echo "✓ ${{ matrix.image }} healthy"
