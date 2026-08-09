@@ -6,13 +6,14 @@ ENV HOME=/data/data/com.termux/files/home
 ENV PATH=${PREFIX}/bin:${PATH}
 ENV LD_LIBRARY_PATH=${PREFIX}/lib
 
-# Termux apt blocks root (UID 0). Grant ownership to UID 1000 and switch user.
+# Grant ownership of Termux files to non-root UID 1000
 USER root
 RUN chown -R 1000:1000 /data/data/com.termux/files
 
+# Termux pkg requires non-root user (UID 1000)
 USER 1000:1000
 
-# Pre-install core testing utilities, Python runtime, and X11/GTK/Font runtimes as non-root
-RUN apt-get update  && apt-get upgrade -y  && apt-get install -y       binutils       coreutils       findutils       grep       sed       gawk       tar       gzip       zstd       procps       python       python-pip       x11-repo  && apt-get update  && apt-get install -y       xvfb       xauth       libgtk-3       libcairo       libcanberra       pango       fontconfig       dejavu-fonts-ttf       desktop-file-utils       shared-mime-info  && apt-get clean
+# Pre-install core testing utilities, Python, X11 & Root repos, GTK3 and DejaVu fonts using pkg
+RUN pkg update -y  && pkg upgrade -y  && pkg install -y       binutils       coreutils       findutils       grep       sed       gawk       tar       gzip       zstd       procps       python       python-pip       x11-repo       root-repo  && pkg install -y       xorg-server-xvfb       xorg-xauth       gtk3       libcairo       libcanberra       pango       fontconfig       ttf-dejavu       desktop-file-utils       shared-mime-info  && pkg clean
 
 WORKDIR /data/data/com.termux/files/home
