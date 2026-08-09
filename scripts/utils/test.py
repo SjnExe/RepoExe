@@ -29,7 +29,7 @@ class ProotTestRunner:
             'export PATH="${STAGE_BIN:+$STAGE_BIN:}/tmp/stage/data/data/com.termux/files/usr/bin:/tmp/stage/usr/bin:$PREFIX/bin:$PATH"',
             'STAGE_LIB="$(find /tmp/stage -type d -name lib 2>/dev/null | paste -sd: -)"',
             'export LD_LIBRARY_PATH="${STAGE_LIB:+$STAGE_LIB:}/tmp/stage/data/data/com.termux/files/usr/lib:/tmp/stage/usr/lib:$PREFIX/lib:$LD_LIBRARY_PATH"',
-            'STAGE_PY="$(find /tmp/stage -type d \( -name "site-packages" -o -name "dist-packages" \) 2>/dev/null | paste -sd: -)"',
+            r'STAGE_PY="$(find /tmp/stage -type d \( -name "site-packages" -o -name "dist-packages" \) 2>/dev/null | paste -sd: -)"',
             'export PYTHONPATH="${STAGE_PY:+$STAGE_PY:}${PYTHONPATH}"',
             "cat << 'TEST_EOF' > $HOME/test_payload.sh",
             "#!/data/data/com.termux/files/usr/bin/bash",
