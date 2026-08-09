@@ -2,67 +2,67 @@ import sys
 from pathlib import Path
 
 
-def generate_summary(logs_dir: Path, output_file: Path):
-    """
-    Parses all logs in logs_dir and generates a concise, readable summary of build/test status,
-    filtering out noisy installation/setup steps.
-    """
-    summary = []
-    summary.append(
-        "================================================================================"
-    )
-    summary.append("REPOEXE CI/CD BUILD & TEST SUMMARY")
-    summary.append(
-        "================================================================================\n"
-    )
+def classify_log(content: str) -> tuple[str, str, bool]:
+    lines = content.splitlines()
+    has_traceback = "Traceback (most recent call last):" in content or "RuntimeError:" in content
+    has_subcommand_failed = "ninja: build stopped: subcommand failed" in content or "cgo: C compiler" in content
+    has_smoke_test_failure = "Smoke test failed for" in content
+    has_smoke_test_pass = "Smoke test passed" in content or "✓ [" in content
+    has_pack_stage = "=== STAGE: PACK ===" in content
+
+    if has_smoke_test_failure:
+        failure_lines = []
+        capture = False
+        for line in lines:
+            if "Smoke test failed" in line or "STDERR:" in line or "STDOUT:" in line:
+                capture = True
+            if capture:
+                failure_lines.append(line)
+                if len(failure_lines) > 30:
+                    break
+        detail = "\n".join(failure_lines) if failure_lines else "\n".join(lines[-25:])
+        return "❌ STATUS: TEST FAILURE", detail, True
+    elif has_traceback or has_subcommand_failed or not has_pack_stage:
+        detail = "\n".join(lines[-30:])
+        return "❌ STATUS: BUILD FAILURE", detail, True
+    elif has_smoke_test_pass or has_pack_stage:
+        return "✓ STATUS: SUCCESS", "", False
+    else:
+        return "✓ STATUS: SUCCESS", "", False
+
+
+def generate_summary(logs_dir: Path, output_file: Path) -> bool:
+    summary = [
+        "================================================================================",
+        "REPOEXE CI/CD BUILD & TEST SUMMARY",
+        "================================================================ dialect\n",
+    ]
 
     if not logs_dir.exists() or not any(logs_dir.iterdir()):
         summary.append(
             "No logs found. The matrix job likely failed completely before running any target steps."
         )
-        output_file.write_text("\n".join(summary))
-        return
+        output_file.write_text("\n".join(summary), encoding="utf-8")
+        return True
 
+    has_failures = False
     for log_file in sorted(logs_dir.rglob("*.log")):
         target = log_file.stem
         content = log_file.read_text(errors="replace")
 
         summary.append(f"--- TARGET: {target} ---")
+        status_str, detail, is_fail = classify_log(content)
 
-        # Analyze log for failure markers
-        if "❌" in content or "failed" in content.lower() or "error" in content.lower():
-            # Extract test failures specifically
-            if "Smoke test failed" in content:
-                summary.append("❌ STATUS: TEST FAILURE")
+        if is_fail:
+            has_failures = True
 
-                # Extract the stderr from the smoke test failure
-                test_output = ""
-                capture = False
-                for line in content.splitlines():
-                    if "Smoke test failed for" in line:
-                        capture = True
-                    if capture:
-                        test_output += line + "\n"
-                        # Stop capturing after reasonable test output length or end of file
-                        if len(test_output) > 2000:
-                            test_output += "... (truncated)"
-                            break
-                summary.append(test_output)
-
-            else:
-                summary.append("❌ STATUS: BUILD FAILURE")
-                # Grab the last 30 lines which usually contain the build error
-                lines = content.splitlines()[-30:]
-                summary.append("\n".join(lines))
-        else:
-            if "✓" in content or "successfully" in content.lower():
-                summary.append("✓ STATUS: SUCCESS")
-            else:
-                summary.append("? STATUS: UNKNOWN (Log truncated or status unclear)")
-
+        summary.append(status_str)
+        if detail:
+            summary.append(detail)
         summary.append("\n")
 
-    output_file.write_text("\n".join(summary))
+    output_file.write_text("\n".join(summary), encoding="utf-8")
+    return has_failures
 
 
 if __name__ == "__main__":
@@ -70,4 +70,7 @@ if __name__ == "__main__":
         print("Usage: python3 log_aggregator.py <logs_dir> <output_file>")
         sys.exit(1)
 
-    generate_summary(Path(sys.argv[1]), Path(sys.argv[2]))
+    has_any_failure = generate_summary(Path(sys.argv[1]), Path(sys.argv[2]))
+    if has_any_failure:
+        print("::error:: One or more build/test targets failed in CI matrix.")
+        sys.exit(1)

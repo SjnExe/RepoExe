@@ -11,6 +11,8 @@ formats:
   - pacman
   - apk
   - pip
+deps:
+  - zstd
 channels:
   latest:
     auto_update: true

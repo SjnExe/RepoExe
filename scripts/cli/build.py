@@ -158,6 +158,8 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         env['CXXFLAGS'] = f"{env.get('CXXFLAGS', '')} {recipe.cxxflags}".strip()
     if getattr(recipe, 'ldflags', None):
         env['LDFLAGS'] = f"{env.get('LDFLAGS', '')} {recipe.ldflags}".strip()
+    if getattr(recipe, 'vars', None):
+        env.update(recipe.vars)
     if Path("/usr/lib/llvm-21/bin").exists():
         env['PATH'] = f"/usr/lib/llvm-21/bin:{env.get('PATH', '')}"
     env["MAKEFLAGS"] = "-j4"
