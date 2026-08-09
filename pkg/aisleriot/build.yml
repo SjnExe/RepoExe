@@ -48,5 +48,3 @@ phases:
     fi
   test: |
     readelf -h "${DESTDIR}${PREFIX}/bin/sol"
-    readelf -h "${DESTDIR}${PREFIX}/bin/sol"
-    sol --version

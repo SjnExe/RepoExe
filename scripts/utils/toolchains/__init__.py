@@ -38,7 +38,18 @@ def setup_build_environment(
     env["CXXFLAGS"] = cflags
     env["LDFLAGS"] = ldflags
 
-    if build_system == "cargo":
+    if build_system == "go":
+        env.update(
+            {
+                "GOOS": "android",
+                "GOARCH": "arm64"
+                if target_arch in ["aarch64", "arm64"]
+                else target_arch,
+                "CGO_ENABLED": "0",
+                "GOTOOLCHAIN": "local",
+            }
+        )
+    elif build_system == "cargo":
         native_tc = NativeToolchain(target_arch)
         native_env = native_tc.get_env()
         rust_tc = RustToolchain(target_arch)
