@@ -51,7 +51,7 @@ class ProotTestRunner:
                 termux_image,
                 "bash",
                 "-c",
-                "cat - > /tmp/runner.sh && chmod +x /tmp/runner.sh && /tmp/runner.sh",
+                "cat - > $HOME/runner.sh && chmod +x $HOME/runner.sh && $HOME/runner.sh",
             ]
         )
 
