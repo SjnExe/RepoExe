@@ -1,3 +1,4 @@
+from utils.elf_linter import audit_directory_elfs
 from pathlib import Path
 import argparse
 import contextlib
@@ -132,6 +133,11 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
 
 
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
+    elf_errors = audit_directory_elfs(output_dir)
+    if elf_errors:
+        print(f"⚠️ [{pkg_name}] ELF Linter Audit Warnings:")
+        for err in elf_errors:
+            print(f"  - {err}")
     for f in output_dir.glob(f"{pkg_name}*"):
         if f.name.endswith(".deb"):
             subprocess.run(["dpkg-deb", "-I", str(f)], check=True, capture_output=True)
