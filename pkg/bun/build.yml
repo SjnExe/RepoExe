@@ -11,6 +11,9 @@ build_system: custom
 deps:
   - libstdc++
   - zlib
+  - libandroid-support
+  - libandroid-shmem
+  - libandroid-exec
 
 formats:
   - apt
@@ -28,6 +31,36 @@ phases:
     set -e
     echo "⚡ Preparing Bun Bionic build environment..."
     sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev lld unzip wget gnupg
+
+    echo "⚡ Creating global Bionic polyfill stub header (bionic_stub.h)..."
+    cat << 'STUB_EOF' > /tmp/bionic_stub.h
+    #pragma once
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <sys/types.h>
+
+    #ifdef __cplusplus
+    extern "C" {
+    #endif
+
+    typedef struct {
+      size_t we_wordc;
+      char **we_wordv;
+      size_t we_offs;
+    } wordexp_t;
+
+    #define WRDE_NOCMD 0
+    static inline int wordexp(const char *words, wordexp_t *p, int flags) { (void)words; (void)p; (void)flags; return -1; }
+    static inline void wordfree(wordexp_t *p) { (void)p; }
+
+    static inline int backtrace(void **buffer, int size) { (void)buffer; (void)size; return 0; }
+    static inline char **backtrace_symbols(void *const *buffer, int size) { (void)buffer; (void)size; return NULL; }
+    static inline void backtrace_symbols_fd(void *const *buffer, int size, int fd) { (void)buffer; (void)size; (void)fd; }
+
+    #ifdef __cplusplus
+    }
+    #endif
+    STUB_EOF
 
     echo "⚡ Installing host Bun CLI runtime for build codegen..."
     curl -fsSL https://bun.sh/install | bash || true
@@ -116,6 +149,32 @@ phases:
       git -C "$WK_SRC" fetch --depth 1 origin "$WEBKIT_SHA"
       git -C "$WK_SRC" checkout FETCH_HEAD
 
+      echo "⚡ Applying version-independent Bionic source patches to WebKit..."
+      python3 -c "
+      import glob, os, re
+
+      for path in glob.glob('$WK_SRC/Source/**/*.*', recursive=True):
+          if os.path.isfile(path) and path.endswith(('.h', '.cpp', '.c', '.mm')):
+              try:
+                  with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                      code = f.read()
+                  new_code = re.sub(r'#include\s*<execinfo\.h>', '/* #include <execinfo.h> */', code)
+                  new_code = re.sub(r'#include\s*<wordexp\.h>', '/* #include <wordexp.h> */', new_code)
+                  if new_code != code:
+                      with open(path, 'w', encoding='utf-8') as f:
+                          f.write(new_code)
+              except Exception:
+                  pass
+
+      for sig_file in glob.glob('$WK_SRC/Source/WTF/wtf/threads/Signals.cpp') + glob.glob('$WK_SRC/Source/JavaScriptCore/sigprocess/*.cpp'):
+          if os.path.isfile(sig_file):
+              with open(sig_file, 'r', encoding='utf-8', errors='ignore') as f:
+                  code = f.read()
+              code = code.replace('uc_mcontext.regs', 'uc_mcontext.arm_regs')
+              with open(sig_file, 'w', encoding='utf-8') as f:
+                  f.write(code)
+      "
+
       mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
       cmake -G Ninja .. \
         -DCMAKE_TOOLCHAIN_FILE="${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake" \
@@ -137,8 +196,8 @@ phases:
         -DENABLE_YARR_JIT=ON \
         -DENABLE_WEBASSEMBLY=ON \
         -DENABLE_C_LOOP=OFF \
-        -DCMAKE_C_FLAGS="-O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1" \
-        -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -Wno-undefined-var-template -Wno-error=undefined-var-template"
+        -DCMAKE_C_FLAGS="-O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1" \
+        -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -Wno-undefined-var-template -Wno-error=undefined-var-template"
       ninja -j4 jsc
 
       mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"
@@ -161,9 +220,9 @@ phases:
     export PATH="$HOME/.bun/bin:${ZIG_BIN_DIR}:${PATH}"
 
     echo "⚡ Configuring Android Bionic & 16KB page size compiler flags..."
-    export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC"
-    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -Wno-undefined-var-template -Wno-error=undefined-var-template"
-    export LDFLAGS="${LDFLAGS:-} -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now"
+    export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h"
+    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h -Wno-undefined-var-template -Wno-error=undefined-var-template"
+    export LDFLAGS="${LDFLAGS:-} -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm"
 
     if [ -f rust-toolchain.toml ]; then
       rustup show
@@ -181,6 +240,9 @@ phases:
 
     if [ -n "$BUN_BIN" ]; then
       install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
+      if command -v termux-elf-cleaner >/dev/null 2>&1; then
+        termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/bun" || true
+      fi
     else
       echo "::error::bun executable binary not found after build!"
       exit 1
