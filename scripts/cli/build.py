@@ -5,14 +5,18 @@ import os
 import shutil
 import subprocess
 
+clang_bin = "/usr/lib/llvm-21/bin/clang" if Path("/usr/lib/llvm-21/bin/clang").exists() else "clang"
+clangxx_bin = "/usr/lib/llvm-21/bin/clang++" if Path("/usr/lib/llvm-21/bin/clang++").exists() else "clang++"
+ld_bin = "/usr/lib/llvm-21/bin/ld.lld" if Path("/usr/lib/llvm-21/bin/ld.lld").exists() else "ld.lld"
+
 DEFAULT_BIONIC_ENV = {
-    "CC": "/usr/lib/llvm-21/bin/clang",
-    "CXX": "/usr/lib/llvm-21/bin/clang++",
-    "LD": "/usr/lib/llvm-21/bin/ld.lld",
+    "CC": clang_bin,
+    "CXX": clangxx_bin,
+    "LD": ld_bin,
     "CFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
     "CXXFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
     "LDFLAGS": "-fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-icf=safe -Wl,--gc-sections -Wl,-z,pack-relative-relocs",
-    "CARGO_BUILD_TARGET": "aarch64-linux-android",
+    "CARGO_BUILD_TARGET": "aarch64-unknown-linux-musl",
     "GOOS": "android",
     "GOARCH": "arm64",
     "CGO_ENABLED": "1",
@@ -154,7 +158,8 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         env['CXXFLAGS'] = f"{env.get('CXXFLAGS', '')} {recipe.cxxflags}".strip()
     if getattr(recipe, 'ldflags', None):
         env['LDFLAGS'] = f"{env.get('LDFLAGS', '')} {recipe.ldflags}".strip()
-    env['PATH'] = f"/usr/lib/llvm-21/bin:{env.get('PATH', '')}"
+    if Path("/usr/lib/llvm-21/bin").exists():
+        env['PATH'] = f"/usr/lib/llvm-21/bin:{env.get('PATH', '')}"
     env["MAKEFLAGS"] = "-j4"
     env["NINJA_JOBS"] = "4"
     env["CARGO_BUILD_JOBS"] = "4"

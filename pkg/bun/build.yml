@@ -39,7 +39,7 @@ phases:
 
     echo "⚡ Configuring Android Bionic & 16KB page size compiler flags..."
     export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC"
-    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC"
+    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -Wno-undefined-var-template -Wno-error=undefined-var-template"
     export LDFLAGS="${LDFLAGS:-} -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now"
 
     echo "⚡ Installing system-level LLVM 21 clang++ interceptor wrapper..."
@@ -70,7 +70,7 @@ phases:
         "        echo \"[LLVM Interceptor] Successfully copied $ZIG_OBJ to $(pwd)/bun-zig.o\"",
         "    fi",
         "fi",
-        "exec /usr/lib/llvm-21/bin/clang++.real \"$@\"",
+        "exec /usr/lib/llvm-21/bin/clang++.real -Wno-undefined-var-template -Wno-error=undefined-var-template \"$@\"",
         ""
     ])
     with open(clang_bin, "w", encoding="utf-8") as f:
