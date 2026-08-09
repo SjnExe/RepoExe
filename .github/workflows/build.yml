@@ -183,12 +183,26 @@ jobs:
           mkdir -p build_logs
           echo "=== STAGE: COMPILE ===" >> "${LOG_FILE}"
 
-          docker run --rm             --volume "${{ github.workspace }}:/home/builder/RepoExe"             --workdir /home/builder/RepoExe             --env GH_TOKEN="${GH_TOKEN}"             --env PYTHONPATH="scripts"             --env GITHUB_WORKSPACE="${{ github.workspace }}"             --env SCCACHE_DIR="/home/builder/.cache/sccache"             --env GOCACHE="/home/builder/.cache/go-build"             --env GOMODCACHE="/home/builder/go/pkg/mod"             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache"             --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build"             --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod"             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry"             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git"             "ghcr.io/${OWNER}/repoexe-builder:latest"             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 \vert{} tee -a "${LOG_FILE}"
+          docker run --rm \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 \vert{} tee -a "${LOG_FILE}"
 
       - name: Profile Build Memory Peak
         if: always()
         run: |
-          # shellcheck disable=SC2129
           RAM_STR="N/A"
           SWAP_STR="N/A"
           CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
@@ -229,7 +243,22 @@ jobs:
           LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
           echo "=== STAGE: PACK ===" >> "${LOG_FILE}"
 
-          docker run --rm             --volume "${{ github.workspace }}:/home/builder/RepoExe"             --workdir /home/builder/RepoExe             --env GH_TOKEN="${GH_TOKEN}"             --env PYTHONPATH="scripts"             --env GITHUB_WORKSPACE="${{ github.workspace }}"             --env SCCACHE_DIR="/home/builder/.cache/sccache"             --env GOCACHE="/home/builder/.cache/go-build"             --env GOMODCACHE="/home/builder/go/pkg/mod"             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache"             --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build"             --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod"             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry"             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git"             "ghcr.io/${OWNER}/repoexe-builder:latest"             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+          docker run --rm \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Termux Docker Smoke Test
         continue-on-error: true
@@ -244,7 +273,16 @@ jobs:
           LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
           echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
 
-          docker run --rm             --volume "${{ github.workspace }}:/home/builder/RepoExe"             --workdir /home/builder/RepoExe             --env GH_TOKEN="${GH_TOKEN}"             --env PYTHONPATH="scripts"             --env GITHUB_WORKSPACE="${{ github.workspace }}"             --env SCCACHE_DIR="/home/builder/.cache/sccache"             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache"             "ghcr.io/${OWNER}/repoexe-builder:latest"             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+          docker run --rm \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Fix Cache Permissions Before Save
         if: always()
