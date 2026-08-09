@@ -36,17 +36,17 @@ phases:
         shutil.move(clang_bin, clang_real)
 
     wrapper_content = """#!/bin/bash
-if [[ "$*" == *"@bun-profile.rsp"* ]] || [[ "$*" == *"bun-zig.o"* ]]; then
-    if [ ! -f "bun-zig.o" ]; then
-        FOUND=$(find /home/builder/RepoExe/build/build_bun/src -name "bun-zig.o" -type f 2>/dev/null | head -n 1)
-        if [ -n "$FOUND" ]; then
-            cp -f "$FOUND" ./bun-zig.o
-            echo "[LLVM Interceptor] Successfully synced $FOUND to $(pwd)/bun-zig.o"
+    if [[ "$*" == *"@bun-profile.rsp"* ]] || [[ "$*" == *"bun-zig.o"* ]]; then
+        if [ ! -f "bun-zig.o" ]; then
+            FOUND=$(find /home/builder/RepoExe/build/build_bun/src -name "bun-zig.o" -type f 2>/dev/null | head -n 1)
+            if [ -n "$FOUND" ]; then
+                cp -f "$FOUND" ./bun-zig.o
+                echo "[LLVM Interceptor] Successfully synced $FOUND to $(pwd)/bun-zig.o"
+            fi
         fi
     fi
-fi
-exec /usr/lib/llvm-21/bin/clang++.real "$@"
-"""
+    exec /usr/lib/llvm-21/bin/clang++.real "$@"
+    """
     with open(clang_bin, "w", encoding="utf-8") as f:
         f.write(wrapper_content)
     os.chmod(clang_bin, 0o755)
