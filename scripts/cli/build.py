@@ -31,6 +31,8 @@ DEFAULT_BIONIC_ENV = {
     "CGO_ENABLED": "1",
     "TMPDIR": "/tmp",
     "GOTMPDIR": "/tmp",
+    "RUSTUP_HOME": "/home/builder/.rustup",
+    "CARGO_HOME": "/home/builder/.cargo",
     "RUSTUP_TOOLCHAIN": "stable",
     "RUSTC_BOOTSTRAP": "1",
 }
