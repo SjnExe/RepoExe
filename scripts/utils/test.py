@@ -97,8 +97,26 @@ class ProotTestRunner:
                 raise RuntimeError(err_msg)
 
         print(
-            f"⚠️ [{package_name}] Termux Docker unavailable (no Docker or arch mismatch), falling back to native wrapper execution..."
+            f"⚠️ [{package_name}] Termux Docker unavailable, trying PRoot fallback..."
         )
+
+        if shutil.which("proot") and stage_dir and stage_dir.exists():
+            staged_prefix = stage_dir / "data" / "data" / "com.termux" / "files" / "usr"
+            target_prefix = str(staged_prefix) if staged_prefix.exists() else str(stage_dir)
+            proot_cmd = [
+                "proot",
+                "-0",
+                "-b", f"{target_prefix}:/data/data/com.termux/files/usr",
+                "-b", "/proc",
+                "-b", "/dev",
+                "/bin/bash",
+                "-c",
+                f'export PREFIX="/data/data/com.termux/files/usr"; export PATH="/data/data/com.termux/files/usr/bin:$PATH"; export LD_LIBRARY_PATH="/data/data/com.termux/files/usr/lib:$LD_LIBRARY_PATH"; {test_commands}'
+            ]
+            res_proot = subprocess.run(proot_cmd, capture_output=True, text=True, check=False)
+            if res_proot.returncode == 0:
+                print(f"✓ [{package_name}] Smoke test passed via PRoot fallback.")
+                return True
 
         test_env = os.environ.copy()
 

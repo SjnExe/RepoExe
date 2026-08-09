@@ -184,6 +184,7 @@ jobs:
           echo "=== STAGE: COMPILE ===" >> "${LOG_FILE}"
 
           docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
@@ -244,6 +245,7 @@ jobs:
           echo "=== STAGE: PACK ===" >> "${LOG_FILE}"
 
           docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
@@ -274,6 +276,7 @@ jobs:
           echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
 
           docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
