@@ -1,5 +1,5 @@
 name: pydantic
-version: "2.13.4"
+version: "2.10.6"
 revision: 0
 arch: aarch64
 description: Data validation using Python type hints

@@ -33,7 +33,7 @@ class ProotTestRunner:
             f'export PREFIX="{self.prefix}"\n'
             f'export HOME="{self.home}"\n'
             'export PATH="/tmp/stage/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PATH"\n'
-            'export LD_LIBRARY_PATH="/tmp/stage/data/data/com.termux/files/usr/lib:$PREFIX/lib:$LD_LIBRARY_PATH"\n'
+            'export LD_LIBRARY_PATH="/tmp/stage/data/data/com.termux/files/usr/lib:/tmp/stage/usr/lib:$PREFIX/lib:$LD_LIBRARY_PATH"\n'
             f"{test_commands}\n"
         )
         script_path.write_text(script_content, encoding="utf-8")
@@ -100,7 +100,7 @@ class ProotTestRunner:
                 "-b", "/dev",
                 "/bin/bash",
                 "-c",
-                f'export PREFIX="/data/data/com.termux/files/usr"; export PATH="/data/data/com.termux/files/usr/bin:$PATH"; export LD_LIBRARY_PATH="/data/data/com.termux/files/usr/lib:$LD_LIBRARY_PATH"; {test_commands}'
+                f'export PREFIX="/data/data/com.termux/files/usr"; export PATH="/data/data/com.termux/files/usr/bin:$PATH"; export LD_LIBRARY_PATH="$target_prefix/lib:/data/data/com.termux/files/usr/lib:$LD_LIBRARY_PATH"; {test_commands}'
             ]
             res_proot = subprocess.run(proot_cmd, capture_output=True, text=True, check=False)
             if res_proot.returncode == 0:
