@@ -107,6 +107,10 @@ def prepare_site(
                 res = subprocess.run(["gh", "release", "create", tag] + upload_args + ["--title", tag, "--notes", f"Automated release for {tag}", "--clobber"], capture_output=True, check=False)
                 if res.returncode == 0:
                     print(f"✓ Successfully published GitHub release tag: {tag}")
+                else:
+                    res_up = subprocess.run(["gh", "release", "upload", tag] + upload_args + ["--clobber"], capture_output=True, check=False)
+                    if res_up.returncode == 0:
+                        print(f"✓ Uploaded release assets to existing tag: {tag}")
             except Exception as e:
                 print(f"Notice: Failed publishing release tag for {pkg_meta_file.name}: {e}")
 

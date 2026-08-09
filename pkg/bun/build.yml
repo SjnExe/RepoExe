@@ -8,6 +8,10 @@ license: MIT
 maintainer: SjnExe
 build_system: custom
 
+deps:
+  - libstdc++
+  - zlib
+
 formats:
   - apt
   - pacman
@@ -109,4 +113,4 @@ phases:
     fi
 
   test: |
-    "${DESTDIR}/usr/bin/bun" --version || true
+    "${DESTDIR}/usr/bin/bun" --version
