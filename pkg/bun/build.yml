@@ -29,7 +29,7 @@ phases:
     set -e
     echo "⚡ Preparing Bun build environment..."
     if ! command -v clang-21 >/dev/null 2>&1; then
-      sudo apt-get update && sudo apt-get install -y lsb-release software-properties-common wget gnupg patchelf
+      sudo apt-get update && sudo apt-get install -y lsb-release software-properties-common wget gnupg
       wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
       chmod +x /tmp/llvm.sh
       sudo /tmp/llvm.sh 21 || sudo apt-get install -y clang-21 lld-21 || true
@@ -49,45 +49,45 @@ phases:
 
     echo "⚡ Installing system-level LLVM 21 clang++ interceptor wrapper..."
     sudo python3 -c '
-    import os, shutil, glob
+import os, shutil, glob
 
-    clang_bin = "/usr/lib/llvm-21/bin/clang++"
-    clang_real = "/usr/lib/llvm-21/bin/clang++.real"
+clang_bin = "/usr/lib/llvm-21/bin/clang++"
+clang_real = "/usr/lib/llvm-21/bin/clang++.real"
 
-    if not os.path.exists(clang_real):
-        if os.path.islink(clang_bin):
-            real_target = os.path.realpath(clang_bin)
-            os.unlink(clang_bin)
-            os.symlink(real_target, clang_real)
-        else:
-            shutil.move(clang_bin, clang_real)
+if not os.path.exists(clang_real):
+    if os.path.islink(clang_bin):
+        real_target = os.path.realpath(clang_bin)
+        os.unlink(clang_bin)
+        os.symlink(real_target, clang_real)
+    else:
+        shutil.move(clang_bin, clang_real)
 
-    wrapper_content = "\n".join([
-        "#!/bin/bash",
-        "if [[ \"$*\" == *\"@bun-profile.rsp\"* ]] || [[ \"$*\" == *\"bun-zig.o\"* ]]; then",
-        "    if [ ! -f \"bun-zig.o\" ]; then",
-        "        ZIG_OBJ=$(find /home/builder /tmp -name \"bun-zig.o\" -type f -size +0 2>/dev/null | head -n 1)",
-        "        if [ -z \"$ZIG_OBJ\" ]; then",
-        "            ZIG_OBJ=$(find /home/builder /tmp -name \"*zig*.o\" -type f -size +0 2>/dev/null | head -n 1)",
-        "        fi",
-        "        if [ -n \"$ZIG_OBJ\" ]; then",
-        "            cp -f \"$ZIG_OBJ\" ./bun-zig.o",
-        "            echo \"[LLVM Interceptor] Successfully copied $ZIG_OBJ to $(pwd)/bun-zig.o\"",
-        "        fi",
-        "    fi",
-        "fi",
-        "exec /usr/lib/llvm-21/bin/clang++.real -Wno-undefined-var-template -Wno-error=undefined-var-template -Wno-unused-command-line-argument \"$@\" -lm -lstdc++",
-        ""
-    ])
-    with open(clang_bin, "w", encoding="utf-8") as f:
-        f.write(wrapper_content)
-    os.chmod(clang_bin, 0o755)
+wrapper_content = "\n".join([
+    "#!/bin/bash",
+    "if [[ \"$*\" == *\"@bun-profile.rsp\"* ]] || [[ \"$*\" == *\"bun-zig.o\"* ]]; then",
+    "    if [ ! -f \"bun-zig.o\" ]; then",
+    "        ZIG_OBJ=$(find /home/builder /tmp -name \"bun-zig.o\" -type f -size +0 2>/dev/null | head -n 1)",
+    "        if [ -z \"$ZIG_OBJ\" ]; then",
+    "            ZIG_OBJ=$(find /home/builder /tmp -name \"*zig*.o\" -type f -size +0 2>/dev/null | head -n 1)",
+    "        fi",
+    "        if [ -n \"$ZIG_OBJ\" ]; then",
+    "            cp -f \"$ZIG_OBJ\" ./bun-zig.o",
+    "            echo \"[LLVM Interceptor] Successfully copied $ZIG_OBJ to $(pwd)/bun-zig.o\"",
+    "        fi",
+    "    fi",
+    "fi",
+    "exec /usr/lib/llvm-21/bin/clang++.real -Wno-undefined-var-template -Wno-error=undefined-var-template -Wno-unused-command-line-argument \"$@\" -lm -lstdc++",
+    ""
+])
+with open(clang_bin, "w", encoding="utf-8") as f:
+    f.write(wrapper_content)
+os.chmod(clang_bin, 0o755)
 
-    for p in glob.glob("**/CMakeLists.txt", recursive=True):
-        if os.path.isfile(p):
-            with open(p, "a", encoding="utf-8") as f:
-                f.write("\nadd_compile_options(-Wno-undefined-var-template)\n")
-    '
+for p in glob.glob("**/CMakeLists.txt", recursive=True):
+    if os.path.isfile(p):
+        with open(p, "a", encoding="utf-8") as f:
+            f.write("\nadd_compile_options(-Wno-undefined-var-template)\n")
+'
 
     export CC="/usr/lib/llvm-21/bin/clang"
     export CXX="/usr/lib/llvm-21/bin/clang++"
@@ -100,17 +100,26 @@ phases:
     bun scripts/build.ts --profile=release --ci=true
 
   install: |
-    mkdir -p "${DESTDIR}/usr/bin"
+    mkdir -p "${DESTDIR}${PREFIX}/libexec" "${DESTDIR}${PREFIX}/bin"
     BUN_BIN=$(find build -type f \( -name "bun" -o -name "bun-profile" \) -executable 2>/dev/null | grep -v "node_modules" | head -n 1)
     if [ -z "$BUN_BIN" ]; then
       BUN_BIN=$(find . -type f \( -name "bun" -o -name "bun-profile" \) -executable 2>/dev/null | grep -v "node_modules" | head -n 1)
     fi
 
     if [ -n "$BUN_BIN" ]; then
-      install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
-    if command -v patchelf >/dev/null 2>&1; then
-      patchelf --set-interpreter "${PREFIX}/glibc/lib/ld-linux-aarch64.so.1" --set-rpath "${PREFIX}/glibc/lib:${PREFIX}/lib" "${DESTDIR}${PREFIX}/bin/bun" || true
-    fi
+      install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/libexec/bun.real"
+      cat << 'WRAPPER_EOF' > "${DESTDIR}${PREFIX}/bin/bun"
+#!/data/data/com.termux/files/usr/bin/sh
+PREFIX="/data/data/com.termux/files/usr"
+if command -v grun >/dev/null 2>&1; then
+  exec grun "${PREFIX}/libexec/bun.real" "$@"
+elif [ -f "${PREFIX}/glibc/lib/ld-linux-aarch64.so.1" ]; then
+  exec "${PREFIX}/glibc/lib/ld-linux-aarch64.so.1" --library-path "${PREFIX}/glibc/lib:${PREFIX}/lib" "${PREFIX}/libexec/bun.real" "$@"
+else
+  exec "${PREFIX}/libexec/bun.real" "$@"
+fi
+WRAPPER_EOF
+      chmod 755 "${DESTDIR}${PREFIX}/bin/bun"
     else
       echo "::error::bun executable binary not found after build!"
       exit 1

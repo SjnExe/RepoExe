@@ -20,10 +20,10 @@ channels:
 build_system: custom
 phases:
   prepare: |
-    python3 -m pip install maturin
+    python3 -m pip install --break-system-packages maturin
   make: |
     python3 -m pip wheel . -w output/ || true
-    python3 -m pip install --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
+    python3 -m pip install --break-system-packages --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
     echo "Installed pydantic site-packages into staging"
   test: |

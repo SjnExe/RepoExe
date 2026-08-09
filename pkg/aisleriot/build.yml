@@ -47,4 +47,4 @@ phases:
       termux-elf-cleaner "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true
     fi
   test: |
-    readelf -h "$(which sol)"
+    readelf -h "$(command -v sol)"
