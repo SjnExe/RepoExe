@@ -14,7 +14,10 @@ class ProotTestRunner:
         print(f"[{package_name}] Running tests in Termux Docker sandbox...")
 
         stage_dir = destdir / "stage" if destdir else None
-        termux_image = "termux/termux-docker:aarch64"
+        
+        repo_owner = os.environ.get("REPO_OWNER", "sjnexe").lower()
+        default_image = f"ghcr.io/{repo_owner}/repoexe-tester:latest"
+        termux_image = os.environ.get("TERMUX_TESTER_IMAGE", default_image)
 
         script_path = Path(tempfile.gettempdir()) / f"test_{package_name}.sh"
         script_lines = [
@@ -24,7 +27,6 @@ class ProotTestRunner:
             f'export HOME="{self.home}"',
             'export PATH="/tmp/stage/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PATH"',
             'export LD_LIBRARY_PATH="/tmp/stage/data/data/com.termux/files/usr/lib:/tmp/stage/usr/lib:$PREFIX/lib:$LD_LIBRARY_PATH"',
-            'pkg install -y binutils 2>/dev/null || true',
             'if command -v xvfb-run >/dev/null 2>&1 && [ -z "$DISPLAY" ]; then EXEC_PREFIX="xvfb-run -a "; else EXEC_PREFIX=""; fi',
             f'eval "${{EXEC_PREFIX}}{test_commands}"',
         ]

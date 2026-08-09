@@ -1,0 +1,12 @@
+# syntax=docker/dockerfile:1
+FROM termux/termux-docker:aarch64
+
+ENV PREFIX=/data/data/com.termux/files/usr
+ENV HOME=/data/data/com.termux/files/home
+ENV PATH=${PREFIX}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${PREFIX}/lib
+
+# Pre-install core testing utilities and X11/GTK runtimes for offline smoke testing
+RUN pkg update -y  && pkg upgrade -y  && pkg install -y       binutils       coreutils       findutils       grep       sed       gawk       tar       gzip       zstd       procps       x11-repo  && pkg install -y       xvfb       xauth       libgtk-3       libcairo       libcanberra       desktop-file-utils       shared-mime-info  && pkg clean
+
+WORKDIR /data/data/com.termux/files/home
