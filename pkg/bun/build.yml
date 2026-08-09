@@ -108,19 +108,18 @@ phases:
 
     if [ -n "$BUN_BIN" ]; then
       install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/libexec/bun.real"
-      cat << 'WRAPPER_EOF' > "${DESTDIR}${PREFIX}/bin/bun"
-#!/data/data/com.termux/files/usr/bin/sh
-SELF_DIR="$(dirname "$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")")"
-REAL_BIN="${SELF_DIR}/../libexec/bun.real"
-PREFIX="/data/data/com.termux/files/usr"
-if command -v grun >/dev/null 2>&1; then
-  exec grun "$REAL_BIN" "$@"
-elif [ -f "${PREFIX}/glibc/lib/ld-linux-aarch64.so.1" ]; then
-  exec "${PREFIX}/glibc/lib/ld-linux-aarch64.so.1" --library-path "${PREFIX}/glibc/lib:${PREFIX}/lib" "$REAL_BIN" "$@"
-else
-  exec "$REAL_BIN" "$@"
-fi
-WRAPPER_EOF
+      printf '%s\n' \
+        '#!/data/data/com.termux/files/usr/bin/sh' \
+        'SELF_DIR="$(dirname "$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")")"' \
+        'REAL_BIN="${SELF_DIR}/../libexec/bun.real"' \
+        'PREFIX="/data/data/com.termux/files/usr"' \
+        'if command -v grun >/dev/null 2>&1; then' \
+        '  exec grun "$REAL_BIN" "$@"' \
+        'elif [ -f "${PREFIX}/glibc/lib/ld-linux-aarch64.so.1" ]; then' \
+        '  exec "${PREFIX}/glibc/lib/ld-linux-aarch64.so.1" --library-path "${PREFIX}/glibc/lib:${PREFIX}/lib" "$REAL_BIN" "$@"' \
+        'else' \
+        '  exec "$REAL_BIN" "$@"' \
+        'fi' > "${DESTDIR}${PREFIX}/bin/bun"
       chmod 755 "${DESTDIR}${PREFIX}/bin/bun"
     else
       echo "::error::bun executable binary not found after build!"
