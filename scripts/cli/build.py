@@ -17,7 +17,7 @@ DEFAULT_BIONIC_ENV = {
     "CFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
     "CXXFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
     "LDFLAGS": "-fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-icf=safe -Wl,--gc-sections -Wl,-z,pack-relative-relocs",
-    "CARGO_BUILD_TARGET": "aarch64-unknown-linux-musl",
+    "CARGO_BUILD_TARGET": "aarch64-linux-android",
     "GOOS": "android",
     "GOARCH": "arm64",
     "CGO_ENABLED": "1",
@@ -239,6 +239,14 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                 clone_cmd = ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)]
                 subprocess.run(clone_cmd, check=True)
             work_dir = src_extract_dir
+    # Apply recipe patches automatically
+    patches = getattr(recipe, "patches", []) or []
+    for patch_name in patches:
+        p_path = pkg_dir / patch_name
+        if p_path.exists():
+            print(f"⚡ Applying automated Android patch: {patch_name}...")
+            subprocess.run(["patch", "-p1", "-i", str(p_path)], cwd=work_dir, check=True)
+
         else:
             print(f"⚡ Downloading archive source: {src_url_str}...")
             subprocess.run(
@@ -269,6 +277,14 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                         check=True,
                     )
                 work_dir = src_extract_dir
+    # Apply recipe patches automatically
+    patches = getattr(recipe, "patches", []) or []
+    for patch_name in patches:
+        p_path = pkg_dir / patch_name
+        if p_path.exists():
+            print(f"⚡ Applying automated Android patch: {patch_name}...")
+            subprocess.run(["patch", "-p1", "-i", str(p_path)], cwd=work_dir, check=True)
+
 
     if shutil.which("sccache"):
         env["RUSTC_WRAPPER"] = "sccache"

@@ -27,3 +27,8 @@ phases:
     chmod +x "${DESTDIR}${PREFIX}/bin/jscpd"
   test: |
     jscpd --version
+    mkdir -p /tmp/jscpd_test
+    echo "function test() { return 42; }" > /tmp/jscpd_test/a.js
+    echo "function test() { return 42; }" > /tmp/jscpd_test/b.js
+    jscpd /tmp/jscpd_test
+    jscpd --version

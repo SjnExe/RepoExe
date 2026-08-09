@@ -187,9 +187,11 @@ class ProotTestRunner:
             check=False,
         )
         if res_direct.returncode == 0:
-            print(
-                f"✓ [{package_name}] Smoke test passed via direct execution fallback."
-            )
+            print(f"✓ [{package_name}] Smoke test passed via direct execution fallback.")
+            if res_direct.stdout.strip():
+                print(f"--- STDOUT ---\n{res_direct.stdout.strip()}")
+            if res_direct.stderr.strip():
+                print(f"--- STDERR ---\n{res_direct.stderr.strip()}")
             return True
 
         err_msg = (
