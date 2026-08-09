@@ -20,10 +20,10 @@ channels:
 build_system: custom
 phases:
   prepare: |
-    export PYO3_PYTHON="$(which python3.13 2>/dev/null || which python3.12 2>/dev/null || which python3)"
+    export PYO3_PYTHON="$(readlink -f $(which python3))"
     python3 -m pip install --break-system-packages maturin
   make: |
-    export PYO3_PYTHON="$(which python3.13 2>/dev/null || which python3.12 2>/dev/null || which python3)"
+    export PYO3_PYTHON="$(readlink -f $(which python3))"
     python3 -m pip wheel . -w output/ || true
     python3 -m pip install --break-system-packages --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
