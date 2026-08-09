@@ -11,6 +11,7 @@ source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v1.3.14.tar.gz
 
 phases:
   prepare: |
+    set -e
     echo "⚡ Preparing Bun build environment..."
     if ! command -v clang-21 >/dev/null 2>&1; then
       sudo apt-get update && sudo apt-get install -y lsb-release software-properties-common wget gnupg
@@ -23,10 +24,11 @@ phases:
     curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" || true
 
   make: |
+    set -e
     export PATH="$HOME/.bun/bin:${PATH}"
 
-    echo "⚡ Intercepting LLVM 21 clang++ binary to dynamically resolve bun-zig.o..."
-    python3 -c '
+    echo "⚡ Intercepting LLVM 21 clang++ binary with root permissions..."
+    sudo python3 -c '
     import os, shutil
 
     clang_bin = "/usr/lib/llvm-21/bin/clang++"
