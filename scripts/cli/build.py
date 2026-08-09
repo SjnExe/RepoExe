@@ -502,6 +502,7 @@ def main() -> None:
         if args.command == "compile":
             execute_compile(recipe, p_dir, destdir)
             fix_termux_shebangs(destdir)
+            fix_termux_shebangs(destdir)
         elif args.command == "pack":
             execute_pack(recipe, p_dir, destdir, output_dir)
         elif args.command == "test":
