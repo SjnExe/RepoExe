@@ -47,6 +47,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Purge Merged PR Caches
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🧹 Cleaning up merged PR action caches..."
+          gh api "repos/${{ github.repository }}/actions/caches?per_page=100" --jq '.actions_caches[] | select(.ref | startswith("refs/pull/")) | .id' | while read -r cache_id; do
+            if [ -n "$cache_id" ]; then
+              echo "Deleting PR cache ID: $cache_id"
+              gh api --method DELETE "repos/${{ github.repository }}/actions/caches/$cache_id" || true
+            fi
+          done
+
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
@@ -114,7 +127,7 @@ jobs:
         run: |
           BASE_REF="${GITHUB_BASE_REF:-main}"
           REF_NAME="${GITHUB_REF_NAME:-}"
-          if [ "${REF_NAME%%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^.github/workflows/docker.yml'; then
+          if [ "${REF_NAME\%\%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^.github/workflows/docker.yml'; then
             echo "::error::Docker environment files modified in branch."
           fi
 
@@ -170,7 +183,7 @@ jobs:
           mkdir -p build_logs
           echo "=== STAGE: COMPILE ===" >> "${LOG_FILE}"
 
-          docker run --rm             --volume "${{ github.workspace }}:/home/builder/RepoExe"             --workdir /home/builder/RepoExe             --env GH_TOKEN="${GH_TOKEN}"             --env PYTHONPATH="scripts"             --env GITHUB_WORKSPACE="${{ github.workspace }}"             --env SCCACHE_DIR="/home/builder/.cache/sccache"             --env GOCACHE="/home/builder/.cache/go-build"             --env GOMODCACHE="/home/builder/go/pkg/mod"             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache"             --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build"             --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod"             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry"             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git"             "ghcr.io/${OWNER}/repoexe-builder:latest"             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+          docker run --rm             --volume "${{ github.workspace }}:/home/builder/RepoExe"             --workdir /home/builder/RepoExe             --env GH_TOKEN="${GH_TOKEN}"             --env PYTHONPATH="scripts"             --env GITHUB_WORKSPACE="${{ github.workspace }}"             --env SCCACHE_DIR="/home/builder/.cache/sccache"             --env GOCACHE="/home/builder/.cache/go-build"             --env GOMODCACHE="/home/builder/go/pkg/mod"             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache"             --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build"             --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod"             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry"             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git"             "ghcr.io/${OWNER}/repoexe-builder:latest"             python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 \vert{} tee -a "${LOG_FILE}"
 
       - name: Profile Build Memory Peak
         if: always()
@@ -234,13 +247,13 @@ jobs:
           docker run --rm             --volume "${{ github.workspace }}:/home/builder/RepoExe"             --workdir /home/builder/RepoExe             --env GH_TOKEN="${GH_TOKEN}"             --env PYTHONPATH="scripts"             --env GITHUB_WORKSPACE="${{ github.workspace }}"             --env SCCACHE_DIR="/home/builder/.cache/sccache"             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache"             "ghcr.io/${OWNER}/repoexe-builder:latest"             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Fix Cache Permissions Before Save
-        if: always() && github.ref == 'refs/heads/main'
+        if: always()
         run: |
           sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit .cache 2>/dev/null || true
 
       - name: Save Toolchain & Build Caches
         uses: actions/cache/save@v6
-        if: always() && github.ref == 'refs/heads/main'
+        if: always() && !cancelled()
         with:
           path: |
             .sccache

@@ -29,7 +29,7 @@ phases:
 
     echo "⚡ Installing system-level LLVM 21 clang++ interceptor wrapper..."
     sudo python3 -c '
-    import os, shutil
+    import os, shutil, glob
 
     clang_bin = "/usr/lib/llvm-21/bin/clang++"
     clang_real = "/usr/lib/llvm-21/bin/clang++.real"
@@ -42,22 +42,33 @@ phases:
         else:
             shutil.move(clang_bin, clang_real)
 
-    wrapper_content = "\n".join([
-        "#!/bin/bash",
-        "if [[ \"$*\" == *\"@bun-profile.rsp\"* ]] || [[ \"$*\" == *\"bun-zig.o\"* ]]; then",
-        "    rm -f ./bun-zig.o",
-        "    ZIG_OBJ=$(find /home/builder/RepoExe/build/build_bun -name \"bun-zig.o\" -type f -not -path \"*/build/release/*\" 2>/dev/null | head -n 1)",
-        "    if [ -n \"$ZIG_OBJ\" ] && [ -f \"$ZIG_OBJ\" ]; then",
-        "        cp -f \"$ZIG_OBJ\" ./bun-zig.o",
-        "        echo \"[LLVM Interceptor] Successfully copied $ZIG_OBJ to $(pwd)/bun-zig.o\"",
-        "    fi",
-        "fi",
-        "exec /usr/lib/llvm-21/bin/clang++.real \"$@\"",
-        ""
-    ])
+    wrapper_content = """#!/bin/bash
+    if [[ "$*" == *"@bun-profile.rsp"* ]] \vert{}\vert{} [[ "$*" == *"bun-zig.o"* ]]; then
+        if [ ! -s "./bun-zig.o" ]; then
+            rm -f ./bun-zig.o
+            ZIG_OBJ=$(find /home/builder /tmp -name "bun-zig.o" -type f -size +0 2>/dev/null \vert{} grep -v "$(pwd)/bun-zig.o" | head -n 1)
+            if [ -z "$ZIG_OBJ" ]; then
+                ZIG_OBJ=$(find /home/builder /tmp -name "*zig*.o" -type f -size +0 2>/dev/null \vert{} grep -v "$(pwd)/" | head -n 1)
+            fi
+            if [ -n "$ZIG_OBJ" ]; then
+                cp -f "$ZIG_OBJ" ./bun-zig.o
+                echo "[LLVM Interceptor] Successfully copied $ZIG_OBJ to$(pwd)/bun-zig.o"
+            else
+                echo "[LLVM Interceptor] WARNING: bun-zig.o not found in workspace!"
+            fi
+        fi
+    fi
+    exec /usr/lib/llvm-21/bin/clang++.real "$@"
+    """
+
     with open(clang_bin, "w", encoding="utf-8") as f:
         f.write(wrapper_content)
     os.chmod(clang_bin, 0o755)
+
+    for p in glob.glob("**/CMakeLists.txt", recursive=True):
+        if os.path.isfile(p):
+            with open(p, "a", encoding="utf-8") as f:
+                f.write("\nadd_compile_options(-Wno-undefined-var-template)\n")
     '
 
     export CC="/usr/lib/llvm-21/bin/clang"
@@ -66,19 +77,6 @@ phases:
     if [ -f rust-toolchain.toml ]; then
       rustup show
     fi
-
-    echo "⚡ Suppressing Clang 21 C++23 template warnings in C++ bindings..."
-    python3 -c '
-    import glob, os
-    for cpp in glob.glob("src/jsc/bindings/**/*.cpp", recursive=True) + glob.glob("src/jsc/bindings/*.cpp"):
-        if os.path.isfile(cpp):
-            with open(cpp, "r", encoding="utf-8") as f:
-                code = f.read()
-            pragma = "#pragma clang diagnostic ignored \"-Wundefined-var-template\"\n"
-            if pragma not in code:
-                with open(cpp, "w", encoding="utf-8") as f:
-                    f.write(pragma + code)
-    '
 
     echo "⚡ Executing Bun release build with --ci=true..."
     bun scripts/build.ts --profile=release --ci=true
