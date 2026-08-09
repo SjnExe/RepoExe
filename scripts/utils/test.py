@@ -21,12 +21,11 @@ class ProotTestRunner:
         print(f"[{package_name}] Running tests in Termux Docker sandbox...")
 
         stage_dir = destdir / "stage" if destdir else None
-
         termux_image = "termux/termux-docker:aarch64"
 
         script_path = Path(tempfile.gettempdir()) / f"test_{package_name}.sh"
 
-        lines = [
+        script_lines = [
             "#!/data/data/com.termux/files/usr/bin/bash",
             "set -e",
             f'export PREFIX="{self.prefix}"',
@@ -35,9 +34,9 @@ class ProotTestRunner:
             'export LD_LIBRARY_PATH="/tmp/stage/data/data/com.termux/files/usr/lib:/tmp/stage/usr/lib:$PREFIX/lib:$LD_LIBRARY_PATH"',
             'pkg install -y binutils 2>/dev/null || true',
             'if command -v xvfb-run >/dev/null 2>&1 && [ -z "$DISPLAY" ]; then EXEC_PREFIX="xvfb-run -a "; else EXEC_PREFIX=""; fi',
-            f'eval "${{EXEC_PREFIX}}{test_commands}"'
+            f'eval "${{EXEC_PREFIX}}{test_commands}"',
         ]
-        script_content = "\n".join(lines) + "\n"
+        script_content = "\n".join(script_lines) + "\n"
 
         script_path.write_text(script_content, encoding="utf-8")
         script_path.chmod(0o755)
@@ -85,7 +84,9 @@ class ProotTestRunner:
                     print(f"--- STDERR ---\n{res.stderr.strip()}")
                 return True
 
-            print(f"⚠️ [{package_name}] Termux Docker run returned non-zero exit code. Trying fallbacks...")
+            print(
+                f"⚠️ [{package_name}] Termux Docker run returned non-zero exit code. Trying fallbacks..."
+            )
 
         print(
             f"⚠️ [{package_name}] Termux Docker unavailable, trying PRoot fallback..."
@@ -102,7 +103,7 @@ class ProotTestRunner:
                 "-b", "/dev",
                 "/bin/bash",
                 "-c",
-                f'export PREFIX="/data/data/com.termux/files/usr"; export PATH="/data/data/com.termux/files/usr/bin:$PATH"; export LD_LIBRARY_PATH="$target_prefix/lib:/data/data/com.termux/files/usr/lib:$LD_LIBRARY_PATH"; {test_commands}'
+                f'export PREFIX="/data/data/com.termux/files/usr"; export PATH="/data/data/com.termux/files/usr/bin:$PATH"; export LD_LIBRARY_PATH="{target_prefix}/lib:/data/data/com.termux/files/usr/lib:$LD_LIBRARY_PATH"; {test_commands}'
             ]
             res_proot = subprocess.run(proot_cmd, capture_output=True, text=True, check=False)
             if res_proot.returncode == 0:
