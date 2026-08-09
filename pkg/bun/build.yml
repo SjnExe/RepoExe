@@ -27,28 +27,32 @@ phases:
     set -e
     export PATH="$HOME/.bun/bin:${PATH}"
 
-    echo "⚡ Intercepting LLVM 21 clang++ binary with root permissions..."
+    echo "⚡ Installing system-level LLVM 21 clang++ interceptor wrapper..."
     sudo python3 -c '
     import os, shutil
 
     clang_bin = "/usr/lib/llvm-21/bin/clang++"
     clang_real = "/usr/lib/llvm-21/bin/clang++.real"
 
-    if not os.path.exists(clang_real) and os.path.exists(clang_bin):
-        shutil.move(clang_bin, clang_real)
+    if not os.path.exists(clang_real):
+        if os.path.islink(clang_bin):
+            real_target = os.path.realpath(clang_bin)
+            os.unlink(clang_bin)
+            os.symlink(real_target, clang_real)
+        else:
+            shutil.move(clang_bin, clang_real)
 
     wrapper_content = """#!/bin/bash
-    if [[ "$*" == *"@bun-profile.rsp"* ]] || [[ "$*" == *"bun-zig.o"* ]]; then
-        if [ ! -f "bun-zig.o" ]; then
-            FOUND=$(find /home/builder/RepoExe/build/build_bun/src -name "bun-zig.o" -type f 2>/dev/null | head -n 1)
-            if [ -n "$FOUND" ]; then
-                cp -f "$FOUND" ./bun-zig.o
-                echo "[LLVM Interceptor] Successfully synced $FOUND to $(pwd)/bun-zig.o"
-            fi
-        fi
+if [[ "$*" == *"@bun-profile.rsp"* ]] || [[ "$*" == *"bun-zig.o"* ]]; then
+    rm -f ./bun-zig.o
+    ZIG_OBJ=$(find /home/builder/RepoExe/build/build_bun -name "bun-zig.o" -type f -not -path "*/build/release/*" 2>/dev/null | head -n 1)
+    if [ -n "$ZIG_OBJ" ] && [ -f "$ZIG_OBJ" ]; then
+        cp -f "$ZIG_OBJ" ./bun-zig.o
+        echo "[LLVM Interceptor] Successfully copied $ZIG_OBJ to $(pwd)/bun-zig.o"
     fi
-    exec /usr/lib/llvm-21/bin/clang++.real "$@"
-    """
+fi
+exec /usr/lib/llvm-21/bin/clang++.real "$@"
+"""
     with open(clang_bin, "w", encoding="utf-8") as f:
         f.write(wrapper_content)
     os.chmod(clang_bin, 0o755)
