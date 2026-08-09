@@ -22,25 +22,26 @@ class ProotTestRunner:
 
         stage_dir = destdir / "stage" if destdir else None
 
-        # We use a dedicated Termux testing docker image to run binaries compiled for Termux.
-        # This properly handles linker64 and Termux library paths.
         termux_image = "termux/termux-docker:aarch64"
 
         script_path = Path(tempfile.gettempdir()) / f"test_{package_name}.sh"
-        script_content = (
-            "#!/data/data/com.termux/files/usr/bin/bash\n"
-            "set -e\n"
-            f'export PREFIX="{self.prefix}"\n'
-            f'export HOME="{self.home}"\n'
-            'export PATH="/tmp/stage/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PATH"\n'
-            'export LD_LIBRARY_PATH="/tmp/stage/data/data/com.termux/files/usr/lib:/tmp/stage/usr/lib:$PREFIX/lib:$LD_LIBRARY_PATH"\n'
-            f"{test_commands}\n"
-        )
+
+        lines = [
+            "#!/data/data/com.termux/files/usr/bin/bash",
+            "set -e",
+            f'export PREFIX="{self.prefix}"',
+            f'export HOME="{self.home}"',
+            'export PATH="/tmp/stage/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PATH"',
+            'export LD_LIBRARY_PATH="/tmp/stage/data/data/com.termux/files/usr/lib:/tmp/stage/usr/lib:$PREFIX/lib:$LD_LIBRARY_PATH"',
+            'pkg install -y binutils 2>/dev/null || true',
+            'if command -v xvfb-run >/dev/null 2>&1 && [ -z "$DISPLAY" ]; then EXEC_PREFIX="xvfb-run -a "; else EXEC_PREFIX=""; fi',
+            f'eval "${{EXEC_PREFIX}}{test_commands}"'
+        ]
+        script_content = "\n".join(lines) + "\n"
+
         script_path.write_text(script_content, encoding="utf-8")
         script_path.chmod(0o755)
 
-        # When running inside GitHub Actions (Docker-in-Docker via socket), we must map internal paths
-        # to host paths so the host Docker daemon can find them to mount into the test container.
         host_stage_dir = str(stage_dir) if stage_dir else ""
         github_workspace = os.environ.get("GITHUB_WORKSPACE")
 
@@ -49,7 +50,6 @@ class ProotTestRunner:
                 "/home/builder/RepoExe", github_workspace
             )
 
-        # Instead of mounting the script file (which is complicated with host paths), we pipe it via STDIN
         docker_cmd = ["docker", "run", "--rm", "-i"]
         if stage_dir and stage_dir.exists():
             docker_cmd.extend(["-v", f"{host_stage_dir}:/tmp/stage:ro"])
@@ -63,7 +63,6 @@ class ProotTestRunner:
             ]
         )
 
-        # Check if docker is available and we can run termux-docker
         has_docker = (
             bool(shutil.which("docker"))
             and subprocess.run(
@@ -73,7 +72,6 @@ class ProotTestRunner:
         )
 
         if has_docker:
-            # We must be on arm64 or have qemu-user-static configured to run termux/termux-docker:aarch64
             res = subprocess.run(
                 docker_cmd, capture_output=True, text=True, check=False
             )
@@ -81,6 +79,10 @@ class ProotTestRunner:
                 print(
                     f"✓ [{package_name}] Smoke test passed successfully inside Termux Docker."
                 )
+                if res.stdout.strip():
+                    print(f"--- STDOUT ---\n{res.stdout.strip()}")
+                if res.stderr.strip():
+                    print(f"--- STDERR ---\n{res.stderr.strip()}")
                 return True
 
             print(f"⚠️ [{package_name}] Termux Docker run returned non-zero exit code. Trying fallbacks...")
@@ -105,6 +107,10 @@ class ProotTestRunner:
             res_proot = subprocess.run(proot_cmd, capture_output=True, text=True, check=False)
             if res_proot.returncode == 0:
                 print(f"✓ [{package_name}] Smoke test passed via PRoot fallback.")
+                if res_proot.stdout.strip():
+                    print(f"--- STDOUT ---\n{res_proot.stdout.strip()}")
+                if res_proot.stderr.strip():
+                    print(f"--- STDERR ---\n{res_proot.stderr.strip()}")
                 return True
 
         test_env = os.environ.copy()
@@ -187,7 +193,9 @@ class ProotTestRunner:
             check=False,
         )
         if res_direct.returncode == 0:
-            print(f"✓ [{package_name}] Smoke test passed via direct execution fallback.")
+            print(
+                f"✓ [{package_name}] Smoke test passed via direct execution fallback."
+            )
             if res_direct.stdout.strip():
                 print(f"--- STDOUT ---\n{res_direct.stdout.strip()}")
             if res_direct.stderr.strip():
