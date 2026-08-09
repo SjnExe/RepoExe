@@ -127,7 +127,7 @@ jobs:
         run: |
           BASE_REF="${GITHUB_BASE_REF:-main}"
           REF_NAME="${GITHUB_REF_NAME:-}"
-          if [ "${REF_NAME\%\%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^.github/workflows/docker.yml'; then
+          if [ "${REF_NAME%%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^.github/workflows/docker.yml'; then
             echo "::error::Docker environment files modified in branch."
           fi
 
