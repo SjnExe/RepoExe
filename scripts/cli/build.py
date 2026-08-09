@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+SCRIPTS_DIR = Path(__file__).resolve().parent.parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
 from utils.elf_linter import audit_directory_elfs
 from pathlib import Path
 import argparse
@@ -245,29 +252,30 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                 clone_cmd = ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)]
                 subprocess.run(clone_cmd, check=True)
             work_dir = src_extract_dir
-    # Apply recipe patches automatically
-    patches = getattr(recipe, "patches", []) or []
-    for patch_name in patches:
-        p_path = pkg_dir / patch_name
-        if p_path.exists():
-            print(f"⚡ Applying automated Android patch: {patch_name}...")
-            subprocess.run(["patch", "-p1", "-i", str(p_path)], cwd=work_dir, check=True)
-
         else:
             print(f"⚡ Downloading archive source: {src_url_str}...")
             subprocess.run(
                 ["curl", "-fsSL", src_url_str, "-o", str(archive_path)],
                 check=True,
             )
-                        if archive_path.exists():
-                subprocess.run(["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)], check=False)
+            if archive_path.exists():
+                subprocess.run(
+                    ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
+                    check=False,
+                )
                 if not any(src_extract_dir.iterdir()):
-                    subprocess.run(["unzip", "-q", str(archive_path), "-d", str(src_extract_dir)], check=False)
-                extracted_items = [item for item in src_extract_dir.iterdir() if item.name != "source.tar.gz"]
+                    subprocess.run(
+                        ["unzip", "-q", str(archive_path), "-d", str(src_extract_dir)],
+                        check=False,
+                    )
+                extracted_items = [
+                    item for item in src_extract_dir.iterdir() if item.name != "source.tar.gz"
+                ]
                 if len(extracted_items) == 1 and extracted_items[0].is_dir():
                     work_dir = extracted_items[0]
                 else:
                     work_dir = src_extract_dir
+
     # Apply recipe patches automatically
     patches = getattr(recipe, "patches", []) or []
     for patch_name in patches:
@@ -275,7 +283,6 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         if p_path.exists():
             print(f"⚡ Applying automated Android patch: {patch_name}...")
             subprocess.run(["patch", "-p1", "-i", str(p_path)], cwd=work_dir, check=True)
-
 
     if shutil.which("sccache"):
         env["RUSTC_WRAPPER"] = "sccache"
