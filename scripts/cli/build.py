@@ -1,3 +1,4 @@
+from pathlib import Path
 import argparse
 import contextlib
 import json
@@ -24,7 +25,6 @@ DEFAULT_BIONIC_ENV = {
 
 import sys
 import urllib.request
-from pathlib import Path
 
 from builders.alpine import build_alpine
 from builders.debian import build_deb
