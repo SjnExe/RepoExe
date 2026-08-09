@@ -6,7 +6,7 @@ ENV HOME=/data/data/com.termux/files/home
 ENV PATH=${PREFIX}/bin:${PATH}
 ENV LD_LIBRARY_PATH=${PREFIX}/lib
 
-# Pre-install core testing utilities and X11/GTK runtimes for offline smoke testing
-RUN apt-get update  && apt-get upgrade -y  && apt-get install -y       binutils       coreutils       findutils       grep       sed       gawk       tar       gzip       zstd       procps       x11-repo  && apt-get update  && apt-get install -y       xvfb       xauth       libgtk-3       libcairo       libcanberra       desktop-file-utils       shared-mime-info  && apt-get clean
+# Pre-install core testing utilities, Python runtime, and X11/GTK/Font runtimes
+RUN apt-get update  && apt-get upgrade -y  && apt-get install -y       binutils       coreutils       findutils       grep       sed       gawk       tar       gzip       zstd       procps       python       python-pip       x11-repo  && apt-get update  && apt-get install -y       xvfb       xauth       libgtk-3       libcairo       libcanberra       pango       fontconfig       dejavu-fonts-ttf       desktop-file-utils       shared-mime-info  && apt-get clean
 
 WORKDIR /data/data/com.termux/files/home
