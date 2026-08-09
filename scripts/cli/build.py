@@ -24,7 +24,7 @@ DEFAULT_BIONIC_ENV = {
     "LD": ld_bin,
     "CFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
     "CXXFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
-    "LDFLAGS": "-fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-icf=safe -Wl,--gc-sections -Wl,-z,pack-relative-relocs",
+    "LDFLAGS": "-fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--gc-sections",
     "CARGO_BUILD_TARGET": "aarch64-linux-android",
     "GOOS": "android",
     "GOARCH": "arm64",
@@ -202,9 +202,12 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
             env.update(setup_build_environment(build_sys, recipe.arch))
 
     print(f"[COMPILING] Package: {recipe.name} (Channel: {recipe.active_channel})")
+    Path("/data/data/com.termux/files/usr/tmp").mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "config", "--global", "--add", "safe.directory", "*"], check=False)
+    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "/home/builder/RepoExe"], check=False)
     if shutil.which("rustup"):
         subprocess.run(["rustup", "default", "stable"], check=False, capture_output=True)
+        subprocess.run(["rustup", "component", "add", "rust-src"], check=False, capture_output=True)
     if build_sys in ("cargo", "custom") and shutil.which("rustup"):
         target_tr = env.get("CARGO_BUILD_TARGET", "aarch64-linux-android")
         subprocess.run(["rustup", "target", "add", target_tr], check=False, capture_output=True)
