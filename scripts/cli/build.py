@@ -22,13 +22,16 @@ DEFAULT_BIONIC_ENV = {
     "CC": clang_bin,
     "CXX": clangxx_bin,
     "LD": ld_bin,
-    "CFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
-    "CXXFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
-    "LDFLAGS": "-fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-icf=safe -Wl,--gc-sections -Wl,-z,pack-relative-relocs",
+    "CFLAGS": "--target=aarch64-linux-android24 -O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
+    "CXXFLAGS": "--target=aarch64-linux-android24 -O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
+    "LDFLAGS": "--target=aarch64-linux-android24 -fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-icf=safe -Wl,--gc-sections -Wl,-z,pack-relative-relocs",
     "CARGO_BUILD_TARGET": "aarch64-linux-android",
     "GOOS": "android",
     "GOARCH": "arm64",
     "CGO_ENABLED": "1",
+    "TMPDIR": "/tmp",
+    "GOTMPDIR": "/tmp",
+    "RUSTUP_TOOLCHAIN": "stable",
 }
 
 import sys
@@ -198,6 +201,9 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
             env.update(setup_build_environment(build_sys, recipe.arch))
 
     print(f"[COMPILING] Package: {recipe.name} (Channel: {recipe.active_channel})")
+    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "*"], check=False)
+    if shutil.which("rustup"):
+        subprocess.run(["rustup", "default", "stable"], check=False, capture_output=True)
     if build_sys in ("cargo", "custom") and shutil.which("rustup"):
         target_tr = env.get("CARGO_BUILD_TARGET", "aarch64-linux-android")
         subprocess.run(["rustup", "target", "add", target_tr], check=False, capture_output=True)
