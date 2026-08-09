@@ -20,3 +20,6 @@ phases:
     python3 -m pip install --ignore-installed --prefix="${DESTDIR}${PREFIX}" .
   test: |
     pytest --version
+
+vars:
+  SETUPTOOLS_SCM_PRETEND_VERSION: "8.3.4"

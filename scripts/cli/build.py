@@ -35,6 +35,9 @@ DEFAULT_BIONIC_ENV = {
     "CARGO_HOME": "/home/builder/.cargo",
     "RUSTUP_TOOLCHAIN": "stable",
     "RUSTC_BOOTSTRAP": "1",
+    "GIT_CONFIG_COUNT": "1",
+    "GIT_CONFIG_KEY_0": "safe.directory",
+    "GIT_CONFIG_VALUE_0": "*",
 }
 
 import sys

@@ -106,17 +106,17 @@ phases:
     fi
 
     if [ -n "$BUN_BIN" ]; then
-      install -Dm755 "$BUN_BIN" "${DESTDIR}/usr/bin/bun"
+      install -Dm755 "$BUN_BIN" bun
     else
       echo "::error::bun executable binary not found after build!"
       exit 1
     fi
 
   test: |
-    "${DESTDIR}/usr/bin/bun" --version
-    "${DESTDIR}/usr/bin/bun" eval "console.log('Bun Android Bionic Runtime OK')"
-    "${DESTDIR}/usr/bin/bun" eval "import { xxhash64 } from 'bun'; console.log('xxhash:', xxhash64('android'))"
-    "${DESTDIR}/usr/bin/bun" --version
+    bun --version
+    bun eval "console.log('Bun Android Bionic Runtime OK')"
+    bun eval "import { xxhash64 } from 'bun'; console.log('xxhash:', xxhash64('android'))"
+    bun --version
 
 vars:
   RUSTC_BOOTSTRAP: "1"
