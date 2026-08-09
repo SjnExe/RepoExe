@@ -1,7 +1,7 @@
 name: aisleriot
 version: "3.22.24"
 revision: 0
-architecture: aarch64
+arch: aarch64
 description: Solitaire card games collection compiled for Termux X11
 license: GPL-3.0-or-later
 homepage: https://wiki.gnome.org/Apps/AisleRiot
@@ -23,7 +23,11 @@ deps:
   - libcanberra
   - libxml2
   - desktop-file-utils
-  - shared-mime-info appstream-util yelp-tools qtbase5-dev libqt5svg5-dev
+  - shared-mime-info
+  - appstream-util
+  - yelp-tools
+  - qtbase5-dev
+  - libqt5svg5-dev
 
 phases:
   prepare: |

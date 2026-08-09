@@ -2,11 +2,11 @@ name: jscpd
 version: "5.0.14"
 revision: 0
 arch: aarch64
-desc: Copy/paste code detector compiled natively in Rust for Termux
+description: Copy/paste code detector compiled natively in Rust for Termux
 license: MIT
 homepage: https://jscpd.dev
 maintainer: SjnExe
-source: https://static.crates.io/crates/jscpd/jscpd-5.0.14.crate
+source_url: https://static.crates.io/crates/jscpd/jscpd-5.0.14.crate
 build_system: cargo
 formats:
   - npm
@@ -17,12 +17,12 @@ phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
     cargo build --release
-    
+
     BIN_PATH=$(find target -type f -name jscpd | grep release | head -n 1)
     if [ -z "$BIN_PATH" ]; then
       BIN_PATH=$(find target -type f -name cpd | grep release | head -n 1)
     fi
-    
+
     cp "$BIN_PATH" "${DESTDIR}${PREFIX}/bin/jscpd"
     chmod +x "${DESTDIR}${PREFIX}/bin/jscpd"
   test: |

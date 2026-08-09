@@ -1,7 +1,7 @@
 name: tsc
 version: "7.0.2"
 revision: 0
-architecture: aarch64
+arch: aarch64
 description: Fast TypeScript compiler written in Go with Seccomp sandbox patches
 license: Apache-2.0
 homepage: https://github.com/SjnExe/RepoExe
@@ -15,7 +15,6 @@ formats:
 
 channels:
   latest:
-    version: "7.0.2"
     auto_update: true
     update_strategy: github_tag
     source_url: https://github.com/microsoft/typescript-go.git

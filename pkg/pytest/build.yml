@@ -2,11 +2,11 @@ name: pytest
 version: "8.3.4"
 revision: 0
 arch: aarch64
-desc: Simple powerful testing framework for Python
+description: Simple powerful testing framework for Python
 license: MIT
 homepage: https://pytest.org
 maintainer: SjnExe
-source: https://files.pythonhosted.org/packages/source/p/pytest/pytest-8.3.4.tar.gz
+source_url: https://files.pythonhosted.org/packages/source/p/pytest/pytest-8.3.4.tar.gz
 build_system: custom
 formats:
   - pip

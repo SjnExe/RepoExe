@@ -1,7 +1,7 @@
 name: pydantic
 version: "2.13.4"
 revision: 0
-architecture: aarch64
+arch: aarch64
 description: Data validation using Python type hints
 license: MIT
 homepage: https://github.com/pydantic/pydantic
@@ -13,7 +13,6 @@ formats:
 
 channels:
   latest:
-    version: "2.13.4"
     auto_update: true
     update_strategy: pypi
     source_url: https://files.pythonhosted.org/packages/source/p/pydantic/pydantic-{version}.tar.gz
