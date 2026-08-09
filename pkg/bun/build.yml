@@ -24,29 +24,44 @@ phases:
 
   make: |
     export PATH="$HOME/.bun/bin:${PATH}"
-    export CC="/usr/lib/llvm-21/bin/clang"
 
-    echo "⚡ Deploying dynamic CXX compiler wrapper for link-time object resolution..."
+    echo "⚡ Intercepting LLVM 21 clang++ binary to dynamically resolve bun-zig.o..."
     python3 -c '
-    import glob, os
+    import os, shutil
 
-    wrapper = """#!/bin/bash
-    if [[ "$*" == *"@bun-profile.rsp"* ]] || [[ "$*" == *"bun-zig.o"* ]]; then
-        if [ ! -f "bun-zig.o" ]; then
-            ZIG_OBJ=$(find /home/builder/RepoExe/build/build_bun/src -type f -name "bun-zig.o" 2>/dev/null | head -n 1)
-            if [ -n "$ZIG_OBJ" ]; then
-                cp -f "$ZIG_OBJ" ./bun-zig.o
-                echo "[CXX Wrapper] Synced $ZIG_OBJ to $(pwd)/bun-zig.o"
-            fi
+    clang_bin = "/usr/lib/llvm-21/bin/clang++"
+    clang_real = "/usr/lib/llvm-21/bin/clang++.real"
+
+    if not os.path.exists(clang_real) and os.path.exists(clang_bin):
+        shutil.move(clang_bin, clang_real)
+
+    wrapper_content = """#!/bin/bash
+if [[ "$*" == *"@bun-profile.rsp"* ]] || [[ "$*" == *"bun-zig.o"* ]]; then
+    if [ ! -f "bun-zig.o" ]; then
+        FOUND=$(find /home/builder/RepoExe/build/build_bun/src -name "bun-zig.o" -type f 2>/dev/null | head -n 1)
+        if [ -n "$FOUND" ]; then
+            cp -f "$FOUND" ./bun-zig.o
+            echo "[LLVM Interceptor] Successfully synced $FOUND to $(pwd)/bun-zig.o"
         fi
     fi
-    exec /usr/lib/llvm-21/bin/clang++ "$@"
-    """
+fi
+exec /usr/lib/llvm-21/bin/clang++.real "$@"
+"""
+    with open(clang_bin, "w", encoding="utf-8") as f:
+        f.write(wrapper_content)
+    os.chmod(clang_bin, 0o755)
+    '
 
-    with open("/tmp/clang++-wrapper", "w", encoding="utf-8") as f:
-        f.write(wrapper)
-    os.chmod("/tmp/clang++-wrapper", 0o755)
+    export CC="/usr/lib/llvm-21/bin/clang"
+    export CXX="/usr/lib/llvm-21/bin/clang++"
 
+    if [ -f rust-toolchain.toml ]; then
+      rustup show
+    fi
+
+    echo "⚡ Suppressing Clang 21 C++23 template warnings in C++ bindings..."
+    python3 -c '
+    import glob, os
     for cpp in glob.glob("src/jsc/bindings/**/*.cpp", recursive=True) + glob.glob("src/jsc/bindings/*.cpp"):
         if os.path.isfile(cpp):
             with open(cpp, "r", encoding="utf-8") as f:
@@ -56,12 +71,6 @@ phases:
                 with open(cpp, "w", encoding="utf-8") as f:
                     f.write(pragma + code)
     '
-
-    export CXX="/tmp/clang++-wrapper"
-
-    if [ -f rust-toolchain.toml ]; then
-      rustup show
-    fi
 
     echo "⚡ Executing Bun release build with --ci=true..."
     bun scripts/build.ts --profile=release --ci=true
