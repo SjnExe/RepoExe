@@ -42,17 +42,19 @@ phases:
         else:
             shutil.move(clang_bin, clang_real)
 
-    wrapper_content = """#!/bin/bash
-if [[ "$*" == *"@bun-profile.rsp"* ]] || [[ "$*" == *"bun-zig.o"* ]]; then
-    rm -f ./bun-zig.o
-    ZIG_OBJ=$(find /home/builder/RepoExe/build/build_bun -name "bun-zig.o" -type f -not -path "*/build/release/*" 2>/dev/null | head -n 1)
-    if [ -n "$ZIG_OBJ" ] && [ -f "$ZIG_OBJ" ]; then
-        cp -f "$ZIG_OBJ" ./bun-zig.o
-        echo "[LLVM Interceptor] Successfully copied $ZIG_OBJ to $(pwd)/bun-zig.o"
-    fi
-fi
-exec /usr/lib/llvm-21/bin/clang++.real "$@"
-"""
+    wrapper_content = "\n".join([
+        "#!/bin/bash",
+        "if [[ \"$*\" == *\"@bun-profile.rsp\"* ]] || [[ \"$*\" == *\"bun-zig.o\"* ]]; then",
+        "    rm -f ./bun-zig.o",
+        "    ZIG_OBJ=$(find /home/builder/RepoExe/build/build_bun -name \"bun-zig.o\" -type f -not -path \"*/build/release/*\" 2>/dev/null | head -n 1)",
+        "    if [ -n \"$ZIG_OBJ\" ] && [ -f \"$ZIG_OBJ\" ]; then",
+        "        cp -f \"$ZIG_OBJ\" ./bun-zig.o",
+        "        echo \"[LLVM Interceptor] Successfully copied $ZIG_OBJ to $(pwd)/bun-zig.o\"",
+        "    fi",
+        "fi",
+        "exec /usr/lib/llvm-21/bin/clang++.real \"$@\"",
+        ""
+    ])
     with open(clang_bin, "w", encoding="utf-8") as f:
         f.write(wrapper_content)
     os.chmod(clang_bin, 0o755)
