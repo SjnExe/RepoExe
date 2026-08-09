@@ -198,6 +198,10 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
             setup_build_environment(build_sys, recipe.arch)
 
     print(f"[COMPILING] Package: {recipe.name} (Channel: {recipe.active_channel})")
+    if build_sys in ("cargo", "custom") and shutil.which("rustup"):
+        target_tr = env.get("CARGO_BUILD_TARGET", "aarch64-linux-android")
+        subprocess.run(["rustup", "target", "add", target_tr], check=False, capture_output=True)
+
 
     destdir.parent.mkdir(parents=True, exist_ok=True)
     if destdir.exists():

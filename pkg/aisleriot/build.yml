@@ -6,7 +6,6 @@ description: Solitaire card games collection compiled for Termux X11
 license: GPL-3.0-or-later
 homepage: https://wiki.gnome.org/Apps/AisleRiot
 maintainer: SjnExe
-component: x11
 build_system: custom
 
 source_url: https://gitlab.gnome.org/GNOME/aisleriot.git
@@ -48,4 +47,5 @@ phases:
       termux-elf-cleaner "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true
     fi
   test: |
+    readelf -h "${DESTDIR}${PREFIX}/bin/sol"
     sol --version

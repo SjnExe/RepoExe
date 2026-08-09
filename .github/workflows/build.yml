@@ -263,7 +263,6 @@ jobs:
             python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Termux Docker Smoke Test
-        continue-on-error: true
         id: test_step
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
