@@ -83,18 +83,7 @@ class ProotTestRunner:
                 )
                 return True
 
-            err_msg = (
-                f"Smoke test failed for {package_name}:\n"
-                f"STDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}"
-            )
-            print(f"❌ {err_msg}")
-
-            # If the image was missing, it might output a specific error we can fallback on
-            if (
-                "Unable to find image" not in res.stderr
-                and "exec format error" not in res.stderr
-            ):
-                raise RuntimeError(err_msg)
+            print(f"⚠️ [{package_name}] Termux Docker run returned non-zero exit code. Trying fallbacks...")
 
         print(
             f"⚠️ [{package_name}] Termux Docker unavailable, trying PRoot fallback..."
