@@ -114,8 +114,8 @@ phases:
 
   test: |
     bun --version
-    bun eval "console.log('Bun Android Bionic Runtime OK')"
-    bun eval "import { xxhash64 } from 'bun'; console.log('xxhash:', xxhash64('android'))"
+    bun -e "console.log('Bun Android Bionic Runtime OK')"
+    bun -e "import { xxhash64 } from 'bun'; console.log('xxhash:', xxhash64('android'))"
     bun --version
 
 vars:
