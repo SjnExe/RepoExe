@@ -259,30 +259,15 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                 ["curl", "-fsSL", src_url_str, "-o", str(archive_path)],
                 check=True,
             )
-            if archive_path.exists():
-                subprocess.run(
-                    [
-                        "tar",
-                        "-xf",
-                        str(archive_path),
-                        "-C",
-                        str(src_extract_dir),
-                        "--strip-components=1",
-                    ],
-                    check=False,
-                )
+                        if archive_path.exists():
+                subprocess.run(["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)], check=False)
                 if not any(src_extract_dir.iterdir()):
-                    subprocess.run(
-                        [
-                            "tar",
-                            "-xf",
-                            str(archive_path),
-                            "-C",
-                            str(src_extract_dir),
-                        ],
-                        check=True,
-                    )
-                work_dir = src_extract_dir
+                    subprocess.run(["unzip", "-q", str(archive_path), "-d", str(src_extract_dir)], check=False)
+                extracted_items = [item for item in src_extract_dir.iterdir() if item.name != "source.tar.gz"]
+                if len(extracted_items) == 1 and extracted_items[0].is_dir():
+                    work_dir = extracted_items[0]
+                else:
+                    work_dir = src_extract_dir
     # Apply recipe patches automatically
     patches = getattr(recipe, "patches", []) or []
     for patch_name in patches:

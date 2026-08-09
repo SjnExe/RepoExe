@@ -1,5 +1,5 @@
 name: uv
-version: "0.5.29"
+version: "0.12.2"
 revision: 0
 arch: aarch64
 description: Fast Python package installer and resolver written in Rust
