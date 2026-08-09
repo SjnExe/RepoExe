@@ -106,7 +106,7 @@ phases:
     fi
 
     if [ -n "$BUN_BIN" ]; then
-      install -Dm755 "$BUN_BIN" bun
+      install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     else
       echo "::error::bun executable binary not found after build!"
       exit 1
