@@ -8,7 +8,7 @@ class RustToolchain:
 
     def _setup_target(self):
         target_map = {
-            "aarch64": "aarch64-linux-android",
+            "aarch64": "aarch64-unknown-linux-musl",
             "arm": "armv7-linux-androideabi",
             "x86_64": "x86_64-linux-android",
             "i686": "i686-linux-android",
@@ -23,7 +23,7 @@ class RustToolchain:
         linker = native_env.get("CC", "clang")
         env = {
             "CARGO_BUILD_TARGET": self.target,
-            "RUSTFLAGS": f"-L{PREFIX}/lib -C linker={linker} -C link-arg=--target={self.target} -C link-arg=-Wl,-z,max-page-size=16384",
+            "RUSTFLAGS": f"-L{PREFIX}/lib -C linker={linker} -C link-arg=-Wl,-z,max-page-size=16384",
             f"CARGO_TARGET_{target_key}_LINKER": linker,
         }
         return env

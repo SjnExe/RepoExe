@@ -25,7 +25,7 @@ DEFAULT_BIONIC_ENV = {
     "CFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
     "CXXFLAGS": "-O3 -DNDEBUG -pipe -march=armv8-a+crc+crypto -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
     "LDFLAGS": "-fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-icf=safe -Wl,--gc-sections -Wl,-z,pack-relative-relocs",
-    "CARGO_BUILD_TARGET": "aarch64-linux-android",
+    "CARGO_BUILD_TARGET": "aarch64-unknown-linux-musl",
     "GOOS": "android",
     "GOARCH": "arm64",
     "CGO_ENABLED": "1",
@@ -195,11 +195,11 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     build_sys = getattr(recipe, "build_system", None)
     if build_sys:
         with contextlib.suppress(Exception):
-            setup_build_environment(build_sys, recipe.arch)
+            env.update(setup_build_environment(build_sys, recipe.arch))
 
     print(f"[COMPILING] Package: {recipe.name} (Channel: {recipe.active_channel})")
     if build_sys in ("cargo", "custom") and shutil.which("rustup"):
-        target_tr = env.get("CARGO_BUILD_TARGET", "aarch64-linux-android")
+        target_tr = env.get("CARGO_BUILD_TARGET", "aarch64-unknown-linux-musl")
         subprocess.run(["rustup", "target", "add", target_tr], check=False, capture_output=True)
 
 
