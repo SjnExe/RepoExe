@@ -178,9 +178,7 @@ phases:
     if os.path.isfile(opt_jsc):
         with open(opt_jsc, 'r', encoding='utf-8') as f:
             code = f.read()
-        code = code.replace("find_package(ICU 70.1 REQUIRED COMPONENTS uc i18n data)", "set(ICU_FOUND TRUE)
-set(ICU_INCLUDE_DIRS /usr/include)
-set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)")
+        code = code.replace("find_package(ICU 70.1 REQUIRED COMPONENTS uc i18n data)", "set(ICU_FOUND TRUE)\nset(ICU_INCLUDE_DIRS /usr/include)\nset(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so")
         with open(opt_jsc, 'w', encoding='utf-8') as f:
             f.write(code)
     PY_PATCH_EOF
