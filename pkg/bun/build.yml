@@ -66,71 +66,72 @@ phases:
     curl -fsSL https://bun.sh/install | bash || true
 
     echo "⚡ Dynamically resolving oven-sh/zig custom compiler release..."
-    python3 -c "
-import os, re, urllib.request, json, subprocess
+    python3 -c "import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))" << 'PY_ZIG_EOF'
+    import os, re, urllib.request, json, subprocess
 
-tag = None
-for candidate in ['src/deps/zig/tag.txt', 'src/deps/zig_tag.txt', 'Makefile']:
-    if os.path.exists(candidate):
-        with open(candidate, 'r', encoding='utf-8', errors='ignore') as f:
-            content = f.read()
-        if 'tag.txt' in candidate:
-            tag = content.strip()
-            if tag: break
-        else:
-            m = re.search(r'ZIG_TAG\s*\??=\s*(\S+)', content)
-            if m:
-                tag = m.group(1).strip()
-                break
-
-if not tag:
-    req = urllib.request.Request('https://api.github.com/repos/oven-sh/zig/releases', headers={'User-Agent': 'RepoExe'})
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        releases = json.loads(resp.read().decode('utf-8'))
-        tag = releases[0]['tag_name']
-
-print(f'🔒 Bun target Zig tag: {tag}')
-os.makedirs('/tmp/zig-custom', exist_ok=True)
-dl_url = f'https://github.com/oven-sh/zig/releases/download/{tag}/bootstrap-aarch64-linux-musl.zip'
-zip_path = '/tmp/zig.zip'
-try:
-    urllib.request.urlretrieve(dl_url, zip_path)
-    subprocess.run(['unzip', '-q', '-o', zip_path, '-d', '/tmp/zig-custom/'], check=True)
-except Exception:
-    dl_url_fallback = f'https://github.com/oven-sh/zig/releases/download/{tag}/zig-linux-aarch64.zip'
-    urllib.request.urlretrieve(dl_url_fallback, zip_path)
-    subprocess.run(['unzip', '-q', '-o', zip_path, '-d', '/tmp/zig-custom/'], check=True)
-"
-
-    echo "⚡ Dynamically resolving exact WebKit commit SHA from Bun source..."
-    WEBKIT_SHA=$(python3 -c "
-import os, re, subprocess, urllib.request, json
-
-sha = None
-try:
-    res = subprocess.run(['git', 'ls-tree', 'HEAD', 'submodules/WebKit'], capture_output=True, text=True)
-    if res.returncode == 0 and res.stdout.strip():
-        sha = res.stdout.split()[2]
-except Exception:
-    pass
-
-if not sha:
-    for candidate in ['scripts/build/deps/webkit.ts', 'Makefile', 'src/deps/webkit_tag.txt', '.gitmodules']:
+    tag = None
+    for candidate in ['src/deps/zig/tag.txt', 'src/deps/zig_tag.txt', 'Makefile']:
         if os.path.exists(candidate):
             with open(candidate, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
-            m = re.search(r'[a-f0-9]{40}', content)
-            if m:
-                sha = m.group(0)
-                break
+            if 'tag.txt' in candidate:
+                tag = content.strip()
+                if tag: break
+            else:
+                m = re.search(r'ZIG_TAG\s*\??=\s*(\S+)', content)
+                if m:
+                    tag = m.group(1).strip()
+                    break
 
-if not sha:
-    req = urllib.request.Request('https://api.github.com/repos/oven-sh/webkit/commits/main', headers={'User-Agent': 'RepoExe'})
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        sha = json.loads(resp.read().decode('utf-8'))['sha']
+    if not tag:
+        req = urllib.request.Request('https://api.github.com/repos/oven-sh/zig/releases', headers={'User-Agent': 'RepoExe'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            releases = json.loads(resp.read().decode('utf-8'))
+            tag = releases[0]['tag_name']
 
-print(sha)
-")
+    print(f'🔒 Bun target Zig tag: {tag}')
+    os.makedirs('/tmp/zig-custom', exist_ok=True)
+    dl_url = f'https://github.com/oven-sh/zig/releases/download/{tag}/bootstrap-aarch64-linux-musl.zip'
+    zip_path = '/tmp/zig.zip'
+    try:
+        urllib.request.urlretrieve(dl_url, zip_path)
+        subprocess.run(['unzip', '-q', '-o', zip_path, '-d', '/tmp/zig-custom/'], check=True)
+    except Exception:
+        dl_url_fallback = f'https://github.com/oven-sh/zig/releases/download/{tag}/zig-linux-aarch64.zip'
+        urllib.request.urlretrieve(dl_url_fallback, zip_path)
+        subprocess.run(['unzip', '-q', '-o', zip_path, '-d', '/tmp/zig-custom/'], check=True)
+    PY_ZIG_EOF
+
+    echo "⚡ Dynamically resolving exact WebKit commit SHA from Bun source..."
+    WEBKIT_SHA=$(python3 -c "import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))" << 'PY_WK_EOF'
+    import os, re, subprocess, urllib.request, json
+
+    sha = None
+    try:
+        res = subprocess.run(['git', 'ls-tree', 'HEAD', 'submodules/WebKit'], capture_output=True, text=True)
+        if res.returncode == 0 and res.stdout.strip():
+            sha = res.stdout.split()[2]
+    except Exception:
+        pass
+
+    if not sha:
+        for candidate in ['scripts/build/deps/webkit.ts', 'Makefile', 'src/deps/webkit_tag.txt', '.gitmodules']:
+            if os.path.exists(candidate):
+                with open(candidate, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                m = re.search(r'[a-f0-9]{40}', content)
+                if m:
+                    sha = m.group(0)
+                    break
+
+    if not sha:
+        req = urllib.request.Request('https://api.github.com/repos/oven-sh/webkit/commits/main', headers={'User-Agent': 'RepoExe'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            sha = json.loads(resp.read().decode('utf-8'))['sha']
+
+    print(sha)
+    PY_WK_EOF
+    )
     echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
 
     JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}"
@@ -150,54 +151,33 @@ print(sha)
       git -C "$WK_SRC" checkout FETCH_HEAD
 
       echo "⚡ Applying version-independent Bionic source patches to WebKit..."
-      python3 -c "
-import glob, os, re
+      python3 -c "import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))" << 'PY_PATCH_EOF'
+      import glob, os, re
 
-for path in glob.glob('$WK_SRC/Source/**/*.*', recursive=True):
-    if os.path.isfile(path) and path.endswith(('.h', '.cpp', '.c', '.mm')):
-        try:
-            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                code = f.read()
-            new_code = re.sub(r'#include\s*<execinfo\.h>', '/* #include <execinfo.h> */', code)
-            new_code = re.sub(r'#include\s*<wordexp\.h>', '/* #include <wordexp.h> */', new_code)
-            if new_code != code:
-                with open(path, 'w', encoding='utf-8') as f:
-                    f.write(new_code)
-        except Exception:
-            pass
+      for path in glob.glob('$WK_SRC/Source/**/*.*', recursive=True):
+          if os.path.isfile(path) and path.endswith(('.h', '.cpp', '.c', '.mm')):
+              try:
+                  with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                      code = f.read()
+                  new_code = re.sub(r'#include\s*<execinfo\.h>', '/* #include <execinfo.h> */', code)
+                  new_code = re.sub(r'#include\s*<wordexp\.h>', '/* #include <wordexp.h> */', new_code)
+                  if new_code != code:
+                      with open(path, 'w', encoding='utf-8') as f:
+                          f.write(new_code)
+              except Exception:
+                  pass
 
-for sig_file in glob.glob('$WK_SRC/Source/WTF/wtf/threads/Signals.cpp') + glob.glob('$WK_SRC/Source/JavaScriptCore/sigprocess/*.cpp'):
-    if os.path.isfile(sig_file):
-        with open(sig_file, 'r', encoding='utf-8', errors='ignore') as f:
-            code = f.read()
-        code = code.replace('uc_mcontext.regs', 'uc_mcontext.arm_regs')
-        with open(sig_file, 'w', encoding='utf-8') as f:
-            f.write(code)
-"
+      for sig_file in glob.glob('$WK_SRC/Source/WTF/wtf/threads/Signals.cpp') + glob.glob('$WK_SRC/Source/JavaScriptCore/sigprocess/*.cpp'):
+          if os.path.isfile(sig_file):
+              with open(sig_file, 'r', encoding='utf-8', errors='ignore') as f:
+                  code = f.read()
+              code = code.replace('uc_mcontext.regs', 'uc_mcontext.arm_regs')
+              with open(sig_file, 'w', encoding='utf-8') as f:
+                  f.write(code)
+      PY_PATCH_EOF
 
       mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
-      cmake -G Ninja .. \
-        -DCMAKE_TOOLCHAIN_FILE="${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake" \
-        -DANDROID_ABI=arm64-v8a \
-        -DANDROID_PLATFORM=android-24 \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DPORT=JSCOnly \
-        -DENABLE_STATIC_JSC=ON \
-        -DENABLE_BUN=ON \
-        -DENABLE_BUN_JSC=ON \
-        -DDEVELOPER_MODE=OFF \
-        -DUSE_THINLTO=OFF \
-        -DENABLE_SAMPLING_PROFILER=OFF \
-        -DENABLE_REMOTE_INSPECTOR=OFF \
-        -DENABLE_EXTRA_BYTECODE_VERIFICATION=OFF \
-        -DENABLE_JIT=ON \
-        -DENABLE_DFG_JIT=ON \
-        -DENABLE_FTL_JIT=ON \
-        -DENABLE_YARR_JIT=ON \
-        -DENABLE_WEBASSEMBLY=ON \
-        -DENABLE_C_LOOP=OFF \
-        -DCMAKE_C_FLAGS="-O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1" \
-        -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -Wno-undefined-var-template -Wno-error=undefined-var-template"
+      cmake -G Ninja ..         -DCMAKE_TOOLCHAIN_FILE="${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake"         -DANDROID_ABI=arm64-v8a         -DANDROID_PLATFORM=android-24         -DCMAKE_BUILD_TYPE=Release         -DPORT=JSCOnly         -DENABLE_STATIC_JSC=ON         -DENABLE_BUN=ON         -DENABLE_BUN_JSC=ON         -DDEVELOPER_MODE=OFF         -DUSE_THINLTO=OFF         -DENABLE_SAMPLING_PROFILER=OFF         -DENABLE_REMOTE_INSPECTOR=OFF         -DENABLE_EXTRA_BYTECODE_VERIFICATION=OFF         -DENABLE_JIT=ON         -DENABLE_DFG_JIT=ON         -DENABLE_FTL_JIT=ON         -DENABLE_YARR_JIT=ON         -DENABLE_WEBASSEMBLY=ON         -DENABLE_C_LOOP=OFF         -DCMAKE_C_FLAGS="-O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1"         -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -D__ANDROID_API__=24 -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -Wno-undefined-var-template -Wno-error=undefined-var-template"
       ninja -j4 jsc
 
       mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"
