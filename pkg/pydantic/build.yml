@@ -20,7 +20,6 @@ channels:
 build_system: custom
 phases:
   prepare: |
-    export PATH="$HOME/.local/bin:$PATH"
     python3 -m pip install --break-system-packages maturin hatchling hatch-fancy-pypi-readme hatch-vcs
   make: |
     export PYO3_PYTHON="$(command -v python3)"
