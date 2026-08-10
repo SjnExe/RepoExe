@@ -24,13 +24,8 @@ phases:
   make: |
     export PATH="$HOME/.local/bin:$PATH"
     export PYO3_PYTHON="$(command -v python3)"
-    pip download --no-deps pydantic-core==2.27.2
-    tar -xf pydantic_core-*.tar.gz
-    cd pydantic_core-*
-    maturin build --release --strip
-    python3 -m pip install --break-system-packages --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" target/wheels/*.whl
-    cd ..
-    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
+    python3 -m pip install --break-system-packages --no-build-isolation --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" pydantic-core
+    python3 -m pip install --break-system-packages --no-build-isolation --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
     echo "Installed pydantic site-packages into staging"
   test: |
