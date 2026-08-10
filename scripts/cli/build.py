@@ -33,33 +33,38 @@ def auto_patch_bionic_sources(src_dir: Path) -> None:
     for p in src_dir.rglob("*"):
         if p.is_file() and p.suffix in (".h", ".cpp", ".c", ".cc", ".mm", ".hpp"):
             try:
-                code = p.read_text(encoding="utf-8", errors="ignore")
-                new_code = code
+                code_txt = p.read_text(encoding="utf-8", errors="ignore")
+                new_code = code_txt
                 if "#include <execinfo.h>" in new_code or "#include <wordexp.h>" in new_code:
                     new_code = re.sub(r'#include\s*<execinfo\.h>', '/* #include <execinfo.h> */', new_code)
                     new_code = re.sub(r'#include\s*<wordexp\.h>', '/* #include <wordexp.h> */', new_code)
                 if "uc_mcontext.regs" in new_code:
                     new_code = new_code.replace("uc_mcontext.regs", "uc_mcontext.arm_regs")
-                if new_code != code:
+                if new_code != code_txt:
                     p.write_text(new_code, encoding="utf-8")
             except Exception:
                 pass
 
-        if p.is_file() and p.name == "OptionsJSCOnly.cmake":
+        if p.is_file() and (p.name == "OptionsJSCOnly.cmake" or p.suffix == ".cmake"):
             try:
-                code = p.read_text(encoding="utf-8")
-                if "find_package(ICU 70.1 REQUIRED COMPONENTS uc i18n data)" in code:
-                    icu_override = (
-                        "set(ICU_FOUND TRUE)\n"
-                        "set(ICU_INCLUDE_DIRS /usr/include)\n"
-                        "set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so "
-                        "/usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)"
-                    )
-                    code = code.replace("find_package(ICU 70.1 REQUIRED COMPONENTS uc i18n data)", icu_override)
-                    p.write_text(code, encoding="utf-8")
+                c_txt = p.read_text(encoding="utf-8", errors="ignore")
+                if "find_package(ICU" in c_txt:
+                    icu_stub = "\n".join([
+                        "add_library(ICU::uc UNKNOWN IMPORTED)",
+                        "set_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)",
+                        "add_library(ICU::i18n UNKNOWN IMPORTED)",
+                        "set_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)",
+                        "add_library(ICU::data UNKNOWN IMPORTED)",
+                        "set_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)",
+                        "set(ICU_FOUND TRUE)",
+                        "set(ICU_INCLUDE_DIRS /usr/include)",
+                        "set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)"
+                    ])
+                    new_c = re.sub(r'find_package\(ICU[^\)]*\)', lambda _: icu_stub, c_txt)
+                    if new_c != c_txt:
+                        p.write_text(new_c, encoding="utf-8")
             except Exception:
                 pass
-
 
 def fix_termux_shebangs(stage_dir):
     """Normalizes host shebangs in staged binaries to Termux Bionic paths."""
