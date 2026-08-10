@@ -20,7 +20,7 @@ channels:
 build_system: custom
 phases:
   prepare: |
-    python3 -m pip install --break-system-packages maturin
+    python3 -m pip install --break-system-packages maturin hatchling
   make: |
     export PYO3_PYTHON="$(command -v python3)"
     python3 -m pip wheel . -w output/ --no-build-isolation || true
