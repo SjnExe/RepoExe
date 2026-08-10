@@ -22,10 +22,9 @@ phases:
   prepare: |
     python3 -m pip install --break-system-packages maturin hatchling hatch-fancy-pypi-readme hatch-vcs
   make: |
-    export PYO3_PYTHON="$(command -v python3)"
-    python3 -m pip wheel . -w output/ --no-build-isolation --no-binary pydantic-core || true
-    python3 -m pip install --break-system-packages --no-build-isolation --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
+    python3 -m pip install --break-system-packages --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" pydantic-core
+    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
     echo "Installed pydantic site-packages into staging"
   test: |
-    python3 -c "import pydantic; print('pydantic ok')"
+    python3 -c "import pydantic; print('pydantic ok')" 
