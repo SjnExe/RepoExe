@@ -29,7 +29,7 @@ RUN uv python install 3.13  && uv tool install ruff  && uv tool install mypy
 
 WORKDIR /home/builder/RepoExe
 
-RUN python3 -m pip install --break-system-packages --no-cache-dir pyyaml "pydantic>=2.0.0" pytest ruff
+RUN python3 -m pip install --break-system-packages --no-cache-dir pyyaml "pydantic>=2.0.0" pytest ruff maturin hatchling hatch-fancy-pypi-readme hatch-vcs
 
 # Install Rust Toolchain & targets
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable  && /home/builder/.cargo/bin/rustup target add aarch64-linux-android aarch64-unknown-linux-musl aarch64-unknown-linux-gnu

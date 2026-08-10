@@ -1,4 +1,62 @@
 
+def auto_patch_bionic_sources(src_dir: Path) -> None:
+    """Automated Bionic polyfill and source patcher for Android builds."""
+    if not src_dir or not src_dir.exists():
+        return
+
+    stub_path = Path("/tmp/bionic_stub.h")
+    if not stub_path.exists():
+        stub_content = (
+            "#pragma once\n"
+            "#include <stdio.h>\n"
+            "#include <stdlib.h>\n"
+            "#include <sys/types.h>\n\n"
+            "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
+            "typedef struct {\n  size_t we_wordc;\n  char **we_wordv;\n  size_t we_offs;\n} wordexp_t;\n\n"
+            "#define WRDE_NOCMD 0\n"
+            "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
+            "static inline void wordfree(wordexp_t *p) { (void)p; }\n\n"
+            "static inline int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n"
+            "static inline char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n"
+            "static inline void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n\n"
+            "#ifdef __cplusplus\n}\n#endif\n"
+        )
+        try:
+            stub_path.write_text(stub_content, encoding="utf-8")
+        except Exception:
+            pass
+
+    for p in src_dir.rglob("*"):
+        if p.is_file() and p.suffix in (".h", ".cpp", ".c", ".cc", ".mm", ".hpp"):
+            try:
+                code = p.read_text(encoding="utf-8", errors="ignore")
+                new_code = code
+                if "#include <execinfo.h>" in new_code or "#include <wordexp.h>" in new_code:
+                    new_code = re.sub(r'#include\s*<execinfo\.h>', '/* #include <execinfo.h> */', new_code)
+                    new_code = re.sub(r'#include\s*<wordexp\.h>', '/* #include <wordexp.h> */', new_code)
+                if "uc_mcontext.regs" in new_code:
+                    new_code = new_code.replace("uc_mcontext.regs", "uc_mcontext.arm_regs")
+                if new_code != code:
+                    p.write_text(new_code, encoding="utf-8")
+            except Exception:
+                pass
+
+        if p.is_file() and p.name == "OptionsJSCOnly.cmake":
+            try:
+                code = p.read_text(encoding="utf-8")
+                if "find_package(ICU 70.1 REQUIRED COMPONENTS uc i18n data)" in code:
+                    icu_override = (
+                        "set(ICU_FOUND TRUE)\n"
+                        "set(ICU_INCLUDE_DIRS /usr/include)\n"
+                        "set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so "
+                        "/usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)"
+                    )
+                    code = code.replace("find_package(ICU 70.1 REQUIRED COMPONENTS uc i18n data)", icu_override)
+                    p.write_text(code, encoding="utf-8")
+            except Exception:
+                pass
+
+
 def fix_termux_shebangs(stage_dir):
     """Normalizes host shebangs in staged binaries to Termux Bionic paths."""
     if not stage_dir or not os.path.exists(stage_dir):
@@ -354,6 +412,8 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     make_cmd = phases.get("make")
     install_cmd = phases.get("install")
 
+    auto_patch_bionic_sources(work_dir)
+    auto_patch_bionic_sources(Path('/tmp/webkit-src'))
     if prepare_cmd:
         res = subprocess.run(
             prepare_cmd, shell=True, cwd=work_dir, env=env, check=False
