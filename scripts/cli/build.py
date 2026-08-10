@@ -1,3 +1,7 @@
+import re
+import sys
+from pathlib import Path
+
 
 def auto_patch_bionic_sources(src_dir: Path) -> None:
     """Automated Bionic polyfill and source patcher for Android builds."""
