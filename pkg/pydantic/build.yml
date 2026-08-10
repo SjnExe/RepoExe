@@ -20,14 +20,11 @@ channels:
 build_system: custom
 phases:
   prepare: |
-    PY_BIN="$(python3 -c 'import sys, os; print(os.path.realpath(sys.executable))')"
-    export PYO3_PYTHON="$PY_BIN"
-    "$PY_BIN" -m pip install --break-system-packages maturin
+    python3 -m pip install --break-system-packages maturin
   make: |
-    PY_BIN="$(python3 -c 'import sys, os; print(os.path.realpath(sys.executable))')"
-    export PYO3_PYTHON="$PY_BIN"
-    "$PY_BIN" -m pip wheel . -w output/ || true
-    "$PY_BIN" -m pip install --break-system-packages --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
+    export PYO3_PYTHON="$(command -v python3)"
+    python3 -m pip wheel . -w output/ --no-build-isolation || true
+    python3 -m pip install --break-system-packages --no-build-isolation --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
     echo "Installed pydantic site-packages into staging"
   test: |
