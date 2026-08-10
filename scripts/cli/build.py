@@ -430,6 +430,10 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         if res.returncode != 0:
             raise RuntimeError(f"Prepare phase failed for {recipe.name}")
 
+    auto_patch_bionic_sources(work_dir)
+    if Path("/tmp/webkit-src").exists():
+        auto_patch_bionic_sources(Path("/tmp/webkit-src"))
+
     if configure_cmd:
         res = subprocess.run(
             configure_cmd, shell=True, cwd=work_dir, env=env, check=False
