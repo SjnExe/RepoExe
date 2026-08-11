@@ -2,16 +2,6 @@ import re
 import sys
 from pathlib import Path
 
-import argparse
-import contextlib
-import json
-import os
-import shutil
-import subprocess
-import urllib.request
-
-
-
 
 def auto_patch_bionic_sources(src_dir: Path) -> None:
     """Automated Bionic polyfill and source patcher for Android builds."""
@@ -112,21 +102,20 @@ def fix_termux_shebangs(stage_dir):
             except Exception:
                 pass
 
+from pathlib import Path  # noqa: E402
+
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from builders.alpine import build_alpine  # noqa: E402
-from builders.debian import build_deb  # noqa: E402
-from builders.npm import build_npm  # noqa: E402
-from builders.pacman import build_pacman  # noqa: E402
-from builders.pip import build_pip  # noqa: E402
 from utils.elf_linter import audit_directory_elfs  # noqa: E402
-from utils.health import audit_repository_health  # noqa: E402
-from utils.parser import parse_recipe  # noqa: E402
-from utils.test import ProotTestRunner  # noqa: E402
-from utils.toolchains import setup_build_environment  # noqa: E402
-
+from pathlib import Path  # noqa: E402
+import argparse  # noqa: E402
+import contextlib  # noqa: E402
+import json  # noqa: E402
+import os  # noqa: E402
+import shutil  # noqa: E402
+import subprocess  # noqa: E402
 
 clang_bin = "/usr/lib/llvm-21/bin/clang" if Path("/usr/lib/llvm-21/bin/clang").exists() else "clang"
 clangxx_bin = "/usr/lib/llvm-21/bin/clang++" if Path("/usr/lib/llvm-21/bin/clang++").exists() else "clang++"
@@ -153,6 +142,19 @@ DEFAULT_BIONIC_ENV = {
     "GIT_CONFIG_KEY_0": "safe.directory",
     "GIT_CONFIG_VALUE_0": "*",
 }
+
+import sys  # noqa: E402
+import urllib.request  # noqa: E402
+
+from builders.alpine import build_alpine  # noqa: E402
+from builders.debian import build_deb  # noqa: E402
+from builders.npm import build_npm  # noqa: E402
+from builders.pacman import build_pacman  # noqa: E402
+from builders.pip import build_pip  # noqa: E402
+from utils.health import audit_repository_health  # noqa: E402
+from utils.parser import parse_recipe  # noqa: E402
+from utils.test import ProotTestRunner  # noqa: E402
+from utils.toolchains import setup_build_environment  # noqa: E402
 
 
 def check_existing_release_hash(pkg_name: str, channel: str, target_hash: str) -> bool:
