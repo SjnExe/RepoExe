@@ -43,7 +43,7 @@ jobs:
       should_publish: ${{ steps.decision.outputs.should_publish }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -61,7 +61,7 @@ jobs:
           done
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
@@ -74,13 +74,6 @@ jobs:
         run: |
           uv pip install --system -r pyproject.toml || true
           pip install pytest ruff pydantic pyyaml
-
-      - name: Audit & Health Check
-        env:
-          PYTHONPATH: scripts
-        run: |
-          python scripts/cli/build.py check
-          pytest scripts/tests/
 
       - name: Determine Publish Decision
         id: decision
@@ -102,9 +95,39 @@ jobs:
           MATRIX="$(echo "$JSON_OUT" | jq -c '.matrix')"
           echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
 
+  health:
+    name: Health & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        with:
+          enable-cache: true
+
+      - name: Install Dependencies
+        run: |
+          uv pip install --system -r pyproject.toml || true
+          pip install pytest ruff pydantic pyyaml
+
+      - name: Audit & Health Check
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python scripts/cli/build.py check
+          uv run ruff check scripts/
+          pytest scripts/tests/
+
   build:
     name: "${{ matrix.package }}@${{ matrix.channel }}"
-    needs: [generate-matrix]
+    needs: [generate-matrix, health]
     if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
     runs-on: ubuntu-24.04-arm
     strategy:
@@ -113,7 +136,7 @@ jobs:
         include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -332,7 +355,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Download All Target Build Logs
         uses: actions/download-artifact@v8
@@ -366,7 +389,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Download All Build Artifacts
         uses: actions/download-artifact@v8
@@ -377,7 +400,7 @@ jobs:
         continue-on-error: true
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
