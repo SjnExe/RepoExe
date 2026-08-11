@@ -23,7 +23,7 @@ phases:
     python3 -m pip install --break-system-packages maturin hatchling hatch-fancy-pypi-readme hatch-vcs
   make: |
     export PATH="$HOME/.local/bin:$PATH"
-    export PYO3_PYTHON="$(command -v python3)"
+    export PYO3_PYTHON="$(realpath $(command -v python3))"
     export CARGO_BUILD_TARGET="aarch64-linux-android"
     python3 -m pip install --break-system-packages --no-build-isolation --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" pydantic-core
     python3 -m pip install --break-system-packages --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
