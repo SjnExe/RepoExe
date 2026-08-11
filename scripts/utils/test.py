@@ -10,7 +10,7 @@ class ProotTestRunner:
         self.prefix = prefix
         self.home = home
 
-    def execute_test(self, package_name: str, test_commands: str, destdir: Path = None) -> bool:
+    def execute_test(self, package_name: str, test_commands: str, destdir: Path | None = None) -> bool:
         print(f"[{package_name}] Running tests in Termux Docker sandbox...")
 
         stage_dir = destdir / "stage" if destdir else None

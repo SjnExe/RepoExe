@@ -1,5 +1,5 @@
-from pathlib import Path
 from collections import deque
+from pathlib import Path
 
 from utils.parser import PackageRecipe, parse_recipe
 

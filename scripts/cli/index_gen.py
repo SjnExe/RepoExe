@@ -1,12 +1,29 @@
 import json
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
 
 from builders.debian import generate_apt_metadata, generate_release_file
-from utils.metadata import generate_packages_json
 from builders.npm import generate_npm_index
 from builders.pip import generate_pip_index
+from utils.metadata import generate_packages_json
+
+
+def get_exact_package_artifacts(art_path: Path, pkg_name: str) -> list[Path]:
+    """Finds exact artifact files belonging strictly to pkg_name to prevent cross-package asset leakage."""
+    matching = []
+    clean_pkg = pkg_name.replace("-", "_")
+
+    for f in art_path.rglob("*"):
+        if not f.is_file():
+            continue
+        name = f.name
+        
+        # 1. Metadata file
+        if name == f"{pkg_name}_metadata.json" or name.startswith(f"{pkg_name}_") and name.endswith(".deb") or name.startswith(f"{pkg_name}-") and (".pkg.tar.zst" in name or ".pkg.tar.gz" in name) or name.startswith(f"{pkg_name}-") and name.endswith(".apk") or name.startswith(f"{pkg_name}-") and name.endswith(".tgz") or name.startswith(f"{clean_pkg}-") and name.endswith(".whl"):
+            matching.append(f)
+
+    return sorted(set(matching))
 
 
 def prepare_site(
@@ -89,8 +106,7 @@ def prepare_site(
         if src.exists():
             shutil.copy2(src, s_path / src.name)
 
-
-    # 5. Create / Update GitHub Release tags for built package artifacts
+    # 5. Create / Update GitHub Release tags for built package artifacts with exact matching
     if art_path.exists() and shutil.which("gh"):
         print("⚡ Publishing release artifacts to GitHub Releases...")
         for pkg_meta_file in art_path.rglob("*_metadata.json"):
@@ -100,19 +116,35 @@ def prepare_site(
                 channel = meta.get("channel", "latest")
                 tag = f"{pkg_name}@{channel}"
 
-                matching_files = list(art_path.rglob(f"{pkg_name}*"))
-                upload_args = [str(f) for f in matching_files if f.is_file()]
+                matching_files = get_exact_package_artifacts(art_path, pkg_name)
+                if not matching_files:
+                    print(f"Notice: No artifact files matched for tag {tag}")
+                    continue
+
+                upload_args = [str(f) for f in matching_files]
 
                 subprocess.run(["gh", "release", "view", tag], capture_output=True, check=False)
-                res = subprocess.run(["gh", "release", "create", tag] + upload_args + ["--title", tag, "--notes", f"Automated release for {tag}", "--clobber"], capture_output=True, check=False)
+                res = subprocess.run(
+                    ["gh", "release", "create", tag] + upload_args + ["--title", tag, "--notes", f"Automated release for {tag}", "--clobber"],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
                 if res.returncode == 0:
                     print(f"✓ Successfully published GitHub release tag: {tag}")
                 else:
-                    res_up = subprocess.run(["gh", "release", "upload", tag] + upload_args + ["--clobber"], capture_output=True, check=False)
+                    res_up = subprocess.run(
+                        ["gh", "release", "upload", tag] + upload_args + ["--clobber"],
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
                     if res_up.returncode == 0:
                         print(f"✓ Uploaded release assets to existing tag: {tag}")
+                    else:
+                        print(f"::warning:: Failed to upload release assets for {tag}: {res_up.stderr.strip()}")
             except Exception as e:
-                print(f"Notice: Failed publishing release tag for {pkg_meta_file.name}: {e}")
+                print(f"::warning:: Failed publishing release tag for {pkg_meta_file.name}: {e}")
 
     (s_path / ".nojekyll").touch()
     print(f"✓ Complete RepoExe site environment successfully generated at {s_path}")
