@@ -35,6 +35,56 @@ permissions:
   id-token: write
 
 jobs:
+  health:
+    name: Validate Codebase & Workflows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Dependencies
+        run: |
+          uv pip install --system -r pyproject.toml || true
+          pip install pytest ruff pydantic pyyaml
+
+      - name: Code Quality & Health Audit
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python -m ruff check scripts/
+          python scripts/cli/build.py check
+
+      - name: Run Pytest
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python -m pytest scripts/tests/
+
+      - name: Cache Actionlint Binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/bin/actionlint
+          key: actionlint-v1.7.12
+
+      - name: Actionlint Workflows
+        run: |
+          if [ ! -f ~/.local/bin/actionlint ]; then
+            mkdir -p ~/.local/bin
+            curl -sL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s -- 1.7.12 ~/.local/bin
+          fi
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          ~/.local/bin/actionlint
+
   generate-matrix:
     name: Matrix
     runs-on: ubuntu-latest
@@ -43,7 +93,7 @@ jobs:
       should_publish: ${{ steps.decision.outputs.should_publish }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -61,12 +111,12 @@ jobs:
           done
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
@@ -74,13 +124,6 @@ jobs:
         run: |
           uv pip install --system -r pyproject.toml || true
           pip install pytest ruff pydantic pyyaml
-
-      - name: Audit & Health Check
-        env:
-          PYTHONPATH: scripts
-        run: |
-          python scripts/cli/build.py check
-          pytest scripts/tests/
 
       - name: Determine Publish Decision
         id: decision
@@ -104,7 +147,7 @@ jobs:
 
   build:
     name: "${{ matrix.package }}@${{ matrix.channel }}"
-    needs: [generate-matrix]
+    needs: [generate-matrix, health]
     if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
     runs-on: ubuntu-24.04-arm
     strategy:
@@ -113,7 +156,7 @@ jobs:
         include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -143,7 +186,7 @@ jobs:
           swap: ${{ matrix.swap }}
 
       - name: Restore Toolchain & Build Caches
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@v4
         with:
           path: |
             .sccache
@@ -165,7 +208,7 @@ jobs:
           sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit .cache 2>/dev/null || true
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -297,7 +340,7 @@ jobs:
           sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit .cache 2>/dev/null || true
 
       - name: Save Toolchain & Build Caches
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@v4
         if: always() && !cancelled()
         with:
           path: |
@@ -311,7 +354,7 @@ jobs:
 
       - name: Save Package Build Artifact
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: "package-artifact-${{ matrix.package }}"
           path: output/
@@ -319,7 +362,7 @@ jobs:
 
       - name: Save Build Log Artifact
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: "build-log-${{ matrix.package }}-${{ matrix.channel }}"
           path: build_logs/
@@ -332,10 +375,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Download All Target Build Logs
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           pattern: build-log-*
           path: all_logs
@@ -353,7 +396,7 @@ jobs:
 
       - name: Upload Aggregated Log Summary
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: aggregated-build-logs
           path: summary/all_build_logs.txt
@@ -366,10 +409,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Download All Build Artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           pattern: package-artifact-*
           path: artifacts
@@ -377,12 +420,12 @@ jobs:
         continue-on-error: true
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
@@ -400,13 +443,13 @@ jobs:
           python scripts/cli/index_gen.py
 
       - name: Setup GitHub Pages
-        uses: actions/configure-pages@v6
+        uses: actions/configure-pages@v5
 
       - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@v3
         with:
           path: 'site'
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4
