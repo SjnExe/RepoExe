@@ -35,6 +35,55 @@ permissions:
   id-token: write
 
 jobs:
+  health:
+    name: Validate Codebase & Workflows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        with:
+          enable-cache: true
+
+      - name: Install Dependencies
+        run: |
+          uv pip install --system -r pyproject.toml || true
+          pip install pytest ruff pydantic pyyaml
+
+      - name: Code Quality & Health Audit
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python scripts/cli/build.py check
+
+      - name: Run Pytest
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python3 -m pytest scripts/tests/
+
+      - name: Cache Actionlint Binary
+        uses: actions/cache@v6
+        with:
+          path: ~/.local/bin/actionlint
+          key: actionlint-v1.7.12
+
+      - name: Actionlint Workflows
+        run: |
+          if [ ! -f ~/.local/bin/actionlint ]; then
+            mkdir -p ~/.local/bin
+            curl -sL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s -- 1.7.12 ~/.local/bin
+          fi
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          ~/.local/bin/actionlint
+
   generate-matrix:
     name: Matrix
     runs-on: ubuntu-latest
@@ -75,13 +124,6 @@ jobs:
           uv pip install --system -r pyproject.toml || true
           pip install pytest ruff pydantic pyyaml
 
-      - name: Audit & Health Check
-        env:
-          PYTHONPATH: scripts
-        run: |
-          python scripts/cli/build.py check
-          pytest scripts/tests/
-
       - name: Determine Publish Decision
         id: decision
         run: |
@@ -104,7 +146,7 @@ jobs:
 
   build:
     name: "${{ matrix.package }}@${{ matrix.channel }}"
-    needs: [generate-matrix]
+    needs: [generate-matrix, health]
     if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
     runs-on: ubuntu-24.04-arm
     strategy:
