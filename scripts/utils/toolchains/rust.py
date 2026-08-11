@@ -18,14 +18,13 @@ class RustToolchain:
             raise ValueError(f"Unsupported architecture for Rust: {self.arch}")
 
     def get_env(self, native_env: dict) -> dict:
-        """Returns Rust environment variables, bridging C/C++ settings."""
+        """Returns Rust environment variables, bridging C/C++ NDK settings."""
+        target_key = self.target.upper().replace("-", "_")
+        linker = native_env.get("CC", "clang")
         env = {
-            "CARGO_TARGET_NAME": self.target,
-            "RUSTFLAGS": f"-L{PREFIX}/lib",
-            # Set the linker for the target to use the NDK clang
-            f"CARGO_TARGET_{self.target.upper().replace('-', '_')}_LINKER": native_env.get(
-                "CC", "clang"
-            ),
+            "CARGO_BUILD_TARGET": self.target,
+            "RUSTFLAGS": f"-L{PREFIX}/lib -C linker={linker} -C link-arg=-fuse-ld=lld -C link-arg=--target={self.target}24 -C link-arg=-Wl,-z,max-page-size=16384",
+            f"CARGO_TARGET_{target_key}_LINKER": linker,
         }
         return env
 

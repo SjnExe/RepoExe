@@ -1,12 +1,150 @@
+import re
+import sys
+from pathlib import Path
+
+
+def auto_patch_bionic_sources(src_dir: Path) -> None:
+    """Automated Bionic polyfill and source patcher for Android builds."""
+    if not src_dir or not src_dir.exists():
+        return
+
+    stub_path = Path("/tmp/bionic_stub.h")
+    if not stub_path.exists():
+        stub_content = (
+            "#pragma once\n"
+            "#include <stdio.h>\n"
+            "#include <stdlib.h>\n"
+            "#include <sys/types.h>\n\n"
+            "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
+            "typedef struct {\n  size_t we_wordc;\n  char **we_wordv;\n  size_t we_offs;\n} wordexp_t;\n\n"
+            "#define WRDE_NOCMD 0\n"
+            "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
+            "static inline void wordfree(wordexp_t *p) { (void)p; }\n\n"
+            "static inline int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n"
+            "static inline char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n"
+            "static inline void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n\n"
+            "#ifdef __cplusplus\n}\n#endif\n"
+        )
+        try:
+            stub_path.write_text(stub_content, encoding="utf-8")
+        except Exception:
+            pass
+
+    for p in src_dir.rglob("*"):
+        if p.is_file() and p.suffix in (".h", ".cpp", ".c", ".cc", ".mm", ".hpp"):
+            try:
+                code_txt = p.read_text(encoding="utf-8", errors="ignore")
+                new_code = code_txt
+                if "#include <execinfo.h>" in new_code or "#include <wordexp.h>" in new_code:
+                    new_code = re.sub(r'#include\s*<execinfo\.h>', '/* #include <execinfo.h> */', new_code)
+                    new_code = re.sub(r'#include\s*<wordexp\.h>', '/* #include <wordexp.h> */', new_code)
+                if "uc_mcontext.regs" in new_code:
+                    new_code = new_code.replace("uc_mcontext.regs", "uc_mcontext.arm_regs")
+                if new_code != code_txt:
+                    p.write_text(new_code, encoding="utf-8")
+            except Exception:
+                pass
+
+        if p.is_file() and (p.name == "OptionsJSCOnly.cmake" or p.suffix == ".cmake"):
+            try:
+                c_txt = p.read_text(encoding="utf-8", errors="ignore")
+                if "find_package(ICU" in c_txt:
+                    icu_stub = "\n".join([
+                        "add_library(ICU::uc UNKNOWN IMPORTED)",
+                        "set_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)",
+                        "add_library(ICU::i18n UNKNOWN IMPORTED)",
+                        "set_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)",
+                        "add_library(ICU::data UNKNOWN IMPORTED)",
+                        "set_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)",
+                        "set(ICU_FOUND TRUE)",
+                        "set(ICU_INCLUDE_DIRS /usr/include)",
+                        "set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)"
+                    ])
+                    new_c = re.sub(r'find_package\(ICU[^\)]*\)', lambda _: icu_stub, c_txt)
+                    if new_c != c_txt:
+                        p.write_text(new_c, encoding="utf-8")
+            except Exception:
+                pass
+
+def fix_termux_shebangs(stage_dir):
+    """Normalizes host shebangs in staged binaries to Termux Bionic paths."""
+    if not stage_dir or not os.path.exists(stage_dir):
+        return
+    prefix = "/data/data/com.termux/files/usr"
+    replacements = {
+        "#!/bin/sh": f"#!{prefix}/bin/sh",
+        "#!/bin/bash": f"#!{prefix}/bin/bash",
+        "#!/usr/bin/env sh": f"#!{prefix}/bin/sh",
+        "#!/usr/bin/env bash": f"#!{prefix}/bin/bash",
+        "#!/usr/bin/env python": f"#!{prefix}/bin/python3",
+        "#!/usr/bin/env python3": f"#!{prefix}/bin/python3",
+        "#!/usr/bin/python": f"#!{prefix}/bin/python3",
+        "#!/usr/bin/python3": f"#!{prefix}/bin/python3",
+    }
+    for root, _, files in os.walk(stage_dir):
+        for file in files:
+            fpath = os.path.join(root, file)
+            try:
+                if os.path.islink(fpath) or os.path.getsize(fpath) > 2 * 1024 * 1024:
+                    continue
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                    first_line = f.readline().strip()
+                for old_sb, new_sb in replacements.items():
+                    if first_line == old_sb or first_line.startswith(f"{old_sb} "):
+                        with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                            file_content = f.read()
+                        new_content = file_content.replace(first_line, new_sb, 1)
+                        with open(fpath, "w", encoding="utf-8") as f:
+                            f.write(new_content)
+                        os.chmod(fpath, 0o755)
+                        break
+            except Exception:
+                pass
+
+import sys
+from pathlib import Path
+
+SCRIPTS_DIR = Path(__file__).resolve().parent.parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from utils.elf_linter import audit_directory_elfs
+from pathlib import Path
 import argparse
 import contextlib
 import json
 import os
 import shutil
 import subprocess
+
+clang_bin = "/usr/lib/llvm-21/bin/clang" if Path("/usr/lib/llvm-21/bin/clang").exists() else "clang"
+clangxx_bin = "/usr/lib/llvm-21/bin/clang++" if Path("/usr/lib/llvm-21/bin/clang++").exists() else "clang++"
+ld_bin = "/usr/lib/llvm-21/bin/ld.lld" if Path("/usr/lib/llvm-21/bin/ld.lld").exists() else "ld.lld"
+
+DEFAULT_BIONIC_ENV = {
+    "CC": clang_bin,
+    "CXX": clangxx_bin,
+    "LD": ld_bin,
+    "CFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
+    "CXXFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
+    "LDFLAGS": "-fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--gc-sections",
+    "CARGO_BUILD_TARGET": "aarch64-linux-android",
+    "GOOS": "android",
+    "GOARCH": "arm64",
+    "CGO_ENABLED": "1",
+    "TMPDIR": "/tmp",
+    "GOTMPDIR": "/tmp",
+    "RUSTUP_HOME": "/home/builder/.rustup",
+    "CARGO_HOME": "/home/builder/.cargo",
+    "RUSTUP_TOOLCHAIN": "stable",
+    "RUSTC_BOOTSTRAP": "1",
+    "GIT_CONFIG_COUNT": "1",
+    "GIT_CONFIG_KEY_0": "safe.directory",
+    "GIT_CONFIG_VALUE_0": "*",
+}
+
 import sys
 import urllib.request
-from pathlib import Path
 
 from builders.alpine import build_alpine
 from builders.debian import build_deb
@@ -50,18 +188,19 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
     print(f"Resolving build dependencies: {', '.join(build_deps)}")
     stage_dir = destdir / "stage"
     pkg_root = Path(__file__).resolve().parents[2] / "pkg"
+    output_dir = (Path.cwd() / "output").resolve()
 
     for dep in build_deps:
         fetched_remote = False
 
         local_arts = (
-            list(Path("artifacts").glob(f"{dep}*.deb"))
-            if Path("artifacts").exists()
-            else []
+            list(Path("artifacts").glob(f"{dep}*.deb")) if Path("artifacts").exists() else []
+        ) + (
+            list(output_dir.glob(f"{dep}*.deb")) if output_dir.exists() else []
         )
         if local_arts:
             print(
-                f"✓ Found local workflow artifact for dependency '{dep}': {local_arts[0].name}"
+                f"✓ Found local artifact for dependency '{dep}': {local_arts[0].name}"
             )
             subprocess.run(
                 ["dpkg-deb", "-x", str(local_arts[0]), str(stage_dir)], check=True
@@ -108,32 +247,16 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
                 )
 
         if not fetched_remote:
-            local_recipe_file = pkg_root / dep / "build.yml"
-            if local_recipe_file.exists():
-                recipe_obj = parse_recipe(local_recipe_file)
-                if (
-                    getattr(recipe_obj.resources, "zram", 0) == 0
-                    and getattr(recipe_obj.resources, "swap", 0) == 0
-                ):
-                    print(f"⚡ Compiling light dependency '{dep}' locally...")
-                    dep_destdir = (destdir.parent / f"build_{dep}").resolve()
-                    dep_stage_dir = execute_compile(
-                        recipe_obj, local_recipe_file.parent, dep_destdir
-                    )
-                    if dep_stage_dir.exists():
-                        shutil.copytree(dep_stage_dir, stage_dir, dirs_exist_ok=True)
-                        print(
-                            f"✓ Successfully built and staged local light dependency '{dep}'."
-                        )
-                        continue
-
-            print(
-                f"⏭️ Skipping build: Required dependency '{dep}' is missing or failed in a previous stage."
-            )
-            sys.exit(0)
+            print(f"::error:: Missing required build dependency '{dep}' and no pre-built artifact or release exists.")
+            sys.exit(1)
 
 
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
+    elf_errors = audit_directory_elfs(output_dir)
+    if elf_errors:
+        print(f"⚠️ [{pkg_name}] ELF Linter Audit Warnings:")
+        for err in elf_errors:
+            print(f"  - {err}")
     for f in output_dir.glob(f"{pkg_name}*"):
         if f.name.endswith(".deb"):
             subprocess.run(["dpkg-deb", "-I", str(f)], check=True, capture_output=True)
@@ -151,10 +274,28 @@ def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
 
 def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     env = os.environ.copy()
-    env["MAKEFLAGS"] = "-j4"
-    env["NINJA_JOBS"] = "4"
-    env["CARGO_BUILD_JOBS"] = "4"
-    env["GOMAXPROCS"] = "4"
+    for k, v in DEFAULT_BIONIC_ENV.items():
+        if k not in env:
+            env[k] = v
+    if getattr(recipe, 'cflags', None):
+        env['CFLAGS'] = f"{env.get('CFLAGS', '')} {recipe.cflags}".strip()
+    if getattr(recipe, 'cxxflags', None):
+        env['CXXFLAGS'] = f"{env.get('CXXFLAGS', '')} {recipe.cxxflags}".strip()
+    if getattr(recipe, 'ldflags', None):
+        env['LDFLAGS'] = f"{env.get('LDFLAGS', '')} {recipe.ldflags}".strip()
+    if getattr(recipe, 'vars', None):
+        env.update(recipe.vars)
+    if Path("/usr/lib/llvm-21/bin").exists():
+        env['PATH'] = f"/usr/lib/llvm-21/bin:{env.get('PATH', '')}"
+    cpus = str(os.cpu_count() or 4)
+
+    env["MAKEFLAGS"] = f"-j{cpus}"
+
+    env["NINJA_JOBS"] = cpus
+
+    env["CARGO_BUILD_JOBS"] = cpus
+
+    env["GOMAXPROCS"] = cpus
     env["GIT_CONFIG_COUNT"] = "1"
     env["GIT_CONFIG_KEY_0"] = "safe.directory"
     env["GIT_CONFIG_VALUE_0"] = "*"
@@ -166,9 +307,19 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     build_sys = getattr(recipe, "build_system", None)
     if build_sys:
         with contextlib.suppress(Exception):
-            setup_build_environment(build_sys, recipe.architecture)
+            env.update(setup_build_environment(build_sys, recipe.arch))
 
     print(f"[COMPILING] Package: {recipe.name} (Channel: {recipe.active_channel})")
+    Path("/data/data/com.termux/files/usr/tmp").mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "*"], check=False)
+    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "/home/builder/RepoExe"], check=False)
+    if shutil.which("rustup"):
+        subprocess.run(["rustup", "default", "stable"], check=False, capture_output=True)
+        subprocess.run(["rustup", "component", "add", "rust-src"], check=False, capture_output=True)
+    if build_sys in ("cargo", "custom") and shutil.which("rustup"):
+        target_tr = env.get("CARGO_BUILD_TARGET", "aarch64-linux-android")
+        subprocess.run(["rustup", "target", "add", target_tr], check=False, capture_output=True)
+
 
     destdir.parent.mkdir(parents=True, exist_ok=True)
     if destdir.exists():
@@ -210,11 +361,18 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
             if "#" in src_url_str:
                 parts = [x for x in src_url_str.split("#") if x]
                 repo_url = parts[0]
-                branch = parts[1]
-                clone_cmd = ["git", "clone", "--depth", "1", "--branch", branch, repo_url, str(src_extract_dir)]
+                ref = parts[1]
+                if len(ref) == 40 and all(c in "0123456789abcdefABCDEF" for c in ref):
+                    subprocess.run(["git", "init", str(src_extract_dir)], check=True)
+                    subprocess.run(["git", "-C", str(src_extract_dir), "remote", "add", "origin", repo_url], check=True)
+                    subprocess.run(["git", "-C", str(src_extract_dir), "fetch", "--depth", "1", "origin", ref], check=True)
+                    subprocess.run(["git", "-C", str(src_extract_dir), "checkout", "FETCH_HEAD"], check=True)
+                else:
+                    clone_cmd = ["git", "clone", "--depth", "1", "--branch", ref, repo_url, str(src_extract_dir)]
+                    subprocess.run(clone_cmd, check=True)
             else:
                 clone_cmd = ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)]
-            subprocess.run(clone_cmd, check=True)
+                subprocess.run(clone_cmd, check=True)
             work_dir = src_extract_dir
         else:
             print(f"⚡ Downloading archive source: {src_url_str}...")
@@ -224,28 +382,29 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
             )
             if archive_path.exists():
                 subprocess.run(
-                    [
-                        "tar",
-                        "-xf",
-                        str(archive_path),
-                        "-C",
-                        str(src_extract_dir),
-                        "--strip-components=1",
-                    ],
+                    ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
                     check=False,
                 )
                 if not any(src_extract_dir.iterdir()):
                     subprocess.run(
-                        [
-                            "tar",
-                            "-xf",
-                            str(archive_path),
-                            "-C",
-                            str(src_extract_dir),
-                        ],
-                        check=True,
+                        ["unzip", "-q", str(archive_path), "-d", str(src_extract_dir)],
+                        check=False,
                     )
-                work_dir = src_extract_dir
+                extracted_items = [
+                    item for item in src_extract_dir.iterdir() if item.name != "source.tar.gz"
+                ]
+                if len(extracted_items) == 1 and extracted_items[0].is_dir():
+                    work_dir = extracted_items[0]
+                else:
+                    work_dir = src_extract_dir
+
+    # Apply recipe patches automatically
+    patches = getattr(recipe, "patches", []) or []
+    for patch_name in patches:
+        p_path = pkg_dir / patch_name
+        if p_path.exists():
+            print(f"⚡ Applying automated Android patch: {patch_name}...")
+            subprocess.run(["patch", "-p1", "-i", str(p_path)], cwd=work_dir, check=True)
 
     if shutil.which("sccache"):
         env["RUSTC_WRAPPER"] = "sccache"
@@ -262,12 +421,18 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     make_cmd = phases.get("make")
     install_cmd = phases.get("install")
 
+    auto_patch_bionic_sources(work_dir)
+    auto_patch_bionic_sources(Path('/tmp/webkit-src'))
     if prepare_cmd:
         res = subprocess.run(
             prepare_cmd, shell=True, cwd=work_dir, env=env, check=False
         )
         if res.returncode != 0:
             raise RuntimeError(f"Prepare phase failed for {recipe.name}")
+
+    auto_patch_bionic_sources(work_dir)
+    if Path("/tmp/webkit-src").exists():
+        auto_patch_bionic_sources(Path("/tmp/webkit-src"))
 
     if configure_cmd:
         res = subprocess.run(
@@ -321,16 +486,16 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
             recipe,
             str(destdir),
             str(output_dir),
-            target_arch=recipe.architecture,
+            target_arch=recipe.arch,
             pkg_src_dir=pkg_dir,
         )
     if "pacman" in target_formats:
         build_pacman(
-            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+            recipe, str(destdir), str(output_dir), target_arch=recipe.arch
         )
     if "apk" in target_formats:
         build_alpine(
-            recipe, str(destdir), str(output_dir), target_arch=recipe.architecture
+            recipe, str(destdir), str(output_dir), target_arch=recipe.arch
         )
     if "pip" in target_formats:
         build_pip(recipe, str(destdir), str(output_dir))
@@ -343,7 +508,7 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
         "name": recipe.name,
         "version": recipe.version,
         "revision": recipe.revision,
-        "architecture": recipe.architecture,
+        "arch": recipe.arch,
         "state_hash": recipe.state_hash,
         "channel": recipe.active_channel,
     }
@@ -409,6 +574,7 @@ def main() -> None:
 
         if args.command == "compile":
             execute_compile(recipe, p_dir, destdir)
+            fix_termux_shebangs(destdir)
         elif args.command == "pack":
             execute_pack(recipe, p_dir, destdir, output_dir)
         elif args.command == "test":

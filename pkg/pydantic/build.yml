@@ -1,7 +1,7 @@
 name: pydantic
 version: "2.13.4"
 revision: 0
-architecture: aarch64
+arch: aarch64
 description: Data validation using Python type hints
 license: MIT
 homepage: https://github.com/pydantic/pydantic
@@ -13,16 +13,19 @@ formats:
 
 channels:
   latest:
-    version: "2.13.4"
     auto_update: true
     update_strategy: pypi
     source_url: https://files.pythonhosted.org/packages/source/p/pydantic/pydantic-{version}.tar.gz
 
 build_system: custom
 phases:
+  prepare: |
+    python3 -m pip install --break-system-packages maturin hatchling hatch-fancy-pypi-readme hatch-vcs
   make: |
-    python3 -m pip wheel . -w output/ || true
-    python3 -m pip install --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
+    export PATH="$HOME/.local/bin:$PATH"
+    export PYO3_PYTHON="$(command -v python3)"
+    CARGO_BUILD_TARGET="aarch64-unknown-linux-gnu" python3 -m pip install --break-system-packages --no-build-isolation --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" pydantic-core
+    python3 -m pip install --break-system-packages --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
     echo "Installed pydantic site-packages into staging"
   test: |

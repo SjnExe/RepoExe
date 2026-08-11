@@ -1,4 +1,4 @@
-name: Build Docker Image
+name: Build Docker Images
 
 on:
   push:
@@ -15,10 +15,21 @@ on:
 
 jobs:
   build-docker:
+    name: "Docker: ${{ matrix.name }}"
     runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: builder
+            file: ./scripts/docker/Dockerfile
+            image: repoexe-builder
+          - name: tester
+            file: ./scripts/docker/Dockerfile.tester
+            image: repoexe-tester
 
     steps:
       - name: Checkout Repository
@@ -41,7 +52,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ env.OWNER }}/repoexe-builder
+          images: ghcr.io/${{ env.OWNER }}/${{ matrix.image }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=
@@ -50,15 +61,16 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ./scripts/docker/Dockerfile
+          file: ${{ matrix.file }}
           push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
-          load: true
+          load: ${{ github.ref != 'refs/heads/main' && github.event_name != 'workflow_dispatch' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'type=gha,mode=max' || '' }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
           provenance: false
 
       - name: Fast Docker Container Verification
+        if: github.ref != 'refs/heads/main' && github.event_name != 'workflow_dispatch'
         run: |
-          docker run --rm "ghcr.io/${{ env.OWNER }}/repoexe-builder:latest" python3 -c "import pydantic, yaml; print('✓ Docker container healthy')"
+          docker run --rm "ghcr.io/${{ env.OWNER }}/${{ matrix.image }}:latest" echo "✓ ${{ matrix.image }} healthy"

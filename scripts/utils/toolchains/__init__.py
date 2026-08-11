@@ -50,14 +50,12 @@ def setup_build_environment(
             }
         )
     elif build_system == "cargo":
-        target_triple = (
-            "aarch64-unknown-linux-musl" if target_arch == "aarch64" else target_arch
-        )
-        env.update(
-            {
-                "CARGO_BUILD_TARGET": target_triple,
-                "RUSTFLAGS": f"-L{PREFIX}/lib",
-            }
-        )
+        native_tc = NativeToolchain(target_arch)
+        native_env = native_tc.get_env()
+        rust_tc = RustToolchain(target_arch)
+        rust_env = rust_tc.get_env(native_env)
+        env.update(native_env)
+        env.update(rust_env)
+        env["CARGO_BUILD_TARGET"] = "aarch64-linux-android" if target_arch in ["aarch64", "arm64"] else target_arch
 
     return env

@@ -24,3 +24,9 @@ build_logs/
 *.pkg.tar.zst
 *.whl
 *.tgz
+
+.gocache/
+.gomodcache/
+.cargoregistry/
+.cargogit/
+.cache/

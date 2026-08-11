@@ -21,7 +21,7 @@ def generate_control_file(recipe: PackageRecipe) -> str:
     version_str = (
         f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
     )
-    deb_arch = ARCH_MAP.get(recipe.architecture, recipe.architecture)
+    deb_arch = ARCH_MAP.get(recipe.arch, recipe.arch)
 
     control_lines = [
         f"Package: {recipe.name}",
@@ -33,6 +33,24 @@ def generate_control_file(recipe: PackageRecipe) -> str:
 
     if recipe.homepage:
         control_lines.append(f"Homepage: {recipe.homepage}")
+
+    if recipe.deps:
+        control_lines.append(f"Depends: {', '.join(recipe.deps)}")
+
+    if recipe.recommends:
+        control_lines.append(f"Recommends: {', '.join(recipe.recommends)}")
+
+    if recipe.suggests:
+        control_lines.append(f"Suggests: {', '.join(recipe.suggests)}")
+
+    if recipe.conflicts:
+        control_lines.append(f"Conflicts: {', '.join(recipe.conflicts)}")
+
+    if recipe.provides:
+        control_lines.append(f"Provides: {', '.join(recipe.provides)}")
+
+    if recipe.replaces:
+        control_lines.append(f"Replaces: {', '.join(recipe.replaces)}")
 
     return "\n".join(control_lines) + "\n"
 
@@ -84,7 +102,7 @@ def build_deb(
     version_str = (
         f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
     )
-    raw_arch = recipe.architecture or target_arch
+    raw_arch = recipe.arch or target_arch
     arch = ARCH_MAP.get(raw_arch, raw_arch)
     deb_filename = f"{recipe.name}_{version_str}_{arch}.deb"
     deb_path = out_path / deb_filename
