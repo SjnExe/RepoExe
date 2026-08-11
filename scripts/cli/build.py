@@ -23,6 +23,7 @@ def auto_patch_bionic_sources(src_dir: Path) -> None:
             "static inline int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n"
             "static inline char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n"
             "static inline void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n\n"
+            "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n\n"
             "#ifdef __cplusplus\n}\n#endif\n"
         )
         try:
