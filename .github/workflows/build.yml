@@ -358,6 +358,7 @@ jobs:
           name: "package-artifact-${{ matrix.package }}"
           path: output/
           retention-days: 1
+          if-no-files-found: ignore
 
       - name: Save Build Log Artifact
         if: always()
@@ -369,7 +370,7 @@ jobs:
 
   build-status:
     name: Build Status & Log Aggregator
-    needs: [generate-matrix, build]
+    needs: [generate-matrix, build, health]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -403,7 +404,7 @@ jobs:
 
   publish-site:
     name: Deploy
-    needs: [generate-matrix, build]
+    needs: [generate-matrix, build, health]
     if: always() && needs.generate-matrix.outputs.should_publish == 'true' && !cancelled()
     runs-on: ubuntu-latest
     steps:
