@@ -20,7 +20,7 @@ def auto_patch_bionic_sources(src_dir: Path) -> None:
             "#define WRDE_NOCMD 0\n"
             "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
             "static inline void wordfree(wordexp_t *p) { (void)p; }\n\n"
-            "static inline size_t backtrace(void** buffer, size_t size) { (void)buffer; (void)size; return 0; }\n"
+            "static inline int backtrace(void** buffer, int size) { (void)buffer; (void)size; return 0; }\n"
             "static inline char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n"
             "static inline void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n\n"
             "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n\n"
