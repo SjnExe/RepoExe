@@ -20,14 +20,17 @@ channels:
 build_system: custom
 phases:
   prepare: |
-    python3 -m pip install --break-system-packages maturin hatchling hatch-fancy-pypi-readme hatch-vcs
+    PYTHON_BIN="$(realpath $(command -v python3))"
+    $PYTHON_BIN -m pip install --break-system-packages maturin hatchling hatch-fancy-pypi-readme hatch-vcs
   make: |
     export PATH="$HOME/.local/bin:$PATH"
-    export PYO3_PYTHON="$(realpath $(command -v python3))"
+    PYTHON_BIN="$(realpath $(command -v python3))"
+    export PYO3_PYTHON="$PYTHON_BIN"
     export CARGO_BUILD_TARGET="aarch64-linux-android"
-    python3 -m pip install --break-system-packages --no-build-isolation --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" pydantic-core
-    python3 -m pip install --break-system-packages --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
+    $PYTHON_BIN -m pip install --break-system-packages --no-build-isolation --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" pydantic-core
+    $PYTHON_BIN -m pip install --break-system-packages --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
     echo "Installed pydantic site-packages into staging"
   test: |
-    python3 -c "import pydantic; print('pydantic ok')"
+    PYTHON_BIN="$(realpath $(command -v python3))"
+    $PYTHON_BIN -c "import pydantic; print('pydantic ok')"
