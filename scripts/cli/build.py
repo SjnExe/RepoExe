@@ -2,6 +2,16 @@ import re
 import sys
 from pathlib import Path
 
+import argparse
+import contextlib
+import json
+import os
+import shutil
+import subprocess
+import urllib.request
+
+
+
 
 def auto_patch_bionic_sources(src_dir: Path) -> None:
     """Automated Bionic polyfill and source patcher for Android builds."""
@@ -102,21 +112,21 @@ def fix_termux_shebangs(stage_dir):
             except Exception:
                 pass
 
-import sys
-from pathlib import Path
-
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from utils.elf_linter import audit_directory_elfs
-from pathlib import Path
-import argparse
-import contextlib
-import json
-import os
-import shutil
-import subprocess
+from builders.alpine import build_alpine  # noqa: E402
+from builders.debian import build_deb  # noqa: E402
+from builders.npm import build_npm  # noqa: E402
+from builders.pacman import build_pacman  # noqa: E402
+from builders.pip import build_pip  # noqa: E402
+from utils.elf_linter import audit_directory_elfs  # noqa: E402
+from utils.health import audit_repository_health  # noqa: E402
+from utils.parser import parse_recipe  # noqa: E402
+from utils.test import ProotTestRunner  # noqa: E402
+from utils.toolchains import setup_build_environment  # noqa: E402
+
 
 clang_bin = "/usr/lib/llvm-21/bin/clang" if Path("/usr/lib/llvm-21/bin/clang").exists() else "clang"
 clangxx_bin = "/usr/lib/llvm-21/bin/clang++" if Path("/usr/lib/llvm-21/bin/clang++").exists() else "clang++"
@@ -143,19 +153,6 @@ DEFAULT_BIONIC_ENV = {
     "GIT_CONFIG_KEY_0": "safe.directory",
     "GIT_CONFIG_VALUE_0": "*",
 }
-
-import sys
-import urllib.request
-
-from builders.alpine import build_alpine
-from builders.debian import build_deb
-from builders.npm import build_npm
-from builders.pacman import build_pacman
-from builders.pip import build_pip
-from utils.health import audit_repository_health
-from utils.parser import parse_recipe
-from utils.test import ProotTestRunner
-from utils.toolchains import setup_build_environment
 
 
 def check_existing_release_hash(pkg_name: str, channel: str, target_hash: str) -> bool:
@@ -188,7 +185,6 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
 
     print(f"Resolving build dependencies: {', '.join(build_deps)}")
     stage_dir = destdir / "stage"
-    pkg_root = Path(__file__).resolve().parents[2] / "pkg"
     output_dir = (Path.cwd() / "output").resolve()
 
     for dep in build_deps:
