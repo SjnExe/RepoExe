@@ -1,8 +1,8 @@
 import json
 import os
+import subprocess
 import sys
 import urllib.request
-import subprocess
 from pathlib import Path
 
 from utils.dag import DependencyGraph
@@ -67,7 +67,7 @@ def parse_target_tokens(raw_input: str, dag: DependencyGraph, pkgs_dir: Path) ->
     for token in tokens:
         if token.startswith("!"):
             ex_name = token[1:].split("@")[0]
-            if ex_name.startswith("type:") or ex_name.startswith("format:"):
+            if ex_name.startswith(("type:", "format:")):
                 target_fmt = ex_name.split(":", 1)[1]
                 for p, r in dag.recipes.items():
                     if target_fmt in getattr(r, "formats", []):
@@ -78,7 +78,7 @@ def parse_target_tokens(raw_input: str, dag: DependencyGraph, pkgs_dir: Path) ->
                 excluded.add(ex_name)
         else:
             inc_name = token.split("@")[0]
-            if inc_name.startswith("type:") or inc_name.startswith("format:"):
+            if inc_name.startswith(("type:", "format:")):
                 target_fmt = inc_name.split(":", 1)[1]
                 for p, r in dag.recipes.items():
                     if target_fmt in getattr(r, "formats", []):
@@ -98,8 +98,7 @@ def parse_target_tokens(raw_input: str, dag: DependencyGraph, pkgs_dir: Path) ->
         if recipe:
             deps = set((recipe.deps or []) + (recipe.build_deps or []))
             for dep in deps:
-                if dep in excluded:
-                    if not check_remote_release_exists(dep):
+                if dep in excluded and not check_remote_release_exists(dep):
                         print(
                             f"::error:: Target '{pkg}' requires '{dep}', but '{dep}' was explicitly excluded (!{dep}) and no remote release exists."
                         )

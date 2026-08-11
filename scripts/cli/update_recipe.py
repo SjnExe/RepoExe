@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
+
 import yaml
+
 
 def update_recipe(pkg: str, channel: str, new_version: str) -> None:
     recipe_path = Path("pkg") / pkg / "build.yml"

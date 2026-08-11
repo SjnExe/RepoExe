@@ -50,18 +50,18 @@ def auto_patch_bionic_sources(src_dir: Path) -> None:
             try:
                 c_txt = p.read_text(encoding="utf-8", errors="ignore")
                 if "find_package(ICU" in c_txt:
-                    icu_stub = "\n".join([
-                        "add_library(ICU::uc UNKNOWN IMPORTED)",
-                        "set_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)",
-                        "add_library(ICU::i18n UNKNOWN IMPORTED)",
-                        "set_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)",
-                        "add_library(ICU::data UNKNOWN IMPORTED)",
-                        "set_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)",
-                        "set(ICU_FOUND TRUE)",
-                        "set(ICU_INCLUDE_DIRS /usr/include)",
+                    icu_stub = (
+                        "add_library(ICU::uc UNKNOWN IMPORTED)\n"
+                        "set_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                        "add_library(ICU::i18n UNKNOWN IMPORTED)\n"
+                        "set_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                        "add_library(ICU::data UNKNOWN IMPORTED)\n"
+                        "set_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                        "set(ICU_FOUND TRUE)\n"
+                        "set(ICU_INCLUDE_DIRS /usr/include)\n"
                         "set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)"
-                    ])
-                    new_c = re.sub(r'find_package\(ICU[^\)]*\)', lambda _: icu_stub, c_txt)
+                    )
+                    new_c = re.sub(r'find_package\(ICU[^\)]*\)', lambda _, stub=icu_stub: stub, c_txt)
                     if new_c != c_txt:
                         p.write_text(new_c, encoding="utf-8")
             except Exception:
@@ -102,21 +102,21 @@ def fix_termux_shebangs(stage_dir):
             except Exception:
                 pass
 
-import sys
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from utils.elf_linter import audit_directory_elfs
-from pathlib import Path
 import argparse
 import contextlib
 import json
 import os
 import shutil
 import subprocess
+from pathlib import Path
+
+from utils.elf_linter import audit_directory_elfs
 
 clang_bin = "/usr/lib/llvm-21/bin/clang" if Path("/usr/lib/llvm-21/bin/clang").exists() else "clang"
 clangxx_bin = "/usr/lib/llvm-21/bin/clang++" if Path("/usr/lib/llvm-21/bin/clang++").exists() else "clang++"
@@ -188,7 +188,6 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
 
     print(f"Resolving build dependencies: {', '.join(build_deps)}")
     stage_dir = destdir / "stage"
-    pkg_root = Path(__file__).resolve().parents[2] / "pkg"
     output_dir = (Path.cwd() / "output").resolve()
 
     for dep in build_deps:

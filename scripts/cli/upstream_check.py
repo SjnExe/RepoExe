@@ -8,7 +8,6 @@ from typing import Any
 import requests
 import yaml
 from packaging.version import InvalidVersion, Version
-
 from utils.parser import parse_recipe
 
 

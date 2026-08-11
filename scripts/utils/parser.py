@@ -1,7 +1,8 @@
 import hashlib
 import json
-from dataclasses import dataclass, field, fields, asdict
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
+
 import yaml
 
 
