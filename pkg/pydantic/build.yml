@@ -26,6 +26,7 @@ phases:
     export PYO3_PYTHON="$(command -v python3)"
     CARGO_BUILD_TARGET="aarch64-linux-android" python3 -m pip install --break-system-packages --no-build-isolation --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" pydantic-core
     python3 -m pip install --break-system-packages --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
+    find "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core" -name "_pydantic_core*.so" -exec sh -c 'f="$1"; dir=$(dirname "$f"); cp "$f" "$dir/_pydantic_core.so"' _ {} \;
   install: |
     echo "Installed pydantic site-packages into staging"
   test: |
