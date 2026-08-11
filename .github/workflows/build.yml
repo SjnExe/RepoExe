@@ -367,6 +367,7 @@ jobs:
           name: "build-log-${{ matrix.package }}-${{ matrix.channel }}"
           path: build_logs/
           retention-days: 1
+          if-no-files-found: ignore
 
   build-status:
     name: Build Status & Log Aggregator
