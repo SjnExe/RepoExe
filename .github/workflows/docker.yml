@@ -41,7 +41,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Docker Images via Bake
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           files: docker-bake.hcl
           push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}

@@ -70,11 +70,10 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
  && /home/builder/.cargo/bin/rustup target add aarch64-linux-android aarch64-unknown-linux-musl aarch64-unknown-linux-gnu
 ENV PATH="/home/builder/.cargo/bin:${PATH}"
 
-# Install prebuilt cargo-audit binary instead of compiling from source
-RUN curl -L -sS "https://github.com/rustsec/rustsec/releases/download/cargo-audit%2Fv0.21.1/cargo-audit-aarch64-unknown-linux-musl-v0.21.1.tgz" | tar xz -C /tmp \
- && mv /tmp/cargo-audit-aarch64-unknown-linux-musl-v0.21.1/cargo-audit /home/builder/.cargo/bin/ \
- && chmod +x /home/builder/.cargo/bin/cargo-audit \
- && rm -rf /tmp/cargo-audit*
+# Install cargo-binstall and use it to install prebuilt cargo-audit binary
+RUN curl -L -sS "https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-aarch64-unknown-linux-musl.tgz" | tar xz -C /home/builder/.cargo/bin \
+ && chmod +x /home/builder/.cargo/bin/cargo-binstall \
+ && /home/builder/.cargo/bin/cargo-binstall -y cargo-audit
 
 USER root
 COPY scripts/docker/ndk-patches /tmp/ndk-patches
