@@ -211,13 +211,12 @@ def setup_bionic_compat_library() -> None:
         ndk_clang = "aarch64-linux-android24-clang"
 
     compat_c = Path("/tmp/bionic_compat.c")
-    compat_c.write_text(
-        "#include <stddef.h>\n"
-        "__attribute__((weak)) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n"
-        "__attribute__((weak)) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n"
-        "__attribute__((weak)) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n",
-        encoding="utf-8",
-    )
+    compat_c_content = """#include <stddef.h>
+__attribute__((weak)) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }
+__attribute__((weak)) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }
+__attribute__((weak)) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }
+"""
+    compat_c.write_text(compat_c_content, encoding="utf-8")
 
     obj_file = Path("/tmp/bionic_compat.o")
     lib_file = Path("/tmp/libbionic_compat.a")
@@ -225,29 +224,34 @@ def setup_bionic_compat_library() -> None:
     subprocess.run(["ar", "rcs", str(lib_file), str(obj_file)], check=False, capture_output=True)
 
     stub_h = Path("/tmp/bionic_stub.h")
-    stub_content = (
-        "#ifndef _BIONIC_STUB_H\n"
-        "#define _BIONIC_STUB_H\n\n"
-        "#include <sys/types.h>\n"
-        "#include <stddef.h>\n"
-        "#include <stdlib.h>\n\n"
-        "#ifdef __cplusplus\n"
-        'extern "C" {\n'
-        "#endif\n\n"
-        "#ifndef WRDE_NOCMD\n"
-        "#define WRDE_NOCMD 0\n"
-        "typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;\n"
-        "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
-        "static inline void wordfree(wordexp_t *p) { (void)p; }\n"
-        "#endif\n\n"
-        "#ifndef aligned_alloc\n"
-        "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n"
-        "#endif\n\n"
-        "#ifdef __cplusplus\n"
-        "}\n"
-        "#endif\n\n"
-        "#endif\n"
-    )
+    stub_content = """#ifndef _BIONIC_STUB_H
+#define _BIONIC_STUB_H
+
+#include <sys/types.h>
+#include <stddef.h>
+#include <stdlib.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef WRDE_NOCMD
+#define WRDE_NOCMD 0
+typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;
+static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }
+static inline void wordfree(wordexp_t *p) { (void)p; }
+#endif
+
+#ifndef aligned_alloc
+static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+"""
     stub_h.write_text(stub_content, encoding="utf-8")
 
 
