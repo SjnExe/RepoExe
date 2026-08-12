@@ -229,7 +229,8 @@ def setup_bionic_compat_library() -> None:
         "#ifndef _BIONIC_STUB_H\n"
         "#define _BIONIC_STUB_H\n\n"
         "#include <sys/types.h>\n"
-        "#include <stddef.h>\n\n"
+        "#include <stddef.h>\n"
+        "#include <stdlib.h>\n\n"
         "#ifdef __cplusplus\n"
         'extern "C" {\n'
         "#endif\n\n"
