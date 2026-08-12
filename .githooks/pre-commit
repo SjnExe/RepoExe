@@ -3,13 +3,17 @@ set -e
 
 echo "🔍 Running automated RepoExe pre-commit checks..."
 
-# 1. Run Ruff linter if installed
+# 1. Run RepoExe orchestrator health check
+echo "[+] Running RepoExe build system check..."
+python3 scripts/cli/build.py check
+
+# 2. Run Ruff linter if installed
 if command -v ruff >/dev/null 2>&1; then
     echo "[+] Running Ruff linter..."
     ruff check .
 fi
 
-# 2. Run Pytest suite if available
+# 3. Run Pytest suite if available
 if python3 -m pytest --version >/dev/null 2>&1; then
     echo "[+] Running Pytest test suite..."
     PYTHONPATH=scripts python3 -m pytest scripts/tests/
