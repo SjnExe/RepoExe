@@ -1,201 +1,28 @@
-import re
-import sys
-from pathlib import Path
-
-
-def setup_bionic_compat_library() -> None:
-    """Compiles /tmp/libbionic_compat.a and /tmp/bionic_stub.h for clean, zero-collision Bionic linking."""
-    ndk_clang = os.environ.get("NDK_CLANG") or "/opt/android-ndk/toolchains/llvm/prebuilt/linux-arm64/bin/aarch64-linux-android24-clang"
-    if not Path(ndk_clang).exists():
-        ndk_clang = "aarch64-linux-android24-clang"
-
-    compat_c = Path("/tmp/bionic_compat.c")
-    compat_c.write_text(
-        "#include <stddef.h>\n"
-        "__attribute__((weak)) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n"
-        "__attribute__((weak)) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n"
-        "__attribute__((weak)) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n",
-        encoding="utf-8"
-    )
-
-    obj_file = Path("/tmp/bionic_compat.o")
-    lib_file = Path("/tmp/libbionic_compat.a")
-    subprocess.run([ndk_clang, "-c", str(compat_c), "-o", str(obj_file)], check=False, capture_output=True)
-    subprocess.run(["ar", "rcs", str(lib_file), str(obj_file)], check=False, capture_output=True)
-
-    stub_h = Path("/tmp/bionic_stub.h")
-    stub_h.write_text(
-        "#ifndef _BIONIC_STUB_H\n"
-        "#define _BIONIC_STUB_H\n\n"
-        "#include <sys/types.h>\n"
-        "#include <stddef.h>\n\n"
-        "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
-        "int backtrace(void **buffer, int size);\n"
-        "char **backtrace_symbols(void *const *buffer, int size);\n"
-        "void backtrace_symbols_fd(void *const *buffer, int size, int fd);\n\n"
-        "#ifndef WRDE_NOCMD\n"
-        "#define WRDE_NOCMD 0\n"
-        "typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;\n"
-        "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
-        "static inline void wordfree(wordexp_t *p) { (void)p; }\n"
-        "#endif\n\n"
-        "#ifndef aligned_alloc\n"
-        "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n"
-        "#endif\n\n"
-        "#ifdef __cplusplus\n}\n#endif\n\n"
-        "#endif\n",
-        encoding="utf-8"
-    )
-
-def setup_global_bionic_env() -> None:
-    """Exports default toolchain, LDFLAGS, and Cargo/Maturin cross-compilation environment variables."""
-    setup_bionic_compat_library()
-    ndk_clang = os.environ.get("NDK_CLANG")
-    if not ndk_clang or not Path(ndk_clang).exists():
-        ndk_path = Path("/opt/android-ndk")
-        if ndk_path.exists():
-            clangs = list(ndk_path.rglob("aarch64-linux-android24-clang"))
-            ndk_clang = str(clangs[0]) if clangs else "aarch64-linux-android24-clang"
-        else:
-            ndk_clang = "aarch64-linux-android24-clang"
-
-    os.environ["NDK_CLANG"] = ndk_clang
-    os.environ["CC"] = ndk_clang
-    os.environ["CXX"] = ndk_clang.replace("clang", "clang++") if "clang" in ndk_clang else "aarch64-linux-android24-clang++"
-
-    cflags = os.environ.get("CFLAGS", "")
-    if "-include /tmp/bionic_stub.h" not in cflags:
-        os.environ["CFLAGS"] = f"-include /tmp/bionic_stub.h {cflags}".strip()
-
-    cxxflags = os.environ.get("CXXFLAGS", "")
-    if "-include /tmp/bionic_stub.h" not in cxxflags:
-        os.environ["CXXFLAGS"] = f"-include /tmp/bionic_stub.h {cxxflags}".strip()
-
-    ldflags = os.environ.get("LDFLAGS", "")
-    if "-L/tmp -lbionic_compat" not in ldflags:
-        os.environ["LDFLAGS"] = f"-L/tmp -lbionic_compat {ldflags}".strip()
-
-    os.environ["CARGO_BUILD_TARGET"] = "aarch64-linux-android"
-    os.environ["CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"] = ndk_clang
-    rustflags = f"-C linker={ndk_clang} -C link-arg=-fuse-ld=lld -C link-arg=-static-libgcc -C link-arg=-Wl,-z,max-page-size=16384"
-    os.environ["RUSTFLAGS"] = rustflags
-    os.environ["CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS"] = rustflags
-    os.environ["MATURIN_TARGET"] = "aarch64-linux-android"
-    os.environ["MATURIN_PEP517_ARGS"] = "--target aarch64-linux-android"
-    if "PYO3_PYTHON" not in os.environ:
-        os.environ["PYO3_PYTHON"] = sys.executable or "/usr/bin/python3"
-
-    stub_path = Path("/tmp/bionic_stub.h")
-    if not stub_path.exists():
-        stub_content = (
-            "#pragma once\n"
-            "#include <stdio.h>\n"
-            "#include <stdlib.h>\n"
-            "#include <sys/types.h>\n\n"
-            "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
-            "typedef struct {\n  size_t we_wordc;\n  char **we_wordv;\n  size_t we_offs;\n} wordexp_t;\n\n"
-            "#define WRDE_NOCMD 0\n"
-            "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
-            "static inline void wordfree(wordexp_t *p) { (void)p; }\n\n"
-            "#if !defined(BUILDING_WEBKIT) && !defined(BUILDING_bmalloc) && !defined(PAS_BMALLOC) && !defined(PAS_LIBPAS) && !defined(ENABLE_BUN)\n"
-            "static inline int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n"
-            "static inline char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n"
-            "static inline void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n"
-            "#endif\n\n"
-            "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n\n"
-            "#ifdef __cplusplus\n}\n#endif\n"
-        )
-        try:
-            stub_path.write_text(stub_content, encoding="utf-8")
-        except Exception:
-            pass
-
-    for p in src_dir.rglob("*"):
-        if p.is_file() and p.suffix in (".h", ".cpp", ".c", ".cc", ".mm", ".hpp"):
-            try:
-                code_txt = p.read_text(encoding="utf-8", errors="ignore")
-                new_code = code_txt
-                if "#include <execinfo.h>" in new_code or "#include <wordexp.h>" in new_code:
-                    new_code = re.sub(r'#include\s*<execinfo\.h>', '/* #include <execinfo.h> */', new_code)
-                    new_code = re.sub(r'#include\s*<wordexp\.h>', '/* #include <wordexp.h> */', new_code)
-                if "uc_mcontext.regs" in new_code:
-                    new_code = new_code.replace("uc_mcontext.regs", "uc_mcontext.arm_regs")
-                if new_code != code_txt:
-                    p.write_text(new_code, encoding="utf-8")
-            except Exception:
-                pass
-
-        if p.is_file() and (p.name == "OptionsJSCOnly.cmake" or p.suffix == ".cmake"):
-            try:
-                c_txt = p.read_text(encoding="utf-8", errors="ignore")
-                if "find_package(ICU" in c_txt:
-                    icu_stub = (
-                        "add_library(ICU::uc UNKNOWN IMPORTED)\n"
-                        "set_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
-                        "add_library(ICU::i18n UNKNOWN IMPORTED)\n"
-                        "set_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
-                        "add_library(ICU::data UNKNOWN IMPORTED)\n"
-                        "set_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
-                        "set(ICU_FOUND TRUE)\n"
-                        "set(ICU_INCLUDE_DIRS /usr/include)\n"
-                        "set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)"
-                    )
-                    new_c = re.sub(r'find_package\(ICU[^\)]*\)', lambda _, stub=icu_stub: stub, c_txt)
-                    if new_c != c_txt:
-                        p.write_text(new_c, encoding="utf-8")
-            except Exception:
-                pass
-
-def fix_termux_shebangs(stage_dir):
-    """Normalizes host shebangs in staged binaries to Termux Bionic paths."""
-    if not stage_dir or not os.path.exists(stage_dir):
-        return
-    prefix = "/data/data/com.termux/files/usr"
-    replacements = {
-        "#!/bin/sh": f"#!{prefix}/bin/sh",
-        "#!/bin/bash": f"#!{prefix}/bin/bash",
-        "#!/usr/bin/env sh": f"#!{prefix}/bin/sh",
-        "#!/usr/bin/env bash": f"#!{prefix}/bin/bash",
-        "#!/usr/bin/env python": f"#!{prefix}/bin/python3",
-        "#!/usr/bin/env python3": f"#!{prefix}/bin/python3",
-        "#!/usr/bin/python": f"#!{prefix}/bin/python3",
-        "#!/usr/bin/python3": f"#!{prefix}/bin/python3",
-    }
-    for root, _, files in os.walk(stage_dir):
-        for file in files:
-            fpath = os.path.join(root, file)
-            try:
-                if os.path.islink(fpath) or os.path.getsize(fpath) > 2 * 1024 * 1024:
-                    continue
-                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                    first_line = f.readline().strip()
-                for old_sb, new_sb in replacements.items():
-                    if first_line == old_sb or first_line.startswith(f"{old_sb} "):
-                        with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                            file_content = f.read()
-                        new_content = file_content.replace(first_line, new_sb, 1)
-                        with open(fpath, "w", encoding="utf-8") as f:
-                            f.write(new_content)
-                        os.chmod(fpath, 0o755)
-                        break
-            except Exception:
-                pass
-
-from pathlib import Path
-
-SCRIPTS_DIR = Path(__file__).resolve().parent.parent
-if str(SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_DIR))
-
 import argparse
 import contextlib
 import json
 import os
+import re
 import shutil
 import subprocess
+import sys
+import urllib.request
 from pathlib import Path
 
+_scripts_dir = str(Path(__file__).resolve().parents[1])
+if _scripts_dir not in sys.path:
+    sys.path.insert(0, _scripts_dir)
+
+from builders.alpine import build_alpine
+from builders.debian import build_deb
+from builders.npm import build_npm
+from builders.pacman import build_pacman
+from builders.pip import build_pip
 from utils.elf_linter import audit_directory_elfs
+from utils.health import audit_repository_health
+from utils.parser import parse_recipe
+from utils.test import ProotTestRunner
+from utils.toolchains import setup_build_environment
 
 clang_bin = "/usr/lib/llvm-21/bin/clang" if Path("/usr/lib/llvm-21/bin/clang").exists() else "clang"
 clangxx_bin = "/usr/lib/llvm-21/bin/clang++" if Path("/usr/lib/llvm-21/bin/clang++").exists() else "clang++"
@@ -207,7 +34,7 @@ DEFAULT_BIONIC_ENV = {
     "LD": ld_bin,
     "CFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
     "CXXFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
-    "LDFLAGS": "-fuse-ld=lld -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--gc-sections",
+    "LDFLAGS": "-fuse-ld=lld -static-libgcc -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--gc-sections",
     "CARGO_BUILD_TARGET": "aarch64-linux-android",
     "GOOS": "android",
     "GOARCH": "arm64",
@@ -222,19 +49,6 @@ DEFAULT_BIONIC_ENV = {
     "GIT_CONFIG_KEY_0": "safe.directory",
     "GIT_CONFIG_VALUE_0": "*",
 }
-
-import sys
-import urllib.request
-
-from builders.alpine import build_alpine
-from builders.debian import build_deb
-from builders.npm import build_npm
-from builders.pacman import build_pacman
-from builders.pip import build_pip
-from utils.health import audit_repository_health
-from utils.parser import parse_recipe
-from utils.test import ProotTestRunner
-from utils.toolchains import setup_build_environment
 
 
 def check_existing_release_hash(pkg_name: str, channel: str, target_hash: str) -> bool:
@@ -330,6 +144,42 @@ def resolve_and_fetch_build_dependencies(build_deps: list[str], destdir: Path) -
             sys.exit(1)
 
 
+def fix_termux_shebangs(stage_dir: Path) -> None:
+    """Normalizes host shebangs in staged binaries to Termux Bionic paths."""
+    if not stage_dir or not os.path.exists(stage_dir):
+        return
+    prefix = "/data/data/com.termux/files/usr"
+    replacements = {
+        "#!/bin/sh": f"#!{prefix}/bin/sh",
+        "#!/bin/bash": f"#!{prefix}/bin/bash",
+        "#!/usr/bin/env sh": f"#!{prefix}/bin/sh",
+        "#!/usr/bin/env bash": f"#!{prefix}/bin/bash",
+        "#!/usr/bin/env python": f"#!{prefix}/bin/python3",
+        "#!/usr/bin/env python3": f"#!{prefix}/bin/python3",
+        "#!/usr/bin/python": f"#!{prefix}/bin/python3",
+        "#!/usr/bin/python3": f"#!{prefix}/bin/python3",
+    }
+    for root, _, files in os.walk(stage_dir):
+        for file in files:
+            fpath = os.path.join(root, file)
+            try:
+                if os.path.islink(fpath) or os.path.getsize(fpath) > 2 * 1024 * 1024:
+                    continue
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                    first_line = f.readline().strip()
+                for old_sb, new_sb in replacements.items():
+                    if first_line == old_sb or first_line.startswith(f"{old_sb} "):
+                        with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                            file_content = f.read()
+                        new_content = file_content.replace(first_line, new_sb, 1)
+                        with open(fpath, "w", encoding="utf-8") as f:
+                            f.write(new_content)
+                        os.chmod(fpath, 0o755)
+                        break
+            except Exception:
+                pass
+
+
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
     elf_errors = audit_directory_elfs(output_dir)
     if elf_errors:
@@ -351,37 +201,161 @@ def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
             subprocess.run(["tar", "-tf", str(f)], check=True, capture_output=True)
 
 
+def setup_bionic_compat_library() -> None:
+    """Compiles /tmp/libbionic_compat.a and /tmp/bionic_stub.h for clean, zero-collision Bionic linking."""
+    ndk_clang = (
+        os.environ.get("NDK_CLANG")
+        or "/opt/android-ndk/toolchains/llvm/prebuilt/linux-arm64/bin/aarch64-linux-android24-clang"
+    )
+    if not Path(ndk_clang).exists():
+        ndk_clang = "aarch64-linux-android24-clang"
+
+    compat_c = Path("/tmp/bionic_compat.c")
+    compat_c.write_text(
+        "#include <stddef.h>\n"
+        "__attribute__((weak)) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n"
+        "__attribute__((weak)) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n"
+        "__attribute__((weak)) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n",
+        encoding="utf-8",
+    )
+
+    obj_file = Path("/tmp/bionic_compat.o")
+    lib_file = Path("/tmp/libbionic_compat.a")
+    subprocess.run([ndk_clang, "-c", str(compat_c), "-o", str(obj_file)], check=False, capture_output=True)
+    subprocess.run(["ar", "rcs", str(lib_file), str(obj_file)], check=False, capture_output=True)
+
+    stub_h = Path("/tmp/bionic_stub.h")
+    stub_h.write_text(
+        "#ifndef _BIONIC_STUB_H\n"
+        "#define _BIONIC_STUB_H\n\n"
+        "#include <sys/types.h>\n"
+        "#include <stddef.h>\n\n"
+        "#ifdef __cplusplus\n"
+        'extern "C" {\n'
+        "#endif\n\n"
+        "int backtrace(void **buffer, int size);\n"
+        "char **backtrace_symbols(void *const *buffer, int size);\n"
+        "void backtrace_symbols_fd(void *const *buffer, int size, int fd);\n\n"
+        "#ifndef WRDE_NOCMD\n"
+        "#define WRDE_NOCMD 0\n"
+        "typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;\n"
+        "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
+        "static inline void wordfree(wordexp_t *p) { (void)p; }\n"
+        "#endif\n\n"
+        "#ifndef aligned_alloc\n"
+        "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n"
+        "#endif\n\n"
+        "#ifdef __cplusplus\n"
+        "}\n"
+        "#endif\n\n"
+        "#endif\n",
+        encoding="utf-8",
+    )
+
+
+def setup_global_bionic_env() -> None:
+    """Exports default toolchain, LDFLAGS, and Cargo/Maturin cross-compilation environment variables."""
+    setup_bionic_compat_library()
+    ndk_clang = os.environ.get("NDK_CLANG")
+    if not ndk_clang or not Path(ndk_clang).exists():
+        ndk_path = Path("/opt/android-ndk")
+        if ndk_path.exists():
+            clangs = list(ndk_path.rglob("aarch64-linux-android24-clang"))
+            ndk_clang = str(clangs[0]) if clangs else "aarch64-linux-android24-clang"
+        else:
+            ndk_clang = "aarch64-linux-android24-clang"
+
+    os.environ["NDK_CLANG"] = ndk_clang
+    os.environ["CC"] = ndk_clang
+    os.environ["CXX"] = (
+        ndk_clang.replace("clang", "clang++")
+        if "clang" in ndk_clang
+        else "aarch64-linux-android24-clang++"
+    )
+
+    cflags = os.environ.get("CFLAGS", "")
+    if "-include /tmp/bionic_stub.h" not in cflags:
+        os.environ["CFLAGS"] = f"-include /tmp/bionic_stub.h {cflags}".strip()
+
+    cxxflags = os.environ.get("CXXFLAGS", "")
+    if "-include /tmp/bionic_stub.h" not in cxxflags:
+        os.environ["CXXFLAGS"] = f"-include /tmp/bionic_stub.h {cxxflags}".strip()
+
+    ldflags = os.environ.get("LDFLAGS", "")
+    if "-static-libgcc" not in ldflags:
+        ldflags = f"-static-libgcc {ldflags}".strip()
+    if "-L/tmp -lbionic_compat" not in ldflags:
+        ldflags = f"-L/tmp -lbionic_compat {ldflags}".strip()
+    os.environ["LDFLAGS"] = ldflags
+
+    os.environ["CARGO_BUILD_TARGET"] = "aarch64-linux-android"
+    os.environ["CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"] = ndk_clang
+    rustflags = (
+        f"-C linker={ndk_clang} -C link-arg=-fuse-ld=lld -C link-arg=-static-libgcc"
+        " -C link-arg=-Wl,-z,max-page-size=16384"
+    )
+    os.environ["RUSTFLAGS"] = rustflags
+    os.environ["CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS"] = rustflags
+    os.environ["MATURIN_TARGET"] = "aarch64-linux-android"
+    os.environ["MATURIN_PEP517_ARGS"] = "--target aarch64-linux-android"
+    if "PYO3_PYTHON" not in os.environ:
+        os.environ["PYO3_PYTHON"] = sys.executable or "/usr/bin/python3"
+
+
+def auto_patch_bionic_sources(src_dir: Path) -> None:
+    """Automated Bionic polyfill and source patcher for Android builds."""
+    setup_global_bionic_env()
+    if not src_dir or not src_dir.exists():
+        return
+    for p in src_dir.rglob("CMakeLists.txt"):
+        try:
+            c_txt = p.read_text(encoding="utf-8", errors="ignore")
+            if "find_package(ICU" in c_txt:
+                icu_stub = (
+                    "add_library(ICU::uc UNKNOWN IMPORTED)\n"
+                    "set_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                    "add_library(ICU::i18n UNKNOWN IMPORTED)\n"
+                    "set_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                    "add_library(ICU::data UNKNOWN IMPORTED)\n"
+                    "set_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                    "set(ICU_FOUND TRUE)\n"
+                    "set(ICU_INCLUDE_DIRS /usr/include)\n"
+                    "set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)"
+                )
+                new_c = re.sub(r"find_package\(ICU[^\)]*\)", lambda _, stub=icu_stub: stub, c_txt)
+                if new_c != c_txt:
+                    p.write_text(new_c, encoding="utf-8")
+        except Exception:
+            pass
+
+
 def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
+    setup_global_bionic_env()
     env = os.environ.copy()
     for k, v in DEFAULT_BIONIC_ENV.items():
         if k not in env:
             env[k] = v
-    if getattr(recipe, 'cflags', None):
-        env['CFLAGS'] = f"{env.get('CFLAGS', '')} {recipe.cflags}".strip()
-    if getattr(recipe, 'cxxflags', None):
-        env['CXXFLAGS'] = f"{env.get('CXXFLAGS', '')} {recipe.cxxflags}".strip()
-    if getattr(recipe, 'ldflags', None):
-        env['LDFLAGS'] = f"{env.get('LDFLAGS', '')} {recipe.ldflags}".strip()
-    if getattr(recipe, 'vars', None):
+    if getattr(recipe, "cflags", None):
+        env["CFLAGS"] = f"{env.get('CFLAGS', '')} {recipe.cflags}".strip()
+    if getattr(recipe, "cxxflags", None):
+        env["CXXFLAGS"] = f"{env.get('CXXFLAGS', '')} {recipe.cxxflags}".strip()
+    if getattr(recipe, "ldflags", None):
+        env["LDFLAGS"] = f"{env.get('LDFLAGS', '')} {recipe.ldflags}".strip()
+    if getattr(recipe, "vars", None):
         env.update(recipe.vars)
     if Path("/usr/lib/llvm-21/bin").exists():
-        env['PATH'] = f"/usr/lib/llvm-21/bin:{env.get('PATH', '')}"
+        env["PATH"] = f"/usr/lib/llvm-21/bin:{env.get('PATH', '')}"
     cpus = str(os.cpu_count() or 4)
 
     env["MAKEFLAGS"] = f"-j{cpus}"
-
     env["NINJA_JOBS"] = cpus
-
     env["CARGO_BUILD_JOBS"] = cpus
-
     env["GOMAXPROCS"] = cpus
     env["GIT_CONFIG_COUNT"] = "1"
     env["GIT_CONFIG_KEY_0"] = "safe.directory"
     env["GIT_CONFIG_VALUE_0"] = "*"
 
-    subprocess.run(
-        ["git", "config", "--global", "--add", "safe.directory", "*"], check=False
-    )
+    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "*"], check=False)
 
     build_sys = getattr(recipe, "build_system", None)
     if build_sys:
@@ -398,7 +372,6 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     if build_sys in ("cargo", "custom") and shutil.which("rustup"):
         target_tr = env.get("CARGO_BUILD_TARGET", "aarch64-linux-android")
         subprocess.run(["rustup", "target", "add", target_tr], check=False, capture_output=True)
-
 
     destdir.parent.mkdir(parents=True, exist_ok=True)
     if destdir.exists():
@@ -477,7 +450,6 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                 else:
                     work_dir = src_extract_dir
 
-    # Apply recipe patches automatically
     patches = getattr(recipe, "patches", []) or []
     for patch_name in patches:
         p_path = pkg_dir / patch_name
@@ -501,11 +473,11 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     install_cmd = phases.get("install")
 
     auto_patch_bionic_sources(work_dir)
-    auto_patch_bionic_sources(Path('/tmp/webkit-src'))
+    if Path("/tmp/webkit-src").exists():
+        auto_patch_bionic_sources(Path("/tmp/webkit-src"))
+
     if prepare_cmd:
-        res = subprocess.run(
-            prepare_cmd, shell=True, cwd=work_dir, env=env, check=False
-        )
+        res = subprocess.run(prepare_cmd, shell=True, cwd=work_dir, env=env, check=False)
         if res.returncode != 0:
             raise RuntimeError(f"Prepare phase failed for {recipe.name}")
 
@@ -514,23 +486,17 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         auto_patch_bionic_sources(Path("/tmp/webkit-src"))
 
     if configure_cmd:
-        res = subprocess.run(
-            configure_cmd, shell=True, cwd=work_dir, env=env, check=False
-        )
+        res = subprocess.run(configure_cmd, shell=True, cwd=work_dir, env=env, check=False)
         if res.returncode != 0:
             raise RuntimeError(f"Configure phase failed for {recipe.name}")
 
     if make_cmd:
-        res = subprocess.run(
-            make_cmd, shell=True, cwd=work_dir, env=env, check=False
-        )
+        res = subprocess.run(make_cmd, shell=True, cwd=work_dir, env=env, check=False)
         if res.returncode != 0:
             raise RuntimeError(f"Make phase failed for {recipe.name}")
 
     if install_cmd:
-        res = subprocess.run(
-            install_cmd, shell=True, cwd=work_dir, env=env, check=False
-        )
+        res = subprocess.run(install_cmd, shell=True, cwd=work_dir, env=env, check=False)
         if res.returncode != 0:
             raise RuntimeError(f"Install phase failed for {recipe.name}")
 
@@ -545,18 +511,12 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
     stage_dir = destdir / "stage"
     installed_files = list(stage_dir.rglob("*")) if stage_dir.exists() else []
     payload_files = [
-        f
-        for f in installed_files
-        if f.is_file() and "DEBIAN" not in f.parts and ".PKGINFO" not in f.name
+        f for f in installed_files if f.is_file() and "DEBIAN" not in f.parts and ".PKGINFO" not in f.name
     ]
 
-    out_has_wheels = (
-        list(output_dir.glob(f"{recipe.name}*.whl")) if output_dir.exists() else []
-    )
+    out_has_wheels = list(output_dir.glob(f"{recipe.name}*.whl")) if output_dir.exists() else []
     if not payload_files and not out_has_wheels:
-        raise RuntimeError(
-            f"CRITICAL ERROR: No files installed in $DESTDIR for {recipe.name}."
-        )
+        raise RuntimeError(f"CRITICAL ERROR: No files installed in $DESTDIR for {recipe.name}.")
 
     target_formats = getattr(recipe, "formats", ["apt", "pacman", "apk"])
 
@@ -569,13 +529,9 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
             pkg_src_dir=pkg_dir,
         )
     if "pacman" in target_formats:
-        build_pacman(
-            recipe, str(destdir), str(output_dir), target_arch=recipe.arch
-        )
+        build_pacman(recipe, str(destdir), str(output_dir), target_arch=recipe.arch)
     if "apk" in target_formats:
-        build_alpine(
-            recipe, str(destdir), str(output_dir), target_arch=recipe.arch
-        )
+        build_alpine(recipe, str(destdir), str(output_dir), target_arch=recipe.arch)
     if "pip" in target_formats:
         build_pip(recipe, str(destdir), str(output_dir))
     if "npm" in target_formats:
@@ -591,9 +547,7 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
         "state_hash": recipe.state_hash,
         "channel": recipe.active_channel,
     }
-    (output_dir / f"{recipe.name}_metadata.json").write_text(
-        json.dumps(meta, indent=2), encoding="utf-8"
-    )
+    (output_dir / f"{recipe.name}_metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
 def execute_test(recipe, destdir: Path | None = None) -> None:
@@ -638,9 +592,7 @@ def main() -> None:
         p_dir = recipe_file.parent
         recipe = parse_recipe(recipe_file, channel=args.channel)
 
-        if not args.force and check_existing_release_hash(
-            recipe.name, args.channel, recipe.state_hash
-        ):
+        if not args.force and check_existing_release_hash(recipe.name, args.channel, recipe.state_hash):
             print(f"⏭️ Skipping {recipe.name}@{args.channel}: state_hash unchanged.")
             return
 
