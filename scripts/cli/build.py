@@ -231,6 +231,8 @@ __attribute__((weak)) int pthread_cond_clockwait(pthread_cond_t *c, pthread_mute
     stub_content = """#ifndef _BIONIC_STUB_H
 #define _BIONIC_STUB_H
 
+#include <sys/cdefs.h>
+#include <android/api-level.h>
 #include <sys/types.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -250,8 +252,8 @@ static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p
 static inline void wordfree(wordexp_t *p) { (void)p; }
 #endif
 
-#ifndef aligned_alloc
 #if !defined(__ANDROID_API__) || __ANDROID_API__ < 28
+#ifndef aligned_alloc
 static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }
 #endif
 #endif
