@@ -3,6 +3,10 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+_scripts_dir = str(Path(__file__).resolve().parents[1])
+if _scripts_dir not in sys.path:
+    sys.path.insert(0, _scripts_dir)
 from typing import Any
 
 import requests
