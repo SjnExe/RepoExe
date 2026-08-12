@@ -61,15 +61,30 @@ phases:
 
     print(f'🔒 Bun target Zig tag: {tag}')
     os.makedirs('/tmp/zig-custom', exist_ok=True)
-    dl_url = f'https://github.com/oven-sh/zig/releases/download/{tag}/bootstrap-aarch64-linux-musl.zip'
-    zip_path = '/tmp/zig.zip'
+    dl_url = None
     try:
-        urllib.request.urlretrieve(dl_url, zip_path)
-        subprocess.run(['unzip', '-q', '-o', zip_path, '-d', '/tmp/zig-custom/'], check=True)
+        req = urllib.request.Request(f'https://api.github.com/repos/oven-sh/zig/releases/tags/{tag}', headers={'User-Agent': 'RepoExe'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            rel = json.loads(resp.read().decode('utf-8'))
+            for a in rel.get('assets', []):
+                if ('aarch64' in a['name'] or 'arm64' in a['name']) and (a['name'].endswith('.zip') or a['name'].endswith('.tar.xz')):
+                    dl_url = a['browser_download_url']
+                    break
     except Exception:
-        dl_url_fallback = f'https://github.com/oven-sh/zig/releases/download/{tag}/zig-linux-aarch64.zip'
-        urllib.request.urlretrieve(dl_url_fallback, zip_path)
-        subprocess.run(['unzip', '-q', '-o', zip_path, '-d', '/tmp/zig-custom/'], check=True)
+        pass
+
+    if not dl_url:
+        dl_url = f'https://github.com/oven-sh/zig/releases/download/{tag}/bootstrap-aarch64-linux-musl.zip'
+
+    archive_path = '/tmp/zig_dl' + ('.tar.xz' if dl_url.endswith('.tar.xz') else '.zip')
+    req = urllib.request.Request(dl_url, headers={'User-Agent': 'RepoExe'})
+    with urllib.request.urlopen(req, timeout=30) as resp, open(archive_path, 'wb') as f:
+        f.write(resp.read())
+
+    if archive_path.endswith('.tar.xz'):
+        subprocess.run(['tar', '-xf', archive_path, '-C', '/tmp/zig-custom/'], check=True)
+    else:
+        subprocess.run(['unzip', '-q', '-o', archive_path, '-d', '/tmp/zig-custom/'], check=True)
     PY_ZIG_EOF
 
     echo "⚡ Dynamically resolving exact WebKit commit SHA from Bun source..."
