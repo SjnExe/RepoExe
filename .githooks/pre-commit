@@ -7,12 +7,12 @@ echo "🔍 Running automated RepoExe pre-commit checks..."
 echo "[+] Running RepoExe build system check..."
 python3 scripts/cli/build.py check
 
-# 2. Run Ruff linter & code formatting check
+# 2. Run Ruff linter & auto-formatter
 if command -v ruff >/dev/null 2>&1; then
-    echo "[+] Running Ruff linter..."
-    ruff check .
-    echo "[+] Checking Ruff code formatting..."
-    ruff format --check .
+    echo "[+] Running Ruff linter & formatter..."
+    ruff check --fix .
+    ruff format .
+    git add -u
 fi
 
 # 3. Run Pytest test suite
@@ -21,13 +21,10 @@ if python3 -m pytest --version >/dev/null 2>&1; then
     PYTHONPATH=scripts python3 -m pytest scripts/tests/
 fi
 
-# 4. Run Actionlint for GitHub Workflows
+# 4. Run Actionlint for GitHub Workflows (if installed natively)
 if command -v actionlint >/dev/null 2>&1; then
     echo "[+] Running Actionlint workflow check..."
     actionlint
-elif command -v uv >/dev/null 2>&1; then
-    echo "[+] Running Actionlint via uvx..."
-    uvx actionlint || true
 fi
 
 # 5. Run Shellcheck on repository shell scripts
