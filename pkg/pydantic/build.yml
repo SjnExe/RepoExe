@@ -27,7 +27,7 @@ phases:
     python3 -c "import json, urllib.request, tarfile; req = urllib.request.urlopen('https://pypi.org/pypi/pydantic_core/json'); data = json.loads(req.read().decode('utf-8')); sdist = [u for u in data['urls'] if u['packagetype'] == 'sdist'][0]; print('Fetching pydantic-core sdist:', sdist['url']); urllib.request.urlretrieve(sdist['url'], '/tmp/pydantic_core_dl/sdist.tar.gz')"
     tar -xzf /tmp/pydantic_core_dl/sdist.tar.gz -C /tmp/pydantic_core_dl
     cd /tmp/pydantic_core_dl/pydantic_core-*
-    maturin build --release --target aarch64-linux-android --out /tmp/pydantic_dist
+    maturin build --release --target aarch64-linux-android -i python3 --out /tmp/pydantic_dist
     mkdir -p "${DESTDIR}${PREFIX}/lib/python3/dist-packages"
     unzip -o /tmp/pydantic_dist/*.whl -d "${DESTDIR}${PREFIX}/lib/python3/dist-packages"
     cd "${REPO_ROOT:-/home/builder/RepoExe}"
