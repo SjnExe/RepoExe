@@ -3,10 +3,87 @@ import sys
 from pathlib import Path
 
 
-def auto_patch_bionic_sources(src_dir: Path) -> None:
-    """Automated Bionic polyfill and source patcher for Android builds."""
-    if not src_dir or not src_dir.exists():
-        return
+def setup_bionic_compat_library() -> None:
+    """Compiles /tmp/libbionic_compat.a and /tmp/bionic_stub.h for clean, zero-collision Bionic linking."""
+    ndk_clang = os.environ.get("NDK_CLANG") or "/opt/android-ndk/toolchains/llvm/prebuilt/linux-arm64/bin/aarch64-linux-android24-clang"
+    if not Path(ndk_clang).exists():
+        ndk_clang = "aarch64-linux-android24-clang"
+
+    compat_c = Path("/tmp/bionic_compat.c")
+    compat_c.write_text(
+        "#include <stddef.h>\n"
+        "__attribute__((weak)) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n"
+        "__attribute__((weak)) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n"
+        "__attribute__((weak)) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n",
+        encoding="utf-8"
+    )
+
+    obj_file = Path("/tmp/bionic_compat.o")
+    lib_file = Path("/tmp/libbionic_compat.a")
+    subprocess.run([ndk_clang, "-c", str(compat_c), "-o", str(obj_file)], check=False, capture_output=True)
+    subprocess.run(["ar", "rcs", str(lib_file), str(obj_file)], check=False, capture_output=True)
+
+    stub_h = Path("/tmp/bionic_stub.h")
+    stub_h.write_text(
+        "#ifndef _BIONIC_STUB_H\n"
+        "#define _BIONIC_STUB_H\n\n"
+        "#include <sys/types.h>\n"
+        "#include <stddef.h>\n\n"
+        "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"
+        "int backtrace(void **buffer, int size);\n"
+        "char **backtrace_symbols(void *const *buffer, int size);\n"
+        "void backtrace_symbols_fd(void *const *buffer, int size, int fd);\n\n"
+        "#ifndef WRDE_NOCMD\n"
+        "#define WRDE_NOCMD 0\n"
+        "typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;\n"
+        "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
+        "static inline void wordfree(wordexp_t *p) { (void)p; }\n"
+        "#endif\n\n"
+        "#ifndef aligned_alloc\n"
+        "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n"
+        "#endif\n\n"
+        "#ifdef __cplusplus\n}\n#endif\n\n"
+        "#endif\n",
+        encoding="utf-8"
+    )
+
+def setup_global_bionic_env() -> None:
+    """Exports default toolchain, LDFLAGS, and Cargo/Maturin cross-compilation environment variables."""
+    setup_bionic_compat_library()
+    ndk_clang = os.environ.get("NDK_CLANG")
+    if not ndk_clang or not Path(ndk_clang).exists():
+        ndk_path = Path("/opt/android-ndk")
+        if ndk_path.exists():
+            clangs = list(ndk_path.rglob("aarch64-linux-android24-clang"))
+            ndk_clang = str(clangs[0]) if clangs else "aarch64-linux-android24-clang"
+        else:
+            ndk_clang = "aarch64-linux-android24-clang"
+
+    os.environ["NDK_CLANG"] = ndk_clang
+    os.environ["CC"] = ndk_clang
+    os.environ["CXX"] = ndk_clang.replace("clang", "clang++") if "clang" in ndk_clang else "aarch64-linux-android24-clang++"
+
+    cflags = os.environ.get("CFLAGS", "")
+    if "-include /tmp/bionic_stub.h" not in cflags:
+        os.environ["CFLAGS"] = f"-include /tmp/bionic_stub.h {cflags}".strip()
+
+    cxxflags = os.environ.get("CXXFLAGS", "")
+    if "-include /tmp/bionic_stub.h" not in cxxflags:
+        os.environ["CXXFLAGS"] = f"-include /tmp/bionic_stub.h {cxxflags}".strip()
+
+    ldflags = os.environ.get("LDFLAGS", "")
+    if "-L/tmp -lbionic_compat" not in ldflags:
+        os.environ["LDFLAGS"] = f"-L/tmp -lbionic_compat {ldflags}".strip()
+
+    os.environ["CARGO_BUILD_TARGET"] = "aarch64-linux-android"
+    os.environ["CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"] = ndk_clang
+    rustflags = f"-C linker={ndk_clang} -C link-arg=-fuse-ld=lld -C link-arg=-static-libgcc -C link-arg=-Wl,-z,max-page-size=16384"
+    os.environ["RUSTFLAGS"] = rustflags
+    os.environ["CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS"] = rustflags
+    os.environ["MATURIN_TARGET"] = "aarch64-linux-android"
+    os.environ["MATURIN_PEP517_ARGS"] = "--target aarch64-linux-android"
+    if "PYO3_PYTHON" not in os.environ:
+        os.environ["PYO3_PYTHON"] = sys.executable or "/usr/bin/python3"
 
     stub_path = Path("/tmp/bionic_stub.h")
     if not stub_path.exists():
