@@ -22,7 +22,7 @@ phases:
   prepare: |
     python3 -m pip install --break-system-packages maturin hatchling hatch-fancy-pypi-readme hatch-vcs
   make: |
-    python3 -m pip install --break-system-packages --no-build-isolation --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" pydantic-core
+    python3 -m pip install --break-system-packages --no-build-isolation --no-binary :all: --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" pydantic-core
     python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
     find "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core" -name "_pydantic_core*.so" -exec sh -c 'f="$1"; dir=$(dirname "$f"); cp "$f" "$dir/_pydantic_core.so"' _ {} \;
   install: |
