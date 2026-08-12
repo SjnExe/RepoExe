@@ -215,6 +215,7 @@ def setup_bionic_compat_library() -> None:
 __attribute__((weak)) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }
 __attribute__((weak)) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }
 __attribute__((weak)) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }
+__attribute__((weak)) int pthread_getname_np(unsigned long t, char *n, size_t s) { (void)t; (void)n; (void)s; return 0; }
 """
     compat_c.write_text(compat_c_content, encoding="utf-8")
 
@@ -230,10 +231,13 @@ __attribute__((weak)) void backtrace_symbols_fd(void *const *b, int s, int f) { 
 #include <sys/types.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);
 
 #ifndef WRDE_NOCMD
 #define WRDE_NOCMD 0
