@@ -28,7 +28,7 @@ phases:
     if [ -z "$NDK_CLANG" ]; then NDK_CLANG="aarch64-linux-android24-clang"; fi
     export CARGO_BUILD_TARGET="aarch64-linux-android"
     export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$NDK_CLANG"
-    export RUSTFLAGS="-C linker=$NDK_CLANG -C link-arg=-fuse-ld=lld -C link-arg=-Wl,-z,max-page-size=16384"
+    export RUSTFLAGS="-C linker=$NDK_CLANG -C link-arg=-fuse-ld=lld -C link-arg=-static-libgcc -C link-arg=-Wl,-z,max-page-size=16384"
     python3 -m pip install --break-system-packages --no-build-isolation --no-binary pydantic-core --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" pydantic-core
     python3 -m pip install --break-system-packages --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
     find "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core" -name "_pydantic_core*.so" -exec sh -c 'f="$1"; dir=$(dirname "$f"); cp "$f" "$dir/_pydantic_core.so"' _ {} \;
