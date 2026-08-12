@@ -29,7 +29,7 @@ phases:
     CORE_DIR=$(find /tmp/pydantic_core_dl -mindepth 1 -maxdepth 1 -type d | head -n 1)
     cd "$CORE_DIR"
     export PYO3_CROSS_PYTHON_VERSION=3.14
-    maturin build --release --target aarch64-linux-android --skip-auditwheel --out /tmp/pydantic_dist
+    maturin build --release --target aarch64-linux-android -i "$(command -v python3)" --out /tmp/pydantic_dist
     mkdir -p "${DESTDIR}${PREFIX}/lib/python3/dist-packages"
     unzip -o /tmp/pydantic_dist/*.whl -d "${DESTDIR}${PREFIX}/lib/python3/dist-packages"
     cd "$SRC_DIR"
