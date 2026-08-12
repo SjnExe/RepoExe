@@ -225,7 +225,7 @@ def setup_bionic_compat_library() -> None:
     subprocess.run(["ar", "rcs", str(lib_file), str(obj_file)], check=False, capture_output=True)
 
     stub_h = Path("/tmp/bionic_stub.h")
-    stub_h.write_text(
+    stub_content = (
         "#ifndef _BIONIC_STUB_H\n"
         "#define _BIONIC_STUB_H\n\n"
         "#include <sys/types.h>\n"
@@ -234,14 +234,16 @@ def setup_bionic_compat_library() -> None:
         "#ifdef __cplusplus\n"
         'extern "C" {\n'
         "#endif\n\n"
-        "int backtrace(void **buffer, int size);\n"
-        "char **backtrace_symbols(void *const *buffer, int size);\n"
-        "void backtrace_symbols_fd(void *const *buffer, int size, int fd);\n\n"
         "#ifndef WRDE_NOCMD\n"
         "#define WRDE_NOCMD 0\n"
         "typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;\n"
         "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
         "static inline void wordfree(wordexp_t *p) { (void)p; }\n"
+        "#endif\n\n"
+        "#if !defined(BUILDING_WEBKIT) && !defined(BUILDING_bmalloc) && !defined(PAS_BMALLOC) && !defined(PAS_LIBPAS) && !defined(ENABLE_BUN)\n"
+        "int backtrace(void **buffer, int size);\n"
+        "char **backtrace_symbols(void *const *buffer, int size);\n"
+        "void backtrace_symbols_fd(void *const *buffer, int size, int fd);\n"
         "#endif\n\n"
         "#ifndef aligned_alloc\n"
         "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n"
@@ -249,9 +251,9 @@ def setup_bionic_compat_library() -> None:
         "#ifdef __cplusplus\n"
         "}\n"
         "#endif\n\n"
-        "#endif\n",
-        encoding="utf-8",
+        "#endif\n"
     )
+    stub_h.write_text(stub_content, encoding="utf-8")
 
 
 def setup_global_bionic_env() -> None:

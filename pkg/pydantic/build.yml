@@ -22,13 +22,16 @@ phases:
   prepare: |
     python3 -m pip install --break-system-packages maturin hatchling hatch-fancy-pypi-readme hatch-vcs
   make: |
-    python3 -m pip download --no-deps --no-binary :all: pydantic-core
-    tar -xzf pydantic_core-*.tar.gz 2>/dev/null || tar -xzf pydantic-core-*.tar.gz
+    rm -rf /tmp/pydantic_core_* /tmp/pydantic_dist
+    mkdir -p /tmp/pydantic_core_dl /tmp/pydantic_dist
+    python3 -m pip download --no-deps --no-binary :all: pydantic-core -d /tmp/pydantic_core_dl
+    cd /tmp/pydantic_core_dl
+    tar -xzf *.tar.gz
     cd pydantic*core*
-    maturin build --release --target aarch64-linux-android --out ../dist
-    cd ..
+    maturin build --release --target aarch64-linux-android --out /tmp/pydantic_dist
     mkdir -p "${DESTDIR}${PREFIX}/lib/python3/dist-packages"
-    unzip -o dist/*.whl -d "${DESTDIR}${PREFIX}/lib/python3/dist-packages"
+    unzip -o /tmp/pydantic_dist/*.whl -d "${DESTDIR}${PREFIX}/lib/python3/dist-packages"
+    cd -
     python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
     find "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core" -name "_pydantic_core*.so" -exec sh -c 'f="$1"; dir=$(dirname "$f"); cp "$f" "$dir/_pydantic_core.so"' _ {} \;
   install: |
