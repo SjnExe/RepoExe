@@ -159,8 +159,11 @@ phases:
 
   make: |
     set -e
+    NDK_LLVM_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"
     ZIG_BIN_DIR=$(find /tmp/zig-custom -type f -name "zig" -exec dirname {} \; | head -n 1)
-    export PATH="$HOME/.bun/bin:${ZIG_BIN_DIR}:${PATH}"
+    export PATH="${NDK_LLVM_BIN}:/usr/lib/llvm-21/bin:${ZIG_BIN_DIR}:$HOME/.bun/bin:${PATH}"
+    export CC="${NDK_LLVM_BIN}/clang"
+    export CXX="${NDK_LLVM_BIN}/clang++"
 
     echo "⚡ Configuring Android Bionic & 16KB page size compiler flags..."
     export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h"
