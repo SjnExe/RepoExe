@@ -443,7 +443,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         else:
             print(f"⚡ Downloading archive source: {src_url_str}...")
             subprocess.run(
-                ["curl", "-fsSL", "--retry", "5", "--retry-delay", "2", src_url_str, "-o", str(archive_path)],
+                ["curl", "-fsSL", "-A", "Mozilla/5.0", "--retry", "5", "--retry-delay", "2", src_url_str, "-o", str(archive_path)],
                 check=True,
             )
             if archive_path.exists():
