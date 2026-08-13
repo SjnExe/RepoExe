@@ -44,6 +44,7 @@ class ChannelOverride:
     ldflags: str | None = None
     phases: dict[str, str] | None = None
     vars: dict[str, str] | None = None
+    toolchains: dict[str, str] | None = None
 
 
 @dataclass
@@ -79,6 +80,7 @@ class PackageRecipe:
     ldflags: str | None = None
     phases: dict[str, str] = field(default_factory=dict)
     vars: dict[str, str] = field(default_factory=dict)
+    toolchains: dict[str, str] = field(default_factory=dict)
     channels: dict[str, ChannelOverride] = field(default_factory=dict)
     active_channel: str = "latest"
     state_hash: str = ""
@@ -155,6 +157,7 @@ class PackageRecipe:
             "phases": self.phases,
             "vars": self.vars,
             "channel": self.active_channel,
+            "toolchains": self.toolchains,
         }
         raw_json = json.dumps(payload, sort_keys=True)
         return hashlib.sha256(raw_json.encode("utf-8")).hexdigest()[:16]
