@@ -8,6 +8,10 @@ license: MIT
 maintainer: SjnExe
 build_system: custom
 
+toolchains:
+  clang: ">=21.0.0"
+  rust: "stable"
+
 deps:
   - libstdc++
   - zlib

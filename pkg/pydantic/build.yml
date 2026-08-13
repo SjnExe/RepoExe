@@ -18,6 +18,10 @@ channels:
     source_url: https://files.pythonhosted.org/packages/source/p/pydantic/pydantic-{version}.tar.gz
 
 build_system: custom
+
+toolchains:
+  python: "3.14"
+  rust: "stable"
 phases:
   prepare: |
     python3 -m pip install --break-system-packages maturin hatchling hatch-fancy-pypi-readme hatch-vcs

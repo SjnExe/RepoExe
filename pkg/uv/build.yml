@@ -21,6 +21,9 @@ channels:
     version: 0.12.3
     revision: 0
 build_system: custom
+
+toolchains:
+  rust: "stable"
 phases:
   install: 'install -Dm755 uv "${DESTDIR}${PREFIX}/bin/uv"
 
