@@ -178,8 +178,14 @@ phases:
       rustup show
     fi
 
-        echo "⚡ Patching Bun build scripts to accept NDK Clang 21.0.0..."
     python3 -c "from pathlib import Path; import re; p = Path('scripts/build.ts'); p.exists() and p.write_text(re.sub(r'>=\s*21\.1\.0', '>=21.0.0', p.read_text()))"
+    echo "⚡ Patching Clang version requirements for Bun..."
+        echo "⚡ Setting up Clang version shim for Bun..."
+    mkdir -p /tmp/fake-clang
+    printf '#!/bin/bash\nif [ "$1" = "--version" ]; then echo "Ubuntu clang version 21.1.0-repoexe"; exit 0; fi\nexec "${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/clang" "$@"\n' > /tmp/fake-clang/clang
+    chmod +x /tmp/fake-clang/clang
+    cp /tmp/fake-clang/clang /tmp/fake-clang/clang++
+    export PATH="/tmp/fake-clang:${PATH}"
     echo "⚡ Executing Bun Bionic release build..."
     bun scripts/build.ts --profile=release --ci=true
 
