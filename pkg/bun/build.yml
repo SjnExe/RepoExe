@@ -34,7 +34,7 @@ phases:
   prepare: |
     set -e
     echo "⚡ Preparing Bun Bionic build environment..."
-    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev lld unzip wget gnupg
+    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev lld unzip wget gnupg patchelf
 
     echo "⚡ Installing host Bun CLI runtime for build codegen..."
     curl -fsSL https://bun.sh/install | bash || true
@@ -244,8 +244,12 @@ phases:
 
     if [ -n "$BUN_BIN" ]; then
       install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
+      if command -v patchelf >/dev/null 2>&1; then
+        patchelf --set-interpreter /system/bin/linker64 "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || true
+        patchelf --set-rpath "${PREFIX}/lib" "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || true
+      fi
       if command -v termux-elf-cleaner >/dev/null 2>&1; then
-        termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/bun" || true
+        termux-elf-cleaner --api-level 24 "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || true
       fi
     else
       echo "::error::bun executable binary not found after build!"

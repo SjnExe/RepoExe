@@ -31,12 +31,11 @@ phases:
     rm -rf /tmp/pydantic_core_* /tmp/pydantic_dist /tmp/pylib
     mkdir -p /tmp/pydantic_core_dl /tmp/pydantic_dist /tmp/pylib
     printf "void* _Py_NoneStruct = 0;\n" | ${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/aarch64-linux-android24-clang -shared -Wl,-soname,libpython3.14.so -o /tmp/pylib/libpython3.14.so -x c -
-    python3 -c "import sysconfig, glob, shutil; p = sysconfig.get_path('stdlib'); [shutil.copy(f, '/tmp/pylib/') for f in glob.glob(p + '/_sysconfigdata*.py')]" 2>/dev/null || true
-    find /usr/lib/python3* -name "_sysconfigdata*.py" -exec cp {} /tmp/pylib/ \; 2>/dev/null || true
-    find /home/builder/.local -name "_sysconfigdata*.py" -exec cp {} /tmp/pylib/ \; 2>/dev/null || true
-    for f in /tmp/pylib/_sysconfigdata*.py; do
-      [ -f "$f" ] && cp "$f" /tmp/pylib/_sysconfigdata__linux_aarch64-linux-android.py 2>/dev/null || true
-    done
+    HOST_SYSCONFIG=$(find /usr/lib/python3* /home/builder/.local -name "_sysconfigdata*.py" 2>/dev/null | head -n 1)
+    if [ -n "$HOST_SYSCONFIG" ]; then
+      cp "$HOST_SYSCONFIG" /tmp/pylib/_sysconfigdata__linux_aarch64-linux-android.py
+    fi
+    export _PYTHON_SYSCONFIGDATA_NAME="_sysconfigdata__linux_aarch64-linux-android"
     export PYO3_CROSS_LIB_DIR=/tmp/pylib
     export PYO3_CROSS_PYTHON_VERSION=3.14
     export PYO3_CROSS_PYTHON_IMPLEMENTATION=CPython
