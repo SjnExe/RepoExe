@@ -250,6 +250,7 @@ jobs:
 
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
+            --tmpfs /tmp:exec,mode=1777,size=12g \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
@@ -312,6 +313,7 @@ jobs:
 
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
+            --tmpfs /tmp:exec,mode=1777,size=12g \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
@@ -345,6 +347,7 @@ jobs:
 
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
+            --tmpfs /tmp:exec,mode=1777,size=12g \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \

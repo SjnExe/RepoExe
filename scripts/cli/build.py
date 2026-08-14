@@ -34,7 +34,7 @@ DEFAULT_BIONIC_ENV = {
     "LD": ld_bin,
     "CFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
     "CXXFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC",
-    "LDFLAGS": "-fuse-ld=lld -static-libgcc -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--gc-sections",
+    "LDFLAGS": "-fuse-ld=lld -static-libgcc -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--gc-sections -Wl,--threads=4",
     "CARGO_BUILD_TARGET": "aarch64-linux-android",
     "GOOS": "android",
     "GOARCH": "arm64",
@@ -306,7 +306,7 @@ def setup_global_bionic_env() -> None:
     os.environ["CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"] = ndk_clang
     rustflags = (
         f"-C linker={ndk_clang} -C link-arg=-fuse-ld=lld -C link-arg=-static-libgcc"
-        " -C link-arg=-Wl,-z,max-page-size=16384"
+        " -C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,--threads=4 -C codegen-units=4"
     )
     os.environ["RUSTFLAGS"] = rustflags
     os.environ["CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS"] = rustflags
