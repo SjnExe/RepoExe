@@ -34,7 +34,10 @@ phases:
     cd "$CORE_DIR"
     export PYO3_CROSS_PYTHON_VERSION=3.14
     export PYO3_CROSS_PYTHON_IMPLEMENTATION=CPython
-    maturin build --release --target aarch64-linux-android -i 3.14 --out /tmp/pydantic_dist
+    PY_BIN="$(uv python find 3.14 2>/dev/null || which python3)"
+    mkdir -p /tmp/bin
+    ln -sfn "$PY_BIN" /tmp/bin/python3.14
+    maturin build --release --target aarch64-linux-android -i /tmp/bin/python3.14 --out /tmp/pydantic_dist
     mkdir -p "${DESTDIR}${PREFIX}/lib/python3/dist-packages"
     unzip -o /tmp/pydantic_dist/*.whl -d "${DESTDIR}${PREFIX}/lib/python3/dist-packages"
     cd "$SRC_DIR"
