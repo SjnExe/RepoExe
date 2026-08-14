@@ -142,7 +142,7 @@ phases:
       git -C "$WK_SRC" fetch --depth 1 origin "$WEBKIT_SHA"
       git -C "$WK_SRC" checkout FETCH_HEAD
 
-      python3 -c "from pathlib import Path; import re; p = Path('/tmp/webkit-src/Source/cmake/OptionsJSCOnly.cmake'); stub = 'add_library(ICU::uc UNKNOWN IMPORTED)\nset_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::i18n UNKNOWN IMPORTED)\nset_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::data UNKNOWN IMPORTED)\nset_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nset(ICU_FOUND TRUE)\nset(ICU_INCLUDE_DIRS /tmp/icu-include)\nset(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)\nset(ENABLE_BUN ON CACHE BOOL \"\" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL \"\" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL \"\" FORCE)'; p.exists() and p.write_text(re.sub(r'find_package\(ICU[^\\)]*\\)', stub, p.read_text()) + '\nset(ENABLE_BUN ON CACHE BOOL \"\" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL \"\" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL \"\" FORCE)\n')"
+      python3 -c "from pathlib import Path; import re; p = Path('/tmp/webkit-src/Source/cmake/OptionsJSCOnly.cmake'); stub = 'add_library(ICU::uc UNKNOWN IMPORTED)\nset_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::i18n UNKNOWN IMPORTED)\nset_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::data UNKNOWN IMPORTED)\nset_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nset(ICU_FOUND TRUE)\nset(ICU_INCLUDE_DIRS /tmp/icu-include)\nset(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)\nset(ENABLE_BUN ON CACHE BOOL "" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL "" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL "" FORCE)'; p.exists() and p.write_text(re.sub(r'find_package\(ICU[^\\)]*\)', stub, p.read_text()) + '\nset(ENABLE_BUN ON CACHE BOOL "" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL "" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL "" FORCE)\n')"
 
       mkdir -p /tmp/icu-include && ln -sfn /usr/include/unicode /tmp/icu-include/unicode
       mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
@@ -208,7 +208,23 @@ phases:
     echo '    cp -f "$obj" ./build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
     echo '    cp -f "$obj" /home/builder/RepoExe/build/build_bun/src/bun-bun-v1.3.14/build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
     echo '  done' >> /tmp/fake-clang/version_shim
-    echo '  exec "$NDK_BIN/$cmd" "$@" -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option' >> /tmp/fake-clang/version_shim
+    echo '  EXTRA="-Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option"' >> /tmp/fake-clang/version_shim
+    echo '  for a in "$@"; do' >> /tmp/fake-clang/version_shim
+    echo '    if [[ "$a" == *"bun-profile"* ]] || [ "$a" = "-o" ]; then' >> /tmp/fake-clang/version_shim
+    echo '      EXTRA="$EXTRA -pie"' >> /tmp/fake-clang/version_shim
+    echo '      break' >> /tmp/fake-clang/version_shim
+    echo '    fi' >> /tmp/fake-clang/version_shim
+    echo '  done' >> /tmp/fake-clang/version_shim
+    echo '  exec "$NDK_BIN/$cmd" "$@" $EXTRA' >> /tmp/fake-clang/version_shim
+    echo 'elif [ "$cmd" = "ld.lld" ] || [ "$cmd" = "lld" ]; then' >> /tmp/fake-clang/version_shim
+    echo '  EXTRA=""' >> /tmp/fake-clang/version_shim
+    echo '  for a in "$@"; do' >> /tmp/fake-clang/version_shim
+    echo '    if [[ "$a" == *"bun-profile"* ]]; then' >> /tmp/fake-clang/version_shim
+    echo '      EXTRA="-pie"' >> /tmp/fake-clang/version_shim
+    echo '      break' >> /tmp/fake-clang/version_shim
+    echo '    fi' >> /tmp/fake-clang/version_shim
+    echo '  done' >> /tmp/fake-clang/version_shim
+    echo '  exec "$NDK_BIN/$cmd" "$@" $EXTRA' >> /tmp/fake-clang/version_shim
     echo 'else' >> /tmp/fake-clang/version_shim
     echo '  exec "$NDK_BIN/$cmd" "$@"' >> /tmp/fake-clang/version_shim
     echo 'fi' >> /tmp/fake-clang/version_shim
@@ -224,9 +240,9 @@ phases:
     export LD="/tmp/fake-clang/ld.lld"
 
     echo "⚡ Configuring Android Bionic & 16KB page size compiler flags..."
-    export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h"
-    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h"
-    export LDFLAGS="${LDFLAGS:-} -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm"
+    export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
+    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
+    export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm"
 
     if [ -f rust-toolchain.toml ]; then
       rustup show
@@ -235,7 +251,7 @@ phases:
     echo "⚡ Patching bun upgrade for RepoExe package management..."
     python3 -c "import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))" << 'PY_UPGRADE_EOF'
     import glob
-    cmd = '''echo '' && echo '📦 Upgrading Bun via RepoExe Package Manager...' && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo 'Error: No supported package manager found.'; fi'''
+    cmd = "echo '' && echo '📦 Upgrading Bun via RepoExe Package Manager...' && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo 'Error: No supported package manager found.'; fi"
     extern_decl = 'extern "c" fn system(command: [*:0]const u8) c_int;\n'
     stub = f'''pub fn exec(ctx: anytype) !void {{
         @branchHint(.cold);
