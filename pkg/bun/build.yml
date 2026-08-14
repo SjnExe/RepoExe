@@ -171,7 +171,7 @@ phases:
 
     echo "⚡ Configuring Android Bionic & 16KB page size compiler flags..."
     export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h"
-    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h -Wno-undefined-var-template -Wno-error=undefined-var-template -Wno-dangling -Wno-error=dangling"
+    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h -Wno-undefined-var-template -Wno-error=undefined-var-template -Wno-dangling -Wno-error=dangling -Wno-unknown-warning-option -Wno-error=unknown-warning-option"
     export LDFLAGS="${LDFLAGS:-} -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm"
 
     if [ -f rust-toolchain.toml ]; then
@@ -187,13 +187,13 @@ phases:
             try:
                 with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
                     txt = f.read()
-                mod = txt
-                mod = mod.replace("21.1.8", "21.0.0").replace("21.1.0", "21.0.0").replace("21.1.", "21.0.").replace(">=21.1", ">=21.0").replace(">= 21.1", ">= 21.0")
-                mod = mod.replace('"-Werror"', '"-Wno-error"').replace("'-Werror'", "'-Wno-error'")
-                mod = mod.replace("-Wno-character-conversion", "-Wno-unknown-warning-option")
-                if mod != txt:
-                    with open(fpath, "w", encoding="utf-8") as f:
-                        f.write(mod)
+                if "21.1" in txt or "-Werror" in txt or "-Wno-character-conversion" in txt:
+                    mod = txt.replace("21.1.99", "21.0.99").replace("21.1.8", "21.0.0").replace("21.1.0", "21.0.0").replace("21.1.", "21.0.").replace(">=21.1", ">=21.0").replace(">= 21.1", ">= 21.0")
+                    mod = mod.replace('"-Werror"', '"-Wno-error"').replace("'-Werror'", "'-Wno-error'").replace(" -Werror", " -Wno-error")
+                    mod = mod.replace("-Wno-character-conversion", "-Wno-unknown-warning-option")
+                    if mod != txt:
+                        with open(fpath, "w", encoding="utf-8") as f:
+                            f.write(mod)
             except Exception:
                 pass
     '
