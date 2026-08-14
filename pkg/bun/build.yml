@@ -202,31 +202,25 @@ phases:
     echo '  if [ "$cmd" = "ld.lld" ] || [ "$cmd" = "lld" ]; then echo "LLD 21.1.0"; else echo "Ubuntu clang version 21.1.0-repoexe"; fi' >> /tmp/fake-clang/version_shim
     echo '  exit 0' >> /tmp/fake-clang/version_shim
     echo 'fi' >> /tmp/fake-clang/version_shim
+    echo 'ARGS=()' >> /tmp/fake-clang/version_shim
+    echo 'for a in "$@"; do' >> /tmp/fake-clang/version_shim
+    echo '  case "$a" in' >> /tmp/fake-clang/version_shim
+    echo '    -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;' >> /tmp/fake-clang/version_shim
+    echo '    -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=("-pie") ;;' >> /tmp/fake-clang/version_shim
+    echo '    *) ARGS+=("$a") ;;' >> /tmp/fake-clang/version_shim
+    echo '  esac' >> /tmp/fake-clang/version_shim
+    echo 'done' >> /tmp/fake-clang/version_shim
     echo 'if [ "$cmd" = "clang" ] || [ "$cmd" = "clang++" ]; then' >> /tmp/fake-clang/version_shim
     echo '  for obj in $(find /home/builder/RepoExe /tmp -name "bun-zig.o" 2>/dev/null); do' >> /tmp/fake-clang/version_shim
     echo '    cp -f "$obj" ./bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
     echo '    cp -f "$obj" ./build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
     echo '    cp -f "$obj" /home/builder/RepoExe/build/build_bun/src/bun-bun-v1.3.14/build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
     echo '  done' >> /tmp/fake-clang/version_shim
-    echo '  EXTRA="-Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option"' >> /tmp/fake-clang/version_shim
-    echo '  for a in "$@"; do' >> /tmp/fake-clang/version_shim
-    echo '    if [[ "$a" == *"bun-profile"* ]] || [ "$a" = "-o" ]; then' >> /tmp/fake-clang/version_shim
-    echo '      EXTRA="$EXTRA -pie"' >> /tmp/fake-clang/version_shim
-    echo '      break' >> /tmp/fake-clang/version_shim
-    echo '    fi' >> /tmp/fake-clang/version_shim
-    echo '  done' >> /tmp/fake-clang/version_shim
-    echo '  exec "$NDK_BIN/$cmd" "$@" $EXTRA' >> /tmp/fake-clang/version_shim
+    echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option' >> /tmp/fake-clang/version_shim
     echo 'elif [ "$cmd" = "ld.lld" ] || [ "$cmd" = "lld" ]; then' >> /tmp/fake-clang/version_shim
-    echo '  EXTRA=""' >> /tmp/fake-clang/version_shim
-    echo '  for a in "$@"; do' >> /tmp/fake-clang/version_shim
-    echo '    if [[ "$a" == *"bun-profile"* ]]; then' >> /tmp/fake-clang/version_shim
-    echo '      EXTRA="-pie"' >> /tmp/fake-clang/version_shim
-    echo '      break' >> /tmp/fake-clang/version_shim
-    echo '    fi' >> /tmp/fake-clang/version_shim
-    echo '  done' >> /tmp/fake-clang/version_shim
-    echo '  exec "$NDK_BIN/$cmd" "$@" $EXTRA' >> /tmp/fake-clang/version_shim
+    echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}"' >> /tmp/fake-clang/version_shim
     echo 'else' >> /tmp/fake-clang/version_shim
-    echo '  exec "$NDK_BIN/$cmd" "$@"' >> /tmp/fake-clang/version_shim
+    echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}"' >> /tmp/fake-clang/version_shim
     echo 'fi' >> /tmp/fake-clang/version_shim
     chmod +x /tmp/fake-clang/version_shim
     ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/clang
@@ -243,6 +237,8 @@ phases:
     export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
     export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
     export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm"
+
+    find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.zig" -o -name "*.cmake" -o -name "CMakeLists.txt" \) -exec sed -i 's/-fno-pic/-fPIC/g; s/-Wl,-no-pie/-Wl,-pie/g; s/-no-pie/-pie/g' {} + 2>/dev/null || true
 
     if [ -f rust-toolchain.toml ]; then
       rustup show
