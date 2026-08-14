@@ -36,7 +36,7 @@ phases:
 
     printf "implementation=CPython\nversion=3.14\nshared=true\nabi3=false\nlib_name=python3.14\nlib_dir=/tmp/pylib\npointer_width=64\nbuild_flags=\nsuppress_build_script_link_lines=false\n" > /tmp/pyo3_config.ini
 
-    python3 -c "import json, urllib.request, tarfile; req = urllib.request.urlopen('https://pypi.org/pypi/pydantic_core/json'); data = json.loads(req.read().decode('utf-8')); sdist = [u for u in data['urls'] if u['packagetype'] == 'sdist'][0]; print('Fetching pydantic-core sdist:', sdist['url']); urllib.request.urlretrieve(sdist['url'], '/tmp/pydantic_core_dl/sdist.tar.gz'); tar = tarfile.open('/tmp/pydantic_core_dl/sdist.tar.gz'); tar.extractall('/tmp/pydantic_core_dl'); tar.close()"
+    python3 -c "import json, urllib.request, tarfile; req = urllib.request.urlopen('https://pypi.org/pypi/pydantic_core/2.46.4/json'); data = json.loads(req.read().decode('utf-8')); sdist = [u for u in data['urls'] if u['packagetype'] == 'sdist'][0]; print('Fetching pydantic-core 2.46.4 sdist:', sdist['url']); urllib.request.urlretrieve(sdist['url'], '/tmp/pydantic_core_dl/sdist.tar.gz'); tar = tarfile.open('/tmp/pydantic_core_dl/sdist.tar.gz'); tar.extractall('/tmp/pydantic_core_dl'); tar.close()"
     CORE_DIR=$(find /tmp/pydantic_core_dl -mindepth 1 -maxdepth 1 -type d | head -n 1)
     cd "$CORE_DIR"
 
