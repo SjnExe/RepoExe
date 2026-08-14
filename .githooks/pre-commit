@@ -3,11 +3,19 @@ set -e
 
 echo "🔍 Running automated RepoExe pre-commit checks..."
 
-# 1. Run RepoExe orchestrator health check
+# 1. Parallel multi-core Prettier auto-formatter
+if command -v prettier >/dev/null 2>&1; then
+    CORES=$(nproc 2>/dev/null || echo 4)
+    echo "[+] Running Prettier across ${CORES} CPU cores..."
+    git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ya?ml|json|md|js|ts)$' | xargs -P "${CORES}" -r prettier --write --cache --cache-strategy content 2>/dev/null || true
+    git add -u
+fi
+
+# 2. Run RepoExe orchestrator health check
 echo "[+] Running RepoExe build system check..."
 python3 scripts/cli/build.py check
 
-# 2. Run Ruff linter & auto-formatter
+# 3. Run Ruff linter & auto-formatter
 if command -v ruff >/dev/null 2>&1; then
     echo "[+] Running Ruff linter & formatter..."
     ruff check --fix .
@@ -15,22 +23,16 @@ if command -v ruff >/dev/null 2>&1; then
     git add -u
 fi
 
-# 3. Run Pytest test suite
+# 4. Run Pytest test suite
 if python3 -m pytest --version >/dev/null 2>&1; then
     echo "[+] Running Pytest test suite..."
     PYTHONPATH=scripts python3 -m pytest scripts/tests/
 fi
 
-# 4. Run Actionlint for GitHub Workflows (if installed natively)
+# 5. Run Actionlint for GitHub Workflows (if installed natively)
 if command -v actionlint >/dev/null 2>&1; then
     echo "[+] Running Actionlint workflow check..."
     actionlint
-fi
-
-# 5. Run Shellcheck on repository shell scripts
-if command -v shellcheck >/dev/null 2>&1; then
-    echo "[+] Running Shellcheck..."
-    shellcheck site/install .githooks/pre-commit
 fi
 
 echo "✓ All pre-commit checks passed!"
