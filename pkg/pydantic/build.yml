@@ -30,7 +30,7 @@ phases:
     SRC_DIR="$(pwd)"
     rm -rf /tmp/pydantic_core_* /tmp/pydantic_dist /tmp/pylib
     mkdir -p /tmp/pydantic_core_dl /tmp/pydantic_dist /tmp/pylib
-    ${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/aarch64-linux-android24-clang -shared -Wl,-soname,libpython3.14.so -o /tmp/pylib/libpython3.14.so -x c - <<< "void* _Py_NoneStruct = 0;"
+    printf "void* _Py_NoneStruct = 0;\n" | ${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/aarch64-linux-android24-clang -shared -Wl,-soname,libpython3.14.so -o /tmp/pylib/libpython3.14.so -x c -
     export RUSTFLAGS="${RUSTFLAGS:-} -L /tmp/pylib -C link-arg=-Wl,-rpath-link,/tmp/pylib"
     export LIBRARY_PATH="/tmp/pylib:${LIBRARY_PATH:-}"
     export PYO3_CROSS_PYTHON_VERSION=3.14

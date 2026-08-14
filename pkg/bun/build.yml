@@ -142,7 +142,7 @@ phases:
       git -C "$WK_SRC" fetch --depth 1 origin "$WEBKIT_SHA"
       git -C "$WK_SRC" checkout FETCH_HEAD
 
-      python3 -c "from pathlib import Path; import re; p = Path('/tmp/webkit-src/Source/cmake/OptionsJSCOnly.cmake'); stub = 'add_library(ICU::uc UNKNOWN IMPORTED)\nset_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::i18n UNKNOWN IMPORTED)\nset_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::data UNKNOWN IMPORTED)\nset_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nset(ICU_FOUND TRUE)\nset(ICU_INCLUDE_DIRS /tmp/icu-include)\nset(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)\nset(ENABLE_BUN ON CACHE BOOL \"\" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL \"\" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL \"\" FORCE)'; p.exists() and p.write_text(re.sub(r'find_package\(ICU[^\)]*\)', stub, p.read_text()) + '\nset(ENABLE_BUN ON CACHE BOOL \"\" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL \"\" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL \"\" FORCE)\n')"
+      python3 -c "from pathlib import Path; import re; p = Path('/tmp/webkit-src/Source/cmake/OptionsJSCOnly.cmake'); stub = 'add_library(ICU::uc UNKNOWN IMPORTED)\nset_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::i18n UNKNOWN IMPORTED)\nset_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::data UNKNOWN IMPORTED)\nset_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nset(ICU_FOUND TRUE)\nset(ICU_INCLUDE_DIRS /tmp/icu-include)\nset(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)\nset(ENABLE_BUN ON CACHE BOOL \"\" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL \"\" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL \"\" FORCE)'; p.exists() and p.write_text(re.sub(r'find_package\(ICU[^\\)]*\\)', stub, p.read_text()) + '\nset(ENABLE_BUN ON CACHE BOOL \"\" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL \"\" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL \"\" FORCE)\n')"
 
       mkdir -p /tmp/icu-include && ln -sfn /usr/include/unicode /tmp/icu-include/unicode
       mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
@@ -191,7 +191,10 @@ phases:
     set -e
     ZIG_BIN_DIR=$(find /tmp/zig-custom -type f -name "zig" -exec dirname {} \; | head -n 1)
 
-    mkdir -p /tmp/fake-clang
+    mkdir -p /tmp/zig-cache /tmp/fake-clang
+    export ZIG_GLOBAL_CACHE_DIR=/tmp/zig-cache
+    export ZIG_LOCAL_CACHE_DIR=/tmp/zig-cache
+
     echo '#!/bin/bash' > /tmp/fake-clang/version_shim
     echo 'cmd="$(basename "$0")"' >> /tmp/fake-clang/version_shim
     echo 'NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"' >> /tmp/fake-clang/version_shim
@@ -200,6 +203,13 @@ phases:
     echo '  exit 0' >> /tmp/fake-clang/version_shim
     echo 'fi' >> /tmp/fake-clang/version_shim
     echo 'if [ "$cmd" = "clang" ] || [ "$cmd" = "clang++" ]; then' >> /tmp/fake-clang/version_shim
+    echo '  if [ ! -f "bun-zig.o" ]; then' >> /tmp/fake-clang/version_shim
+    echo '    ZIG_OBJ=$(find /home/builder/RepoExe/build/build_bun/src -name "bun-zig.o" 2>/dev/null | head -n 1)' >> /tmp/fake-clang/version_shim
+    echo '    if [ -n "$ZIG_OBJ" ]; then' >> /tmp/fake-clang/version_shim
+    echo '      ln -sfn "$ZIG_OBJ" ./bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
+    echo '      ln -sfn "$ZIG_OBJ" ./build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
+    echo '    fi' >> /tmp/fake-clang/version_shim
+    echo '  fi' >> /tmp/fake-clang/version_shim
     echo '  exec "$NDK_BIN/$cmd" "$@" -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option' >> /tmp/fake-clang/version_shim
     echo 'else' >> /tmp/fake-clang/version_shim
     echo '  exec "$NDK_BIN/$cmd" "$@"' >> /tmp/fake-clang/version_shim
