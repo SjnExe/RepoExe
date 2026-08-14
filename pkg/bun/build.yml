@@ -203,13 +203,11 @@ phases:
     echo '  exit 0' >> /tmp/fake-clang/version_shim
     echo 'fi' >> /tmp/fake-clang/version_shim
     echo 'if [ "$cmd" = "clang" ] || [ "$cmd" = "clang++" ]; then' >> /tmp/fake-clang/version_shim
-    echo '  if [ ! -f "bun-zig.o" ]; then' >> /tmp/fake-clang/version_shim
-    echo '    ZIG_OBJ=$(find /home/builder/RepoExe/build/build_bun/src -name "bun-zig.o" 2>/dev/null | head -n 1)' >> /tmp/fake-clang/version_shim
-    echo '    if [ -n "$ZIG_OBJ" ]; then' >> /tmp/fake-clang/version_shim
-    echo '      ln -sfn "$ZIG_OBJ" ./bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
-    echo '      ln -sfn "$ZIG_OBJ" ./build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
-    echo '    fi' >> /tmp/fake-clang/version_shim
-    echo '  fi' >> /tmp/fake-clang/version_shim
+    echo '  for obj in $(find /home/builder/RepoExe /tmp -name "bun-zig.o" 2>/dev/null); do' >> /tmp/fake-clang/version_shim
+    echo '    cp -f "$obj" ./bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
+    echo '    cp -f "$obj" ./build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
+    echo '    cp -f "$obj" /home/builder/RepoExe/build/build_bun/src/bun-bun-v1.3.14/build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
+    echo '  done' >> /tmp/fake-clang/version_shim
     echo '  exec "$NDK_BIN/$cmd" "$@" -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option' >> /tmp/fake-clang/version_shim
     echo 'else' >> /tmp/fake-clang/version_shim
     echo '  exec "$NDK_BIN/$cmd" "$@"' >> /tmp/fake-clang/version_shim
