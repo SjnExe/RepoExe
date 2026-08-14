@@ -28,15 +28,24 @@ phases:
     python3 -m pip install --break-system-packages hatchling hatch-fancy-pypi-readme hatch-vcs typing-extensions annotated-types
   make: |
     SRC_DIR="$(pwd)"
-    rm -rf /tmp/pydantic_core_* /tmp/pydantic_dist
+    rm -rf /tmp/pydantic_core_* /tmp/pydantic_dist /tmp/pyo3_config.ini
     mkdir -p /tmp/pydantic_core_dl /tmp/pydantic_dist
-    python3 -c "import json, urllib.request, tarfile; req = urllib.request.urlopen('https://pypi.org/pypi/pydantic_core/json'); data = json.loads(req.read().decode('utf-8')); sdist = [u for u in data['urls'] if u['packagetype'] == 'sdist'][0]; print('Fetching pydantic-core sdist:', sdist['url']); urllib.request.urlretrieve(sdist['url'], '/tmp/pydantic_core_dl/sdist.tar.gz'); tar = tarfile.open('/tmp/pydantic_core_dl/sdist.tar.gz'); tar.extractall('/tmp/pydantic_core_dl'); tar.close()"
-    CORE_DIR=$(find /tmp/pydantic_core_dl -mindepth 1 -maxdepth 1 -type d | head -n 1)
-    cd "$CORE_DIR"
+    cat << 'PYO3_EOF' > /tmp/pyo3_config.ini
+    implementation=CPython
+    version=3.14
+    shared=true
+    abi3=false
+    lib_name=python3.14
+    suppress_build_script_link_lines=true
+    PYO3_EOF
+    export PYO3_CONFIG_FILE=/tmp/pyo3_config.ini
     export PYO3_NO_PYTHON=1
     export PYO3_CROSS_PYTHON_VERSION=3.14
     export PYO3_CROSS_PYTHON_IMPLEMENTATION=CPython
-    cargo build --release --target aarch64-linux-android --features pyo3/extension-module
+    python3 -c "import json, urllib.request, tarfile; req = urllib.request.urlopen('https://pypi.org/pypi/pydantic_core/json'); data = json.loads(req.read().decode('utf-8')); sdist = [u for u in data['urls'] if u['packagetype'] == 'sdist'][0]; print('Fetching pydantic-core sdist:', sdist['url']); urllib.request.urlretrieve(sdist['url'], '/tmp/pydantic_core_dl/sdist.tar.gz'); tar = tarfile.open('/tmp/pydantic_core_dl/sdist.tar.gz'); tar.extractall('/tmp/pydantic_core_dl'); tar.close()"
+    CORE_DIR=$(find /tmp/pydantic_core_dl -mindepth 1 -maxdepth 1 -type d | head -n 1)
+    cd "$CORE_DIR"
+    cargo build --release --target aarch64-linux-android
     mkdir -p "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core"
     [ -d python/pydantic_core ] && cp -r python/pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" || cp -r pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" 2>/dev/null || true
     SO_FILE=$(find target/aarch64-linux-android/release -maxdepth 1 \( -name "*pydantic_core*.so" -o -name "lib_pydantic_core.so" \) | head -n 1)
