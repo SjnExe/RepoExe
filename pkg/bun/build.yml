@@ -179,12 +179,19 @@ phases:
     fi
 
     python3 -c "from pathlib import Path; import re; p = Path('scripts/build.ts'); p.exists() and p.write_text(re.sub(r'>=\s*21\.1\.0', '>=21.0.0', p.read_text()))"
-    echo "⚡ Setting up LLVM version shim for Bun (clang, clang++, lld, ld.lld)..."
+    echo "⚡ Setting up LLVM toolchain shim for Bun..."
     mkdir -p /tmp/fake-clang
     echo '#!/bin/bash' > /tmp/fake-clang/version_shim
-    echo 'if [ "$1" = "--version" ] || [ "$1" = "-v" ] || [ "$1" = "-version" ]; then echo "Ubuntu LLVM version 21.1.0-repoexe"; exit 0; fi' >> /tmp/fake-clang/version_shim
+    echo 'if [ "$1" = "--version" ] || [ "$1" = "-v" ] || [ "$1" = "-version" ]; then' >> /tmp/fake-clang/version_shim
+    echo '  if [ "$(basename "$0")" = "ld.lld" ] || [ "$(basename "$0")" = "lld" ]; then echo "LLD 21.1.0"; else echo "Ubuntu LLVM version 21.1.0-repoexe"; fi' >> /tmp/fake-clang/version_shim
+    echo '  exit 0' >> /tmp/fake-clang/version_shim
+    echo 'fi' >> /tmp/fake-clang/version_shim
     echo 'cmd="$(basename "$0")"' >> /tmp/fake-clang/version_shim
-    echo 'exec "${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/$cmd" "$@"' >> /tmp/fake-clang/version_shim
+    echo 'if [ "$cmd" = "clang" ] || [ "$cmd" = "clang++" ]; then' >> /tmp/fake-clang/version_shim
+    echo '  exec "${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/$cmd" -Wno-unknown-warning-option -Wno-error=unknown-warning-option "$@"' >> /tmp/fake-clang/version_shim
+    echo 'else' >> /tmp/fake-clang/version_shim
+    echo '  exec "${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/$cmd" "$@"' >> /tmp/fake-clang/version_shim
+    echo 'fi' >> /tmp/fake-clang/version_shim
     chmod +x /tmp/fake-clang/version_shim
     ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/clang
     ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/clang++
