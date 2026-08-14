@@ -33,9 +33,10 @@ phases:
     python3 -c "import json, urllib.request, tarfile; req = urllib.request.urlopen('https://pypi.org/pypi/pydantic_core/json'); data = json.loads(req.read().decode('utf-8')); sdist = [u for u in data['urls'] if u['packagetype'] == 'sdist'][0]; print('Fetching pydantic-core sdist:', sdist['url']); urllib.request.urlretrieve(sdist['url'], '/tmp/pydantic_core_dl/sdist.tar.gz'); tar = tarfile.open('/tmp/pydantic_core_dl/sdist.tar.gz'); tar.extractall('/tmp/pydantic_core_dl'); tar.close()"
     CORE_DIR=$(find /tmp/pydantic_core_dl -mindepth 1 -maxdepth 1 -type d | head -n 1)
     cd "$CORE_DIR"
+    export PYO3_NO_PYTHON=1
     export PYO3_CROSS_PYTHON_VERSION=3.14
     export PYO3_CROSS_PYTHON_IMPLEMENTATION=CPython
-    cargo build --release --target aarch64-linux-android --features extension-module
+    cargo build --release --target aarch64-linux-android
     mkdir -p "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core"
     [ -d python/pydantic_core ] && cp -r python/pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" || cp -r pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" 2>/dev/null || true
     SO_FILE=$(find target/aarch64-linux-android/release -maxdepth 1 -name "*pydantic_core*.so" | head -n 1)
