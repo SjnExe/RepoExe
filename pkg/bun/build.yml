@@ -250,7 +250,8 @@ phases:
                             depth -= 1
                             if depth == 0: break
                         i += 1
-                    stub = 'pub fn exec(ctx: anytype) !void {\n    @branchHint(.cold);\n    _ = ctx;\n    _ = @import("std").c.system("echo \'\' && echo \'📦 Upgrading Bun via RepoExe Package Manager...\' && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo \'Error: No supported package manager found.\'; fi");\n    return;\n}'
+                    stub = 'pub fn exec(ctx: anytype) !void {\n    @branchHint(.cold);\n    _ = ctx;\n    const sys = struct { extern "c" fn system(command: [*:0]const u8) c_int; }.system;
+                    _ = sys("echo \'\' && echo \'📦 Upgrading Bun via RepoExe Package Manager...\' && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo \'Error: No supported package manager found.\'; fi");\n    return;\n}'
                     s = s[:idx] + stub + s[i+1:]
                     with open(f, "w", encoding="utf-8") as fp:
                         fp.write(s)
