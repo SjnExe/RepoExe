@@ -241,7 +241,7 @@ phases:
             try:
                 txt = f.read_text(encoding='utf-8', errors='ignore')
                 if 'pub fn exec' in txt:
-                    stub = '''extern \"c\" fn system(cmd: [*:0]const u8) c_int;\n\npub fn exec(ctx: anytype) !void {\n    _ = ctx;\n    _ = system(\"echo '' && echo -e '\\\\033[1;32m📦 Upgrading Bun via RepoExe Package Manager...\\\\033[0m' && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo 'Error: No supported package manager found.'; fi\");\n}\n'''
+                    stub = '''pub fn exec(ctx: anytype) !void {\n    _ = ctx;\n    _ = @import(\"std\").c.system(\"echo \'\' && echo \'📦 Upgrading Bun via RepoExe Package Manager...\' && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo \'Error: No supported package manager found.\'; fi\");\n}\n'''
                     txt = re.sub(r'pub\s+fn\s+exec\b[^{]*\{[^}]*\}', stub, txt, flags=re.DOTALL)
                     f.write_text(txt, encoding='utf-8')
                     print(f'✓ Patched {f} for automatic package manager upgrade')
