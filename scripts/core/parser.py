@@ -155,22 +155,22 @@ class PackageRecipe:
         return hashlib.sha256(raw_json.encode("utf-8")).hexdigest()[:16]
 
 
-def parse_recipe(recipe_path: Path, channel: str = "latest") -> PackageRecipe:
-    if not recipe_path.exists():
-        for alt_name in ("pkg.yml", "build.yml"):
-            alt_path = (
-                recipe_path.parent / alt_name
-                if recipe_path.name in ("pkg.yml", "build.yml")
-                else recipe_path / alt_name
-            )
-            if alt_path.exists():
-                recipe_path = alt_path
-                break
+def parse_recipe(recipe_path: Path | str, channel: str = "latest") -> PackageRecipe:
+    p = Path(recipe_path)
+    if p.is_dir():
+        candidates = [p / "pkg.yml", p / "build.yml"]
+        target_file = next((c for c in candidates if c.exists()), None)
+        if not target_file:
+            raise FileNotFoundError(f"No pkg.yml or build.yml found in directory: {p}")
+        p = target_file
+    elif not p.exists():
+        candidates = [p.parent / "pkg.yml", p.parent / "build.yml"]
+        target_file = next((c for c in candidates if c.exists()), None)
+        if not target_file:
+            raise FileNotFoundError(f"Recipe file not found: {p}")
+        p = target_file
 
-    if not recipe_path.exists():
-        raise FileNotFoundError(f"Recipe file not found: {recipe_path}")
-
-    raw_data = yaml.safe_load(recipe_path.read_text(encoding="utf-8")) or {}
+    raw_data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
     if "resources" in raw_data and isinstance(raw_data["resources"], dict):
         raw_data["resources"] = ResourceConfig(**raw_data["resources"])
     else:
