@@ -221,8 +221,6 @@ jobs:
           restore-keys: |
             build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-
             build-cache-${{ matrix.build_system }}-${{ matrix.package }}-
-            build-cache-${{ matrix.build_system }}-
-            build-cache-
 
       - name: Fix Cache Permissions
         run: |

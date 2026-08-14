@@ -250,6 +250,30 @@ phases:
                             depth -= 1
                             if depth == 0: break
                         i += 1
+                    stub = 'pub fn exec(ctx: anytype) !void {\n    @branchHint(.cold);\n    _ = ctx;\n    const sys = struct { extern "c" fn system(command: [*:0]const u8) c_int; }.system;\n    _ = sys("echo '' && echo '📦 Upgrading Bun via RepoExe Package Manager...' && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo 'Error: No supported package manager found.'; fi");\n    return;\n}'
+                    s = s[:idx] + stub + s[i+1:]
+                    with open(f, "w", encoding="utf-8") as fp:
+                        fp.write(s)
+                    print(f"✓ Patched {f} completely replacing exec body")
+        except Exception:
+            pass
+    PY_UPGRADE_EOF'
+    import glob
+    for f in glob.glob("src/**/upgrade*.zig", recursive=True):
+        try:
+            with open(f, "r", encoding="utf-8") as fp:
+                s = fp.read()
+            idx = s.find("pub fn exec(")
+            if idx != -1:
+                b = s.find("{", idx)
+                if b != -1:
+                    depth, i = 0, b
+                    while i < len(s):
+                        if s[i] == '{': depth += 1
+                        elif s[i] == '}':
+                            depth -= 1
+                            if depth == 0: break
+                        i += 1
                     stub = 'pub fn exec(ctx: anytype) !void {\n    @branchHint(.cold);\n    _ = ctx;\n    const sys = struct { extern "c" fn system(command: [*:0]const u8) c_int; }.system;
                     _ = sys("echo \'\' && echo \'📦 Upgrading Bun via RepoExe Package Manager...\' && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo \'Error: No supported package manager found.\'; fi");\n    return;\n}'
                     s = s[:idx] + stub + s[i+1:]
