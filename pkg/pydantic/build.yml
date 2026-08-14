@@ -28,26 +28,19 @@ phases:
     python3 -m pip install --break-system-packages hatchling hatch-fancy-pypi-readme hatch-vcs typing-extensions annotated-types
   make: |
     SRC_DIR="$(pwd)"
-    rm -rf /tmp/pydantic_core_* /tmp/pydantic_dist /tmp/fake-py-lib
-    mkdir -p /tmp/pydantic_core_dl /tmp/pydantic_dist /tmp/fake-py-lib
-    ${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/aarch64-linux-android24-clang -shared -o /tmp/fake-py-lib/libpython3.14.so -x c - <<< "" || true
-    export RUSTFLAGS="${RUSTFLAGS:-} -L/tmp/fake-py-lib"
-    export LIBRARY_PATH="/tmp/fake-py-lib:${LIBRARY_PATH:-}"
+    rm -rf /tmp/pydantic_core_* /tmp/pydantic_dist
+    mkdir -p /tmp/pydantic_core_dl /tmp/pydantic_dist
     python3 -c "import json, urllib.request, tarfile; req = urllib.request.urlopen('https://pypi.org/pypi/pydantic_core/json'); data = json.loads(req.read().decode('utf-8')); sdist = [u for u in data['urls'] if u['packagetype'] == 'sdist'][0]; print('Fetching pydantic-core sdist:', sdist['url']); urllib.request.urlretrieve(sdist['url'], '/tmp/pydantic_core_dl/sdist.tar.gz'); tar = tarfile.open('/tmp/pydantic_core_dl/sdist.tar.gz'); tar.extractall('/tmp/pydantic_core_dl'); tar.close()"
     CORE_DIR=$(find /tmp/pydantic_core_dl -mindepth 1 -maxdepth 1 -type d | head -n 1)
     cd "$CORE_DIR"
-    export PYO3_BUILD_EXTENSION_MODULE=1
-    export PYO3_NO_PYTHON=1
     export PYO3_CROSS_PYTHON_VERSION=3.14
     export PYO3_CROSS_PYTHON_IMPLEMENTATION=CPython
-    cargo build --release --target aarch64-linux-android --features pyo3/extension-module
+    cargo build --release --target aarch64-linux-android --features extension-module
     mkdir -p "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core"
     [ -d python/pydantic_core ] && cp -r python/pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" || cp -r pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" 2>/dev/null || true
     SO_FILE=$(find target/aarch64-linux-android/release -maxdepth 1 -name "*pydantic_core*.so" | head -n 1)
     if [ -n "$SO_FILE" ]; then
       cp "$SO_FILE" "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/_pydantic_core.so"
-      cp "$SO_FILE" "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/_pydantic_core.abi3.so"
-      cp "$SO_FILE" "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/_pydantic_core.cpython-314-aarch64-linux-android.so"
       echo "✓ Staged pydantic-core binary extension: $SO_FILE"
     else
       echo "::error:: _pydantic_core.so not found after cargo build!"
