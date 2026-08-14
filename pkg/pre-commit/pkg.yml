@@ -1,0 +1,24 @@
+name: pre-commit
+version: 4.6.2
+revision: 0
+arch: aarch64
+description: Framework for managing and maintaining multi-language pre-commit hooks
+license: MIT
+homepage: https://pre-commit.com
+maintainer: SjnExe
+auto_update: true
+update_strategy: pypi
+source_url: https://files.pythonhosted.org/packages/source/p/pre-commit/pre_commit-{version}.tar.gz
+build_system: custom
+formats:
+- pip
+- apt
+phases:
+  install: 'mkdir -p "${DESTDIR}${PREFIX}"
+
+    python3 -m pip install --ignore-installed --prefix="${DESTDIR}${PREFIX}" .
+
+    '
+  test: 'pre-commit --version
+
+    '
