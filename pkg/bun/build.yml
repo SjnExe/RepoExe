@@ -142,7 +142,7 @@ phases:
       git -C "$WK_SRC" fetch --depth 1 origin "$WEBKIT_SHA"
       git -C "$WK_SRC" checkout FETCH_HEAD
 
-      python3 -c "from pathlib import Path; import re; p = Path('/tmp/webkit-src/Source/cmake/OptionsJSCOnly.cmake'); stub = 'add_library(ICU::uc UNKNOWN IMPORTED)\nset_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::i18n UNKNOWN IMPORTED)\nset_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::data UNKNOWN IMPORTED)\nset_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nset(ICU_FOUND TRUE)\nset(ICU_INCLUDE_DIRS /tmp/icu-include)\nset(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)\nset(ENABLE_BUN ON CACHE BOOL "" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL "" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL "" FORCE)'; p.exists() and p.write_text(re.sub(r'find_package\(ICU[^\\)]*\)', stub, p.read_text()) + '\nset(ENABLE_BUN ON CACHE BOOL "" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL "" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL "" FORCE)\n')"
+      python3 -c "from pathlib import Path; import re; p = Path('/tmp/webkit-src/Source/cmake/OptionsJSCOnly.cmake'); stub = 'add_library(ICU::uc UNKNOWN IMPORTED)\nset_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::i18n UNKNOWN IMPORTED)\nset_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::data UNKNOWN IMPORTED)\nset_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nset(ICU_FOUND TRUE)\nset(ICU_INCLUDE_DIRS /tmp/icu-include)\nset(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)\nset(ENABLE_BUN ON CACHE BOOL \"\" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL \"\" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL \"\" FORCE)'; p.exists() and p.write_text(re.sub(r'find_package\(ICU[^\\)]*\)', stub, p.read_text()) + '\nset(ENABLE_BUN ON CACHE BOOL \"\" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL \"\" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL \"\" FORCE)\n')"
 
       mkdir -p /tmp/icu-include && ln -sfn /usr/include/unicode /tmp/icu-include/unicode
       mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
@@ -296,6 +296,12 @@ phases:
       install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
       if command -v patchelf >/dev/null 2>&1; then
         patchelf --set-interpreter /system/bin/linker64 "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || true
+        patchelf --replace-needed libc.so.6 libc.so "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || true
+        patchelf --replace-needed libm.so.6 libm.so "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || true
+        patchelf --replace-needed libdl.so.2 libdl.so "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || true
+        patchelf --remove-needed libpthread.so.0 "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || true
+        patchelf --remove-needed librt.so.1 "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || true
+        patchelf --remove-needed ld-linux-aarch64.so.1 "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || true
         patchelf --set-rpath "${PREFIX}/lib" "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || true
       fi
       if command -v termux-elf-cleaner >/dev/null 2>&1; then
