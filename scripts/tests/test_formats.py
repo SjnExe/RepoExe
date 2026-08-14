@@ -67,3 +67,18 @@ def test_repository_recipe_consistency():
 
     assert report["total_packages"] == report["valid_packages"]
     assert len(report["invalid_packages"]) == 0
+
+
+def test_all_recipes_pinned_to_version():
+    """Ensures every remote recipe explicitly pins its source_url to {version} or a tag/ref."""
+    pkg_dir = REPO_ROOT / "pkg"
+    for p_dir in sorted(pkg_dir.iterdir()):
+        recipe_file = p_dir / "build.yml"
+        if p_dir.is_dir() and recipe_file.exists():
+            raw_text = recipe_file.read_text(encoding="utf-8")
+            recipe = parse_recipe(recipe_file)
+            src = recipe.source_url or ""
+            if src and src != "local":
+                assert "{version}" in raw_text or "#" in src or "releases/download" in src, (
+                    f"Package {recipe.name} has unpinned source_url '{src}' which could pull unreleased HEAD."
+                )

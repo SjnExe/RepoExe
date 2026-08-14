@@ -39,7 +39,16 @@ phases:
     cargo build --release --target aarch64-linux-android --features pyo3/extension-module
     mkdir -p "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core"
     [ -d python/pydantic_core ] && cp -r python/pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" || cp -r pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" 2>/dev/null || true
-    find target/aarch64-linux-android/release -maxdepth 1 -name "*pydantic_core*.so" -exec cp {} "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/_pydantic_core.so" \;
+    SO_FILE=$(find target/aarch64-linux-android/release -maxdepth 1 -name "*pydantic_core*.so" | head -n 1)
+    if [ -n "$SO_FILE" ]; then
+      cp "$SO_FILE" "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/_pydantic_core.so"
+      cp "$SO_FILE" "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/_pydantic_core.abi3.so"
+      cp "$SO_FILE" "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/_pydantic_core.cpython-314-aarch64-linux-android.so"
+      echo "✓ Staged pydantic-core binary extension: $SO_FILE"
+    else
+      echo "::error:: _pydantic_core.so not found after cargo build!"
+      exit 1
+    fi
     cd "$SRC_DIR"
     python3 -m pip install --break-system-packages --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" typing-extensions annotated-types
     python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .

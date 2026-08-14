@@ -78,6 +78,8 @@ class ProotTestRunner:
         if not has_docker:
             raise RuntimeError(f"❌ [{package_name}] Docker is unavailable. Termux Docker sandbox is required for smoke tests.")
 
+        subprocess.run(["docker", "pull", termux_image], check=False, capture_output=True)
+
         with open(script_path, "rb") as stdin_f:
             res = subprocess.run(
                 docker_cmd, stdin=stdin_f, capture_output=True, text=True, check=False

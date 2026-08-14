@@ -17,7 +17,7 @@ channels:
   latest:
     auto_update: true
     update_strategy: github_tag
-    source_url: https://github.com/microsoft/typescript-go.git
+    source_url: https://github.com/microsoft/typescript-go/archive/refs/tags/v{version}.tar.gz
 
 build_system: go
 
