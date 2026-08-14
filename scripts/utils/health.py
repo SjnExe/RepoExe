@@ -12,22 +12,17 @@ def audit_repository_health(packages_dir: Path) -> dict[str, Any]:
     build_systems = {}
 
     for pkg_dir in sorted(packages_dir.iterdir()):
-        if pkg_dir.is_dir():
-            for cand in ("pkg.yml", "build.yml"):
-                recipe_file = pkg_dir / cand
-                if recipe_file.exists():
-                    total_packages += 1
-                    try:
-                        recipe = parse_recipe(recipe_file)
-                        valid_packages += 1
-                        build_systems[recipe.build_system] = (
-                            build_systems.get(recipe.build_system, 0) + 1
-                        )
-                    except Exception as e:
-                        invalid_packages.append(
-                            {"package": pkg_dir.name, "error": str(e)}
-                        )
-                    break
+        recipe_file = pkg_dir / "pkg.yml"
+        if pkg_dir.is_dir() and recipe_file.exists():
+            total_packages += 1
+            try:
+                recipe = parse_recipe(recipe_file)
+                valid_packages += 1
+                build_systems[recipe.build_system] = (
+                    build_systems.get(recipe.build_system, 0) + 1
+                )
+            except Exception as e:
+                invalid_packages.append({"package": pkg_dir.name, "error": str(e)})
 
     return {
         "total_packages": total_packages,

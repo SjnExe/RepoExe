@@ -28,7 +28,7 @@ def generate_packages_json(
 
     if pkgs_path.exists():
         for p_dir in sorted(pkgs_path.iterdir()):
-            recipe_file = p_dir / "build.yml"
+            recipe_file = p_dir / "pkg.yml"
             if p_dir.is_dir() and recipe_file.exists():
                 with contextlib.suppress(Exception):
                     recipe = parse_recipe(recipe_file)

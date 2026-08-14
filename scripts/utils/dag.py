@@ -12,13 +12,10 @@ class DependencyGraph:
 
     def _load_recipes(self) -> None:
         for pkg_dir in self.packages_dir.iterdir():
-            if pkg_dir.is_dir():
-                for cand in ("pkg.yml", "build.yml"):
-                    recipe_file = pkg_dir / cand
-                    if recipe_file.exists():
-                        recipe = parse_recipe(recipe_file)
-                        self.recipes[recipe.name] = recipe
-                        break
+            recipe_file = pkg_dir / "pkg.yml"
+            if pkg_dir.is_dir() and recipe_file.exists():
+                recipe = parse_recipe(recipe_file)
+                self.recipes[recipe.name] = recipe
 
     def resolve_build_order(self) -> list[str]:
         graph: dict[str, list[str]] = {p: [] for p in self.recipes}

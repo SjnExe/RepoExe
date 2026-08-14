@@ -61,7 +61,7 @@ jobs:
 
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
-              git add "pkg/$PKG/build.yml"
+              git add "pkg/$PKG/pkg.yml"
               git commit -m "feat($PKG@$CHANNEL): update to $NEW"
 
               git push origin "$BRANCH_NAME"

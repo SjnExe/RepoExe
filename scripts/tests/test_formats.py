@@ -14,19 +14,16 @@ def test_all_package_formats_valid():
     supported_formats = {"apt", "pacman", "apk", "pip", "npm"}
 
     for p_dir in sorted(pkg_dir.iterdir()):
-        if p_dir.is_dir():
-            for cand in ("pkg.yml", "build.yml"):
-                recipe_file = p_dir / cand
-                if recipe_file.exists():
-                    recipe = parse_recipe(recipe_file)
-                    assert len(recipe.formats) > 0, (
-                        f"Package {recipe.name} has no formats defined."
-                    )
-                    for fmt in recipe.formats:
-                        assert fmt in supported_formats, (
-                            f"Package {recipe.name} uses unsupported format '{fmt}'."
-                        )
-                    break
+        recipe_file = p_dir / "pkg.yml"
+        if p_dir.is_dir() and recipe_file.exists():
+            recipe = parse_recipe(recipe_file)
+            assert len(recipe.formats) > 0, (
+                f"Package {recipe.name} has no formats defined."
+            )
+            for fmt in recipe.formats:
+                assert fmt in supported_formats, (
+                    f"Package {recipe.name} uses unsupported format '{fmt}'."
+                )
 
 
 def test_pip_index_generation(tmp_path):
@@ -74,20 +71,15 @@ def test_all_recipes_pinned_to_version():
     """Ensures every remote recipe explicitly pins its source_url to {version} or a tag/ref."""
     pkg_dir = REPO_ROOT / "pkg"
     for p_dir in sorted(pkg_dir.iterdir()):
-        if p_dir.is_dir():
-            for cand in ("pkg.yml", "build.yml"):
-                recipe_file = p_dir / cand
-                if recipe_file.exists():
-                    raw_text = recipe_file.read_text(encoding="utf-8")
-                    recipe = parse_recipe(recipe_file)
-                    src = recipe.source_url or ""
-                    if src and src != "local":
-                        assert (
-                            "{version}" in raw_text
-                            or "#" in src
-                            or "releases/download" in src
-                        ), (
-                            f"Package {recipe.name} has unpinned source_url '{src}' which"
-                            " could pull unreleased HEAD."
-                        )
-                    break
+        recipe_file = p_dir / "pkg.yml"
+        if p_dir.is_dir() and recipe_file.exists():
+            raw_text = recipe_file.read_text(encoding="utf-8")
+            recipe = parse_recipe(recipe_file)
+            src = recipe.source_url or ""
+            if src and src != "local":
+                assert (
+                    "{version}" in raw_text or "#" in src or "releases/download" in src
+                ), (
+                    f"Package {recipe.name} has unpinned source_url '{src}' which"
+                    " could pull unreleased HEAD."
+                )

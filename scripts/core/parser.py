@@ -158,17 +158,12 @@ class PackageRecipe:
 def parse_recipe(recipe_path: Path | str, channel: str = "latest") -> PackageRecipe:
     p = Path(recipe_path)
     if p.is_dir():
-        candidates = [p / "pkg.yml", p / "build.yml"]
-        target_file = next((c for c in candidates if c.exists()), None)
-        if not target_file:
-            raise FileNotFoundError(f"No pkg.yml or build.yml found in directory: {p}")
-        p = target_file
-    elif not p.exists():
-        candidates = [p.parent / "pkg.yml", p.parent / "build.yml"]
-        target_file = next((c for c in candidates if c.exists()), None)
-        if not target_file:
-            raise FileNotFoundError(f"Recipe file not found: {p}")
-        p = target_file
+        p = p / "pkg.yml"
+    elif not p.exists() and (p.parent / "pkg.yml").exists():
+        p = p.parent / "pkg.yml"
+
+    if not p.exists():
+        raise FileNotFoundError(f"Recipe file not found: {p}")
 
     raw_data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
     if "resources" in raw_data and isinstance(raw_data["resources"], dict):

@@ -157,7 +157,7 @@ def resolve_latest_version(recipe: Any) -> str | None:
 
 def check_package_channel_updates(pkg_dir: Path) -> None:
     for p_dir in sorted(pkg_dir.iterdir()):
-        recipe_file = p_dir / "build.yml"
+        recipe_file = p_dir / "pkg.yml"
         if not (p_dir.is_dir() and recipe_file.exists()):
             continue
 

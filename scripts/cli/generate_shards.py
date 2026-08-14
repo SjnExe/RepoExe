@@ -123,7 +123,7 @@ def build_matrix_layer(
 ) -> list[dict]:
     matrix = []
     for p in sorted(pkgs_list):
-        recipe_path = pkgs_dir / p / "build.yml"
+        recipe_path = pkgs_dir / p / "pkg.yml"
         if not recipe_path.exists():
             continue
         try:
@@ -134,7 +134,7 @@ def build_matrix_layer(
             max_free_space = getattr(r.resources, "free_space", False)
 
             for dep_name in r.build_deps or []:
-                dep_recipe_path = pkgs_dir / dep_name / "build.yml"
+                dep_recipe_path = pkgs_dir / dep_name / "pkg.yml"
                 if dep_recipe_path.exists():
                     dr = parse_recipe(dep_recipe_path, channel="latest")
                     max_zram = max(max_zram, getattr(dr.resources, "zram", 0))
