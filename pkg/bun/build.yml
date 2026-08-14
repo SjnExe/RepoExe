@@ -190,40 +190,39 @@ phases:
   make: |
     set -e
     ZIG_BIN_DIR=$(find /tmp/zig-custom -type f -name "zig" -exec dirname {} \; | head -n 1)
-    NDK_LLVM_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"
-    export PATH="${NDK_LLVM_BIN}:${ZIG_BIN_DIR}:$HOME/.bun/bin:${PATH}"
-    export CC="${NDK_LLVM_BIN}/clang"
-    export CXX="${NDK_LLVM_BIN}/clang++"
-    export LD="${NDK_LLVM_BIN}/ld.lld"
+
+    mkdir -p /tmp/fake-clang
+    echo '#!/bin/bash' > /tmp/fake-clang/version_shim
+    echo 'cmd="$(basename "$0")"' >> /tmp/fake-clang/version_shim
+    echo 'NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"' >> /tmp/fake-clang/version_shim
+    echo 'if [ "$1" = "--version" ] || [ "$1" = "-v" ] || [ "$1" = "-version" ]; then' >> /tmp/fake-clang/version_shim
+    echo '  if [ "$cmd" = "ld.lld" ] || [ "$cmd" = "lld" ]; then echo "LLD 21.1.0"; else echo "Ubuntu clang version 21.1.0-repoexe"; fi' >> /tmp/fake-clang/version_shim
+    echo '  exit 0' >> /tmp/fake-clang/version_shim
+    echo 'fi' >> /tmp/fake-clang/version_shim
+    echo 'if [ "$cmd" = "clang" ] || [ "$cmd" = "clang++" ]; then' >> /tmp/fake-clang/version_shim
+    echo '  exec "$NDK_BIN/$cmd" "$@" -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option' >> /tmp/fake-clang/version_shim
+    echo 'else' >> /tmp/fake-clang/version_shim
+    echo '  exec "$NDK_BIN/$cmd" "$@"' >> /tmp/fake-clang/version_shim
+    echo 'fi' >> /tmp/fake-clang/version_shim
+    chmod +x /tmp/fake-clang/version_shim
+    ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/clang
+    ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/clang++
+    ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/ld.lld
+    ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/lld
+
+    export PATH="/tmp/fake-clang:${ZIG_BIN_DIR}:$HOME/.bun/bin:${PATH}"
+    export CC="/tmp/fake-clang/clang"
+    export CXX="/tmp/fake-clang/clang++"
+    export LD="/tmp/fake-clang/ld.lld"
 
     echo "⚡ Configuring Android Bionic & 16KB page size compiler flags..."
     export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h"
-    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h -Wno-undefined-var-template -Wno-error=undefined-var-template -Wno-dangling -Wno-error=dangling -Wno-unknown-warning-option -Wno-error=unknown-warning-option"
+    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h"
     export LDFLAGS="${LDFLAGS:-} -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm"
 
     if [ -f rust-toolchain.toml ]; then
       rustup show
     fi
-
-    echo "⚡ Adapting Bun build scripts for Android NDK toolchain..."
-    python3 -c '
-    import os
-    for root, _, files in os.walk("."):
-        for fname in files:
-            fpath = os.path.join(root, fname)
-            try:
-                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                    txt = f.read()
-                if any(k in txt for k in ("21.1", "-Werror", "-Wno-character-conversion")):
-                    mod = txt.replace("21.1.99", "21.0.99").replace("21.1.8", "21.0.0").replace("21.1.0", "21.0.0").replace("21.1.", "21.0.").replace(">=21.1", ">=21.0").replace(">= 21.1", ">= 21.0")
-                    mod = mod.replace("\"-Werror\"", "\"-Wno-error\"").replace("\x27-Werror\x27", "\x27-Wno-error\x27").replace(" -Werror", " -Wno-error")
-                    mod = mod.replace("-Wno-character-conversion", "-Wno-unknown-warning-option")
-                    if mod != txt:
-                        with open(fpath, "w", encoding="utf-8") as f:
-                            f.write(mod)
-            except Exception:
-                pass
-    '
 
     echo "⚡ Executing Bun Bionic release build..."
     bun scripts/build.ts --profile=release --ci=true
