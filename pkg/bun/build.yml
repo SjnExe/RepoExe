@@ -171,7 +171,7 @@ phases:
 
     echo "⚡ Configuring Android Bionic & 16KB page size compiler flags..."
     export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h"
-    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h"
+    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -include /tmp/bionic_stub.h -Wno-undefined-var-template -Wno-error=undefined-var-template -Wno-dangling -Wno-error=dangling"
     export LDFLAGS="${LDFLAGS:-} -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm"
 
     if [ -f rust-toolchain.toml ]; then
@@ -183,18 +183,19 @@ phases:
     import os
     for root, _, files in os.walk("."):
         for fname in files:
-            if fname.endswith((".ts", ".js", ".zig", ".json", ".ninja", ".cmake", ".txt")):
-                fpath = os.path.join(root, fname)
-                try:
-                    with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                        txt = f.read()
-                    mod = txt.replace("21.1.0", "21.0.0").replace("21.1.", "21.0.").replace(">=21.1", ">=21.0").replace(">= 21.1", ">= 21.0")
-                    mod = mod.replace("-Werror", "-Wno-error").replace("-Wno-character-conversion", "-Wno-unknown-warning-option")
-                    if mod != txt:
-                        with open(fpath, "w", encoding="utf-8") as f:
-                            f.write(mod)
-                except Exception:
-                    pass
+            fpath = os.path.join(root, fname)
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                    txt = f.read()
+                mod = txt
+                mod = mod.replace("21.1.8", "21.0.0").replace("21.1.0", "21.0.0").replace("21.1.", "21.0.").replace(">=21.1", ">=21.0").replace(">= 21.1", ">= 21.0")
+                mod = mod.replace('"-Werror"', '"-Wno-error"').replace("'-Werror'", "'-Wno-error'")
+                mod = mod.replace("-Wno-character-conversion", "-Wno-unknown-warning-option")
+                if mod != txt:
+                    with open(fpath, "w", encoding="utf-8") as f:
+                        f.write(mod)
+            except Exception:
+                pass
     '
 
     echo "⚡ Executing Bun Bionic release build..."
