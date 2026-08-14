@@ -188,7 +188,7 @@ phases:
     echo 'fi' >> /tmp/fake-clang/version_shim
     echo 'cmd="$(basename "$0")"' >> /tmp/fake-clang/version_shim
     echo 'if [ "$cmd" = "clang" ] || [ "$cmd" = "clang++" ]; then' >> /tmp/fake-clang/version_shim
-    echo '  exec "${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/$cmd" "$@" -Wno-dangling -Wno-error=dangling -Wno-unknown-warning-option -Wno-error=unknown-warning-option' >> /tmp/fake-clang/version_shim
+    echo '  exec "${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/$cmd" "$@" -Wno-undefined-var-template -Wno-error=undefined-var-template -Wno-dangling -Wno-error=dangling -Wno-unknown-warning-option -Wno-error=unknown-warning-option' >> /tmp/fake-clang/version_shim
     echo 'else' >> /tmp/fake-clang/version_shim
     echo '  exec "${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/$cmd" "$@"' >> /tmp/fake-clang/version_shim
     echo 'fi' >> /tmp/fake-clang/version_shim
