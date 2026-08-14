@@ -4,7 +4,7 @@ group "default" {
 
 target "builder" {
   context    = "."
-  dockerfile = "scripts/docker/Dockerfile"
+  dockerfile = "scripts/docker/Dockerfile.builder"
   platforms  = ["linux/arm64"]
   tags       = ["ghcr.io/sjnexe/repoexe-builder:latest"]
   cache-from = ["type=registry,ref=ghcr.io/sjnexe/repoexe-builder:cache"]
