@@ -2,13 +2,16 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
+
 import yaml
+
 
 @dataclass
 class ResourceConfig:
     zram: int = 0
     swap: int = 0
     free_space: bool = False
+
 
 @dataclass
 class ChannelOverride:
@@ -42,6 +45,7 @@ class ChannelOverride:
     phases: dict[str, str] | None = None
     vars: dict[str, str] | None = None
     toolchains: dict[str, str] | None = None
+
 
 @dataclass
 class PackageRecipe:
@@ -91,17 +95,30 @@ class PackageRecipe:
         data = self.model_dump()
         if channel_name in self.channels:
             override = self.channels[channel_name]
-            override_data = {k: v for k, v in asdict(override).items() if v is not None} if isinstance(override, ChannelOverride) else override
+            override_data = (
+                {k: v for k, v in asdict(override).items() if v is not None}
+                if isinstance(override, ChannelOverride)
+                else override
+            )
             data.update(override_data)
 
-        if data.get("source_url") and isinstance(data["source_url"], str) and "{version}" in data["source_url"]:
-            data["source_url"] = data["source_url"].replace("{version}", data.get("version", ""))
+        if (
+            data.get("source_url")
+            and isinstance(data["source_url"], str)
+            and "{version}" in data["source_url"]
+        ):
+            data["source_url"] = data["source_url"].replace(
+                "{version}", data.get("version", "")
+            )
 
         data["active_channel"] = channel_name
         if isinstance(data.get("resources"), dict):
             data["resources"] = ResourceConfig(**data["resources"])
         if isinstance(data.get("channels"), dict):
-            data["channels"] = {ch: ChannelOverride(**val) if isinstance(val, dict) else val for ch, val in data["channels"].items()}
+            data["channels"] = {
+                ch: ChannelOverride(**val) if isinstance(val, dict) else val
+                for ch, val in data["channels"].items()
+            }
 
         valid_fields = {f.name for f in fields(PackageRecipe)}
         filtered_data = {k: v for k, v in data.items() if k in valid_fields}
@@ -137,10 +154,15 @@ class PackageRecipe:
         raw_json = json.dumps(payload, sort_keys=True)
         return hashlib.sha256(raw_json.encode("utf-8")).hexdigest()[:16]
 
+
 def parse_recipe(recipe_path: Path, channel: str = "latest") -> PackageRecipe:
     if not recipe_path.exists():
         for alt_name in ("pkg.yml", "build.yml"):
-            alt_path = recipe_path.parent / alt_name if recipe_path.name in ("pkg.yml", "build.yml") else recipe_path / alt_name
+            alt_path = (
+                recipe_path.parent / alt_name
+                if recipe_path.name in ("pkg.yml", "build.yml")
+                else recipe_path / alt_name
+            )
             if alt_path.exists():
                 recipe_path = alt_path
                 break
@@ -155,7 +177,10 @@ def parse_recipe(recipe_path: Path, channel: str = "latest") -> PackageRecipe:
         raw_data["resources"] = ResourceConfig()
 
     if "channels" in raw_data and isinstance(raw_data["channels"], dict):
-        raw_data["channels"] = {k: ChannelOverride(**v) if isinstance(v, dict) else v for k, v in raw_data["channels"].items()}
+        raw_data["channels"] = {
+            k: ChannelOverride(**v) if isinstance(v, dict) else v
+            for k, v in raw_data["channels"].items()
+        }
 
     valid_fields = {f.name for f in fields(PackageRecipe)}
     filtered_data = {k: v for k, v in raw_data.items() if k in valid_fields}

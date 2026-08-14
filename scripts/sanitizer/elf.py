@@ -1,4 +1,3 @@
-import os
 import struct
 import subprocess
 from pathlib import Path
@@ -20,11 +19,12 @@ DYNAMIC_TAGS_TO_NULLIFY = {
     15,          # DT_RPATH
 }
 
+
 def strip_verneed_from_elf(elf_path: Path) -> None:
     """Zeroes out DT_VERNEED, DT_VERDEF, DT_VERSYM entries directly from 64-bit ELF dynamic tables."""
     try:
         data = bytearray(elf_path.read_bytes())
-        if len(data) < 64 or data[:4] != b"\x7fELF" or data[4] != 2:  # Must be 64-bit ELF
+        if len(data) < 64 or data[:4] != b"\x7fELF" or data[4] != 2:
             return
 
         e_phoff = struct.unpack_from("<Q", data, 32)[0]
@@ -50,14 +50,15 @@ def strip_verneed_from_elf(elf_path: Path) -> None:
                 if entry_offset + 8 > len(data):
                     break
                 d_tag = struct.unpack_from("<q", data, entry_offset)[0]
-                if d_tag == 0:  # DT_NULL
+                if d_tag == 0:
                     break
                 if d_tag in DYNAMIC_TAGS_TO_NULLIFY or (d_tag & 0xFFFFFFFF) in DYNAMIC_TAGS_TO_NULLIFY:
-                    struct.pack_into("<q", data, entry_offset, 0)  # Convert tag to DT_NULL
+                    struct.pack_into("<q", data, entry_offset, 0)
 
             elf_path.write_bytes(data)
     except Exception:
         pass
+
 
 def sanitize_elf_binary(elf_path: Path, prefix: str = "/data/data/com.termux/files/usr") -> None:
     """Replaces glibc sonames with Bionic equivalents, removes verneed references, and enforces RPATH."""
@@ -82,6 +83,7 @@ def sanitize_elf_binary(elf_path: Path, prefix: str = "/data/data/com.termux/fil
         strip_verneed_from_elf(elf_path)
     except Exception:
         pass
+
 
 def sanitize_staging_elfs(stage_dir: Path, prefix: str = "/data/data/com.termux/files/usr") -> None:
     for f in stage_dir.rglob("*"):

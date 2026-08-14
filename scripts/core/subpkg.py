@@ -1,9 +1,13 @@
 import shutil
 from pathlib import Path
+
 import yaml
 from core.parser import PackageRecipe
 
-def process_subpackages(pkg_dir: Path, stage_dir: Path, parent_recipe: PackageRecipe) -> list[tuple[PackageRecipe, Path]]:
+
+def process_subpackages(
+    pkg_dir: Path, stage_dir: Path, parent_recipe: PackageRecipe
+) -> list[tuple[PackageRecipe, Path]]:
     subpackages = []
     subpkg_dir = pkg_dir / "subpkg"
     if not subpkg_dir.exists():
@@ -12,7 +16,9 @@ def process_subpackages(pkg_dir: Path, stage_dir: Path, parent_recipe: PackageRe
     for sub_file in sorted(subpkg_dir.glob("*.yml")):
         data = yaml.safe_load(sub_file.read_text(encoding="utf-8")) or {}
         sub_name = data.get("name", f"{parent_recipe.name}-{sub_file.stem}")
-        sub_desc = data.get("description", f"{sub_name} subpackage for {parent_recipe.name}")
+        sub_desc = data.get(
+            "description", f"{sub_name} subpackage for {parent_recipe.name}"
+        )
         sub_files = data.get("files", [])
         depend_on_parent = data.get("depend_on_parent", True)
 

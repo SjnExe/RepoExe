@@ -6,9 +6,14 @@ _scripts_dir = str(Path(__file__).resolve().parents[1])
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 
-from core.parser import parse_recipe
-from core.pipeline import execute_compile, execute_pack, execute_test
-from utils.health import audit_repository_health
+from core.parser import parse_recipe  # noqa: E402
+from core.pipeline import (  # noqa: E402
+    execute_compile,
+    execute_pack,
+    execute_test,
+)
+from utils.health import audit_repository_health  # noqa: E402
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="RepoExe Build System CLI")
@@ -49,6 +54,7 @@ def main() -> None:
             execute_compile(recipe, p_dir, destdir)
             execute_pack(recipe, p_dir, destdir, output_dir)
             execute_test(recipe, destdir)
+
 
 if __name__ == "__main__":
     main()
