@@ -79,6 +79,8 @@ def test_all_recipes_pinned_to_version():
             recipe = parse_recipe(recipe_file)
             src = recipe.source_url or ""
             if src and src != "local":
-                assert "{version}" in raw_text or "#" in src or "releases/download" in src, (
+                assert (
+                    "{version}" in raw_text or "#" in src or "releases/download" in src
+                ), (
                     f"Package {recipe.name} has unpinned source_url '{src}' which could pull unreleased HEAD."
                 )

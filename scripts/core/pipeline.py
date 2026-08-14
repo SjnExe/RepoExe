@@ -46,13 +46,17 @@ def setup_bionic_compat() -> None:
     )
     obj = Path("/tmp/bionic_compat.o")
     lib = Path("/tmp/libbionic_compat.a")
-    subprocess.run([ndk_clang, "-c", str(compat_c), "-o", str(obj)], check=False, capture_output=True)
+    subprocess.run(
+        [ndk_clang, "-c", str(compat_c), "-o", str(obj)],
+        check=False,
+        capture_output=True,
+    )
     subprocess.run(["ar", "rcs", str(lib), str(obj)], check=False, capture_output=True)
 
     stub_h = Path("/tmp/bionic_stub.h")
     stub_h.write_text(
         "#ifndef _BIONIC_STUB_H\n#define _BIONIC_STUB_H\n#include <sys/cdefs.h>\n#include <sys/types.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <pthread.h>\n"
-        "#ifdef __cplusplus\nextern \"C\" {\n#endif\n"
+        '#ifdef __cplusplus\nextern "C" {\n#endif\n'
         "int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);\n"
         "int pthread_cond_clockwait(pthread_cond_t* __cond, pthread_mutex_t* __mutex, clockid_t __clock_id, const struct timespec* __abstime);\n"
         "#ifndef WRDE_NOCMD\n#define WRDE_NOCMD 0\n"
@@ -104,26 +108,78 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         src_extract_dir = destdir / "src"
         src_extract_dir.mkdir(parents=True, exist_ok=True)
 
-        is_archive = any(ext in src_url_str for ext in [".tar.gz", ".tgz", ".tar.xz", ".tar.bz2", ".zip", ".crate", ".whl"])
-        if not is_archive and (src_url_str.endswith(".git") or "git" in src_url_str or "#" in src_url_str):
+        is_archive = any(
+            ext in src_url_str
+            for ext in [
+                ".tar.gz",
+                ".tgz",
+                ".tar.xz",
+                ".tar.bz2",
+                ".zip",
+                ".crate",
+                ".whl",
+            ]
+        )
+        if not is_archive and (
+            src_url_str.endswith(".git") or "git" in src_url_str or "#" in src_url_str
+        ):
             if "#" in src_url_str:
                 parts = src_url_str.split("#")
                 repo_url, ref = parts[0], parts[1]
-                subprocess.run(["git", "clone", "--depth", "1", "--branch", ref, repo_url, str(src_extract_dir)], check=True)
+                subprocess.run(
+                    [
+                        "git",
+                        "clone",
+                        "--depth",
+                        "1",
+                        "--branch",
+                        ref,
+                        repo_url,
+                        str(src_extract_dir),
+                    ],
+                    check=True,
+                )
             else:
-                subprocess.run(["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)], check=True)
+                subprocess.run(
+                    ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)],
+                    check=True,
+                )
             work_dir = src_extract_dir
         else:
-            subprocess.run(["curl", "-fsSL", "-A", "Mozilla/5.0", "--retry", "5", src_url_str, "-o", str(archive_path)], check=True)
-            subprocess.run(["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)], check=False)
-            extracted_items = [i for i in src_extract_dir.iterdir() if i.name != "source.tar.gz"]
-            work_dir = extracted_items[0] if (len(extracted_items) == 1 and extracted_items[0].is_dir()) else src_extract_dir
+            subprocess.run(
+                [
+                    "curl",
+                    "-fsSL",
+                    "-A",
+                    "Mozilla/5.0",
+                    "--retry",
+                    "5",
+                    src_url_str,
+                    "-o",
+                    str(archive_path),
+                ],
+                check=True,
+            )
+            subprocess.run(
+                ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
+                check=False,
+            )
+            extracted_items = [
+                i for i in src_extract_dir.iterdir() if i.name != "source.tar.gz"
+            ]
+            work_dir = (
+                extracted_items[0]
+                if (len(extracted_items) == 1 and extracted_items[0].is_dir())
+                else src_extract_dir
+            )
 
     for p_folder in [pkg_dir / "patches", pkg_dir / f"patches@{recipe.active_channel}"]:
         if p_folder.exists() and p_folder.is_dir():
             for patch_file in sorted(p_folder.glob("*.patch")):
                 print(f"⚡ Applying patch: {patch_file.name}...")
-                subprocess.run(["patch", "-p1", "-i", str(patch_file)], cwd=work_dir, check=True)
+                subprocess.run(
+                    ["patch", "-p1", "-i", str(patch_file)], cwd=work_dir, check=True
+                )
 
     env["DESTDIR"] = str(stage_dir.resolve())
     env["PREFIX"] = "/data/data/com.termux/files/usr"
@@ -134,7 +190,9 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         if cmd:
             res = subprocess.run(cmd, shell=True, cwd=work_dir, env=env, check=False)
             if res.returncode != 0:
-                raise RuntimeError(f"{phase_name.capitalize()} phase failed for {recipe.name}")
+                raise RuntimeError(
+                    f"{phase_name.capitalize()} phase failed for {recipe.name}"
+                )
 
     files_dir = pkg_dir / "files"
     if files_dir.exists() and files_dir.is_dir():
@@ -168,7 +226,13 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
 
         fmts = getattr(rec, "formats", ["apt", "pacman", "apk"])
         if "apt" in fmts:
-            build_deb(rec, str(d_dir), str(output_dir), target_arch=rec.arch, pkg_src_dir=pkg_dir)
+            build_deb(
+                rec,
+                str(d_dir),
+                str(output_dir),
+                target_arch=rec.arch,
+                pkg_src_dir=pkg_dir,
+            )
         if "pacman" in fmts:
             build_pacman(rec, str(d_dir), str(output_dir), target_arch=rec.arch)
         if "apk" in fmts:
@@ -186,7 +250,9 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
             "state_hash": getattr(rec, "state_hash", ""),
             "channel": getattr(rec, "active_channel", "latest"),
         }
-        (output_dir / f"{rec.name}_metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        (output_dir / f"{rec.name}_metadata.json").write_text(
+            json.dumps(meta, indent=2), encoding="utf-8"
+        )
 
 
 def execute_test(recipe, destdir: Path | None = None) -> None:

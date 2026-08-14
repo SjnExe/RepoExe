@@ -13,6 +13,7 @@ REPLACEMENTS = {
     "#!/usr/bin/python3": f"#!{PREFIX}/bin/python3",
 }
 
+
 def sanitize_shebangs(stage_dir: Path) -> None:
     if not stage_dir or not stage_dir.exists():
         return

@@ -25,6 +25,7 @@ def update_recipe(pkg: str, channel: str, new_version: str) -> None:
 
     print(f"✓ Successfully updated {pkg} ({channel}) to {new_version}")
 
+
 if __name__ == "__main__":
     if len(sys.argv) < 4:
         print("Usage: python3 update_recipe.py <pkg> <channel> <new_version>")

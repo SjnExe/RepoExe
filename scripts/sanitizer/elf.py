@@ -11,12 +11,12 @@ GLIBC_REMOVALS = ["libpthread.so.0", "librt.so.1", "ld-linux-aarch64.so.1"]
 
 # ELF dynamic tags to zero out (DT_NULL = 0)
 DYNAMIC_TAGS_TO_NULLIFY = {
-    0x6ffffffe,  # DT_VERNEED
-    0x6fffffff,  # DT_VERNEEDNUM
-    0x6ffffff0,  # DT_VERSYM
-    0x6ffffffc,  # DT_VERDEF
-    0x6ffffffd,  # DT_VERDEFNUM
-    15,          # DT_RPATH
+    0x6FFFFFFE,  # DT_VERNEED
+    0x6FFFFFFF,  # DT_VERNEEDNUM
+    0x6FFFFFF0,  # DT_VERSYM
+    0x6FFFFFFC,  # DT_VERDEF
+    0x6FFFFFFD,  # DT_VERDEFNUM
+    15,  # DT_RPATH
 }
 
 
@@ -52,7 +52,10 @@ def strip_verneed_from_elf(elf_path: Path) -> None:
                 d_tag = struct.unpack_from("<q", data, entry_offset)[0]
                 if d_tag == 0:
                     break
-                if d_tag in DYNAMIC_TAGS_TO_NULLIFY or (d_tag & 0xFFFFFFFF) in DYNAMIC_TAGS_TO_NULLIFY:
+                if (
+                    d_tag in DYNAMIC_TAGS_TO_NULLIFY
+                    or (d_tag & 0xFFFFFFFF) in DYNAMIC_TAGS_TO_NULLIFY
+                ):
                     struct.pack_into("<q", data, entry_offset, 0)
 
             elf_path.write_bytes(data)
@@ -60,7 +63,9 @@ def strip_verneed_from_elf(elf_path: Path) -> None:
         pass
 
 
-def sanitize_elf_binary(elf_path: Path, prefix: str = "/data/data/com.termux/files/usr") -> None:
+def sanitize_elf_binary(
+    elf_path: Path, prefix: str = "/data/data/com.termux/files/usr"
+) -> None:
     """Replaces glibc sonames with Bionic equivalents, removes verneed references, and enforces RPATH."""
     try:
         with open(elf_path, "rb") as f:
@@ -72,12 +77,28 @@ def sanitize_elf_binary(elf_path: Path, prefix: str = "/data/data/com.termux/fil
         strip_verneed_from_elf(elf_path)
 
         # 2. Patch dynamic library names via patchelf
-        subprocess.run(["patchelf", "--set-interpreter", "/system/bin/linker64", str(elf_path)], check=False, capture_output=True)
+        subprocess.run(
+            ["patchelf", "--set-interpreter", "/system/bin/linker64", str(elf_path)],
+            check=False,
+            capture_output=True,
+        )
         for glibc_lib, bionic_lib in GLIBC_MAP.items():
-            subprocess.run(["patchelf", "--replace-needed", glibc_lib, bionic_lib, str(elf_path)], check=False, capture_output=True)
+            subprocess.run(
+                ["patchelf", "--replace-needed", glibc_lib, bionic_lib, str(elf_path)],
+                check=False,
+                capture_output=True,
+            )
         for remove_lib in GLIBC_REMOVALS:
-            subprocess.run(["patchelf", "--remove-needed", remove_lib, str(elf_path)], check=False, capture_output=True)
-        subprocess.run(["patchelf", "--set-rpath", f"{prefix}/lib", str(elf_path)], check=False, capture_output=True)
+            subprocess.run(
+                ["patchelf", "--remove-needed", remove_lib, str(elf_path)],
+                check=False,
+                capture_output=True,
+            )
+        subprocess.run(
+            ["patchelf", "--set-rpath", f"{prefix}/lib", str(elf_path)],
+            check=False,
+            capture_output=True,
+        )
 
         # 3. Clean remaining version tags
         strip_verneed_from_elf(elf_path)
@@ -85,7 +106,9 @@ def sanitize_elf_binary(elf_path: Path, prefix: str = "/data/data/com.termux/fil
         pass
 
 
-def sanitize_staging_elfs(stage_dir: Path, prefix: str = "/data/data/com.termux/files/usr") -> None:
+def sanitize_staging_elfs(
+    stage_dir: Path, prefix: str = "/data/data/com.termux/files/usr"
+) -> None:
     for f in stage_dir.rglob("*"):
         if f.is_file() and not f.is_symlink():
             sanitize_elf_binary(f, prefix=prefix)

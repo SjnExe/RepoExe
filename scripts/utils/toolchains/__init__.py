@@ -56,6 +56,10 @@ def setup_build_environment(
         rust_env = rust_tc.get_env(native_env)
         env.update(native_env)
         env.update(rust_env)
-        env["CARGO_BUILD_TARGET"] = "aarch64-linux-android" if target_arch in ["aarch64", "arm64"] else target_arch
+        env["CARGO_BUILD_TARGET"] = (
+            "aarch64-linux-android"
+            if target_arch in ["aarch64", "arm64"]
+            else target_arch
+        )
 
     return env

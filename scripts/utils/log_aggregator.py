@@ -4,8 +4,13 @@ from pathlib import Path
 
 def classify_log(content: str) -> tuple[str, str, bool]:
     lines = content.splitlines()
-    has_traceback = "Traceback (most recent call last):" in content or "RuntimeError:" in content
-    has_subcommand_failed = "ninja: build stopped: subcommand failed" in content or "cgo: C compiler" in content
+    has_traceback = (
+        "Traceback (most recent call last):" in content or "RuntimeError:" in content
+    )
+    has_subcommand_failed = (
+        "ninja: build stopped: subcommand failed" in content
+        or "cgo: C compiler" in content
+    )
     has_smoke_test_failure = "Smoke test failed for" in content
     has_smoke_test_pass = "Smoke test passed" in content or "✓ [" in content
     has_pack_stage = "=== STAGE: PACK ===" in content

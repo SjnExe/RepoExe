@@ -6,13 +6,13 @@ _scripts_dir = str(Path(__file__).resolve().parents[1])
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 
-from core.parser import parse_recipe  # noqa: E402
-from core.pipeline import (  # noqa: E402
+from core.parser import parse_recipe
+from core.pipeline import (
     execute_compile,
     execute_pack,
     execute_test,
 )
-from utils.health import audit_repository_health  # noqa: E402
+from utils.health import audit_repository_health
 
 
 def main() -> None:
