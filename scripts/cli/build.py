@@ -6,6 +6,7 @@ _scripts_dir = str(Path(__file__).resolve().parents[1])
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 
+from core.fetcher import check_existing_release_hash
 from core.parser import parse_recipe
 from core.pipeline import (
     execute_compile,
@@ -41,6 +42,17 @@ def main() -> None:
 
         p_dir = pkg_path if pkg_path.is_dir() else pkg_path.parent
         recipe = parse_recipe(pkg_path, channel=args.channel)
+
+        if not args.force and check_existing_release_hash(
+            recipe.name, args.channel, getattr(recipe, "state_hash", "")
+        ):
+            print(f"⏭️ Skipping {recipe.name}@{args.channel}: state_hash unchanged.")
+            return
+
+        if args.dry_run:
+            print(f"✓ Dry-run complete for {recipe.name} ({args.command}).")
+            return
+
         destdir = (Path.cwd() / "build" / f"build_{recipe.name}").resolve()
         output_dir = (Path.cwd() / "output").resolve()
 

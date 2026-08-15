@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -9,9 +10,11 @@ from builders.debian import build_deb
 from builders.npm import build_npm
 from builders.pacman import build_pacman
 from builders.pip import build_pip
+from core.fetcher import resolve_and_fetch_build_dependencies
 from core.subpkg import process_subpackages
 from sanitizer.elf import sanitize_staging_elfs
 from sanitizer.shebang import sanitize_shebangs
+from utils.elf_linter import audit_directory_elfs
 from utils.test import ProotTestRunner
 from utils.toolchains import setup_build_environment
 
@@ -57,11 +60,11 @@ def setup_bionic_compat() -> None:
     compat_c = Path("/tmp/bionic_compat.c")
     compat_c.write_text(
         "#include <stddef.h>\n#include <time.h>\n#include <pthread.h>\n"
-        "int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n"
-        "char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n"
-        "void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n"
-        "int pthread_getname_np(pthread_t t, char *n, size_t s) { (void)t; (void)n; (void)s; return 0; }\n"
-        "int pthread_cond_clockwait(pthread_cond_t *c, pthread_mutex_t *m, clockid_t clock_id, const struct timespec *ts) { (void)clock_id; return pthread_cond_timedwait(c, m, ts); }\n",
+        "__attribute__((weak)) int backtrace(void **b, int s) { (void)b; return 0; }\n"
+        "__attribute__((weak)) char **backtrace_symbols(void *const *b, int s) { (void)b; return NULL; }\n"
+        "__attribute__((weak)) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n"
+        "__attribute__((weak)) int pthread_getname_np(pthread_t t, char *n, size_t s) { (void)t; (void)n; (void)s; return 0; }\n"
+        "__attribute__((weak)) int pthread_cond_clockwait(pthread_cond_t *c, pthread_mutex_t *m, clockid_t clock_id, const struct timespec *ts) { (void)clock_id; return pthread_cond_timedwait(c, m, ts); }\n",
         encoding="utf-8",
     )
     obj = Path("/tmp/bionic_compat.o")
@@ -79,7 +82,7 @@ def setup_bionic_compat() -> None:
 
     stub_h = Path("/tmp/bionic_stub.h")
     stub_h.write_text(
-        "#ifndef _BIONIC_STUB_H\n#define _BIONIC_STUB_H\n#include <sys/cdefs.h>\n#include <sys/types.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <pthread.h>\n"
+        "#ifndef _BIONIC_STUB_H\n#define _BIONIC_STUB_H\n#include <sys/cdefs.h>\n#include <android/api-level.h>\n#include <sys/types.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <pthread.h>\n"
         '#ifdef __cplusplus\nextern "C" {\n#endif\n'
         "int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);\n"
         "int pthread_cond_clockwait(pthread_cond_t* __cond, pthread_mutex_t* __mutex, clockid_t __clock_id, const struct timespec* __abstime);\n"
@@ -87,9 +90,62 @@ def setup_bionic_compat() -> None:
         "typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;\n"
         "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
         "static inline void wordfree(wordexp_t *p) { (void)p; }\n#endif\n"
+        "#if !defined(__ANDROID_API__) || __ANDROID_API__ < 28\n"
+        "#ifndef aligned_alloc\n"
+        "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n"
+        "#endif\n#endif\n"
         "#ifdef __cplusplus\n}\n#endif\n#endif\n",
         encoding="utf-8",
     )
+
+
+def auto_patch_bionic_sources(src_dir: Path) -> None:
+    """Automated Bionic polyfill and source patcher for Android builds."""
+    if not src_dir or not src_dir.exists():
+        return
+    for p in src_dir.rglob("CMakeLists.txt"):
+        try:
+            c_txt = p.read_text(encoding="utf-8", errors="ignore")
+            if "find_package(ICU" in c_txt:
+                icu_stub = (
+                    "add_library(ICU::uc UNKNOWN IMPORTED)\n"
+                    "set_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                    "add_library(ICU::i18n UNKNOWN IMPORTED)\n"
+                    "set_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                    "add_library(ICU::data UNKNOWN IMPORTED)\n"
+                    "set_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                    "set(ICU_FOUND TRUE)\n"
+                    "set(ICU_INCLUDE_DIRS /usr/include)\n"
+                    "set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)"
+                )
+                new_c = re.sub(
+                    r"find_package\(ICU[^\)]*\)", lambda _, stub=icu_stub: stub, c_txt
+                )
+                if new_c != c_txt:
+                    p.write_text(new_c, encoding="utf-8")
+        except Exception:
+            pass
+
+
+def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
+    elf_errors = audit_directory_elfs(output_dir)
+    if elf_errors:
+        print(f"⚠️ [{pkg_name}] ELF Linter Audit Warnings:")
+        for err in elf_errors:
+            print(f"  - {err}")
+    for f in output_dir.glob(f"{pkg_name}*"):
+        if f.name.endswith(".deb"):
+            subprocess.run(["dpkg-deb", "-I", str(f)], check=True, capture_output=True)
+        elif (
+            f.name.endswith(".pkg.tar.zst")
+            or f.name.endswith(".pkg.tar.gz")
+            or f.name.endswith(".apk")
+        ):
+            subprocess.run(["tar", "-tf", str(f)], check=True, capture_output=True)
+        elif f.name.endswith(".whl"):
+            subprocess.run(["unzip", "-t", str(f)], check=True, capture_output=True)
+        elif f.name.endswith(".tgz"):
+            subprocess.run(["tar", "-tf", str(f)], check=True, capture_output=True)
 
 
 def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
@@ -149,6 +205,8 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         )
         env["RUSTFLAGS"] = rustflags
         env["CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS"] = rustflags
+        env["MATURIN_TARGET"] = "aarch64-linux-android"
+        env["MATURIN_PEP517_ARGS"] = "--target aarch64-linux-android"
 
     if getattr(recipe, "cflags", None):
         env["CFLAGS"] = f"{env.get('CFLAGS', '')} {recipe.cflags}".strip()
@@ -174,6 +232,9 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
 
     stage_dir = destdir / "stage"
     stage_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resolve build dependencies from RepoExe releases if declared
+    resolve_and_fetch_build_dependencies(getattr(recipe, "build_deps", []), destdir)
 
     work_dir = pkg_dir
     src_url = getattr(recipe, "source_url", None)
@@ -201,29 +262,54 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
             if "#" in src_url_str:
                 parts = src_url_str.split("#")
                 repo_url, ref = parts[0], parts[1]
-                subprocess.run(
-                    [
-                        "git",
-                        "clone",
-                        "--depth",
-                        "1",
-                        "--branch",
-                        ref,
-                        repo_url,
-                        str(src_extract_dir),
-                    ],
-                    check=True,
-                )
+                if len(ref) == 40 and all(c in "0123456789abcdefABCDEF" for c in ref):
+                    subprocess.run(["git", "init", str(src_extract_dir)], check=True)
+                    subprocess.run(
+                        [
+                            "git",
+                            "-C",
+                            str(src_extract_dir),
+                            "remote",
+                            "add",
+                            "origin",
+                            repo_url,
+                        ],
+                        check=True,
+                    )
+                    subprocess.run(
+                        [
+                            "git",
+                            "-C",
+                            str(src_extract_dir),
+                            "fetch",
+                            "--depth",
+                            "1",
+                            "origin",
+                            ref,
+                        ],
+                        check=True,
+                    )
+                    subprocess.run(
+                        ["git", "-C", str(src_extract_dir), "checkout", "FETCH_HEAD"],
+                        check=True,
+                    )
+                else:
+                    subprocess.run(
+                        [
+                            "git",
+                            "clone",
+                            "--depth",
+                            "1",
+                            "--branch",
+                            ref,
+                            repo_url,
+                            str(src_extract_dir),
+                        ],
+                        check=True,
+                    )
             else:
                 subprocess.run(
-                    [
-                        "git",
-                        "clone",
-                        "--depth",
-                        "1",
-                        src_url_str,
-                        str(src_extract_dir),
-                    ],
+                    ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)],
                     check=True,
                 )
             work_dir = src_extract_dir
@@ -272,9 +358,14 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     env["PREFIX"] = "/data/data/com.termux/files/usr"
 
     phases = getattr(recipe, "phases", {})
+    auto_patch_bionic_sources(work_dir)
+    if Path("/tmp/webkit-src").exists():
+        auto_patch_bionic_sources(Path("/tmp/webkit-src"))
+
     for phase_name in ("prepare", "configure", "make", "install"):
         cmd = phases.get(phase_name)
         if cmd:
+            auto_patch_bionic_sources(work_dir)
             res = subprocess.run(cmd, shell=True, cwd=work_dir, env=env, check=False)
             if res.returncode != 0:
                 raise RuntimeError(
@@ -328,6 +419,8 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
             build_pip(rec, str(d_dir), str(output_dir))
         if "npm" in fmts:
             build_npm(rec, str(d_dir), str(output_dir))
+
+        verify_format_archives(output_dir, rec.name)
 
         meta = {
             "name": rec.name,
