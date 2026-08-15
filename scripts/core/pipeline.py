@@ -62,7 +62,23 @@ def setup_bionic_compat() -> None:
 
     compat_c = Path("/tmp/bionic_compat.c")
     compat_c.write_text(
-        "#include <stddef.h>\n#include <time.h>\n#include <pthread.h>\n"
+        "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <stdarg.h>\n#include <time.h>\n#include <pthread.h>\n"
+        "extern char **environ;\n"
+        '__attribute__((weak, visibility("default"))) int __libc_start_main(\n'
+        "    int (*main)(int, char **, char **),\n"
+        "    int argc,\n"
+        "    char **argv,\n"
+        "    void (*init)(void),\n"
+        "    void (*fini)(void),\n"
+        "    void (*rtld_fini)(void),\n"
+        "    void *stack_end\n"
+        ") {\n"
+        "    if (init) init();\n"
+        "    int ret = main(argc, argv, environ);\n"
+        "    if (fini) fini();\n"
+        "    if (rtld_fini) rtld_fini();\n"
+        "    exit(ret);\n"
+        "}\n"
         '__attribute__((weak, visibility("default"))) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n'
         '__attribute__((weak, visibility("default"))) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n'
         '__attribute__((weak, visibility("default"))) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n'
@@ -73,7 +89,16 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int daylight = 0;\n'
         '__attribute__((weak, visibility("default"))) int __daylight = 0;\n'
         '__attribute__((weak, visibility("default"))) char *tzname[2] = {"UTC", "UTC"};\n'
-        '__attribute__((weak, visibility("default"))) char **__tzname = tzname;\n',
+        '__attribute__((weak, visibility("default"))) char **__tzname = tzname;\n'
+        '__attribute__((weak, visibility("default"))) const char *gnu_get_libc_version(void) { return "2.38"; }\n'
+        '__attribute__((weak, visibility("default"))) const char *gnu_get_libc_release(void) { return "stable"; }\n'
+        '__attribute__((weak, visibility("default"))) int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) { (void)func; (void)obj; (void)dso_symbol; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_sscanf(const char *str, const char *format, ...) { va_list a; va_start(a, format); int r = vsscanf(str, format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_vsscanf(const char *str, const char *format, va_list ap) { return vsscanf(str, format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_fscanf(FILE *stream, const char *format, ...) { va_list a; va_start(a, format); int r = vfscanf(stream, format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_vfscanf(FILE *stream, const char *format, va_list ap) { return vfscanf(stream, format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_scanf(const char *format, ...) { va_list a; va_start(a, format); int r = vscanf(format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_vscanf(const char *format, va_list ap) { return vscanf(format, ap); }\n',
         encoding="utf-8",
     )
     obj = Path("/tmp/bionic_compat.o")
@@ -101,6 +126,8 @@ def setup_bionic_compat() -> None:
         "extern int __daylight;\n"
         "extern char *tzname[2];\n"
         "extern char **__tzname;\n"
+        "const char *gnu_get_libc_version(void);\n"
+        "const char *gnu_get_libc_release(void);\n"
         "#ifndef WRDE_NOCMD\n#define WRDE_NOCMD 0\n"
         "typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;\n"
         "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
