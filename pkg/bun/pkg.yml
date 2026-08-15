@@ -149,6 +149,8 @@ phases:
     echo '    -c|-E|-S) IS_COMPILE_ONLY=1; ARGS+=("$a") ;;' >> /tmp/fake-clang/version_shim
     echo '    -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;' >> /tmp/fake-clang/version_shim
     echo '    -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=("-pie") ;;' >> /tmp/fake-clang/version_shim
+    echo '    -target|--target) ARGS+=("$a") ;;' >> /tmp/fake-clang/version_shim
+    echo '    aarch64-linux-gnu|aarch64-unknown-linux-gnu) ARGS+=("aarch64-linux-android24") ;;' >> /tmp/fake-clang/version_shim
     echo '    *) ARGS+=("$a") ;;' >> /tmp/fake-clang/version_shim
     echo '  esac' >> /tmp/fake-clang/version_shim
     echo 'done' >> /tmp/fake-clang/version_shim
@@ -187,7 +189,9 @@ phases:
     export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
     export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm -L/tmp -lbionic_compat"
 
-    find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.zig" -o -name "*.cmake" -o -name "CMakeLists.txt" \) -exec sed -i 's/-fno-pic/-fPIC/g; s/-Wl,-no-pie/-Wl,-pie/g; s/-no-pie/-pie/g' {} + 2>/dev/null || true
+    echo "⚡ Rewriting Bun target triplets from linux-gnu to linux-android..."
+    find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.zig" -o -name "*.cmake" -o -name "CMakeLists.txt" \) \
+      -exec sed -i 's/aarch64-linux-gnu/aarch64-linux-android/g; s/target=aarch64-linux-gnu/target=aarch64-linux-android/g; s/-fno-pic/-fPIC/g; s/-Wl,-no-pie/-Wl,-pie/g; s/-no-pie/-pie/g' {} + 2>/dev/null || true
 
     echo "⚡ Patching bun upgrade for RepoExe package management..."
     python3 -c "import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))" << 'PY_UPGRADE_EOF'
