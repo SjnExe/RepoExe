@@ -63,17 +63,23 @@ def setup_bionic_compat() -> None:
     compat_c = Path("/tmp/bionic_compat.c")
     compat_c.write_text(
         "#include <stddef.h>\n#include <time.h>\n#include <pthread.h>\n"
-        "__attribute__((weak)) int backtrace(void **b, int s) { (void)b; return 0; }\n"
-        "__attribute__((weak)) char **backtrace_symbols(void *const *b, int s) { (void)b; return NULL; }\n"
-        "__attribute__((weak)) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n"
-        "__attribute__((weak)) int pthread_getname_np(pthread_t t, char *n, size_t s) { (void)t; (void)n; (void)s; return 0; }\n"
-        "__attribute__((weak)) int pthread_cond_clockwait(pthread_cond_t *c, pthread_mutex_t *m, clockid_t clock_id, const struct timespec *ts) { (void)clock_id; return pthread_cond_timedwait(c, m, ts); }\n",
+        '__attribute__((weak, visibility("default"))) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n'
+        '__attribute__((weak, visibility("default"))) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n'
+        '__attribute__((weak, visibility("default"))) int pthread_getname_np(pthread_t t, char *n, size_t s) { (void)t; (void)n; (void)s; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int pthread_cond_clockwait(pthread_cond_t *c, pthread_mutex_t *m, clockid_t clock_id, const struct timespec *ts) { (void)clock_id; return pthread_cond_timedwait(c, m, ts); }\n'
+        '__attribute__((weak, visibility("default"))) long __timezone = 0;\n'
+        '__attribute__((weak, visibility("default"))) long timezone = 0;\n'
+        '__attribute__((weak, visibility("default"))) int daylight = 0;\n'
+        '__attribute__((weak, visibility("default"))) int __daylight = 0;\n'
+        '__attribute__((weak, visibility("default"))) char *tzname[2] = {"UTC", "UTC"};\n'
+        '__attribute__((weak, visibility("default"))) char **__tzname = tzname;\n',
         encoding="utf-8",
     )
     obj = Path("/tmp/bionic_compat.o")
     lib = Path("/tmp/libbionic_compat.a")
     subprocess.run(
-        [ndk_clang, "-c", str(compat_c), "-o", str(obj)],
+        [ndk_clang, "-fPIC", "-c", str(compat_c), "-o", str(obj)],
         check=False,
         capture_output=True,
     )
@@ -85,10 +91,16 @@ def setup_bionic_compat() -> None:
 
     stub_h = Path("/tmp/bionic_stub.h")
     stub_h.write_text(
-        "#ifndef _BIONIC_STUB_H\n#define _BIONIC_STUB_H\n#include <sys/cdefs.h>\n#include <android/api-level.h>\n#include <sys/types.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <pthread.h>\n"
+        "#ifndef _BIONIC_STUB_H\n#define _BIONIC_STUB_H\n#include <sys/cdefs.h>\n#include <android/api-level.h>\n#include <sys/types.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <pthread.h>\n#include <time.h>\n"
         '#ifdef __cplusplus\nextern "C" {\n#endif\n'
         "int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);\n"
         "int pthread_cond_clockwait(pthread_cond_t* __cond, pthread_mutex_t* __mutex, clockid_t __clock_id, const struct timespec* __abstime);\n"
+        "extern long __timezone;\n"
+        "extern long timezone;\n"
+        "extern int daylight;\n"
+        "extern int __daylight;\n"
+        "extern char *tzname[2];\n"
+        "extern char **__tzname;\n"
         "#ifndef WRDE_NOCMD\n#define WRDE_NOCMD 0\n"
         "typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;\n"
         "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"

@@ -135,13 +135,18 @@ phases:
     echo '#!/bin/bash' > /tmp/fake-clang/version_shim
     echo 'cmd="$(basename "$0")"' >> /tmp/fake-clang/version_shim
     echo 'NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"' >> /tmp/fake-clang/version_shim
+    echo 'if [ ! -d "$NDK_BIN" ]; then' >> /tmp/fake-clang/version_shim
+    echo '  NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \; 2>/dev/null | head -n 1)' >> /tmp/fake-clang/version_shim
+    echo 'fi' >> /tmp/fake-clang/version_shim
     echo 'if [ "$1" = "--version" ] || [ "$1" = "-v" ] || [ "$1" = "-version" ]; then' >> /tmp/fake-clang/version_shim
     echo '  if [ "$cmd" = "ld.lld" ] || [ "$cmd" = "lld" ]; then echo "LLD 21.1.0"; else echo "Ubuntu clang version 21.1.0-repoexe"; fi' >> /tmp/fake-clang/version_shim
     echo '  exit 0' >> /tmp/fake-clang/version_shim
     echo 'fi' >> /tmp/fake-clang/version_shim
     echo 'ARGS=()' >> /tmp/fake-clang/version_shim
+    echo 'IS_COMPILE_ONLY=0' >> /tmp/fake-clang/version_shim
     echo 'for a in "$@"; do' >> /tmp/fake-clang/version_shim
     echo '  case "$a" in' >> /tmp/fake-clang/version_shim
+    echo '    -c|-E|-S) IS_COMPILE_ONLY=1; ARGS+=("$a") ;;' >> /tmp/fake-clang/version_shim
     echo '    -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;' >> /tmp/fake-clang/version_shim
     echo '    -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=("-pie") ;;' >> /tmp/fake-clang/version_shim
     echo '    *) ARGS+=("$a") ;;' >> /tmp/fake-clang/version_shim
@@ -153,7 +158,11 @@ phases:
     echo '    cp -f "$obj" ./build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
     echo '    cp -f "$obj" /home/builder/RepoExe/build/build_bun/src/bun-bun-v1.3.14/build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
     echo '  done' >> /tmp/fake-clang/version_shim
-    echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option' >> /tmp/fake-clang/version_shim
+    echo '  EXTRA_FLAGS=""' >> /tmp/fake-clang/version_shim
+    echo '  if [ "$IS_COMPILE_ONLY" = "0" ] && [ -f /tmp/bionic_compat.o ]; then' >> /tmp/fake-clang/version_shim
+    echo '    EXTRA_FLAGS="/tmp/bionic_compat.o -L/tmp -lbionic_compat"' >> /tmp/fake-clang/version_shim
+    echo '  fi' >> /tmp/fake-clang/version_shim
+    echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA_FLAGS' >> /tmp/fake-clang/version_shim
     echo 'elif [ "$cmd" = "ld.lld" ] || [ "$cmd" = "lld" ]; then' >> /tmp/fake-clang/version_shim
     echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}"' >> /tmp/fake-clang/version_shim
     echo 'else' >> /tmp/fake-clang/version_shim
@@ -172,7 +181,7 @@ phases:
 
     export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
     export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
-    export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm"
+    export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm -L/tmp -lbionic_compat"
 
     find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.zig" -o -name "*.cmake" -o -name "CMakeLists.txt" \) -exec sed -i 's/-fno-pic/-fPIC/g; s/-Wl,-no-pie/-Wl,-pie/g; s/-no-pie/-pie/g' {} + 2>/dev/null || true
 
