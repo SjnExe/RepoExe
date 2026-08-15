@@ -132,6 +132,28 @@ phases:
     export ZIG_GLOBAL_CACHE_DIR=/tmp/zig-cache
     export ZIG_LOCAL_CACHE_DIR=/tmp/zig-cache
 
+    echo "⚡ Dynamically resolving exact WebKit commit SHA from Bun source..."
+    WEBKIT_SHA=$(python3 -c "import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))" << 'PY_WK_EOF'
+    import subprocess
+    try:
+        res = subprocess.run(['git', 'ls-tree', 'HEAD', 'submodules/WebKit'], capture_output=True, text=True)
+        print(res.stdout.split()[2] if res.returncode == 0 and res.stdout.strip() else '5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b')
+    except Exception:
+        print('5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b')
+    PY_WK_EOF
+    )
+    CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-31 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DUSE_THINLTO=OFF -DENABLE_SAMPLING_PROFILER=OFF -DENABLE_REMOTE_INSPECTOR=OFF -DENABLE_EXTRA_BYTECODE_VERIFICATION=OFF -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_YARR_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
+    CONFIG_HASH=$(echo "${CMAKE_FLAGS}" | sha256sum | head -c 8)
+    JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}-${CONFIG_HASH}"
+
+    SHORT_SHA=$(echo "${WEBKIT_SHA}" | cut -c1-16)
+    echo "⚡ Pre-seeding Bun's internal WebKit cache with native Bionic JavaScriptCore..."
+    for c_dir in "build/release/cache/webkit-${SHORT_SHA}-arm64" "build/release/cache/webkit-${WEBKIT_SHA}-arm64" "build/cache/webkit-${SHORT_SHA}-arm64"; do
+      mkdir -p "${c_dir}/lib" "${c_dir}/include"
+      cp -a "${JSC_CACHE_DIR}/lib/"* "${c_dir}/lib/" 2>/dev/null || true
+      cp -a "${JSC_CACHE_DIR}/include/"* "${c_dir}/include/" 2>/dev/null || true
+    done
+
     echo '#!/bin/bash' > /tmp/fake-clang/version_shim
     echo 'cmd="$(basename "$0")"' >> /tmp/fake-clang/version_shim
     echo 'NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"' >> /tmp/fake-clang/version_shim
