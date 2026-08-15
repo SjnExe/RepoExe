@@ -27,6 +27,9 @@ DEFAULT_BIONIC_ENV = {
     "GOARCH": "arm64",
     "CGO_ENABLED": "1",
     "TMPDIR": "/tmp",
+    "GOTMPDIR": "/tmp",
+    "RUSTUP_HOME": "/home/builder/.rustup",
+    "CARGO_HOME": "/home/builder/.cargo",
     "RUSTUP_TOOLCHAIN": "stable",
     "RUSTC_BOOTSTRAP": "1",
     "GIT_CONFIG_COUNT": "1",
@@ -103,28 +106,59 @@ def auto_patch_bionic_sources(src_dir: Path) -> None:
     """Automated Bionic polyfill and source patcher for Android builds."""
     if not src_dir or not src_dir.exists():
         return
-    for p in src_dir.rglob("CMakeLists.txt"):
-        try:
-            c_txt = p.read_text(encoding="utf-8", errors="ignore")
-            if "find_package(ICU" in c_txt:
-                icu_stub = (
-                    "add_library(ICU::uc UNKNOWN IMPORTED)\n"
-                    "set_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
-                    "add_library(ICU::i18n UNKNOWN IMPORTED)\n"
-                    "set_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
-                    "add_library(ICU::data UNKNOWN IMPORTED)\n"
-                    "set_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
-                    "set(ICU_FOUND TRUE)\n"
-                    "set(ICU_INCLUDE_DIRS /usr/include)\n"
-                    "set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)"
-                )
-                new_c = re.sub(
-                    r"find_package\(ICU[^\)]*\)", lambda _, stub=icu_stub: stub, c_txt
-                )
-                if new_c != c_txt:
-                    p.write_text(new_c, encoding="utf-8")
-        except Exception:
-            pass
+
+    for p in src_dir.rglob("*"):
+        if p.is_file() and p.suffix in (".h", ".cpp", ".c", ".cc", ".mm", ".hpp"):
+            try:
+                code_txt = p.read_text(encoding="utf-8", errors="ignore")
+                new_code = code_txt
+                if (
+                    "#include <execinfo.h>" in new_code
+                    or "#include <wordexp.h>" in new_code
+                ):
+                    new_code = re.sub(
+                        r"#include\s*<execinfo\.h>",
+                        "/* #include <execinfo.h> */",
+                        new_code,
+                    )
+                    new_code = re.sub(
+                        r"#include\s*<wordexp\.h>",
+                        "/* #include <wordexp.h> */",
+                        new_code,
+                    )
+                if "uc_mcontext.regs" in new_code:
+                    new_code = new_code.replace(
+                        "uc_mcontext.regs", "uc_mcontext.arm_regs"
+                    )
+                if new_code != code_txt:
+                    p.write_text(new_code, encoding="utf-8")
+            except Exception:
+                pass
+
+        if p.is_file() and (p.name == "OptionsJSCOnly.cmake" or p.suffix == ".cmake"):
+            try:
+                c_txt = p.read_text(encoding="utf-8", errors="ignore")
+                if "find_package(ICU" in c_txt:
+                    icu_stub = (
+                        "add_library(ICU::uc UNKNOWN IMPORTED)\n"
+                        "set_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                        "add_library(ICU::i18n UNKNOWN IMPORTED)\n"
+                        "set_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                        "add_library(ICU::data UNKNOWN IMPORTED)\n"
+                        "set_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /usr/include)\n"
+                        "set(ICU_FOUND TRUE)\n"
+                        "set(ICU_INCLUDE_DIRS /usr/include)\n"
+                        "set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)"
+                    )
+                    new_c = re.sub(
+                        r"find_package\(ICU[^\)]*\)",
+                        lambda _, stub=icu_stub: stub,
+                        c_txt,
+                    )
+                    if new_c != c_txt:
+                        p.write_text(new_c, encoding="utf-8")
+            except Exception:
+                pass
 
 
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
@@ -233,7 +267,6 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     stage_dir = destdir / "stage"
     stage_dir.mkdir(parents=True, exist_ok=True)
 
-    # Resolve build dependencies from RepoExe releases if declared
     resolve_and_fetch_build_dependencies(getattr(recipe, "build_deps", []), destdir)
 
     work_dir = pkg_dir
