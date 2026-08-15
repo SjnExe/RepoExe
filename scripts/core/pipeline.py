@@ -93,11 +93,47 @@ def setup_bionic_compat() -> None:
 
 
 def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
+    Path("/data/data/com.termux/files/usr/tmp").mkdir(parents=True, exist_ok=True)
+    Path("/tmp").mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["git", "config", "--global", "--add", "safe.directory", "*"], check=False
+    )
+
+    if shutil.which("rustup"):
+        subprocess.run(
+            ["rustup", "default", "stable"], check=False, capture_output=True
+        )
+        subprocess.run(
+            ["rustup", "component", "add", "rust-src"], check=False, capture_output=True
+        )
+        subprocess.run(
+            ["rustup", "target", "add", "aarch64-linux-android"],
+            check=False,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["rustup", "target", "add", "aarch64-unknown-linux-gnu"],
+            check=False,
+            capture_output=True,
+        )
+
     setup_bionic_compat()
     env = os.environ.copy()
     for k, v in DEFAULT_BIONIC_ENV.items():
         if k not in env:
             env[k] = v
+
+    cpus = str(os.cpu_count() or 4)
+    env["MAKEFLAGS"] = f"-j{cpus}"
+    env["NINJA_JOBS"] = cpus
+    env["CARGO_BUILD_JOBS"] = cpus
+    env["GOMAXPROCS"] = cpus
+
+    if shutil.which("sccache"):
+        env["RUSTC_WRAPPER"] = "sccache"
+        env["CMAKE_C_COMPILER_LAUNCHER"] = "sccache"
+        env["CMAKE_CXX_COMPILER_LAUNCHER"] = "sccache"
+        env["SCCACHE_DIR"] = "/home/builder/.cache/sccache"
 
     ndk_clang = resolve_ndk_tool("aarch64-linux-android24-clang")
     if ndk_clang and (Path(ndk_clang).exists() or shutil.which(ndk_clang)):
