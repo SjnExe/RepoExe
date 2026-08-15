@@ -32,8 +32,28 @@ DEFAULT_BIONIC_ENV = {
 }
 
 
+def resolve_ndk_tool(tool_name: str) -> str:
+    """Dynamically locates an NDK tool binary in the environment or NDK filesystem."""
+    if tool_name in os.environ and (
+        Path(os.environ[tool_name]).exists() or shutil.which(os.environ[tool_name])
+    ):
+        return os.environ[tool_name]
+
+    ndk_path = Path(os.environ.get("NDK", "/opt/android-ndk"))
+    if ndk_path.exists():
+        matches = list(ndk_path.rglob(tool_name))
+        if matches:
+            return str(matches[0])
+
+    return shutil.which(tool_name) or tool_name
+
+
 def setup_bionic_compat() -> None:
-    ndk_clang = os.environ.get("NDK_CLANG", "aarch64-linux-android24-clang")
+    ndk_clang = resolve_ndk_tool("aarch64-linux-android24-clang")
+    ndk_ar = resolve_ndk_tool("llvm-ar")
+    if ndk_ar == "llvm-ar" and not shutil.which("llvm-ar"):
+        ndk_ar = resolve_ndk_tool("ar")
+
     compat_c = Path("/tmp/bionic_compat.c")
     compat_c.write_text(
         "#include <stddef.h>\n#include <time.h>\n#include <pthread.h>\n"
@@ -51,7 +71,11 @@ def setup_bionic_compat() -> None:
         check=False,
         capture_output=True,
     )
-    subprocess.run(["ar", "rcs", str(lib), str(obj)], check=False, capture_output=True)
+    subprocess.run(
+        [ndk_ar, "rcs", str(lib), str(obj)],
+        check=False,
+        capture_output=True,
+    )
 
     stub_h = Path("/tmp/bionic_stub.h")
     stub_h.write_text(
@@ -74,6 +98,21 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     for k, v in DEFAULT_BIONIC_ENV.items():
         if k not in env:
             env[k] = v
+
+    ndk_clang = resolve_ndk_tool("aarch64-linux-android24-clang")
+    if ndk_clang and (Path(ndk_clang).exists() or shutil.which(ndk_clang)):
+        env["NDK_CLANG"] = ndk_clang
+        if "CC" not in env:
+            env["CC"] = ndk_clang
+        if "CXX" not in env:
+            env["CXX"] = ndk_clang.replace("clang", "clang++")
+        env["CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"] = ndk_clang
+        rustflags = (
+            f"-C linker={ndk_clang} -C link-arg=-fuse-ld=lld -C link-arg=-static-libgcc"
+            " -C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,--threads=4"
+        )
+        env["RUSTFLAGS"] = rustflags
+        env["CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS"] = rustflags
 
     if getattr(recipe, "cflags", None):
         env["CFLAGS"] = f"{env.get('CFLAGS', '')} {recipe.cflags}".strip()
@@ -141,7 +180,14 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                 )
             else:
                 subprocess.run(
-                    ["git", "clone", "--depth", "1", src_url_str, str(src_extract_dir)],
+                    [
+                        "git",
+                        "clone",
+                        "--depth",
+                        "1",
+                        src_url_str,
+                        str(src_extract_dir),
+                    ],
                     check=True,
                 )
             work_dir = src_extract_dir
@@ -173,12 +219,17 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                 else src_extract_dir
             )
 
-    for p_folder in [pkg_dir / "patches", pkg_dir / f"patches@{recipe.active_channel}"]:
+    for p_folder in [
+        pkg_dir / "patches",
+        pkg_dir / f"patches@{recipe.active_channel}",
+    ]:
         if p_folder.exists() and p_folder.is_dir():
             for patch_file in sorted(p_folder.glob("*.patch")):
                 print(f"⚡ Applying patch: {patch_file.name}...")
                 subprocess.run(
-                    ["patch", "-p1", "-i", str(patch_file)], cwd=work_dir, check=True
+                    ["patch", "-p1", "-i", str(patch_file)],
+                    cwd=work_dir,
+                    check=True,
                 )
 
     env["DESTDIR"] = str(stage_dir.resolve())
