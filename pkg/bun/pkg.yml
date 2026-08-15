@@ -164,7 +164,11 @@ phases:
     echo '  fi' >> /tmp/fake-clang/version_shim
     echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA_FLAGS' >> /tmp/fake-clang/version_shim
     echo 'elif [ "$cmd" = "ld.lld" ] || [ "$cmd" = "lld" ]; then' >> /tmp/fake-clang/version_shim
-    echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}"' >> /tmp/fake-clang/version_shim
+    echo '  EXTRA_FLAGS=""' >> /tmp/fake-clang/version_shim
+    echo '  if [ -f /tmp/bionic_compat.o ]; then' >> /tmp/fake-clang/version_shim
+    echo '    EXTRA_FLAGS="/tmp/bionic_compat.o -L/tmp -lbionic_compat"' >> /tmp/fake-clang/version_shim
+    echo '  fi' >> /tmp/fake-clang/version_shim
+    echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" $EXTRA_FLAGS' >> /tmp/fake-clang/version_shim
     echo 'else' >> /tmp/fake-clang/version_shim
     echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}"' >> /tmp/fake-clang/version_shim
     echo 'fi' >> /tmp/fake-clang/version_shim
