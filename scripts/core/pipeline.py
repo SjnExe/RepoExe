@@ -91,7 +91,21 @@ def setup_bionic_compat() -> None:
         "#include <netdb.h>\n"
         "#include <math.h>\n"
         "#include <errno.h>\n"
+        "#undef __timezone\n"
+        "#undef timezone\n"
+        "#undef daylight\n"
+        "#undef __daylight\n"
+        "#undef tzname\n"
+        "#undef __tzname\n"
+        "#undef environ\n"
+        "#undef __environ\n"
         "extern char **environ;\n"
+        '__attribute__((weak, visibility("default"))) long __timezone = 0;\n'
+        '__attribute__((weak, visibility("default"))) long timezone = 0;\n'
+        '__attribute__((weak, visibility("default"))) int daylight = 0;\n'
+        '__attribute__((weak, visibility("default"))) int __daylight = 0;\n'
+        '__attribute__((weak, visibility("default"))) char *tzname[2] = {"UTC", "UTC"};\n'
+        '__attribute__((weak, visibility("default"))) char **__tzname = tzname;\n'
         '__attribute__((weak, visibility("default"))) int *__errno(void) { return &errno; }\n'
         '__attribute__((weak, visibility("default"))) int *__errno_location(void) { return __errno(); }\n'
         '__attribute__((weak, visibility("default"))) int *__h_errno_location(void) { return __errno(); }\n'
@@ -139,7 +153,9 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int futimes(int fd, const struct timeval tv[2]) { struct timespec ts[2]; if (!tv) return futimens(fd, NULL); ts[0].tv_sec = tv[0].tv_sec; ts[0].tv_nsec = tv[0].tv_usec * 1000; ts[1].tv_sec = tv[1].tv_sec; ts[1].tv_nsec = tv[1].tv_usec * 1000; return futimens(fd, ts); }\n'
         '__attribute__((weak, visibility("default"))) int lutimes(const char *path, const struct timeval tv[2]) { struct timespec ts[2]; if (!tv) return utimensat(AT_FDCWD, path, NULL, AT_SYMLINK_NOFOLLOW); ts[0].tv_sec = tv[0].tv_sec; ts[0].tv_nsec = tv[0].tv_usec * 1000; ts[1].tv_sec = tv[1].tv_sec; ts[1].tv_nsec = tv[1].tv_usec * 1000; return utimensat(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW); }\n'
         '__attribute__((weak, visibility("default"))) int posix_fadvise(int fd, off_t offset, off_t len, int advice) { (void)fd; (void)offset; (void)len; (void)advice; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int posix_fadvise64(int fd, off64_t offset, off64_t len, int advice) { (void)fd; (void)offset; (void)len; (void)advice; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int posix_fallocate(int fd, off_t offset, off_t len) { return fallocate(fd, 0, offset, len); }\n'
+        '__attribute__((weak, visibility("default"))) int posix_fallocate64(int fd, off64_t offset, off64_t len) { return fallocate64(fd, 0, offset, len); }\n'
         '__attribute__((weak, visibility("default"))) int getloadavg(double loadavg[], int nelem) { for (int i = 0; i < nelem; ++i) loadavg[i] = 0.0; return nelem; }\n'
         '__attribute__((weak, visibility("default"))) int malloc_trim(size_t pad) { (void)pad; return 0; }\n'
         '__attribute__((weak, visibility("default"))) void malloc_stats(void) {}\n'
@@ -155,14 +171,23 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) void *__mempcpy(void *dest, const void *src, size_t n) { return mempcpy(dest, src, n); }\n'
         '__attribute__((weak, visibility("default"))) wchar_t *wmempcpy(wchar_t *dest, const wchar_t *src, size_t n) { return (wchar_t *)wmemcpy(dest, src, n) + n; }\n'
         '__attribute__((weak, visibility("default"))) char *canonicalize_file_name(const char *path) { return realpath(path, NULL); }\n'
+        '__attribute__((weak, visibility("default"))) char *get_current_dir_name(void) { return getcwd(NULL, 0); }\n'
         '__attribute__((weak, visibility("default"))) int sync_file_range(int fd, off64_t offset, off64_t nbytes, unsigned int flags) { (void)fd; (void)offset; (void)nbytes; (void)flags; return 0; }\n'
         '__attribute__((weak, visibility("default"))) char *__strdup(const char *s) { return strdup(s); }\n'
         '__attribute__((weak, visibility("default"))) char *__strndup(const char *s, size_t n) { return strndup(s, n); }\n'
         '__attribute__((weak, visibility("default"))) char *__strtok_r(char *s, const char *d, char **p) { return strtok_r(s, d, p); }\n'
+        '__attribute__((weak, visibility("default"))) char *__stpcpy(char *d, const char *s) { return stpcpy(d, s); }\n'
+        '__attribute__((weak, visibility("default"))) char *__stpncpy(char *d, const char *s, size_t n) { return stpncpy(d, s, n); }\n'
         '__attribute__((weak, visibility("default"))) int __asprintf(char **strp, const char *fmt, ...) { va_list ap; va_start(ap, fmt); int r = vasprintf(strp, fmt, ap); va_end(ap); return r; }\n'
         '__attribute__((weak, visibility("default"))) int __vasprintf(char **strp, const char *fmt, va_list ap) { return vasprintf(strp, fmt, ap); }\n'
         '__attribute__((weak, visibility("default"))) int __dprintf(int fd, const char *fmt, ...) { va_list ap; va_start(ap, fmt); int r = vdprintf(fd, fmt, ap); va_end(ap); return r; }\n'
         '__attribute__((weak, visibility("default"))) int __vdprintf(int fd, const char *fmt, va_list ap) { return vdprintf(fd, fmt, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __snprintf(char *s, size_t n, const char *fmt, ...) { va_list ap; va_start(ap, fmt); int r = vsnprintf(s, n, fmt, ap); va_end(ap); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __vsnprintf(char *s, size_t n, const char *fmt, va_list ap) { return vsnprintf(s, n, fmt, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __sprintf(char *s, const char *fmt, ...) { va_list ap; va_start(ap, fmt); int r = vsprintf(s, fmt, ap); va_end(ap); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __vsprintf(char *s, const char *fmt, va_list ap) { return vsprintf(s, fmt, ap); }\n'
+        '__attribute__((weak, visibility("default"))) time_t timelocal(struct tm *tm) { return mktime(tm); }\n'
+        '__attribute__((weak, visibility("default"))) int stime(const time_t *t) { (void)t; errno = EPERM; return -1; }\n'
         '__attribute__((weak, visibility("default"))) int strcoll_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcoll(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) int __strcoll_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcoll(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) size_t strxfrm_l(char *dest, const char *src, size_t n, locale_t loc) { (void)loc; return strxfrm(dest, src, n); }\n'
@@ -234,12 +259,6 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) void sincosf(float x, float *s, float *c) { *s = sinf(x); *c = cosf(x); }\n'
         '__attribute__((weak, visibility("default"))) void __sincosf(float x, float *s, float *c) { *s = sinf(x); *c = cosf(x); }\n'
         '__attribute__((weak, visibility("default"))) int sched_getcpu(void) { return 0; }\n'
-        '__attribute__((weak, visibility("default"))) long __timezone = 0;\n'
-        '__attribute__((weak, visibility("default"))) long timezone = 0;\n'
-        '__attribute__((weak, visibility("default"))) int daylight = 0;\n'
-        '__attribute__((weak, visibility("default"))) int __daylight = 0;\n'
-        '__attribute__((weak, visibility("default"))) char *tzname[2] = {"UTC", "UTC"};\n'
-        '__attribute__((weak, visibility("default"))) char **__tzname = tzname;\n'
         '__attribute__((weak, visibility("default"))) const char *gnu_get_libc_version(void) { return "2.38"; }\n'
         '__attribute__((weak, visibility("default"))) const char *gnu_get_libc_release(void) { return "stable"; }\n'
         '__attribute__((weak, visibility("default"))) int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) { (void)func; (void)obj; (void)dso_symbol; return 0; }\n'
@@ -343,7 +362,19 @@ def setup_bionic_compat() -> None:
         "#include <locale.h>\n"
         "#include <langinfo.h>\n"
         "#include <time.h>\n"
+        "#undef __timezone\n"
+        "#undef timezone\n"
+        "#undef daylight\n"
+        "#undef __daylight\n"
+        "#undef tzname\n"
+        "#undef __tzname\n"
         '#ifdef __cplusplus\nextern "C" {\n#endif\n'
+        "extern long __timezone;\n"
+        "extern long timezone;\n"
+        "extern int daylight;\n"
+        "extern int __daylight;\n"
+        "extern char *tzname[2];\n"
+        "extern char **__tzname;\n"
         "int *__get_h_errno(void);\n"
         "int *__h_errno(void);\n"
         "int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);\n"
@@ -370,7 +401,9 @@ def setup_bionic_compat() -> None:
         "int futimes(int fd, const struct timeval tv[2]);\n"
         "int lutimes(const char *path, const struct timeval tv[2]);\n"
         "int posix_fadvise(int fd, off_t offset, off_t len, int advice);\n"
+        "int posix_fadvise64(int fd, off64_t offset, off64_t len, int advice);\n"
         "int posix_fallocate(int fd, off_t offset, off_t len);\n"
+        "int posix_fallocate64(int fd, off64_t offset, off64_t len);\n"
         "int getloadavg(double loadavg[], int nelem);\n"
         "int malloc_trim(size_t pad);\n"
         "void malloc_stats(void);\n"
@@ -386,14 +419,23 @@ def setup_bionic_compat() -> None:
         "void *__mempcpy(void *dest, const void *src, size_t n);\n"
         "wchar_t *wmempcpy(wchar_t *dest, const wchar_t *src, size_t n);\n"
         "char *canonicalize_file_name(const char *path);\n"
+        "char *get_current_dir_name(void);\n"
         "int sync_file_range(int fd, off64_t offset, off64_t nbytes, unsigned int flags);\n"
         "char *__strdup(const char *s);\n"
         "char *__strndup(const char *s, size_t n);\n"
         "char *__strtok_r(char *s, const char *d, char **p);\n"
+        "char *__stpcpy(char *d, const char *s);\n"
+        "char *__stpncpy(char *d, const char *s, size_t n);\n"
         "int __asprintf(char **strp, const char *fmt, ...);\n"
         "int __vasprintf(char **strp, const char *fmt, va_list ap);\n"
         "int __dprintf(int fd, const char *fmt, ...);\n"
         "int __vdprintf(int fd, const char *fmt, va_list ap);\n"
+        "int __snprintf(char *s, size_t n, const char *fmt, ...);\n"
+        "int __vsnprintf(char *s, size_t n, const char *fmt, va_list ap);\n"
+        "int __sprintf(char *s, const char *fmt, ...);\n"
+        "int __vsprintf(char *s, const char *fmt, va_list ap);\n"
+        "time_t timelocal(struct tm *tm);\n"
+        "int stime(const time_t *t);\n"
         "int strcoll_l(const char *s1, const char *s2, locale_t loc);\n"
         "int __strcoll_l(const char *s1, const char *s2, locale_t loc);\n"
         "size_t strxfrm_l(char *dest, const char *src, size_t n, locale_t loc);\n"
@@ -477,12 +519,6 @@ def setup_bionic_compat() -> None:
         "int gethostbyname_r(const char *name, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop);\n"
         "int gethostbyname2_r(const char *name, int af, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop);\n"
         "int gethostbyaddr_r(const void *addr, socklen_t len, int type, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop);\n"
-        "extern long __timezone;\n"
-        "extern long timezone;\n"
-        "extern int daylight;\n"
-        "extern int __daylight;\n"
-        "extern char *tzname[2];\n"
-        "extern char **__tzname;\n"
         "const char *gnu_get_libc_version(void);\n"
         "const char *gnu_get_libc_release(void);\n"
         "#ifndef WRDE_NOCMD\n#define WRDE_NOCMD 0\n"
