@@ -69,7 +69,14 @@ def setup_bionic_compat() -> None:
         "#include <stdlib.h>\n"
         "#include <stdarg.h>\n"
         "#include <time.h>\n"
+        "#include <sys/time.h>\n"
+        "#include <sys/stat.h>\n"
+        "#include <sys/types.h>\n"
+        "#include <sys/syscall.h>\n"
+        "#include <fcntl.h>\n"
+        "#include <unistd.h>\n"
         "#include <pthread.h>\n"
+        "#include <signal.h>\n"
         "#include <ctype.h>\n"
         "#include <netdb.h>\n"
         "#include <errno.h>\n"
@@ -101,6 +108,14 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int pthread_setcanceltype(int type, int *oldtype) { if (oldtype) *oldtype = type; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int pthread_cancel(pthread_t thread) { (void)thread; return 0; }\n'
         '__attribute__((weak, visibility("default"))) void pthread_testcancel(void) {}\n'
+        '__attribute__((weak, visibility("default"))) int pthread_yield(void) { return sched_yield(); }\n'
+        '__attribute__((weak, visibility("default"))) int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout) { (void)set; (void)info; (void)timeout; errno = ENOSYS; return -1; }\n'
+        '__attribute__((weak, visibility("default"))) int sigwaitinfo(const sigset_t *set, siginfo_t *info) { (void)set; (void)info; errno = ENOSYS; return -1; }\n'
+        '__attribute__((weak, visibility("default"))) int lchmod(const char *path, mode_t mode) { return fchmodat(AT_FDCWD, path, mode, AT_SYMLINK_NOFOLLOW); }\n'
+        '__attribute__((weak, visibility("default"))) int futimes(int fd, const struct timeval tv[2]) { struct timespec ts[2]; if (!tv) return futimens(fd, NULL); ts[0].tv_sec = tv[0].tv_sec; ts[0].tv_nsec = tv[0].tv_usec * 1000; ts[1].tv_sec = tv[1].tv_sec; ts[1].tv_nsec = tv[1].tv_usec * 1000; return futimens(fd, ts); }\n'
+        '__attribute__((weak, visibility("default"))) int lutimes(const char *path, const struct timeval tv[2]) { struct timespec ts[2]; if (!tv) return utimensat(AT_FDCWD, path, NULL, AT_SYMLINK_NOFOLLOW); ts[0].tv_sec = tv[0].tv_sec; ts[0].tv_nsec = tv[0].tv_usec * 1000; ts[1].tv_sec = tv[1].tv_sec; ts[1].tv_nsec = tv[1].tv_usec * 1000; return utimensat(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW); }\n'
+        '__attribute__((weak, visibility("default"))) int posix_fadvise(int fd, off_t offset, off_t len, int advice) { (void)fd; (void)offset; (void)len; (void)advice; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int posix_fallocate(int fd, off_t offset, off_t len) { return fallocate(fd, 0, offset, len); }\n'
         '__attribute__((weak, visibility("default"))) long __timezone = 0;\n'
         '__attribute__((weak, visibility("default"))) long timezone = 0;\n'
         '__attribute__((weak, visibility("default"))) int daylight = 0;\n'
@@ -126,9 +141,13 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) unsigned long __isoc23_strtoul(const char *n, char **e, int b) { return strtoul(n, e, b); }\n'
         '__attribute__((weak, visibility("default"))) long long __isoc23_strtoll(const char *n, char **e, int b) { return strtoll(n, e, b); }\n'
         '__attribute__((weak, visibility("default"))) unsigned long long __isoc23_strtoull(const char *n, char **e, int b) { return strtoull(n, e, b); }\n'
+        '__attribute__((weak, visibility("default"))) float __isoc23_strtof(const char *n, char **e) { return strtof(n, e); }\n'
+        '__attribute__((weak, visibility("default"))) double __isoc23_strtod(const char *n, char **e) { return strtod(n, e); }\n'
+        '__attribute__((weak, visibility("default"))) long double __isoc23_strtold(const char *n, char **e) { return strtold(n, e); }\n'
         '__attribute__((weak, visibility("default"))) int bcmp(const void *s1, const void *s2, size_t n) { return memcmp(s1, s2, n); }\n'
         '__attribute__((weak, visibility("default"))) void bcopy(const void *src, void *dest, size_t n) { memmove(dest, src, n); }\n'
         '__attribute__((weak, visibility("default"))) void bzero(void *s, size_t n) { memset(s, 0, n); }\n'
+        '__attribute__((weak, visibility("default"))) void *reallocarray(void *ptr, size_t nmemb, size_t size) { if (size && nmemb > ((size_t)-1) / size) { errno = ENOMEM; return NULL; } return realloc(ptr, nmemb * size); }\n'
         "static const unsigned short *__ctype_b_ptr = NULL;\n"
         "static const int32_t *__ctype_tolower_ptr = NULL;\n"
         "static const int32_t *__ctype_toupper_ptr = NULL;\n"
@@ -166,7 +185,10 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int getservbyname_r(const char *n, const char *p, struct servent *r, char *b, size_t l, struct servent **res) { struct servent *s = getservbyname(n, p); if (!s) { *res = NULL; return ENOENT; } *r = *s; *res = r; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int getservbyport_r(int port, const char *p, struct servent *r, char *b, size_t l, struct servent **res) { struct servent *s = getservbyport(port, p); if (!s) { *res = NULL; return ENOENT; } *r = *s; *res = r; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int getprotobyname_r(const char *n, struct protoent *r, char *b, size_t l, struct protoent **res) { struct protoent *p = getprotobyname(n); if (!p) { *res = NULL; return ENOENT; } *r = *p; *res = r; return 0; }\n'
-        '__attribute__((weak, visibility("default"))) int getprotobynumber_r(int proto, struct protoent *r, char *b, size_t l, struct protoent **res) { struct protoent *p = getprotobynumber(proto); if (!p) { *res = NULL; return ENOENT; } *r = *p; *res = r; return 0; }\n',
+        '__attribute__((weak, visibility("default"))) int getprotobynumber_r(int proto, struct protoent *r, char *b, size_t l, struct protoent **res) { struct protoent *p = getprotobynumber(proto); if (!p) { *res = NULL; return ENOENT; } *r = *p; *res = r; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int gethostbyname_r(const char *name, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { struct hostent *hp = gethostbyname(name); if (!hp) { *result = NULL; if (h_errnop) *h_errnop = h_errno; return ENOENT; } *ret = *hp; *result = ret; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int gethostbyname2_r(const char *name, int af, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { (void)af; return gethostbyname_r(name, ret, buf, buflen, result, h_errnop); }\n'
+        '__attribute__((weak, visibility("default"))) int gethostbyaddr_r(const void *addr, socklen_t len, int type, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { struct hostent *hp = gethostbyaddr(addr, len, type); if (!hp) { *result = NULL; if (h_errnop) *h_errnop = h_errno; return ENOENT; } *ret = *hp; *result = ret; return 0; }\n',
         encoding="utf-8",
     )
     obj = Path("/tmp/bionic_compat.o")
@@ -193,7 +215,10 @@ def setup_bionic_compat() -> None:
         "#include <stdint.h>\n"
         "#include <string.h>\n"
         "#include <stdlib.h>\n"
+        "#include <sys/time.h>\n"
+        "#include <sys/stat.h>\n"
         "#include <pthread.h>\n"
+        "#include <signal.h>\n"
         "#include <netdb.h>\n"
         "#include <time.h>\n"
         '#ifdef __cplusplus\nextern "C" {\n#endif\n'
@@ -203,6 +228,15 @@ def setup_bionic_compat() -> None:
         "int pthread_setcanceltype(int type, int *oldtype);\n"
         "int pthread_cancel(pthread_t thread);\n"
         "void pthread_testcancel(void);\n"
+        "int pthread_yield(void);\n"
+        "int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout);\n"
+        "int sigwaitinfo(const sigset_t *set, siginfo_t *info);\n"
+        "int lchmod(const char *path, mode_t mode);\n"
+        "int futimes(int fd, const struct timeval tv[2]);\n"
+        "int lutimes(const char *path, const struct timeval tv[2]);\n"
+        "int posix_fadvise(int fd, off_t offset, off_t len, int advice);\n"
+        "int posix_fallocate(int fd, off_t offset, off_t len);\n"
+        "void *reallocarray(void *ptr, size_t nmemb, size_t size);\n"
         "const unsigned short **__ctype_b_loc(void);\n"
         "const int32_t **__ctype_tolower_loc(void);\n"
         "const int32_t **__ctype_toupper_loc(void);\n"
@@ -211,6 +245,9 @@ def setup_bionic_compat() -> None:
         "int getservbyport_r(int port, const char *p, struct servent *r, char *b, size_t l, struct servent **res);\n"
         "int getprotobyname_r(const char *n, struct protoent *r, char *b, size_t l, struct protoent **res);\n"
         "int getprotobynumber_r(int proto, struct protoent *r, char *b, size_t l, struct protoent **res);\n"
+        "int gethostbyname_r(const char *name, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop);\n"
+        "int gethostbyname2_r(const char *name, int af, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop);\n"
+        "int gethostbyaddr_r(const void *addr, socklen_t len, int type, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop);\n"
         "extern long __timezone;\n"
         "extern long timezone;\n"
         "extern int daylight;\n"
