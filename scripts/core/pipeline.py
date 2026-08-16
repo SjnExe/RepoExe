@@ -102,7 +102,17 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int __isoc99_fscanf(FILE *stream, const char *format, ...) { va_list a; va_start(a, format); int r = vfscanf(stream, format, a); va_end(a); return r; }\n'
         '__attribute__((weak, visibility("default"))) int __isoc99_vfscanf(FILE *stream, const char *format, va_list ap) { return vfscanf(stream, format, ap); }\n'
         '__attribute__((weak, visibility("default"))) int __isoc99_scanf(const char *format, ...) { va_list a; va_start(a, format); int r = vscanf(format, a); va_end(a); return r; }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc99_vscanf(const char *format, va_list ap) { return vscanf(format, ap); }\n',
+        '__attribute__((weak, visibility("default"))) int __isoc99_vscanf(const char *format, va_list ap) { return vscanf(format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_sscanf(const char *str, const char *format, ...) { va_list a; va_start(a, format); int r = vsscanf(str, format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_vsscanf(const char *str, const char *format, va_list ap) { return vsscanf(str, format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_fscanf(FILE *stream, const char *format, ...) { va_list a; va_start(a, format); int r = vfscanf(stream, format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_vfscanf(FILE *stream, const char *format, va_list ap) { return vfscanf(stream, format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_scanf(const char *format, ...) { va_list a; va_start(a, format); int r = vscanf(format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_vscanf(const char *format, va_list ap) { return vscanf(format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) long __isoc23_strtol(const char *n, char **e, int b) { return strtol(n, e, b); }\n'
+        '__attribute__((weak, visibility("default"))) unsigned long __isoc23_strtoul(const char *n, char **e, int b) { return strtoul(n, e, b); }\n'
+        '__attribute__((weak, visibility("default"))) long long __isoc23_strtoll(const char *n, char **e, int b) { return strtoll(n, e, b); }\n'
+        '__attribute__((weak, visibility("default"))) unsigned long long __isoc23_strtoull(const char *n, char **e, int b) { return strtoull(n, e, b); }\n',
         encoding="utf-8",
     )
     obj = Path("/tmp/bionic_compat.o")
