@@ -113,11 +113,22 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int pthread_yield(void) { return sched_yield(); }\n'
         '__attribute__((weak, visibility("default"))) int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout) { (void)set; (void)info; (void)timeout; errno = ENOSYS; return -1; }\n'
         '__attribute__((weak, visibility("default"))) int sigwaitinfo(const sigset_t *set, siginfo_t *info) { (void)set; (void)info; errno = ENOSYS; return -1; }\n'
+        '__attribute__((weak, visibility("default"))) int __xstat(int ver, const char *path, struct stat *stat_buf) { (void)ver; return stat(path, stat_buf); }\n'
+        '__attribute__((weak, visibility("default"))) int __fxstat(int ver, int fd, struct stat *stat_buf) { (void)ver; return fstat(fd, stat_buf); }\n'
+        '__attribute__((weak, visibility("default"))) int __lxstat(int ver, const char *path, struct stat *stat_buf) { (void)ver; return lstat(path, stat_buf); }\n'
+        '__attribute__((weak, visibility("default"))) int __fxstatat(int ver, int dirfd, const char *path, struct stat *stat_buf, int flags) { (void)ver; return fstatat(dirfd, path, stat_buf, flags); }\n'
+        '__attribute__((weak, visibility("default"))) int __xstat64(int ver, const char *path, void *stat_buf) { (void)ver; return stat(path, (struct stat *)stat_buf); }\n'
+        '__attribute__((weak, visibility("default"))) int __fxstat64(int ver, int fd, void *stat_buf) { (void)ver; return fstat(fd, (struct stat *)stat_buf); }\n'
+        '__attribute__((weak, visibility("default"))) int __lxstat64(int ver, const char *path, void *stat_buf) { (void)ver; return lstat(path, (struct stat *)stat_buf); }\n'
+        '__attribute__((weak, visibility("default"))) int __fxstatat64(int ver, int dirfd, const char *path, void *stat_buf, int flags) { (void)ver; return fstatat(dirfd, path, (struct stat *)stat_buf, flags); }\n'
+        '__attribute__((weak, visibility("default"))) int __xmknod(int ver, const char *path, mode_t mode, dev_t *dev) { (void)ver; return mknod(path, mode, *dev); }\n'
+        '__attribute__((weak, visibility("default"))) int __xmknodat(int ver, int dirfd, const char *path, mode_t mode, dev_t *dev) { (void)ver; return mknodat(dirfd, path, mode, *dev); }\n'
         '__attribute__((weak, visibility("default"))) int lchmod(const char *path, mode_t mode) { return fchmodat(AT_FDCWD, path, mode, AT_SYMLINK_NOFOLLOW); }\n'
         '__attribute__((weak, visibility("default"))) int futimes(int fd, const struct timeval tv[2]) { struct timespec ts[2]; if (!tv) return futimens(fd, NULL); ts[0].tv_sec = tv[0].tv_sec; ts[0].tv_nsec = tv[0].tv_usec * 1000; ts[1].tv_sec = tv[1].tv_sec; ts[1].tv_nsec = tv[1].tv_usec * 1000; return futimens(fd, ts); }\n'
         '__attribute__((weak, visibility("default"))) int lutimes(const char *path, const struct timeval tv[2]) { struct timespec ts[2]; if (!tv) return utimensat(AT_FDCWD, path, NULL, AT_SYMLINK_NOFOLLOW); ts[0].tv_sec = tv[0].tv_sec; ts[0].tv_nsec = tv[0].tv_usec * 1000; ts[1].tv_sec = tv[1].tv_sec; ts[1].tv_nsec = tv[1].tv_usec * 1000; return utimensat(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW); }\n'
         '__attribute__((weak, visibility("default"))) int posix_fadvise(int fd, off_t offset, off_t len, int advice) { (void)fd; (void)offset; (void)len; (void)advice; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int posix_fallocate(int fd, off_t offset, off_t len) { return fallocate(fd, 0, offset, len); }\n'
+        '__attribute__((weak, visibility("default"))) int getloadavg(double loadavg[], int nelem) { for (int i = 0; i < nelem; ++i) loadavg[i] = 0.0; return nelem; }\n'
         '__attribute__((weak, visibility("default"))) long __timezone = 0;\n'
         '__attribute__((weak, visibility("default"))) long timezone = 0;\n'
         '__attribute__((weak, visibility("default"))) int daylight = 0;\n'
@@ -235,11 +246,22 @@ def setup_bionic_compat() -> None:
         "int pthread_yield(void);\n"
         "int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout);\n"
         "int sigwaitinfo(const sigset_t *set, siginfo_t *info);\n"
+        "int __xstat(int ver, const char *path, struct stat *stat_buf);\n"
+        "int __fxstat(int ver, int fd, struct stat *stat_buf);\n"
+        "int __lxstat(int ver, const char *path, struct stat *stat_buf);\n"
+        "int __fxstatat(int ver, int dirfd, const char *path, struct stat *stat_buf, int flags);\n"
+        "int __xstat64(int ver, const char *path, void *stat_buf);\n"
+        "int __fxstat64(int ver, int fd, void *stat_buf);\n"
+        "int __lxstat64(int ver, const char *path, void *stat_buf);\n"
+        "int __fxstatat64(int ver, int dirfd, const char *path, void *stat_buf, int flags);\n"
+        "int __xmknod(int ver, const char *path, mode_t mode, dev_t *dev);\n"
+        "int __xmknodat(int ver, int dirfd, const char *path, mode_t mode, dev_t *dev);\n"
         "int lchmod(const char *path, mode_t mode);\n"
         "int futimes(int fd, const struct timeval tv[2]);\n"
         "int lutimes(const char *path, const struct timeval tv[2]);\n"
         "int posix_fadvise(int fd, off_t offset, off_t len, int advice);\n"
         "int posix_fallocate(int fd, off_t offset, off_t len);\n"
+        "int getloadavg(double loadavg[], int nelem);\n"
         "void *reallocarray(void *ptr, size_t nmemb, size_t size);\n"
         "const unsigned short **__ctype_b_loc(void);\n"
         "const int32_t **__ctype_tolower_loc(void);\n"
@@ -523,7 +545,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                     "curl",
                     "-fsSL",
                     "-A",
-                    "Mozilla/5.0",
+                    "Mozilla/0.0",
                     "--retry",
                     "5",
                     src_url_str,
