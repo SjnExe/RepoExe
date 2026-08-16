@@ -28,6 +28,12 @@ def lint_elf_file(elf_path: Path) -> list[str]:
                 if f"[{glibc_lib}]" in line:
                     errors.append(f"Contains glibc dependency: {glibc_lib}")
 
+    # Check 1.5: Versioned glibc symbol requirements
+    for line in output.splitlines():
+        if "@GLIBC_" in line:
+            errors.append("Requires versioned glibc symbols (@GLIBC_*)")
+            break
+
     # Check 2: Invalid glibc ELF Interpreter Path
     if "/lib/ld-linux" in output or "/lib64/ld-linux" in output:
         errors.append(

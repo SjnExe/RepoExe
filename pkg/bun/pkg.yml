@@ -273,9 +273,12 @@ phases:
 
   test: |
     bun --version
-    bun -e "console.log('Bun Android Bionic Runtime OK')"
+    bun -e "console.log('Arch/Platform:', process.arch, process.platform)"
+    bun -e "let x=0; for(let i=0;i<1e5;i++) x+=i; console.log('JIT Loop OK:', x)"
+    bun -e "import crypto from 'node:crypto'; console.log('BoringSSL UUID:', crypto.randomUUID())"
+    bun -e "import { Database } from 'bun:sqlite'; const db = new Database(':memory:'); db.run('CREATE TABLE t(x);'); console.log('SQLite OK')"
+    bun -e "import { spawnSync } from 'node:child_process'; const p = spawnSync('echo', ['Bionic spawn OK']); console.log(p.stdout.toString().trim())"
     bun -e "import { xxhash64 } from 'bun'; console.log('xxhash:', xxhash64('android'))"
-    bun --version
 
 vars:
   RUSTC_BOOTSTRAP: "1"
