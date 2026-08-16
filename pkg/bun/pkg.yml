@@ -165,7 +165,7 @@ phases:
     python3 -c "
     import os, re, glob
     ndk = os.environ.get('NDK', '/opt/android-ndk')
-    sysroots = glob.glob(f'{ndk}/**/sysroot', recursive=True)
+    sysroots = [p for p in glob.glob(f'{ndk}/**/sysroot', recursive=True) if os.path.isdir(os.path.join(p, 'usr', 'include'))]
     sysroot = sysroots[0] if sysroots else f'{ndk}/toolchains/llvm/prebuilt/linux-arm64/sysroot'
     print(f'🔒 Resolved NDK sysroot for Zig translate-c: {sysroot}')
 
@@ -185,12 +185,12 @@ phases:
                     if f == 'build.zig':
                         new_c = re.sub(
                             r'const android_ndk_sysroot = b\.option\(\[\]const u8, \"android_ndk_sysroot\", [^\)]+\);',
-                            f'const android_ndk_sysroot = b.option([]const u8, \"android_ndk_sysroot\", \"Path to Android NDK sysroot\") orelse \"{sysroot}\";',
+                            f'const android_ndk_sysroot: ?[]const u8 = \"{sysroot}\";',
                             new_c
                         )
                         new_c = new_c.replace(
                             'std.debug.panic(\"translate-c for Android requires -Dandroid_ndk_sysroot\", .{});',
-                            f'const android_sysroot_dir = \"{sysroot}\"; _ = android_sysroot_dir;'
+                            f'\"{sysroot}\";'
                         )
                     if new_c != content:
                         with open(p, 'w', encoding='utf-8') as fp:
