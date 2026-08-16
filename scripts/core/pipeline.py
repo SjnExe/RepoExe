@@ -104,8 +104,9 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) long timezone = 0;\n'
         '__attribute__((weak, visibility("default"))) int daylight = 0;\n'
         '__attribute__((weak, visibility("default"))) int __daylight = 0;\n'
-        '__attribute__((weak, visibility("default"))) char *tzname[2] = {"UTC", "UTC"};\n'
-        '__attribute__((weak, visibility("default"))) char **__tzname = tzname;\n'
+        '__attribute__((weak, visibility("default"))) char *tzname[2] = {(char *)"UTC", (char *)"UTC"};\n'
+        '__attribute__((weak, visibility("default"))) char *__tzname_arr[2] = {(char *)"UTC", (char *)"UTC"};\n'
+        '__attribute__((weak, visibility("default"))) char **__tzname = __tzname_arr;\n'
         '__attribute__((weak, visibility("default"))) int *__errno(void) { return &errno; }\n'
         '__attribute__((weak, visibility("default"))) int *__errno_location(void) { return __errno(); }\n'
         '__attribute__((weak, visibility("default"))) int *__h_errno_location(void) { return __errno(); }\n'
@@ -139,6 +140,7 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int pthread_getattr_np(pthread_t th, pthread_attr_t *attr) { (void)th; (void)attr; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout) { (void)set; (void)info; (void)timeout; errno = ENOSYS; return -1; }\n'
         '__attribute__((weak, visibility("default"))) int sigwaitinfo(const sigset_t *set, siginfo_t *info) { (void)set; (void)info; errno = ENOSYS; return -1; }\n'
+        '__attribute__((weak, visibility("default"))) int signalfd(int fd, const sigset_t *mask, int flags) { (void)fd; (void)mask; (void)flags; errno = ENOSYS; return -1; }\n'
         '__attribute__((weak, visibility("default"))) int __xstat(int ver, const char *path, struct stat *stat_buf) { (void)ver; return stat(path, stat_buf); }\n'
         '__attribute__((weak, visibility("default"))) int __fxstat(int ver, int fd, struct stat *stat_buf) { (void)ver; return fstat(fd, stat_buf); }\n'
         '__attribute__((weak, visibility("default"))) int __lxstat(int ver, const char *path, struct stat *stat_buf) { (void)ver; return lstat(path, stat_buf); }\n'
@@ -154,8 +156,8 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int lutimes(const char *path, const struct timeval tv[2]) { struct timespec ts[2]; if (!tv) return utimensat(AT_FDCWD, path, NULL, AT_SYMLINK_NOFOLLOW); ts[0].tv_sec = tv[0].tv_sec; ts[0].tv_nsec = tv[0].tv_usec * 1000; ts[1].tv_sec = tv[1].tv_sec; ts[1].tv_nsec = tv[1].tv_usec * 1000; return utimensat(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW); }\n'
         '__attribute__((weak, visibility("default"))) int posix_fadvise(int fd, off_t offset, off_t len, int advice) { (void)fd; (void)offset; (void)len; (void)advice; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int posix_fadvise64(int fd, off64_t offset, off64_t len, int advice) { (void)fd; (void)offset; (void)len; (void)advice; return 0; }\n'
-        '__attribute__((weak, visibility("default"))) int posix_fallocate(int fd, off_t offset, off_t len) { return fallocate(fd, 0, offset, len); }\n'
-        '__attribute__((weak, visibility("default"))) int posix_fallocate64(int fd, off64_t offset, off64_t len) { return fallocate64(fd, 0, offset, len); }\n'
+        '__attribute__((weak, visibility("default"))) int posix_fallocate(int fd, off_t offset, off_t len) { return posix_fallocate64(fd, offset, len); }\n'
+        '__attribute__((weak, visibility("default"))) int posix_fallocate64(int fd, off64_t offset, off64_t len) { return (int)syscall(__NR_fallocate, fd, 0, offset, len); }\n'
         '__attribute__((weak, visibility("default"))) int getloadavg(double loadavg[], int nelem) { for (int i = 0; i < nelem; ++i) loadavg[i] = 0.0; return nelem; }\n'
         '__attribute__((weak, visibility("default"))) int malloc_trim(size_t pad) { (void)pad; return 0; }\n'
         '__attribute__((weak, visibility("default"))) void malloc_stats(void) {}\n'
@@ -188,6 +190,14 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int __vsprintf(char *s, const char *fmt, va_list ap) { return vsprintf(s, fmt, ap); }\n'
         '__attribute__((weak, visibility("default"))) time_t timelocal(struct tm *tm) { return mktime(tm); }\n'
         '__attribute__((weak, visibility("default"))) int stime(const time_t *t) { (void)t; errno = EPERM; return -1; }\n'
+        '__attribute__((weak, visibility("default"))) int res_init(void) { return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int __res_init(void) { return 0; }\n'
+        '__attribute__((weak, visibility("default"))) unsigned int gnu_dev_major(unsigned long long dev) { return (unsigned int)((dev >> 8) & 0xfff); }\n'
+        '__attribute__((weak, visibility("default"))) unsigned int gnu_dev_minor(unsigned long long dev) { return (unsigned int)((dev & 0xff) | ((dev >> 12) & 0xfff00)); }\n'
+        '__attribute__((weak, visibility("default"))) unsigned long long gnu_dev_makedev(unsigned int maj, unsigned int min) { return ((unsigned long long)(maj & 0xfff) << 8) | (min & 0xff) | ((unsigned long long)(min & 0xfff00) << 12); }\n'
+        '__attribute__((weak, visibility("default"))) cpu_set_t *__sched_cpualloc(size_t count) { return (cpu_set_t *)calloc(1, (count + 7) / 8); }\n'
+        '__attribute__((weak, visibility("default"))) void __sched_cpufree(cpu_set_t *set) { free(set); }\n'
+        '__attribute__((weak, visibility("default"))) int __sched_cpucount(size_t setsize, const cpu_set_t *set) { int c = 0; const unsigned char *p = (const unsigned char *)set; for (size_t i = 0; i < setsize; ++i) c += __builtin_popcount(p[i]); return c; }\n'
         '__attribute__((weak, visibility("default"))) int strcoll_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcoll(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) int __strcoll_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcoll(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) size_t strxfrm_l(char *dest, const char *src, size_t n, locale_t loc) { (void)loc; return strxfrm(dest, src, n); }\n'
@@ -330,11 +340,14 @@ def setup_bionic_compat() -> None:
     )
     obj = Path("/tmp/bionic_compat.o")
     lib = Path("/tmp/libbionic_compat.a")
-    subprocess.run(
+    res_cc = subprocess.run(
         [ndk_clang, "-fPIC", "-c", str(compat_c), "-o", str(obj)],
         check=False,
         capture_output=True,
+        text=True,
     )
+    if res_cc.returncode != 0:
+        print(f"⚠️ bionic_compat compile error:\n{res_cc.stderr}")
     subprocess.run(
         [ndk_ar, "rcs", str(lib), str(obj)],
         check=False,
@@ -387,6 +400,7 @@ def setup_bionic_compat() -> None:
         "int pthread_getattr_np(pthread_t th, pthread_attr_t *attr);\n"
         "int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout);\n"
         "int sigwaitinfo(const sigset_t *set, siginfo_t *info);\n"
+        "int signalfd(int fd, const sigset_t *mask, int flags);\n"
         "int __xstat(int ver, const char *path, struct stat *stat_buf);\n"
         "int __fxstat(int ver, int fd, struct stat *stat_buf);\n"
         "int __lxstat(int ver, const char *path, struct stat *stat_buf);\n"
@@ -436,6 +450,11 @@ def setup_bionic_compat() -> None:
         "int __vsprintf(char *s, const char *fmt, va_list ap);\n"
         "time_t timelocal(struct tm *tm);\n"
         "int stime(const time_t *t);\n"
+        "int res_init(void);\n"
+        "int __res_init(void);\n"
+        "unsigned int gnu_dev_major(unsigned long long dev);\n"
+        "unsigned int gnu_dev_minor(unsigned long long dev);\n"
+        "unsigned long long gnu_dev_makedev(unsigned int maj, unsigned int min);\n"
         "int strcoll_l(const char *s1, const char *s2, locale_t loc);\n"
         "int __strcoll_l(const char *s1, const char *s2, locale_t loc);\n"
         "size_t strxfrm_l(char *dest, const char *src, size_t n, locale_t loc);\n"
