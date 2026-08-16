@@ -129,6 +129,16 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int posix_fadvise(int fd, off_t offset, off_t len, int advice) { (void)fd; (void)offset; (void)len; (void)advice; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int posix_fallocate(int fd, off_t offset, off_t len) { return fallocate(fd, 0, offset, len); }\n'
         '__attribute__((weak, visibility("default"))) int getloadavg(double loadavg[], int nelem) { for (int i = 0; i < nelem; ++i) loadavg[i] = 0.0; return nelem; }\n'
+        '__attribute__((weak, visibility("default"))) int malloc_trim(size_t pad) { (void)pad; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) void malloc_stats(void) {}\n'
+        '__attribute__((weak, visibility("default"))) int mallopt(int param, int value) { (void)param; (void)value; return 1; }\n'
+        '__attribute__((weak, visibility("default"))) char *secure_getenv(const char *name) { return getenv(name); }\n'
+        '__attribute__((weak, visibility("default"))) char *__secure_getenv(const char *name) { return getenv(name); }\n'
+        '__attribute__((weak, visibility("default"))) int clearenv(void) { if (environ) *environ = NULL; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) char *strchrnul(const char *s, int c) { while (*s && *s != (char)c) s++; return (char *)s; }\n'
+        '__attribute__((weak, visibility("default"))) void *rawmemchr(const void *s, int c) { const unsigned char *p = (const unsigned char *)s; while (*p != (unsigned char)c) p++; return (void *)p; }\n'
+        '__attribute__((weak, visibility("default"))) char *canonicalize_file_name(const char *path) { return realpath(path, NULL); }\n'
+        '__attribute__((weak, visibility("default"))) int sync_file_range(int fd, off64_t offset, off64_t nbytes, unsigned int flags) { (void)fd; (void)offset; (void)nbytes; (void)flags; return 0; }\n'
         '__attribute__((weak, visibility("default"))) long __timezone = 0;\n'
         '__attribute__((weak, visibility("default"))) long timezone = 0;\n'
         '__attribute__((weak, visibility("default"))) int daylight = 0;\n'
@@ -262,6 +272,16 @@ def setup_bionic_compat() -> None:
         "int posix_fadvise(int fd, off_t offset, off_t len, int advice);\n"
         "int posix_fallocate(int fd, off_t offset, off_t len);\n"
         "int getloadavg(double loadavg[], int nelem);\n"
+        "int malloc_trim(size_t pad);\n"
+        "void malloc_stats(void);\n"
+        "int mallopt(int param, int value);\n"
+        "char *secure_getenv(const char *name);\n"
+        "char *__secure_getenv(const char *name);\n"
+        "int clearenv(void);\n"
+        "char *strchrnul(const char *s, int c);\n"
+        "void *rawmemchr(const void *s, int c);\n"
+        "char *canonicalize_file_name(const char *path);\n"
+        "int sync_file_range(int fd, off64_t offset, off64_t nbytes, unsigned int flags);\n"
         "void *reallocarray(void *ptr, size_t nmemb, size_t size);\n"
         "const unsigned short **__ctype_b_loc(void);\n"
         "const int32_t **__ctype_tolower_loc(void);\n"
@@ -545,7 +565,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                     "curl",
                     "-fsSL",
                     "-A",
-                    "Mozilla/0.0",
+                    "Mozilla/5.0",
                     "--retry",
                     "5",
                     src_url_str,
@@ -643,7 +663,7 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
             build_alpine(rec, str(d_dir), str(output_dir), target_arch=rec.arch)
         if "pip" in fmts:
             build_pip(rec, str(d_dir), str(output_dir))
-        if "npm" in fmts:
+        if "npm" in node_fmts if (node_fmts := fmts) else []:
             build_npm(rec, str(d_dir), str(output_dir))
 
         verify_format_archives(output_dir, rec.name)
