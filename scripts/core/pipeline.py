@@ -62,9 +62,15 @@ def setup_bionic_compat() -> None:
 
     compat_c = Path("/tmp/bionic_compat.c")
     compat_c.write_text(
-        "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <stdarg.h>\n#include <time.h>\n#include <pthread.h>\n"
-        "extern char **environ;\n"
+        "#include <stddef.h>\n"
+        "#include <string.h>\n"
+        "#include <stdio.h>\n"
+        "#include <stdlib.h>\n"
+        "#include <stdarg.h>\n"
+        "#include <time.h>\n"
+        "#include <pthread.h>\n"
         "#include <errno.h>\n"
+        "extern char **environ;\n"
         '__attribute__((weak, visibility("default"))) int *__errno(void) { return &errno; }\n'
         '__attribute__((weak, visibility("default"))) int *__errno_location(void) { return __errno(); }\n'
         '__attribute__((weak, visibility("default"))) int *__h_errno_location(void) { return __errno(); }\n'
@@ -112,7 +118,10 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) long __isoc23_strtol(const char *n, char **e, int b) { return strtol(n, e, b); }\n'
         '__attribute__((weak, visibility("default"))) unsigned long __isoc23_strtoul(const char *n, char **e, int b) { return strtoul(n, e, b); }\n'
         '__attribute__((weak, visibility("default"))) long long __isoc23_strtoll(const char *n, char **e, int b) { return strtoll(n, e, b); }\n'
-        '__attribute__((weak, visibility("default"))) unsigned long long __isoc23_strtoull(const char *n, char **e, int b) { return strtoull(n, e, b); }\n',
+        '__attribute__((weak, visibility("default"))) unsigned long long __isoc23_strtoull(const char *n, char **e, int b) { return strtoull(n, e, b); }\n'
+        '__attribute__((weak, visibility("default"))) int bcmp(const void *s1, const void *s2, size_t n) { return memcmp(s1, s2, n); }\n'
+        '__attribute__((weak, visibility("default"))) void bcopy(const void *src, void *dest, size_t n) { memmove(dest, src, n); }\n'
+        '__attribute__((weak, visibility("default"))) void bzero(void *s, size_t n) { memset(s, 0, n); }\n',
         encoding="utf-8",
     )
     obj = Path("/tmp/bionic_compat.o")
@@ -130,7 +139,16 @@ def setup_bionic_compat() -> None:
 
     stub_h = Path("/tmp/bionic_stub.h")
     stub_h.write_text(
-        "#ifndef _BIONIC_STUB_H\n#define _BIONIC_STUB_H\n#include <sys/cdefs.h>\n#include <android/api-level.h>\n#include <sys/types.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include <pthread.h>\n#include <time.h>\n"
+        "#ifndef _BIONIC_STUB_H\n"
+        "#define _BIONIC_STUB_H\n"
+        "#include <sys/cdefs.h>\n"
+        "#include <android/api-level.h>\n"
+        "#include <sys/types.h>\n"
+        "#include <stddef.h>\n"
+        "#include <string.h>\n"
+        "#include <stdlib.h>\n"
+        "#include <pthread.h>\n"
+        "#include <time.h>\n"
         '#ifdef __cplusplus\nextern "C" {\n#endif\n'
         "int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);\n"
         "int pthread_cond_clockwait(pthread_cond_t* __cond, pthread_mutex_t* __mutex, clockid_t __clock_id, const struct timespec* __abstime);\n"
