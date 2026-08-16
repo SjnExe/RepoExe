@@ -173,7 +173,7 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int posix_fallocate(int fd, off_t offset, off_t len) { return posix_fallocate64(fd, offset, len); }\n'
         '__attribute__((weak, visibility("default"))) int posix_fallocate64(int fd, off64_t offset, off64_t len) { return (int)syscall(__NR_fallocate, fd, 0, offset, len); }\n'
         '__attribute__((weak, visibility("default"))) int getloadavg(double loadavg[], int nelem) { for (int i = 0; i < nelem; ++i) loadavg[i] = 0.0; return nelem; }\n'
-        '__attribute__((weak, visibility("default"))) int malloc_trim(size_pad) { (void)size_pad; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int malloc_trim(size_t pad) { (void)pad; return 0; }\n'
         '__attribute__((weak, visibility("default"))) void malloc_stats(void) {}\n'
         '__attribute__((weak, visibility("default"))) int mallopt(int param, int value) { (void)param; (void)value; return 1; }\n'
         '__attribute__((weak, visibility("default"))) char *secure_getenv(const char *name) { return getenv(name); }\n'
