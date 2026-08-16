@@ -94,6 +94,10 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n'
         '__attribute__((weak, visibility("default"))) int pthread_getname_np(pthread_t t, char *n, size_t s) { (void)t; (void)n; (void)s; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int pthread_cond_clockwait(pthread_cond_t *c, pthread_mutex_t *m, clockid_t clock_id, const struct timespec *ts) { (void)clock_id; return pthread_cond_timedwait(c, m, ts); }\n'
+        '__attribute__((weak, visibility("default"))) int pthread_setcancelstate(int state, int *oldstate) { if (oldstate) *oldstate = state; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int pthread_setcanceltype(int type, int *oldtype) { if (oldtype) *oldtype = type; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int pthread_cancel(pthread_t thread) { (void)thread; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) void pthread_testcancel(void) {}\n'
         '__attribute__((weak, visibility("default"))) long __timezone = 0;\n'
         '__attribute__((weak, visibility("default"))) long timezone = 0;\n'
         '__attribute__((weak, visibility("default"))) int daylight = 0;\n'
@@ -152,6 +156,10 @@ def setup_bionic_compat() -> None:
         '#ifdef __cplusplus\nextern "C" {\n#endif\n'
         "int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);\n"
         "int pthread_cond_clockwait(pthread_cond_t* __cond, pthread_mutex_t* __mutex, clockid_t __clock_id, const struct timespec* __abstime);\n"
+        "int pthread_setcancelstate(int state, int *oldstate);\n"
+        "int pthread_setcanceltype(int type, int *oldtype);\n"
+        "int pthread_cancel(pthread_t thread);\n"
+        "void pthread_testcancel(void);\n"
         "extern long __timezone;\n"
         "extern long timezone;\n"
         "extern int daylight;\n"
