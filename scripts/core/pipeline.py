@@ -71,6 +71,7 @@ def setup_bionic_compat() -> None:
         "#include <time.h>\n"
         "#include <pthread.h>\n"
         "#include <ctype.h>\n"
+        "#include <netdb.h>\n"
         "#include <errno.h>\n"
         "extern char **environ;\n"
         '__attribute__((weak, visibility("default"))) int *__errno(void) { return &errno; }\n'
@@ -161,7 +162,11 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) const unsigned short **__ctype_b_loc(void) { __init_ctype_tables(); return &__ctype_b_ptr; }\n'
         '__attribute__((weak, visibility("default"))) const int32_t **__ctype_tolower_loc(void) { __init_ctype_tables(); return &__ctype_tolower_ptr; }\n'
         '__attribute__((weak, visibility("default"))) const int32_t **__ctype_toupper_loc(void) { __init_ctype_tables(); return &__ctype_toupper_ptr; }\n'
-        '__attribute__((weak, visibility("default"))) size_t __ctype_get_mb_cur_max(void) { return 4; }\n',
+        '__attribute__((weak, visibility("default"))) size_t __ctype_get_mb_cur_max(void) { return 4; }\n'
+        '__attribute__((weak, visibility("default"))) int getservbyname_r(const char *n, const char *p, struct servent *r, char *b, size_t l, struct servent **res) { struct servent *s = getservbyname(n, p); if (!s) { *res = NULL; return ENOENT; } *r = *s; *res = r; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int getservbyport_r(int port, const char *p, struct servent *r, char *b, size_t l, struct servent **res) { struct servent *s = getservbyport(port, p); if (!s) { *res = NULL; return ENOENT; } *r = *s; *res = r; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int getprotobyname_r(const char *n, struct protoent *r, char *b, size_t l, struct protoent **res) { struct protoent *p = getprotobyname(n); if (!p) { *res = NULL; return ENOENT; } *r = *p; *res = r; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int getprotobynumber_r(int proto, struct protoent *r, char *b, size_t l, struct protoent **res) { struct protoent *p = getprotobynumber(proto); if (!p) { *res = NULL; return ENOENT; } *r = *p; *res = r; return 0; }\n',
         encoding="utf-8",
     )
     obj = Path("/tmp/bionic_compat.o")
@@ -189,6 +194,7 @@ def setup_bionic_compat() -> None:
         "#include <string.h>\n"
         "#include <stdlib.h>\n"
         "#include <pthread.h>\n"
+        "#include <netdb.h>\n"
         "#include <time.h>\n"
         '#ifdef __cplusplus\nextern "C" {\n#endif\n'
         "int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);\n"
@@ -201,6 +207,10 @@ def setup_bionic_compat() -> None:
         "const int32_t **__ctype_tolower_loc(void);\n"
         "const int32_t **__ctype_toupper_loc(void);\n"
         "size_t __ctype_get_mb_cur_max(void);\n"
+        "int getservbyname_r(const char *n, const char *p, struct servent *r, char *b, size_t l, struct servent **res);\n"
+        "int getservbyport_r(int port, const char *p, struct servent *r, char *b, size_t l, struct servent **res);\n"
+        "int getprotobyname_r(const char *n, struct protoent *r, char *b, size_t l, struct protoent **res);\n"
+        "int getprotobynumber_r(int proto, struct protoent *r, char *b, size_t l, struct protoent **res);\n"
         "extern long __timezone;\n"
         "extern long timezone;\n"
         "extern int daylight;\n"
