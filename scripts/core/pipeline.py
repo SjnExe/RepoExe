@@ -21,7 +21,7 @@ from utils.toolchains import setup_build_environment
 DEFAULT_BIONIC_ENV = {
     "CFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fPIE -include /tmp/bionic_stub.h",
     "CXXFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fPIE -include /tmp/bionic_stub.h",
-    "LDFLAGS": "-pie -fuse-ld=lld -static-libgcc -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z,max-page-size=16384 -Wl,--gc-sections -Wl,--threads=4 -L/tmp -lbionic_compat",
+    "LDFLAGS": "-pie -fuse-ld=lld -static-libgcc -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z,max-page-size=16384 -Wl,--gc-sections -Wl,--threads=4 -Wl,--whole-archive -L/tmp -lbionic_compat -Wl,--no-whole-archive",
     "CARGO_BUILD_TARGET": "aarch64-linux-android",
     "GOOS": "android",
     "GOARCH": "arm64",
@@ -143,14 +143,20 @@ def setup_bionic_compat() -> None:
         "    if (rtld_fini) rtld_fini();\n"
         "    exit(ret);\n"
         "}\n"
+        '__attribute__((weak, visibility("default"))) int __cxa_at_quick_exit(void (*func)(void), void *dso_handle) { (void)dso_handle; return atexit(func); }\n'
+        '__attribute__((weak, visibility("default"))) int at_quick_exit(void (*func)(void)) { return atexit(func); }\n'
+        '__attribute__((weak, visibility("default"))) void quick_exit(int status) { exit(status); }\n'
         '__attribute__((weak, visibility("default"))) int _dl_find_object(void *address, void *result) { (void)address; (void)result; return -1; }\n'
         '__attribute__((weak, visibility("default"))) int dl_find_object(void *address, void *result) { (void)address; (void)result; return -1; }\n'
+        '__attribute__((weak, visibility("default"))) int dladdr1(const void *addr, Dl_info *info, void **extra_info, int flags) { (void)extra_info; (void)flags; return dladdr(addr, info); }\n'
         '__attribute__((weak, visibility("default"))) void *__libc_dlopen_mode(const char *name, int mode) { return dlopen(name, mode); }\n'
         '__attribute__((weak, visibility("default"))) void *__libc_dlsym(void *handle, const char *name) { return dlsym(handle, name); }\n'
         '__attribute__((weak, visibility("default"))) int __libc_dlclose(void *handle) { return dlclose(handle); }\n'
         '__attribute__((weak, visibility("default"))) int __register_atfork(void (*prepare)(void), void (*parent)(void), void (*child)(void), void *dso_handle) { (void)dso_handle; return pthread_atfork(prepare, parent, child); }\n'
         '__attribute__((weak, visibility("default"))) int __libc_current_sigrtmin(void) { return SIGRTMIN; }\n'
         '__attribute__((weak, visibility("default"))) int __libc_current_sigrtmax(void) { return SIGRTMAX; }\n'
+        '__attribute__((weak, visibility("default"))) int timespec_get(struct timespec *ts, int base) { if (base != 1) return 0; return clock_gettime(CLOCK_REALTIME, ts) == 0 ? base : 0; }\n'
+        '__attribute__((weak, visibility("default"))) int timespec_getres(struct timespec *ts, int base) { if (base != 1) return 0; return clock_getres(CLOCK_REALTIME, ts) == 0 ? base : 0; }\n'
         '__attribute__((weak, visibility("default"))) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n'
         '__attribute__((weak, visibility("default"))) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n'
         '__attribute__((weak, visibility("default"))) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n'
@@ -401,6 +407,7 @@ def setup_bionic_compat() -> None:
         "#include <pthread.h>\n"
         "#include <signal.h>\n"
         "#include <netdb.h>\n"
+        "#include <dlfcn.h>\n"
         "#include <wchar.h>\n"
         "#include <wctype.h>\n"
         "#include <locale.h>\n"
@@ -424,14 +431,20 @@ def setup_bionic_compat() -> None:
         "extern char **__tzname;\n"
         "int *__get_h_errno(void);\n"
         "int *__h_errno(void);\n"
+        "int __cxa_at_quick_exit(void (*func)(void), void *dso_handle);\n"
+        "int at_quick_exit(void (*func)(void));\n"
+        "void quick_exit(int status);\n"
         "int _dl_find_object(void *address, void *result);\n"
         "int dl_find_object(void *address, void *result);\n"
+        "int dladdr1(const void *addr, Dl_info *info, void **extra_info, int flags);\n"
         "void *__libc_dlopen_mode(const char *name, int mode);\n"
         "void *__libc_dlsym(void *handle, const char *name);\n"
         "int __libc_dlclose(void *handle);\n"
         "int __register_atfork(void (*prepare)(void), void (*parent)(void), void (*child)(void), void *dso_handle);\n"
         "int __libc_current_sigrtmin(void);\n"
         "int __libc_current_sigrtmax(void);\n"
+        "int timespec_get(struct timespec *ts, int base);\n"
+        "int timespec_getres(struct timespec *ts, int base);\n"
         "int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);\n"
         "int pthread_cond_clockwait(pthread_cond_t* __cond, pthread_mutex_t* __mutex, clockid_t __clock_id, const struct timespec* __abstime);\n"
         "int pthread_setcancelstate(int state, int *oldstate);\n"

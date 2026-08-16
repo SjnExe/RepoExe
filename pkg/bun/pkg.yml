@@ -229,13 +229,13 @@ phases:
     echo '  done' >> /tmp/fake-clang/version_shim
     echo '  EXTRA_FLAGS=""' >> /tmp/fake-clang/version_shim
     echo '  if [ "$IS_COMPILE_ONLY" = "0" ] && [ -f /tmp/bionic_compat.o ]; then' >> /tmp/fake-clang/version_shim
-    echo '    EXTRA_FLAGS="/tmp/bionic_compat.o -L/tmp -lbionic_compat"' >> /tmp/fake-clang/version_shim
+    echo '    EXTRA_FLAGS="/tmp/bionic_compat.o -Wl,--whole-archive -L/tmp -lbionic_compat -Wl,--no-whole-archive"' >> /tmp/fake-clang/version_shim
     echo '  fi' >> /tmp/fake-clang/version_shim
     echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA_FLAGS' >> /tmp/fake-clang/version_shim
     echo 'elif [ "$cmd" = "ld.lld" ] || [ "$cmd" = "lld" ]; then' >> /tmp/fake-clang/version_shim
     echo '  EXTRA_FLAGS=""' >> /tmp/fake-clang/version_shim
     echo '  if [ -f /tmp/bionic_compat.o ]; then' >> /tmp/fake-clang/version_shim
-    echo '    EXTRA_FLAGS="/tmp/bionic_compat.o -L/tmp -lbionic_compat"' >> /tmp/fake-clang/version_shim
+    echo '    EXTRA_FLAGS="/tmp/bionic_compat.o -Wl,--whole-archive -L/tmp -lbionic_compat -Wl,--no-whole-archive"' >> /tmp/fake-clang/version_shim
     echo '  fi' >> /tmp/fake-clang/version_shim
     echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" $EXTRA_FLAGS' >> /tmp/fake-clang/version_shim
     echo 'else' >> /tmp/fake-clang/version_shim
@@ -254,7 +254,7 @@ phases:
 
     export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
     export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
-    export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm -L/tmp -lbionic_compat"
+    export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm -Wl,--whole-archive -L/tmp -lbionic_compat -Wl,--no-whole-archive"
 
     find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.zig" -o -name "*.cmake" -o -name "CMakeLists.txt" \) -exec sed -i 's/-fno-pic/-fPIC/g; s/-Wl,-no-pie/-Wl,-pie/g; s/-no-pie/-pie/g' {} + 2>/dev/null || true
 
