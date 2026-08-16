@@ -68,6 +68,7 @@ def setup_bionic_compat() -> None:
         "#include <stdint.h>\n"
         "#include <stdbool.h>\n"
         "#include <string.h>\n"
+        "#include <strings.h>\n"
         "#include <stdio.h>\n"
         "#include <stdlib.h>\n"
         "#include <stdarg.h>\n"
@@ -101,6 +102,17 @@ def setup_bionic_compat() -> None:
         "#undef __tzname\n"
         "#undef environ\n"
         "#undef __environ\n"
+        "#undef bcopy\n"
+        "#undef bzero\n"
+        "#undef bcmp\n"
+        "#undef toupper\n"
+        "#undef tolower\n"
+        "#undef towupper\n"
+        "#undef towlower\n"
+        "#undef iswalpha\n"
+        "#undef iswdigit\n"
+        "#undef iswspace\n"
+        "#undef iswctype\n"
         "extern char **environ;\n"
         '__attribute__((weak, visibility("default"))) long __timezone = 0;\n'
         '__attribute__((weak, visibility("default"))) long timezone = 0;\n'
@@ -161,7 +173,7 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int posix_fallocate(int fd, off_t offset, off_t len) { return posix_fallocate64(fd, offset, len); }\n'
         '__attribute__((weak, visibility("default"))) int posix_fallocate64(int fd, off64_t offset, off64_t len) { return (int)syscall(__NR_fallocate, fd, 0, offset, len); }\n'
         '__attribute__((weak, visibility("default"))) int getloadavg(double loadavg[], int nelem) { for (int i = 0; i < nelem; ++i) loadavg[i] = 0.0; return nelem; }\n'
-        '__attribute__((weak, visibility("default"))) int malloc_trim(size_t pad) { (void)pad; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int malloc_trim(size_pad) { (void)size_pad; return 0; }\n'
         '__attribute__((weak, visibility("default"))) void malloc_stats(void) {}\n'
         '__attribute__((weak, visibility("default"))) int mallopt(int param, int value) { (void)param; (void)value; return 1; }\n'
         '__attribute__((weak, visibility("default"))) char *secure_getenv(const char *name) { return getenv(name); }\n'
@@ -210,7 +222,7 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) size_t __wcsxfrm_l(wchar_t *dest, const wchar_t *src, size_t n, locale_t loc) { (void)loc; return wcsxfrm(dest, src, n); }\n'
         '__attribute__((weak, visibility("default"))) int strcasecmp_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcasecmp(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) int __strcasecmp_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcasecmp(s1, s2); }\n'
-        '__attribute__((weak, visibility("default"))) int strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc) { (void)loc; return strcasecmp(s1, s2); }\n'
+        '__attribute__((weak, visibility("default"))) int strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc) { (void)loc; return strncasecmp(s1, s2, n); }\n'
         '__attribute__((weak, visibility("default"))) int __strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc) { (void)loc; return strncasecmp(s1, s2, n); }\n'
         '__attribute__((weak, visibility("default"))) int wcscasecmp_l(const wchar_t *s1, const wchar_t *s2, locale_t loc) { (void)loc; return wcscasecmp(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) int __wcscasecmp_l(const wchar_t *s1, const wchar_t *s2, locale_t loc) { (void)loc; return wcscasecmp(s1, s2); }\n'
@@ -354,6 +366,8 @@ def setup_bionic_compat() -> None:
     )
     if res_cc.returncode != 0:
         print(f"⚠️ bionic_compat compile error:\n{res_cc.stderr}")
+    else:
+        print("✓ bionic_compat.o compiled successfully.")
     subprocess.run(
         [ndk_ar, "rcs", str(lib), str(obj)],
         check=False,
@@ -388,6 +402,9 @@ def setup_bionic_compat() -> None:
         "#undef __daylight\n"
         "#undef tzname\n"
         "#undef __tzname\n"
+        "#undef bcopy\n"
+        "#undef bzero\n"
+        "#undef bcmp\n"
         '#ifdef __cplusplus\nextern "C" {\n#endif\n'
         "extern long __timezone;\n"
         "extern long timezone;\n"
