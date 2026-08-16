@@ -92,6 +92,8 @@ def setup_bionic_compat() -> None:
         "#include <locale.h>\n"
         "#include <langinfo.h>\n"
         "#include <netdb.h>\n"
+        "#include <dlfcn.h>\n"
+        "#include <link.h>\n"
         "#include <math.h>\n"
         "#include <errno.h>\n"
         "#undef __timezone\n"
@@ -141,6 +143,14 @@ def setup_bionic_compat() -> None:
         "    if (rtld_fini) rtld_fini();\n"
         "    exit(ret);\n"
         "}\n"
+        '__attribute__((weak, visibility("default"))) int _dl_find_object(void *address, void *result) { (void)address; (void)result; return -1; }\n'
+        '__attribute__((weak, visibility("default"))) int dl_find_object(void *address, void *result) { (void)address; (void)result; return -1; }\n'
+        '__attribute__((weak, visibility("default"))) void *__libc_dlopen_mode(const char *name, int mode) { return dlopen(name, mode); }\n'
+        '__attribute__((weak, visibility("default"))) void *__libc_dlsym(void *handle, const char *name) { return dlsym(handle, name); }\n'
+        '__attribute__((weak, visibility("default"))) int __libc_dlclose(void *handle) { return dlclose(handle); }\n'
+        '__attribute__((weak, visibility("default"))) int __register_atfork(void (*prepare)(void), void (*parent)(void), void (*child)(void), void *dso_handle) { (void)dso_handle; return pthread_atfork(prepare, parent, child); }\n'
+        '__attribute__((weak, visibility("default"))) int __libc_current_sigrtmin(void) { return SIGRTMIN; }\n'
+        '__attribute__((weak, visibility("default"))) int __libc_current_sigrtmax(void) { return SIGRTMAX; }\n'
         '__attribute__((weak, visibility("default"))) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n'
         '__attribute__((weak, visibility("default"))) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n'
         '__attribute__((weak, visibility("default"))) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n'
@@ -414,6 +424,14 @@ def setup_bionic_compat() -> None:
         "extern char **__tzname;\n"
         "int *__get_h_errno(void);\n"
         "int *__h_errno(void);\n"
+        "int _dl_find_object(void *address, void *result);\n"
+        "int dl_find_object(void *address, void *result);\n"
+        "void *__libc_dlopen_mode(const char *name, int mode);\n"
+        "void *__libc_dlsym(void *handle, const char *name);\n"
+        "int __libc_dlclose(void *handle);\n"
+        "int __register_atfork(void (*prepare)(void), void (*parent)(void), void (*child)(void), void *dso_handle);\n"
+        "int __libc_current_sigrtmin(void);\n"
+        "int __libc_current_sigrtmax(void);\n"
         "int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);\n"
         "int pthread_cond_clockwait(pthread_cond_t* __cond, pthread_mutex_t* __mutex, clockid_t __clock_id, const struct timespec* __abstime);\n"
         "int pthread_setcancelstate(int state, int *oldstate);\n"
