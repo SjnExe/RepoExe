@@ -84,6 +84,8 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int *__errno(void) { return &errno; }\n'
         '__attribute__((weak, visibility("default"))) int *__errno_location(void) { return __errno(); }\n'
         '__attribute__((weak, visibility("default"))) int *__h_errno_location(void) { return __errno(); }\n'
+        '__attribute__((weak, visibility("default"))) int *__get_h_errno(void) { return __errno(); }\n'
+        '__attribute__((weak, visibility("default"))) int *__h_errno(void) { return __errno(); }\n'
         '__attribute__((weak, visibility("default"))) int __libc_start_main(\n'
         "    int (*main)(int, char **, char **),\n"
         "    int argc,\n"
@@ -186,9 +188,9 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int getservbyport_r(int port, const char *p, struct servent *r, char *b, size_t l, struct servent **res) { struct servent *s = getservbyport(port, p); if (!s) { *res = NULL; return ENOENT; } *r = *s; *res = r; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int getprotobyname_r(const char *n, struct protoent *r, char *b, size_t l, struct protoent **res) { struct protoent *p = getprotobyname(n); if (!p) { *res = NULL; return ENOENT; } *r = *p; *res = r; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int getprotobynumber_r(int proto, struct protoent *r, char *b, size_t l, struct protoent **res) { struct protoent *p = getprotobynumber(proto); if (!p) { *res = NULL; return ENOENT; } *r = *p; *res = r; return 0; }\n'
-        '__attribute__((weak, visibility("default"))) int gethostbyname_r(const char *name, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { struct hostent *hp = gethostbyname(name); if (!hp) { *result = NULL; if (h_errnop) *h_errnop = h_errno; return ENOENT; } *ret = *hp; *result = ret; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int gethostbyname_r(const char *name, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { struct hostent *hp = gethostbyname(name); if (!hp) { *result = NULL; if (h_errnop) *h_errnop = 1; return ENOENT; } *ret = *hp; *result = ret; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int gethostbyname2_r(const char *name, int af, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { (void)af; return gethostbyname_r(name, ret, buf, buflen, result, h_errnop); }\n'
-        '__attribute__((weak, visibility("default"))) int gethostbyaddr_r(const void *addr, socklen_t len, int type, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { struct hostent *hp = gethostbyaddr(addr, len, type); if (!hp) { *result = NULL; if (h_errnop) *h_errnop = h_errno; return ENOENT; } *ret = *hp; *result = ret; return 0; }\n',
+        '__attribute__((weak, visibility("default"))) int gethostbyaddr_r(const void *addr, socklen_t len, int type, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { struct hostent *hp = gethostbyaddr(addr, len, type); if (!hp) { *result = NULL; if (h_errnop) *h_errnop = 1; return ENOENT; } *ret = *hp; *result = ret; return 0; }\n',
         encoding="utf-8",
     )
     obj = Path("/tmp/bionic_compat.o")
@@ -222,6 +224,8 @@ def setup_bionic_compat() -> None:
         "#include <netdb.h>\n"
         "#include <time.h>\n"
         '#ifdef __cplusplus\nextern "C" {\n#endif\n'
+        "int *__get_h_errno(void);\n"
+        "int *__h_errno(void);\n"
         "int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);\n"
         "int pthread_cond_clockwait(pthread_cond_t* __cond, pthread_mutex_t* __mutex, clockid_t __clock_id, const struct timespec* __abstime);\n"
         "int pthread_setcancelstate(int state, int *oldstate);\n"
