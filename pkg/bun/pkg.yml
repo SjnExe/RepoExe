@@ -163,6 +163,9 @@ phases:
 
     echo '#!/bin/bash' > /tmp/fake-clang/version_shim
     echo 'cmd="$(basename "$0")"' >> /tmp/fake-clang/version_shim
+    echo 'if [[ "$*" == *"codegen-tool"* ]] || [[ "$*" == *"-DC2STR"* ]] || [[ "$*" == *"conftest.c"* ]]; then' >> /tmp/fake-clang/version_shim
+    echo '  exec "/usr/bin/$cmd" "$@"' >> /tmp/fake-clang/version_shim
+    echo 'fi' >> /tmp/fake-clang/version_shim
     echo 'NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"' >> /tmp/fake-clang/version_shim
     echo 'if [ ! -d "$NDK_BIN" ]; then' >> /tmp/fake-clang/version_shim
     echo '  NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \; 2>/dev/null | head -n 1)' >> /tmp/fake-clang/version_shim

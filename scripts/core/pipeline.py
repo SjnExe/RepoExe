@@ -64,7 +64,8 @@ def setup_bionic_compat() -> None:
     compat_c.write_text(
         "#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <stdarg.h>\n#include <time.h>\n#include <pthread.h>\n"
         "extern char **environ;\n"
-        "extern int *__errno(void);\n"
+        "#include <errno.h>\n"
+        '__attribute__((weak, visibility("default"))) int *__errno(void) { return &errno; }\n'
         '__attribute__((weak, visibility("default"))) int *__errno_location(void) { return __errno(); }\n'
         '__attribute__((weak, visibility("default"))) int *__h_errno_location(void) { return __errno(); }\n'
         '__attribute__((weak, visibility("default"))) int __libc_start_main(\n'
