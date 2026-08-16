@@ -161,6 +161,26 @@ phases:
       touch "${c_dir}/webkit-${WEBKIT_SHA}-arm64.tar.gz" 2>/dev/null || true
     done
 
+    echo "⚡ Applying intelligent Bionic aarch64 target transformations..."
+    python3 -c "
+    import os, re
+    for root, _, files in os.walk('.'):
+        for f in files:
+            if f.endswith(('.ts', '.js', '.zig', '.cmake', '.json')) and 'node_modules' not in root:
+                p = os.path.join(root, f)
+                try:
+                    with open(p, 'r', encoding='utf-8', errors='ignore') as fp:
+                        content = fp.read()
+                    new_c = content
+                    new_c = re.sub(r'aarch64-linux-gnu(\.[0-9\.]+)?', 'aarch64-linux-android', new_c)
+                    new_c = re.sub(r'linux-aarch64-gnu', 'linux-aarch64-android', new_c)
+                    if new_c != content:
+                        with open(p, 'w', encoding='utf-8') as fp:
+                            fp.write(new_c)
+                except Exception:
+                    pass
+    "
+
     echo '#!/bin/bash' > /tmp/fake-clang/version_shim
     echo 'cmd="$(basename "$0")"' >> /tmp/fake-clang/version_shim
     echo 'if [[ "$*" == *"codegen-tool"* ]] || [[ "$*" == *"-DC2STR"* ]] || [[ "$*" == *"conftest.c"* ]]; then' >> /tmp/fake-clang/version_shim
@@ -188,7 +208,6 @@ phases:
     echo '  for obj in $(find /home/builder/RepoExe /tmp -name "bun-zig.o" 2>/dev/null); do' >> /tmp/fake-clang/version_shim
     echo '    cp -f "$obj" ./bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
     echo '    cp -f "$obj" ./build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
-    echo '    cp -f "$obj" /home/builder/RepoExe/build/build_bun/src/bun-bun-v1.3.14/build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
     echo '  done' >> /tmp/fake-clang/version_shim
     echo '  EXTRA_FLAGS=""' >> /tmp/fake-clang/version_shim
     echo '  if [ "$IS_COMPILE_ONLY" = "0" ] && [ -f /tmp/bionic_compat.o ]; then' >> /tmp/fake-clang/version_shim

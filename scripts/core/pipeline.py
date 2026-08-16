@@ -62,6 +62,8 @@ def setup_bionic_compat() -> None:
 
     compat_c = Path("/tmp/bionic_compat.c")
     compat_c.write_text(
+        "#define _GNU_SOURCE 1\n"
+        "#define __USE_GNU 1\n"
         "#include <stddef.h>\n"
         "#include <stdint.h>\n"
         "#include <stdbool.h>\n"
@@ -208,15 +210,13 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) size_t __wcsxfrm_l(wchar_t *dest, const wchar_t *src, size_t n, locale_t loc) { (void)loc; return wcsxfrm(dest, src, n); }\n'
         '__attribute__((weak, visibility("default"))) int strcasecmp_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcasecmp(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) int __strcasecmp_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcasecmp(s1, s2); }\n'
-        '__attribute__((weak, visibility("default"))) int strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc) { (void)loc; return strncasecmp(s1, s2, n); }\n'
+        '__attribute__((weak, visibility("default"))) int strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc) { (void)loc; return strcasecmp(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) int __strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc) { (void)loc; return strncasecmp(s1, s2, n); }\n'
         '__attribute__((weak, visibility("default"))) int wcscasecmp_l(const wchar_t *s1, const wchar_t *s2, locale_t loc) { (void)loc; return wcscasecmp(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) int __wcscasecmp_l(const wchar_t *s1, const wchar_t *s2, locale_t loc) { (void)loc; return wcscasecmp(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) int wcsncasecmp_l(const wchar_t *s1, const wchar_t *s2, size_t n, locale_t loc) { (void)loc; return wcsncasecmp(s1, s2, n); }\n'
         '__attribute__((weak, visibility("default"))) int __wcsncasecmp_l(const wchar_t *s1, const wchar_t *s2, size_t n, locale_t loc) { (void)loc; return wcsncasecmp(s1, s2, n); }\n'
-        '__attribute__((weak, visibility("default"))) int toupper_l(int c, locale_t loc) { (void)loc; return toupper(c); }\n'
         '__attribute__((weak, visibility("default"))) int __toupper_l(int c, locale_t loc) { (void)loc; return toupper(c); }\n'
-        '__attribute__((weak, visibility("default"))) int tolower_l(int c, locale_t loc) { (void)loc; return tolower(c); }\n'
         '__attribute__((weak, visibility("default"))) int __tolower_l(int c, locale_t loc) { (void)loc; return tolower(c); }\n'
         '__attribute__((weak, visibility("default"))) wint_t towupper_l(wint_t wc, locale_t loc) { (void)loc; return towupper(wc); }\n'
         '__attribute__((weak, visibility("default"))) wint_t __towupper_l(wint_t wc, locale_t loc) { (void)loc; return towupper(wc); }\n'
@@ -232,11 +232,8 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int __iswctype_l(wint_t wc, wctype_t desc, locale_t loc) { (void)loc; return iswctype(wc, desc); }\n'
         '__attribute__((weak, visibility("default"))) wctype_t wctype_l(const char *name, locale_t loc) { (void)loc; return wctype(name); }\n'
         '__attribute__((weak, visibility("default"))) wctype_t __wctype_l(const char *name, locale_t loc) { (void)loc; return wctype(name); }\n'
-        '__attribute__((weak, visibility("default"))) double strtod_l(const char *nptr, char **endptr, locale_t loc) { (void)loc; return strtod(nptr, endptr); }\n'
         '__attribute__((weak, visibility("default"))) double __strtod_l(const char *nptr, char **endptr, locale_t loc) { (void)loc; return strtod(nptr, endptr); }\n'
-        '__attribute__((weak, visibility("default"))) float strtof_l(const char *nptr, char **endptr, locale_t loc) { (void)loc; return strtof(nptr, endptr); }\n'
         '__attribute__((weak, visibility("default"))) float __strtof_l(const char *nptr, char **endptr, locale_t loc) { (void)loc; return strtof(nptr, endptr); }\n'
-        '__attribute__((weak, visibility("default"))) long double strtold_l(const char *nptr, char **endptr, locale_t loc) { (void)loc; return strtold(nptr, endptr); }\n'
         '__attribute__((weak, visibility("default"))) long double __strtold_l(const char *nptr, char **endptr, locale_t loc) { (void)loc; return strtold(nptr, endptr); }\n'
         '__attribute__((weak, visibility("default"))) long strtol_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtol(nptr, endptr, base); }\n'
         '__attribute__((weak, visibility("default"))) long __strtol_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtol(nptr, endptr, base); }\n'
@@ -246,7 +243,6 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) long long __strtoll_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoll(nptr, endptr, base); }\n'
         '__attribute__((weak, visibility("default"))) unsigned long long strtoull_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoull(nptr, endptr, base); }\n'
         '__attribute__((weak, visibility("default"))) unsigned long long __strtoull_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoull(nptr, endptr, base); }\n'
-        '__attribute__((weak, visibility("default"))) char *nl_langinfo_l(nl_item item, locale_t loc) { (void)loc; return nl_langinfo(item); }\n'
         '__attribute__((weak, visibility("default"))) char *__nl_langinfo_l(nl_item item, locale_t loc) { (void)loc; return nl_langinfo(item); }\n'
         '__attribute__((weak, visibility("default"))) size_t strftime_l(char *s, size_t max, const char *fmt, const struct tm *tm, locale_t loc) { (void)loc; return strftime(s, max, fmt, tm); }\n'
         '__attribute__((weak, visibility("default"))) size_t __strftime_l(char *s, size_t max, const char *fmt, const struct tm *tm, locale_t loc) { (void)loc; return strftime(s, max, fmt, tm); }\n'
@@ -341,7 +337,17 @@ def setup_bionic_compat() -> None:
     obj = Path("/tmp/bionic_compat.o")
     lib = Path("/tmp/libbionic_compat.a")
     res_cc = subprocess.run(
-        [ndk_clang, "-fPIC", "-c", str(compat_c), "-o", str(obj)],
+        [
+            ndk_clang,
+            "-fPIC",
+            "-O2",
+            "-Wno-error",
+            "-Wno-ignored-attributes",
+            "-c",
+            str(compat_c),
+            "-o",
+            str(obj),
+        ],
         check=False,
         capture_output=True,
         text=True,
@@ -358,6 +364,7 @@ def setup_bionic_compat() -> None:
     stub_h.write_text(
         "#ifndef _BIONIC_STUB_H\n"
         "#define _BIONIC_STUB_H\n"
+        "#define _GNU_SOURCE 1\n"
         "#include <sys/cdefs.h>\n"
         "#include <android/api-level.h>\n"
         "#include <sys/types.h>\n"
@@ -471,10 +478,6 @@ def setup_bionic_compat() -> None:
         "int __wcscasecmp_l(const wchar_t *s1, const wchar_t *s2, locale_t loc);\n"
         "int wcsncasecmp_l(const wchar_t *s1, const wchar_t *s2, size_t n, locale_t loc);\n"
         "int __wcsncasecmp_l(const wchar_t *s1, const wchar_t *s2, size_t n, locale_t loc);\n"
-        "int toupper_l(int c, locale_t loc);\n"
-        "int __toupper_l(int c, locale_t loc);\n"
-        "int tolower_l(int c, locale_t loc);\n"
-        "int __tolower_l(int c, locale_t loc);\n"
         "wint_t towupper_l(wint_t wc, locale_t loc);\n"
         "wint_t __towupper_l(wint_t wc, locale_t loc);\n"
         "wint_t towlower_l(wint_t wc, locale_t loc);\n"
@@ -489,12 +492,6 @@ def setup_bionic_compat() -> None:
         "int __iswctype_l(wint_t wc, wctype_t desc, locale_t loc);\n"
         "wctype_t wctype_l(const char *name, locale_t loc);\n"
         "wctype_t __wctype_l(const char *name, locale_t loc);\n"
-        "double strtod_l(const char *nptr, char **endptr, locale_t loc);\n"
-        "double __strtod_l(const char *nptr, char **endptr, locale_t loc);\n"
-        "float strtof_l(const char *nptr, char **endptr, locale_t loc);\n"
-        "float __strtof_l(const char *nptr, char **endptr, locale_t loc);\n"
-        "long double strtold_l(const char *nptr, char **endptr, locale_t loc);\n"
-        "long double __strtold_l(const char *nptr, char **endptr, locale_t loc);\n"
         "long strtol_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
         "long __strtol_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
         "unsigned long strtoul_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
@@ -503,8 +500,6 @@ def setup_bionic_compat() -> None:
         "long long __strtoll_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
         "unsigned long long strtoull_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
         "unsigned long long __strtoull_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
-        "char *nl_langinfo_l(nl_item item, locale_t loc);\n"
-        "char *__nl_langinfo_l(nl_item item, locale_t loc);\n"
         "size_t strftime_l(char *s, size_t max, const char *fmt, const struct tm *tm, locale_t loc);\n"
         "size_t __strftime_l(char *s, size_t max, const char *fmt, const struct tm *tm, locale_t loc);\n"
         "size_t wcsftime_l(wchar_t *s, size_t max, const wchar_t *fmt, const struct tm *tm, locale_t loc);\n"
@@ -901,7 +896,7 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
             build_alpine(rec, str(d_dir), str(output_dir), target_arch=rec.arch)
         if "pip" in fmts:
             build_pip(rec, str(d_dir), str(output_dir))
-        if "npm" in node_fmts if (node_fmts := fmts) else []:
+        if "npm" in fmts:
             build_npm(rec, str(d_dir), str(output_dir))
 
         verify_format_archives(output_dir, rec.name)
