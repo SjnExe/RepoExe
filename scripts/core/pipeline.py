@@ -96,6 +96,7 @@ def setup_bionic_compat() -> None:
         "#include <link.h>\n"
         "#include <math.h>\n"
         "#include <errno.h>\n"
+        "#include <poll.h>\n"
         "#undef __timezone\n"
         "#undef timezone\n"
         "#undef daylight\n"
@@ -148,11 +149,21 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) wchar_t *__wcscat_chk(wchar_t *dest, const wchar_t *src, size_t buflen) { (void)buflen; return wcscat(dest, src); }\n'
         '__attribute__((weak, visibility("default"))) wchar_t *__wcsncat_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen) { (void)buflen; return wcsncat(dest, src, n); }\n'
         '__attribute__((weak, visibility("default"))) size_t __mbsrtowcs_chk(wchar_t *dst, const char **src, size_t len, mbstate_t *ps, size_t buflen) { (void)buflen; return mbsrtowcs(dst, src, len, ps); }\n'
-        '__attribute__((weak, visibility("default"))) size_t __mbstowcs_chk(wchar_t *dst, const char *src, size_t len, size_t buflen) { (void)buflen; return mbstowcs(dst, src, len); }\n'
+        '__attribute__((weak, visibility("default"))) size_t __mbsnrtowcs_chk(wchar_t *dst, const char **src, size_t nmc, size_t len, mbstate_t *ps, size_t buflen) { (void)buflen; return mbsnrtowcs(dst, src, nmc, len, ps); }\n'
         '__attribute__((weak, visibility("default"))) size_t __wcsrtombs_chk(char *dst, const wchar_t **src, size_t len, mbstate_t *ps, size_t buflen) { (void)buflen; return wcsrtombs(dst, src, len, ps); }\n'
+        '__attribute__((weak, visibility("default"))) size_t __wcsnrtombs_chk(char *dst, const wchar_t **src, size_t nwc, size_t len, mbstate_t *ps, size_t buflen) { (void)buflen; return wcsnrtombs(dst, src, nwc, len, ps); }\n'
+        '__attribute__((weak, visibility("default"))) size_t __mbstowcs_chk(wchar_t *dst, const char *src, size_t len, size_t buflen) { (void)buflen; return mbstowcs(dst, src, len); }\n'
         '__attribute__((weak, visibility("default"))) size_t __wcstombs_chk(char *dst, const wchar_t *src, size_t len, size_t buflen) { (void)buflen; return wcstombs(dst, src, len); }\n'
         '__attribute__((weak, visibility("default"))) size_t __wcrtomb_chk(char *s, wchar_t wc, mbstate_t *ps, size_t buflen) { (void)buflen; return wcrtomb(s, wc, ps); }\n'
         '__attribute__((weak, visibility("default"))) int __wctomb_chk(char *s, wchar_t wchar, size_t buflen) { (void)buflen; return wctomb(s, wchar); }\n'
+        '__attribute__((weak, visibility("default"))) int __swprintf_chk(wchar_t *s, size_t n, int flag, size_t slen, const wchar_t *format, ...) { (void)flag; (void)slen; va_list ap; va_start(ap, format); int r = vswprintf(s, n, format, ap); va_end(ap); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __vswprintf_chk(wchar_t *s, size_t n, int flag, size_t slen, const wchar_t *format, va_list ap) { (void)flag; (void)slen; return vswprintf(s, n, format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __fwprintf_chk(FILE *stream, int flag, const wchar_t *format, ...) { (void)flag; va_list ap; va_start(ap, format); int r = vfwprintf(stream, format, ap); va_end(ap); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __vfwprintf_chk(FILE *stream, int flag, const wchar_t *format, va_list ap) { (void)flag; return vfwprintf(stream, format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __wprintf_chk(int flag, const wchar_t *format, ...) { (void)flag; va_list ap; va_start(ap, format); int r = vwprintf(format, ap); va_end(ap); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __vwprintf_chk(int flag, const wchar_t *format, va_list ap) { (void)flag; return vwprintf(format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) wchar_t *__fgetws_chk(wchar_t *s, size_t buflen, int n, FILE *stream) { (void)buflen; return fgetws(s, n, stream); }\n'
+        '__attribute__((weak, visibility("default"))) wchar_t *__fgetws_unlocked_chk(wchar_t *s, size_t buflen, int n, FILE *stream) { (void)buflen; return fgetws(s, n, stream); }\n'
         '__attribute__((weak, visibility("default"))) void *__mempcpy_chk(void *dest, const void *src, size_t len, size_t buflen) { (void)buflen; return (void *)((char *)memcpy(dest, src, len) + len); }\n'
         '__attribute__((weak, visibility("default"))) char *__stpcpy_chk(char *dest, const char *src, size_t buflen) { (void)buflen; return stpcpy(dest, src); }\n'
         '__attribute__((weak, visibility("default"))) char *__stpncpy_chk(char *dest, const char *src, size_t n, size_t buflen) { (void)buflen; return stpncpy(dest, src, n); }\n'
@@ -168,6 +179,19 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int __vdprintf_chk(int fd, int flag, const char *format, va_list ap) { (void)flag; return vdprintf(fd, format, ap); }\n'
         '__attribute__((weak, visibility("default"))) int __asprintf_chk(char **result_ptr, int flag, const char *format, ...) { (void)flag; va_list ap; va_start(ap, format); int r = vasprintf(result_ptr, format, ap); va_end(ap); return r; }\n'
         '__attribute__((weak, visibility("default"))) int __vasprintf_chk(char **result_ptr, int flag, const char *format, va_list ap) { (void)flag; return vasprintf(result_ptr, format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) char *__fgets_chk(char *s, size_t buflen, int n, FILE *stream) { (void)buflen; return fgets(s, n, stream); }\n'
+        '__attribute__((weak, visibility("default"))) char *__fgets_unlocked_chk(char *s, size_t buflen, int n, FILE *stream) { (void)buflen; return fgets(s, n, stream); }\n'
+        '__attribute__((weak, visibility("default"))) size_t __fread_chk(void *ptr, size_t buflen, size_t size, size_t n, FILE *stream) { (void)buflen; return fread(ptr, size, n, stream); }\n'
+        '__attribute__((weak, visibility("default"))) size_t __fread_unlocked_chk(void *ptr, size_t buflen, size_t size, size_t n, FILE *stream) { (void)buflen; return fread(ptr, size, n, stream); }\n'
+        '__attribute__((weak, visibility("default"))) ssize_t __read_chk(int fd, void *buf, size_t nbytes, size_t buflen) { (void)buflen; return read(fd, buf, nbytes); }\n'
+        '__attribute__((weak, visibility("default"))) ssize_t __pread_chk(int fd, void *buf, size_t nbytes, off_t offset, size_t buflen) { (void)buflen; return pread(fd, buf, nbytes, offset); }\n'
+        '__attribute__((weak, visibility("default"))) ssize_t __pread64_chk(int fd, void *buf, size_t nbytes, off64_t offset, size_t buflen) { (void)buflen; return pread64(fd, buf, nbytes, offset); }\n'
+        '__attribute__((weak, visibility("default"))) ssize_t __readlink_chk(const char *path, char *buf, size_t len, size_t buflen) { (void)buflen; return readlink(path, buf, len); }\n'
+        '__attribute__((weak, visibility("default"))) ssize_t __readlinkat_chk(int dirfd, const char *path, char *buf, size_t len, size_t buflen) { (void)buflen; return readlinkat(dirfd, path, buf, len); }\n'
+        '__attribute__((weak, visibility("default"))) char *__getcwd_chk(char *buf, size_t len, size_t buflen) { (void)buflen; return getcwd(buf, len); }\n'
+        '__attribute__((weak, visibility("default"))) char *__realpath_chk(const char *path, char *resolved_path, size_t buflen) { (void)buflen; return realpath(path, resolved_path); }\n'
+        '__attribute__((weak, visibility("default"))) ssize_t __recv_chk(int fd, void *buf, size_t len, size_t buflen, int flags) { (void)buflen; return recv(fd, buf, len, flags); }\n'
+        '__attribute__((weak, visibility("default"))) ssize_t __recvfrom_chk(int fd, void *buf, size_t len, size_t buflen, int flags, struct sockaddr *src_addr, socklen_t *addrlen) { (void)buflen; return recvfrom(fd, buf, len, flags, src_addr, addrlen); }\n'
         '__attribute__((weak, visibility("default"))) int *__errno(void) { return &errno; }\n'
         '__attribute__((weak, visibility("default"))) int *__errno_location(void) { return __errno(); }\n'
         '__attribute__((weak, visibility("default"))) int *__h_errno_location(void) { return __errno(); }\n'
@@ -388,7 +412,7 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) const char *gnu_get_libc_version(void) { return "2.38"; }\n'
         '__attribute__((weak, visibility("default"))) const char *gnu_get_libc_release(void) { return "stable"; }\n'
         '__attribute__((weak, visibility("default"))) int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) { (void)func; (void)obj; (void)dso_symbol; return 0; }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc99_sscanf(const char *str, const char *format, ...) { va_list a; va_start(a, format); int r = vsscanf(str, format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_sscanf(const char *str, const char *format, ...) { va_list a; va_start(ap, format); int r = vsscanf(str, format, a); va_end(a); return r; }\n'
         '__attribute__((weak, visibility("default"))) int __isoc99_vsscanf(const char *str, const char *format, va_list ap) { return vsscanf(str, format, ap); }\n'
         '__attribute__((weak, visibility("default"))) int __isoc99_fscanf(FILE *stream, const char *format, ...) { va_list a; va_start(a, format); int r = vfscanf(stream, format, a); va_end(a); return r; }\n'
         '__attribute__((weak, visibility("default"))) int __isoc99_vfscanf(FILE *stream, const char *format, va_list ap) { return vfscanf(stream, format, ap); }\n'
@@ -476,6 +500,7 @@ def setup_bionic_compat() -> None:
         "#include <locale.h>\n"
         "#include <langinfo.h>\n"
         "#include <time.h>\n"
+        "#include <poll.h>\n"
         "#undef __timezone\n"
         "#undef timezone\n"
         "#undef daylight\n"
@@ -516,11 +541,21 @@ def setup_bionic_compat() -> None:
         "wchar_t *__wcscat_chk(wchar_t *dest, const wchar_t *src, size_t buflen);\n"
         "wchar_t *__wcsncat_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen);\n"
         "size_t __mbsrtowcs_chk(wchar_t *dst, const char **src, size_t len, mbstate_t *ps, size_t buflen);\n"
-        "size_t __mbstowcs_chk(wchar_t *dst, const char *src, size_t len, size_t buflen);\n"
+        "size_t __mbsnrtowcs_chk(wchar_t *dst, const char **src, size_t nmc, size_t len, mbstate_t *ps, size_t buflen);\n"
         "size_t __wcsrtombs_chk(char *dst, const wchar_t **src, size_t len, mbstate_t *ps, size_t buflen);\n"
+        "size_t __wcsnrtombs_chk(char *dst, const wchar_t **src, size_t nwc, size_t len, mbstate_t *ps, size_t buflen);\n"
+        "size_t __mbstowcs_chk(wchar_t *dst, const char *src, size_t len, size_t buflen);\n"
         "size_t __wcstombs_chk(char *dst, const wchar_t *src, size_t len, size_t buflen);\n"
         "size_t __wcrtomb_chk(char *s, wchar_t wc, mbstate_t *ps, size_t buflen);\n"
         "int __wctomb_chk(char *s, wchar_t wchar, size_t buflen);\n"
+        "int __swprintf_chk(wchar_t *s, size_t n, int flag, size_t slen, const wchar_t *format, ...);\n"
+        "int __vswprintf_chk(wchar_t *s, size_t n, int flag, size_t slen, const wchar_t *format, va_list ap);\n"
+        "int __fwprintf_chk(FILE *stream, int flag, const wchar_t *format, ...);\n"
+        "int __vfwprintf_chk(FILE *stream, int flag, const wchar_t *format, va_list ap);\n"
+        "int __wprintf_chk(int flag, const wchar_t *format, ...);\n"
+        "int __vwprintf_chk(int flag, const wchar_t *format, va_list ap);\n"
+        "wchar_t *__fgetws_chk(wchar_t *s, size_t buflen, int n, FILE *stream);\n"
+        "wchar_t *__fgetws_unlocked_chk(wchar_t *s, size_t buflen, int n, FILE *stream);\n"
         "void *__mempcpy_chk(void *dest, const void *src, size_t len, size_t buflen);\n"
         "char *__stpcpy_chk(char *dest, const char *src, size_t buflen);\n"
         "char *__stpncpy_chk(char *dest, const char *src, size_t n, size_t buflen);\n"
@@ -536,6 +571,19 @@ def setup_bionic_compat() -> None:
         "int __vdprintf_chk(int fd, int flag, const char *format, va_list ap);\n"
         "int __asprintf_chk(char **result_ptr, int flag, const char *format, ...);\n"
         "int __vasprintf_chk(char **result_ptr, int flag, const char *format, va_list ap);\n"
+        "char *__fgets_chk(char *s, size_t buflen, int n, FILE *stream);\n"
+        "char *__fgets_unlocked_chk(char *s, size_t buflen, int n, FILE *stream);\n"
+        "size_t __fread_chk(void *ptr, size_t buflen, size_t size, size_t n, FILE *stream);\n"
+        "size_t __fread_unlocked_chk(void *ptr, size_t buflen, size_t size, size_t n, FILE *stream);\n"
+        "ssize_t __read_chk(int fd, void *buf, size_t nbytes, size_t buflen);\n"
+        "ssize_t __pread_chk(int fd, void *buf, size_t nbytes, off_t offset, size_t buflen);\n"
+        "ssize_t __pread64_chk(int fd, void *buf, size_t nbytes, off64_t offset, size_t buflen);\n"
+        "ssize_t __readlink_chk(const char *path, char *buf, size_t len, size_t buflen);\n"
+        "ssize_t __readlinkat_chk(int dirfd, const char *path, char *buf, size_t len, size_t buflen);\n"
+        "char *__getcwd_chk(char *buf, size_t len, size_t buflen);\n"
+        "char *__realpath_chk(const char *path, char *resolved_path, size_t buflen);\n"
+        "ssize_t __recv_chk(int fd, void *buf, size_t len, size_t buflen, int flags);\n"
+        "ssize_t __recvfrom_chk(int fd, void *buf, size_t len, size_t buflen, int flags, struct sockaddr *src_addr, socklen_t *addrlen);\n"
         "int *__get_h_errno(void);\n"
         "int *__h_errno(void);\n"
         "int __cxa_at_quick_exit(void (*func)(void), void *dso_handle);\n"
