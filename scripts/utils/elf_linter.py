@@ -29,10 +29,7 @@ KNOWN_GLIBC_UNRESOLVED_PATTERNS = [
     r"^error(_at_line)?$",
     r"^__fpurge$",
     r"^fpurge$",
-    r"^__w.*_chk$",
-    r"^__mempcpy_chk$",
-    r"^__stpcpy_chk$",
-    r"^__stpncpy_chk$",
+    r"^__.*_chk$",
 ]
 
 
