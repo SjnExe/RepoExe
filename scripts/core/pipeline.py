@@ -162,6 +162,33 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) void __freelocale(locale_t loc) { freelocale(loc); }\n'
         '__attribute__((weak, visibility("default"))) locale_t __uselocale(locale_t loc) { return uselocale(loc); }\n'
         '__attribute__((weak, visibility("default"))) locale_t __duplocale(locale_t loc) { return duplocale(loc); }\n'
+        '__attribute__((weak, visibility("default"))) char *__nl_langinfo_l(nl_item item, locale_t loc) { (void)loc; return nl_langinfo(item); }\n'
+        '__attribute__((weak, visibility("default"))) int __toupper_l(int c, locale_t loc) { (void)loc; return toupper(c); }\n'
+        '__attribute__((weak, visibility("default"))) int __tolower_l(int c, locale_t loc) { (void)loc; return tolower(c); }\n'
+        '__attribute__((weak, visibility("default"))) wint_t __towupper_l(wint_t wc, locale_t loc) { (void)loc; return towupper(wc); }\n'
+        '__attribute__((weak, visibility("default"))) wint_t __towlower_l(wint_t wc, locale_t loc) { (void)loc; return towlower(wc); }\n'
+        '__attribute__((weak, visibility("default"))) double __strtod_l(const char *nptr, char **endptr, locale_t loc) { (void)loc; return strtod(nptr, endptr); }\n'
+        '__attribute__((weak, visibility("default"))) float __strtof_l(const char *nptr, char **endptr, locale_t loc) { (void)loc; return strtof(nptr, endptr); }\n'
+        '__attribute__((weak, visibility("default"))) long double __strtold_l(const char *nptr, char **endptr, locale_t loc) { (void)loc; return strtold(nptr, endptr); }\n'
+        '__attribute__((weak, visibility("default"))) long __strtol_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtol(nptr, endptr, base); }\n'
+        '__attribute__((weak, visibility("default"))) unsigned long __strtoul_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoul(nptr, endptr, base); }\n'
+        '__attribute__((weak, visibility("default"))) long long __strtoll_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoll(nptr, endptr, base); }\n'
+        '__attribute__((weak, visibility("default"))) unsigned long long __strtoull_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoull(nptr, endptr, base); }\n'
+        '__attribute__((weak, visibility("default"))) size_t __strftime_l(char *s, size_t max, const char *fmt, const struct tm *tm, locale_t loc) { (void)loc; return strftime(s, max, fmt, tm); }\n'
+        '__attribute__((weak, visibility("default"))) size_t __wcsftime_l(wchar_t *s, size_t max, const wchar_t *fmt, const struct tm *tm, locale_t loc) { (void)loc; return wcsftime(s, max, fmt, tm); }\n'
+        '__attribute__((weak, visibility("default"))) int __strcoll_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcoll(s1, s2); }\n'
+        '__attribute__((weak, visibility("default"))) size_t __strxfrm_l(char *dest, const char *src, size_t n, locale_t loc) { (void)loc; return strxfrm(dest, src, n); }\n'
+        '__attribute__((weak, visibility("default"))) int __wcscoll_l(const wchar_t *s1, const wchar_t *s2, locale_t loc) { (void)loc; return wcscoll(s1, s2); }\n'
+        '__attribute__((weak, visibility("default"))) size_t __wcsxfrm_l(wchar_t *dest, const wchar_t *src, size_t n, locale_t loc) { (void)loc; return wcsxfrm(dest, src, n); }\n'
+        '__attribute__((weak, visibility("default"))) int __strcasecmp_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcasecmp(s1, s2); }\n'
+        '__attribute__((weak, visibility("default"))) int __strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc) { (void)loc; return strncasecmp(s1, s2, n); }\n'
+        '__attribute__((weak, visibility("default"))) int __wcscasecmp_l(const wchar_t *s1, const wchar_t *s2, locale_t loc) { (void)loc; return wcscasecmp(s1, s2); }\n'
+        '__attribute__((weak, visibility("default"))) int __wcsncasecmp_l(const wchar_t *s1, const wchar_t *s2, size_t n, locale_t loc) { (void)loc; return wcsncasecmp(s1, s2, n); }\n'
+        '__attribute__((weak, visibility("default"))) int __iswalpha_l(wint_t wc, locale_t loc) { (void)loc; return iswalpha(wc); }\n'
+        '__attribute__((weak, visibility("default"))) int __iswdigit_l(wint_t wc, locale_t loc) { (void)loc; return iswdigit(wc); }\n'
+        '__attribute__((weak, visibility("default"))) int __iswspace_l(wint_t wc, locale_t loc) { (void)loc; return iswspace(wc); }\n'
+        '__attribute__((weak, visibility("default"))) int __iswctype_l(wint_t wc, wctype_t desc, locale_t loc) { (void)loc; return iswctype(wc, desc); }\n'
+        '__attribute__((weak, visibility("default"))) wctype_t __wctype_l(const char *name, locale_t loc) { (void)loc; return wctype(name); }\n'
         '__attribute__((weak, visibility("default"))) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }\n'
         '__attribute__((weak, visibility("default"))) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }\n'
         '__attribute__((weak, visibility("default"))) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }\n'
@@ -234,47 +261,26 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) void __sched_cpufree(cpu_set_t *set) { free(set); }\n'
         '__attribute__((weak, visibility("default"))) int __sched_cpucount(size_t setsize, const cpu_set_t *set) { int c = 0; const unsigned char *p = (const unsigned char *)set; for (size_t i = 0; i < setsize; ++i) c += __builtin_popcount(p[i]); return c; }\n'
         '__attribute__((weak, visibility("default"))) int strcoll_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcoll(s1, s2); }\n'
-        '__attribute__((weak, visibility("default"))) int __strcoll_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcoll(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) size_t strxfrm_l(char *dest, const char *src, size_t n, locale_t loc) { (void)loc; return strxfrm(dest, src, n); }\n'
-        '__attribute__((weak, visibility("default"))) size_t __strxfrm_l(char *dest, const char *src, size_t n, locale_t loc) { (void)loc; return strxfrm(dest, src, n); }\n'
         '__attribute__((weak, visibility("default"))) int wcscoll_l(const wchar_t *s1, const wchar_t *s2, locale_t loc) { (void)loc; return wcscoll(s1, s2); }\n'
-        '__attribute__((weak, visibility("default"))) int __wcscoll_l(const wchar_t *s1, const wchar_t *s2, locale_t loc) { (void)loc; return wcscoll(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) size_t wcsxfrm_l(wchar_t *dest, const wchar_t *src, size_t n, locale_t loc) { (void)loc; return wcsxfrm(dest, src, n); }\n'
-        '__attribute__((weak, visibility("default"))) size_t __wcsxfrm_l(wchar_t *dest, const wchar_t *src, size_t n, locale_t loc) { (void)loc; return wcsxfrm(dest, src, n); }\n'
         '__attribute__((weak, visibility("default"))) int strcasecmp_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcasecmp(s1, s2); }\n'
-        '__attribute__((weak, visibility("default"))) int __strcasecmp_l(const char *s1, const char *s2, locale_t loc) { (void)loc; return strcasecmp(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) int strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc) { (void)loc; return strncasecmp(s1, s2, n); }\n'
-        '__attribute__((weak, visibility("default"))) int __strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc) { (void)loc; return strncasecmp(s1, s2, n); }\n'
         '__attribute__((weak, visibility("default"))) int wcscasecmp_l(const wchar_t *s1, const wchar_t *s2, locale_t loc) { (void)loc; return wcscasecmp(s1, s2); }\n'
-        '__attribute__((weak, visibility("default"))) int __wcscasecmp_l(const wchar_t *s1, const wchar_t *s2, locale_t loc) { (void)loc; return wcscasecmp(s1, s2); }\n'
         '__attribute__((weak, visibility("default"))) int wcsncasecmp_l(const wchar_t *s1, const wchar_t *s2, size_t n, locale_t loc) { (void)loc; return wcsncasecmp(s1, s2, n); }\n'
-        '__attribute__((weak, visibility("default"))) int __wcsncasecmp_l(const wchar_t *s1, const wchar_t *s2, size_t n, locale_t loc) { (void)loc; return wcsncasecmp(s1, s2, n); }\n'
         '__attribute__((weak, visibility("default"))) wint_t towupper_l(wint_t wc, locale_t loc) { (void)loc; return towupper(wc); }\n'
-        '__attribute__((weak, visibility("default"))) wint_t __towupper_l(wint_t wc, locale_t loc) { (void)loc; return towupper(wc); }\n'
         '__attribute__((weak, visibility("default"))) wint_t towlower_l(wint_t wc, locale_t loc) { (void)loc; return towlower(wc); }\n'
-        '__attribute__((weak, visibility("default"))) wint_t __towlower_l(wint_t wc, locale_t loc) { (void)loc; return towlower(wc); }\n'
         '__attribute__((weak, visibility("default"))) int iswalpha_l(wint_t wc, locale_t loc) { (void)loc; return iswalpha(wc); }\n'
-        '__attribute__((weak, visibility("default"))) int __iswalpha_l(wint_t wc, locale_t loc) { (void)loc; return iswalpha(wc); }\n'
         '__attribute__((weak, visibility("default"))) int iswdigit_l(wint_t wc, locale_t loc) { (void)loc; return iswdigit(wc); }\n'
-        '__attribute__((weak, visibility("default"))) int __iswdigit_l(wint_t wc, locale_t loc) { (void)loc; return iswdigit(wc); }\n'
         '__attribute__((weak, visibility("default"))) int iswspace_l(wint_t wc, locale_t loc) { (void)loc; return iswspace(wc); }\n'
-        '__attribute__((weak, visibility("default"))) int __iswspace_l(wint_t wc, locale_t loc) { (void)loc; return iswspace(wc); }\n'
         '__attribute__((weak, visibility("default"))) int iswctype_l(wint_t wc, wctype_t desc, locale_t loc) { (void)loc; return iswctype(wc, desc); }\n'
-        '__attribute__((weak, visibility("default"))) int __iswctype_l(wint_t wc, wctype_t desc, locale_t loc) { (void)loc; return iswctype(wc, desc); }\n'
         '__attribute__((weak, visibility("default"))) wctype_t wctype_l(const char *name, locale_t loc) { (void)loc; return wctype(name); }\n'
-        '__attribute__((weak, visibility("default"))) wctype_t __wctype_l(const char *name, locale_t loc) { (void)loc; return wctype(name); }\n'
         '__attribute__((weak, visibility("default"))) long strtol_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtol(nptr, endptr, base); }\n'
-        '__attribute__((weak, visibility("default"))) long __strtol_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtol(nptr, endptr, base); }\n'
         '__attribute__((weak, visibility("default"))) unsigned long strtoul_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoul(nptr, endptr, base); }\n'
-        '__attribute__((weak, visibility("default"))) unsigned long __strtoul_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoul(nptr, endptr, base); }\n'
         '__attribute__((weak, visibility("default"))) long long strtoll_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoll(nptr, endptr, base); }\n'
-        '__attribute__((weak, visibility("default"))) long long __strtoll_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoll(nptr, endptr, base); }\n'
         '__attribute__((weak, visibility("default"))) unsigned long long strtoull_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoull(nptr, endptr, base); }\n'
-        '__attribute__((weak, visibility("default"))) unsigned long long __strtoull_l(const char *nptr, char **endptr, int base, locale_t loc) { (void)loc; return strtoull(nptr, endptr, base); }\n'
         '__attribute__((weak, visibility("default"))) size_t strftime_l(char *s, size_t max, const char *fmt, const struct tm *tm, locale_t loc) { (void)loc; return strftime(s, max, fmt, tm); }\n'
-        '__attribute__((weak, visibility("default"))) size_t __strftime_l(char *s, size_t max, const char *fmt, const struct tm *tm, locale_t loc) { (void)loc; return strftime(s, max, fmt, tm); }\n'
         '__attribute__((weak, visibility("default"))) size_t wcsftime_l(wchar_t *s, size_t max, const wchar_t *fmt, const struct tm *tm, locale_t loc) { (void)loc; return wcsftime(s, max, fmt, tm); }\n'
-        '__attribute__((weak, visibility("default"))) size_t __wcsftime_l(wchar_t *s, size_t max, const wchar_t *fmt, const struct tm *tm, locale_t loc) { (void)loc; return wcsftime(s, max, fmt, tm); }\n'
         '__attribute__((weak, visibility("default"))) double __exp_finite(double x) { return exp(x); }\n'
         '__attribute__((weak, visibility("default"))) double __exp2_finite(double x) { return exp2(x); }\n'
         '__attribute__((weak, visibility("default"))) double __log_finite(double x) { return log(x); }\n'
@@ -292,31 +298,6 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) void sincosf(float x, float *s, float *c) { *s = sinf(x); *c = cosf(x); }\n'
         '__attribute__((weak, visibility("default"))) void __sincosf(float x, float *s, float *c) { *s = sinf(x); *c = cosf(x); }\n'
         '__attribute__((weak, visibility("default"))) int sched_getcpu(void) { return 0; }\n'
-        '__attribute__((weak, visibility("default"))) const char *gnu_get_libc_version(void) { return "2.38"; }\n'
-        '__attribute__((weak, visibility("default"))) const char *gnu_get_libc_release(void) { return "stable"; }\n'
-        '__attribute__((weak, visibility("default"))) int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) { (void)func; (void)obj; (void)dso_symbol; return 0; }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc99_sscanf(const char *str, const char *format, ...) { va_list a; va_start(a, format); int r = vsscanf(str, format, a); va_end(a); return r; }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc99_vsscanf(const char *str, const char *format, va_list ap) { return vsscanf(str, format, ap); }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc99_fscanf(FILE *stream, const char *format, ...) { va_list a; va_start(a, format); int r = vfscanf(stream, format, a); va_end(a); return r; }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc99_vfscanf(FILE *stream, const char *format, va_list ap) { return vfscanf(stream, format, ap); }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc99_scanf(const char *format, ...) { va_list a; va_start(a, format); int r = vscanf(format, a); va_end(a); return r; }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc99_vscanf(const char *format, va_list ap) { return vscanf(format, ap); }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc23_sscanf(const char *str, const char *format, ...) { va_list a; va_start(a, format); int r = vsscanf(str, format, a); va_end(a); return r; }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc23_vsscanf(const char *str, const char *format, va_list ap) { return vsscanf(str, format, ap); }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc23_fscanf(FILE *stream, const char *format, ...) { va_list a; va_start(a, format); int r = vfscanf(stream, format, a); va_end(a); return r; }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc23_vfscanf(FILE *stream, const char *format, va_list ap) { return vfscanf(stream, format, ap); }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc23_scanf(const char *format, ...) { va_list a; va_start(a, format); int r = vscanf(format, a); va_end(a); return r; }\n'
-        '__attribute__((weak, visibility("default"))) int __isoc23_vscanf(const char *format, va_list ap) { return vscanf(format, ap); }\n'
-        '__attribute__((weak, visibility("default"))) long __isoc23_strtol(const char *n, char **e, int b) { return strtol(n, e, b); }\n'
-        '__attribute__((weak, visibility("default"))) unsigned long __isoc23_strtoul(const char *n, char **e, int b) { return strtoul(n, e, b); }\n'
-        '__attribute__((weak, visibility("default"))) long long __isoc23_strtoll(const char *n, char **e, int b) { return strtoll(n, e, b); }\n'
-        '__attribute__((weak, visibility("default"))) unsigned long long __isoc23_strtoull(const char *n, char **e, int b) { return strtoull(n, e, b); }\n'
-        '__attribute__((weak, visibility("default"))) float __isoc23_strtof(const char *n, char **e) { return strtof(n, e); }\n'
-        '__attribute__((weak, visibility("default"))) double __isoc23_strtod(const char *n, char **e) { return strtod(n, e); }\n'
-        '__attribute__((weak, visibility("default"))) long double __isoc23_strtold(const char *n, char **e) { return strtold(n, e); }\n'
-        '__attribute__((weak, visibility("default"))) int bcmp(const void *s1, const void *s2, size_t n) { return memcmp(s1, s2, n); }\n'
-        '__attribute__((weak, visibility("default"))) void bcopy(const void *src, void *dest, size_t n) { memmove(dest, src, n); }\n'
-        '__attribute__((weak, visibility("default"))) void bzero(void *s, size_t n) { memset(s, 0, n); }\n'
         '__attribute__((weak, visibility("default"))) void *reallocarray(void *ptr, size_t nmemb, size_t size) { if (size && nmemb > ((size_t)-1) / size) { errno = ENOMEM; return NULL; } return realloc(ptr, nmemb * size); }\n'
         "static const unsigned short *__ctype_b_ptr = NULL;\n"
         "static const int32_t *__ctype_tolower_ptr = NULL;\n"
@@ -358,7 +339,41 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) int getprotobynumber_r(int proto, struct protoent *r, char *b, size_t l, struct protoent **res) { struct protoent *p = getprotobynumber(proto); if (!p) { *res = NULL; return ENOENT; } *r = *p; *res = r; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int gethostbyname_r(const char *name, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { struct hostent *hp = gethostbyname(name); if (!hp) { *result = NULL; if (h_errnop) *h_errnop = 1; return ENOENT; } *ret = *hp; *result = ret; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int gethostbyname2_r(const char *name, int af, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { (void)af; return gethostbyname_r(name, ret, buf, buflen, result, h_errnop); }\n'
-        '__attribute__((weak, visibility("default"))) int gethostbyaddr_r(const void *addr, socklen_t len, int type, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { struct hostent *hp = gethostbyaddr(addr, len, type); if (!hp) { *result = NULL; if (h_errnop) *h_errnop = 1; return ENOENT; } *ret = *hp; *result = ret; return 0; }\n',
+        '__attribute__((weak, visibility("default"))) int gethostbyaddr_r(const void *addr, socklen_t len, int type, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop) { struct hostent *hp = gethostbyaddr(addr, len, type); if (!hp) { *result = NULL; if (h_errnop) *h_errnop = 1; return ENOENT; } *ret = *hp; *result = ret; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) const char *gnu_get_libc_version(void) { return "2.38"; }\n'
+        '__attribute__((weak, visibility("default"))) const char *gnu_get_libc_release(void) { return "stable"; }\n'
+        '__attribute__((weak, visibility("default"))) int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) { (void)func; (void)obj; (void)dso_symbol; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_sscanf(const char *str, const char *format, ...) { va_list a; va_start(a, format); int r = vsscanf(str, format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_vsscanf(const char *str, const char *format, va_list ap) { return vsscanf(str, format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_fscanf(FILE *stream, const char *format, ...) { va_list a; va_start(a, format); int r = vfscanf(stream, format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_vfscanf(FILE *stream, const char *format, va_list ap) { return vfscanf(stream, format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_scanf(const char *format, ...) { va_list a; va_start(a, format); int r = vscanf(format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc99_vscanf(const char *format, va_list ap) { return vscanf(format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_sscanf(const char *str, const char *format, ...) { va_list a; va_start(a, format); int r = vsscanf(str, format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_vsscanf(const char *str, const char *format, va_list ap) { return vsscanf(str, format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_fscanf(FILE *stream, const char *format, ...) { va_list a; va_start(a, format); int r = vfscanf(stream, format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_vfscanf(FILE *stream, const char *format, va_list ap) { return vfscanf(stream, format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_scanf(const char *format, ...) { va_list a; va_start(a, format); int r = vscanf(format, a); va_end(a); return r; }\n'
+        '__attribute__((weak, visibility("default"))) int __isoc23_vscanf(const char *format, va_list ap) { return vscanf(format, ap); }\n'
+        '__attribute__((weak, visibility("default"))) long __isoc23_strtol(const char *n, char **e, int b) { return strtol(n, e, b); }\n'
+        '__attribute__((weak, visibility("default"))) unsigned long __isoc23_strtoul(const char *n, char **e, int b) { return strtoul(n, e, b); }\n'
+        '__attribute__((weak, visibility("default"))) long long __isoc23_strtoll(const char *n, char **e, int b) { return strtoll(n, e, b); }\n'
+        '__attribute__((weak, visibility("default"))) unsigned long long __isoc23_strtoull(const char *n, char **e, int b) { return strtoull(n, e, b); }\n'
+        '__attribute__((weak, visibility("default"))) float __isoc23_strtof(const char *n, char **e) { return strtof(n, e); }\n'
+        '__attribute__((weak, visibility("default"))) double __isoc23_strtod(const char *n, char **e) { return strtod(n, e); }\n'
+        '__attribute__((weak, visibility("default"))) long double __isoc23_strtold(const char *n, char **e) { return strtold(n, e); }\n'
+        '__attribute__((weak, visibility("default"))) int bcmp(const void *s1, const void *s2, size_t n) { return memcmp(s1, s2, n); }\n'
+        '__attribute__((weak, visibility("default"))) void bcopy(const void *src, void *dest, size_t n) { memmove(dest, src, n); }\n'
+        '__attribute__((weak, visibility("default"))) void bzero(void *s, size_t n) { memset(s, 0, n); }\n'
+        "#ifndef WRDE_NOCMD\n#define WRDE_NOCMD 0\n"
+        "typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;\n"
+        "static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }\n"
+        "static inline void wordfree(wordexp_t *p) { (void)p; }\n#endif\n"
+        "#if !defined(__ANDROID_API__) || __ANDROID_API__ < 28\n"
+        "#ifndef aligned_alloc\n"
+        "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n"
+        "#endif\n#endif\n"
+        "#ifdef __cplusplus\n}\n#endif\n#endif\n",
         encoding="utf-8",
     )
     obj = Path("/tmp/bionic_compat.o")
@@ -449,6 +464,33 @@ def setup_bionic_compat() -> None:
         "void __freelocale(locale_t loc);\n"
         "locale_t __uselocale(locale_t loc);\n"
         "locale_t __duplocale(locale_t loc);\n"
+        "char *__nl_langinfo_l(nl_item item, locale_t loc);\n"
+        "int __toupper_l(int c, locale_t loc);\n"
+        "int __tolower_l(int c, locale_t loc);\n"
+        "wint_t __towupper_l(wint_t wc, locale_t loc);\n"
+        "wint_t __towlower_l(wint_t wc, locale_t loc);\n"
+        "double __strtod_l(const char *nptr, char **endptr, locale_t loc);\n"
+        "float __strtof_l(const char *nptr, char **endptr, locale_t loc);\n"
+        "long double __strtold_l(const char *nptr, char **endptr, locale_t loc);\n"
+        "long __strtol_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
+        "unsigned long __strtoul_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
+        "long long __strtoll_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
+        "unsigned long long __strtoull_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
+        "size_t __strftime_l(char *s, size_t max, const char *fmt, const struct tm *tm, locale_t loc);\n"
+        "size_t __wcsftime_l(wchar_t *s, size_t max, const wchar_t *fmt, const struct tm *tm, locale_t loc);\n"
+        "int __strcoll_l(const char *s1, const char *s2, locale_t loc);\n"
+        "size_t __strxfrm_l(char *dest, const char *src, size_t n, locale_t loc);\n"
+        "int __wcscoll_l(const wchar_t *s1, const wchar_t *s2, locale_t loc);\n"
+        "size_t __wcsxfrm_l(wchar_t *dest, const wchar_t *src, size_t n, locale_t loc);\n"
+        "int __strcasecmp_l(const char *s1, const char *s2, locale_t loc);\n"
+        "int __strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc);\n"
+        "int __wcscasecmp_l(const wchar_t *s1, const wchar_t *s2, locale_t loc);\n"
+        "int __wcsncasecmp_l(const wchar_t *s1, const wchar_t *s2, size_t n, locale_t loc);\n"
+        "int __iswalpha_l(wint_t wc, locale_t loc);\n"
+        "int __iswdigit_l(wint_t wc, locale_t loc);\n"
+        "int __iswspace_l(wint_t wc, locale_t loc);\n"
+        "int __iswctype_l(wint_t wc, wctype_t desc, locale_t loc);\n"
+        "wctype_t __wctype_l(const char *name, locale_t loc);\n"
         "int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);\n"
         "int pthread_cond_clockwait(pthread_cond_t* __cond, pthread_mutex_t* __mutex, clockid_t __clock_id, const struct timespec* __abstime);\n"
         "int pthread_setcancelstate(int state, int *oldstate);\n"
@@ -515,47 +557,26 @@ def setup_bionic_compat() -> None:
         "unsigned int gnu_dev_minor(unsigned long long dev);\n"
         "unsigned long long gnu_dev_makedev(unsigned int maj, unsigned int min);\n"
         "int strcoll_l(const char *s1, const char *s2, locale_t loc);\n"
-        "int __strcoll_l(const char *s1, const char *s2, locale_t loc);\n"
         "size_t strxfrm_l(char *dest, const char *src, size_t n, locale_t loc);\n"
-        "size_t __strxfrm_l(char *dest, const char *src, size_t n, locale_t loc);\n"
         "int wcscoll_l(const wchar_t *s1, const wchar_t *s2, locale_t loc);\n"
-        "int __wcscoll_l(const wchar_t *s1, const wchar_t *s2, locale_t loc);\n"
         "size_t wcsxfrm_l(wchar_t *dest, const wchar_t *src, size_t n, locale_t loc);\n"
-        "size_t __wcsxfrm_l(wchar_t *dest, const wchar_t *src, size_t n, locale_t loc);\n"
         "int strcasecmp_l(const char *s1, const char *s2, locale_t loc);\n"
-        "int __strcasecmp_l(const char *s1, const char *s2, locale_t loc);\n"
         "int strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc);\n"
-        "int __strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc);\n"
         "int wcscasecmp_l(const wchar_t *s1, const wchar_t *s2, locale_t loc);\n"
-        "int __wcscasecmp_l(const wchar_t *s1, const wchar_t *s2, locale_t loc);\n"
         "int wcsncasecmp_l(const wchar_t *s1, const wchar_t *s2, size_t n, locale_t loc);\n"
-        "int __wcsncasecmp_l(const wchar_t *s1, const wchar_t *s2, size_t n, locale_t loc);\n"
         "wint_t towupper_l(wint_t wc, locale_t loc);\n"
-        "wint_t __towupper_l(wint_t wc, locale_t loc);\n"
         "wint_t towlower_l(wint_t wc, locale_t loc);\n"
-        "wint_t __towlower_l(wint_t wc, locale_t loc);\n"
         "int iswalpha_l(wint_t wc, locale_t loc);\n"
-        "int __iswalpha_l(wint_t wc, locale_t loc);\n"
         "int iswdigit_l(wint_t wc, locale_t loc);\n"
-        "int __iswdigit_l(wint_t wc, locale_t loc);\n"
         "int iswspace_l(wint_t wc, locale_t loc);\n"
-        "int __iswspace_l(wint_t wc, locale_t loc);\n"
         "int iswctype_l(wint_t wc, wctype_t desc, locale_t loc);\n"
-        "int __iswctype_l(wint_t wc, wctype_t desc, locale_t loc);\n"
         "wctype_t wctype_l(const char *name, locale_t loc);\n"
-        "wctype_t __wctype_l(const char *name, locale_t loc);\n"
         "long strtol_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
-        "long __strtol_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
         "unsigned long strtoul_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
-        "unsigned long __strtoul_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
         "long long strtoll_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
-        "long long __strtoll_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
         "unsigned long long strtoull_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
-        "unsigned long long __strtoull_l(const char *nptr, char **endptr, int base, locale_t loc);\n"
         "size_t strftime_l(char *s, size_t max, const char *fmt, const struct tm *tm, locale_t loc);\n"
-        "size_t __strftime_l(char *s, size_t max, const char *fmt, const struct tm *tm, locale_t loc);\n"
         "size_t wcsftime_l(wchar_t *s, size_t max, const wchar_t *fmt, const struct tm *tm, locale_t loc);\n"
-        "size_t __wcsftime_l(wchar_t *s, size_t max, const wchar_t *fmt, const struct tm *tm, locale_t loc);\n"
         "double __exp_finite(double x);\n"
         "double __exp2_finite(double x);\n"
         "double __log_finite(double x);\n"
