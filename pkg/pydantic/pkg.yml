@@ -11,6 +11,11 @@ formats:
   - apt
   - pip
 
+deps:
+  - python-typing-extensions
+  - python-annotated-types
+  - python-typing-inspection
+
 channels:
   latest:
     auto_update: true
@@ -31,7 +36,15 @@ phases:
     rm -rf /tmp/pydantic_core_* /tmp/pydantic_dist /tmp/pylib /tmp/pyo3_config.ini
     mkdir -p /tmp/pydantic_core_dl /tmp/pydantic_dist /tmp/pylib
 
-    printf "void* _Py_NoneStruct = 0;\n" | ${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin/aarch64-linux-android24-clang -shared -Wl,-soname,libpython3.14.so -o /tmp/pylib/libpython3.14.so -x c -
+    CLANG_BIN="${CC}"
+    if [ -z "$CLANG_BIN" ] || ! command -v "$CLANG_BIN" >/dev/null 2>&1; then
+      CLANG_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "aarch64-linux-android*-clang" 2>/dev/null | head -n 1)
+    fi
+    if [ -z "$CLANG_BIN" ]; then
+      CLANG_BIN="clang"
+    fi
+
+    printf "void* _Py_NoneStruct = 0;\n" | "$CLANG_BIN" -shared -Wl,-soname,libpython3.14.so -o /tmp/pylib/libpython3.14.so -x c -
     cp /tmp/pylib/libpython3.14.so /tmp/pylib/libpython3.so 2>/dev/null || true
 
     printf "implementation=CPython\nversion=3.14\nshared=true\nabi3=false\nlib_name=python3.14\nlib_dir=/tmp/pylib\npointer_width=64\nbuild_flags=\nsuppress_build_script_link_lines=false\n" > /tmp/pyo3_config.ini
@@ -69,7 +82,6 @@ phases:
       exit 1
     fi
     cd "$SRC_DIR"
-    python3 -m pip install --break-system-packages --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" typing-extensions annotated-types typing-inspection
     python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
     echo "Installed pydantic site-packages into staging"

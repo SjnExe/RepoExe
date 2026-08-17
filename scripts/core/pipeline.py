@@ -115,6 +115,7 @@ def setup_bionic_compat() -> None:
         "#undef iswdigit\n"
         "#undef iswspace\n"
         "#undef iswctype\n"
+        '#ifdef __cplusplus\nextern "C" {\n#endif\n'
         "extern char **environ;\n"
         '__attribute__((weak, visibility("default"))) long __timezone = 0;\n'
         '__attribute__((weak, visibility("default"))) long timezone = 0;\n'
@@ -373,7 +374,7 @@ def setup_bionic_compat() -> None:
         "#ifndef aligned_alloc\n"
         "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n"
         "#endif\n#endif\n"
-        "#ifdef __cplusplus\n}\n#endif\n#endif\n",
+        "#ifdef __cplusplus\n}\n#endif\n",
         encoding="utf-8",
     )
     obj = Path("/tmp/bionic_compat.o")
@@ -395,14 +396,18 @@ def setup_bionic_compat() -> None:
         text=True,
     )
     if res_cc.returncode != 0:
-        print(f"⚠️ bionic_compat compile error:\n{res_cc.stderr}")
+        raise RuntimeError(f"Failed to compile bionic_compat.c:\n{res_cc.stderr}")
     else:
         print("✓ bionic_compat.o compiled successfully.")
-    subprocess.run(
+
+    res_ar = subprocess.run(
         [ndk_ar, "rcs", str(lib), str(obj)],
         check=False,
         capture_output=True,
+        text=True,
     )
+    if res_ar.returncode != 0:
+        raise RuntimeError(f"Failed to create libbionic_compat.a:\n{res_ar.stderr}")
 
     stub_h = Path("/tmp/bionic_stub.h")
     stub_h.write_text(
@@ -555,7 +560,7 @@ def setup_bionic_compat() -> None:
         "int __res_init(void);\n"
         "unsigned int gnu_dev_major(unsigned long long dev);\n"
         "unsigned int gnu_dev_minor(unsigned long long dev);\n"
-        "unsigned long long gnu_dev_makedev(unsigned int maj, unsigned int min);\n"
+        "unsigned int gnu_dev_makedev(unsigned int maj, unsigned int min);\n"
         "int strcoll_l(const char *s1, const char *s2, locale_t loc);\n"
         "size_t strxfrm_l(char *dest, const char *src, size_t n, locale_t loc);\n"
         "int wcscoll_l(const wchar_t *s1, const wchar_t *s2, locale_t loc);\n"
@@ -683,9 +688,12 @@ def auto_patch_bionic_sources(src_dir: Path) -> None:
 def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
     elf_errors = audit_directory_elfs(output_dir)
     if elf_errors:
-        print(f"⚠️ [{pkg_name}] ELF Linter Audit Warnings:")
-        for err in elf_errors:
-            print(f"  - {err}")
+        err_msg = f"❌ [{pkg_name}] ELF Linter Audit Failed:\n" + "\n".join(
+            f"  - {err}" for err in elf_errors
+        )
+        print(err_msg)
+        raise RuntimeError(err_msg)
+
     for f in output_dir.glob(f"{pkg_name}*"):
         if f.name.endswith(".deb"):
             subprocess.run(["dpkg-deb", "-I", str(f)], check=True, capture_output=True)

@@ -37,19 +37,6 @@ phases:
     sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev lld unzip wget gnupg patchelf
     curl -fsSL https://bun.sh/install | bash || true
 
-    echo "⚡ Dynamically resolving oven-sh/zig compiler release..."
-    python3 -c "import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))" << 'PY_ZIG_EOF'
-    import os, urllib.request, json, subprocess
-    tag = "autobuild-c6df1f4030cca9e2cc9f8f197405ce1be6890aca"
-    os.makedirs('/tmp/zig-custom', exist_ok=True)
-    archive_path = '/tmp/zig_dl.zip'
-    dl_url = f'https://github.com/oven-sh/zig/releases/download/{tag}/bootstrap-aarch64-linux-musl.zip'
-    req = urllib.request.Request(dl_url, headers={'User-Agent': 'RepoExe'})
-    with urllib.request.urlopen(req, timeout=30) as resp, open(archive_path, 'wb') as f:
-        f.write(resp.read())
-    subprocess.run(['unzip', '-q', '-o', archive_path, '-d', '/tmp/zig-custom/'], check=True)
-    PY_ZIG_EOF
-
     echo "⚡ Dynamically resolving exact WebKit commit SHA from Bun source..."
     WEBKIT_SHA=$(python3 -c "import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))" << 'PY_WK_EOF'
     import subprocess
@@ -127,9 +114,8 @@ phases:
 
   make: |
     set -e
-    ZIG_BIN_DIR=$(find /tmp/zig-custom -type f -name "zig" -exec dirname {} \; | head -n 1)
-    mkdir -p /tmp/zig-cache /tmp/fake-clang
-    export ZIG_GLOBAL_CACHE_DIR=/tmp/zig-cache
+    mkdir -p /home/builder/RepoExe/.cache/zig /tmp/zig-cache /tmp/fake-clang
+    export ZIG_GLOBAL_CACHE_DIR=/home/builder/RepoExe/.cache/zig
     export ZIG_LOCAL_CACHE_DIR=/tmp/zig-cache
 
     echo "⚡ Locating WebKit commit SHA from Bun source..."
@@ -247,7 +233,7 @@ phases:
     ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/ld.lld
     ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/lld
 
-    export PATH="/tmp/fake-clang:${ZIG_BIN_DIR}:$HOME/.bun/bin:${PATH}"
+    export PATH="/tmp/fake-clang:$HOME/.bun/bin:${PATH}"
     export CC="/tmp/fake-clang/clang"
     export CXX="/tmp/fake-clang/clang++"
     export LD="/tmp/fake-clang/ld.lld"
