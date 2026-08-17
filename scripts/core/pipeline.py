@@ -139,6 +139,17 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) void __fpurge(FILE *stream) { (void)stream; }\n'
         "__attribute__((weak, visibility(\"default\"))) int getdomainname(char *name, size_t len) { if (len > 0) name[0] = '\\0'; return 0; }\n"
         '__attribute__((weak, visibility("default"))) int setdomainname(const char *name, size_t len) { (void)name; (void)len; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) wchar_t *__wmemset_chk(wchar_t *s, wchar_t c, size_t n, size_t buflen) { (void)buflen; return wmemset(s, c, n); }\n'
+        '__attribute__((weak, visibility("default"))) wchar_t *__wmemcpy_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen) { (void)buflen; return wmemcpy(dest, src, n); }\n'
+        '__attribute__((weak, visibility("default"))) wchar_t *__wmemmove_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen) { (void)buflen; return wmemmove(dest, src, n); }\n'
+        '__attribute__((weak, visibility("default"))) wchar_t *__wmempcpy_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen) { (void)buflen; return (wchar_t *)((char *)wmemcpy(dest, src, n) + n * sizeof(wchar_t)); }\n'
+        '__attribute__((weak, visibility("default"))) wchar_t *__wcscpy_chk(wchar_t *dest, const wchar_t *src, size_t buflen) { (void)buflen; return wcscpy(dest, src); }\n'
+        '__attribute__((weak, visibility("default"))) wchar_t *__wcsncpy_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen) { (void)buflen; return wcsncpy(dest, src, n); }\n'
+        '__attribute__((weak, visibility("default"))) wchar_t *__wcscat_chk(wchar_t *dest, const wchar_t *src, size_t buflen) { (void)buflen; return wcscat(dest, src); }\n'
+        '__attribute__((weak, visibility("default"))) wchar_t *__wcsncat_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen) { (void)buflen; return wcsncat(dest, src, n); }\n'
+        '__attribute__((weak, visibility("default"))) void *__mempcpy_chk(void *dest, const void *src, size_t len, size_t buflen) { (void)buflen; return (void *)((char *)memcpy(dest, src, len) + len); }\n'
+        '__attribute__((weak, visibility("default"))) char *__stpcpy_chk(char *dest, const char *src, size_t buflen) { (void)buflen; return stpcpy(dest, src); }\n'
+        '__attribute__((weak, visibility("default"))) char *__stpncpy_chk(char *dest, const char *src, size_t n, size_t buflen) { (void)buflen; return stpncpy(dest, src, n); }\n'
         '__attribute__((weak, visibility("default"))) int *__errno(void) { return &errno; }\n'
         '__attribute__((weak, visibility("default"))) int *__errno_location(void) { return __errno(); }\n'
         '__attribute__((weak, visibility("default"))) int *__h_errno_location(void) { return __errno(); }\n'
@@ -389,7 +400,7 @@ def setup_bionic_compat() -> None:
         "#ifndef aligned_alloc\n"
         "static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }\n"
         "#endif\n#endif\n"
-        "#ifdef __cplusplus\n}\n#endif\n",
+        "#ifdef __cplusplus\n}\n#endif\n#endif\n",
         encoding="utf-8",
     )
     obj = Path("/tmp/bionic_compat.o")
@@ -478,6 +489,17 @@ def setup_bionic_compat() -> None:
         "void __fpurge(FILE *stream);\n"
         "int getdomainname(char *name, size_t len);\n"
         "int setdomainname(const char *name, size_t len);\n"
+        "wchar_t *__wmemset_chk(wchar_t *s, wchar_t c, size_t n, size_t buflen);\n"
+        "wchar_t *__wmemcpy_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen);\n"
+        "wchar_t *__wmemmove_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen);\n"
+        "wchar_t *__wmempcpy_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen);\n"
+        "wchar_t *__wcscpy_chk(wchar_t *dest, const wchar_t *src, size_t buflen);\n"
+        "wchar_t *__wcsncpy_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen);\n"
+        "wchar_t *__wcscat_chk(wchar_t *dest, const wchar_t *src, size_t buflen);\n"
+        "wchar_t *__wcsncat_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t buflen);\n"
+        "void *__mempcpy_chk(void *dest, const void *src, size_t len, size_t buflen);\n"
+        "char *__stpcpy_chk(char *dest, const char *src, size_t buflen);\n"
+        "char *__stpncpy_chk(char *dest, const char *src, size_t n, size_t buflen);\n"
         "int *__get_h_errno(void);\n"
         "int *__h_errno(void);\n"
         "int __cxa_at_quick_exit(void (*func)(void), void *dso_handle);\n"

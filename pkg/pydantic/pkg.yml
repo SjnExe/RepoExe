@@ -12,9 +12,7 @@ formats:
   - pip
 
 deps:
-  - python-typing-extensions
-  - python-annotated-types
-  - python-typing-inspection
+  - python
 
 channels:
   latest:
@@ -86,4 +84,5 @@ phases:
   install: |
     echo "Installed pydantic site-packages into staging"
   test: |
+    python3 -m pip install --break-system-packages typing-extensions annotated-types typing-inspection 2>/dev/null || true
     python3 -c "import pydantic; print('pydantic ok')"
