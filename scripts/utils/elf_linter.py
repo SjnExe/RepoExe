@@ -23,6 +23,12 @@ KNOWN_GLIBC_UNRESOLVED_PATTERNS = [
     r"^__xstat.*$",
     r"^__fxstat.*$",
     r"^__lxstat.*$",
+    r"^d?c?n?gettext$",
+    r"^bind(_textdomain_codeset|textdomain)$",
+    r"^textdomain$",
+    r"^error(_at_line)?$",
+    r"^__fpurge$",
+    r"^fpurge$",
 ]
 
 

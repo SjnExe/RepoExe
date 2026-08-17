@@ -124,6 +124,21 @@ def setup_bionic_compat() -> None:
         '__attribute__((weak, visibility("default"))) char *tzname[2] = {(char *)"UTC", (char *)"UTC"};\n'
         '__attribute__((weak, visibility("default"))) char *__tzname_arr[2] = {(char *)"UTC", (char *)"UTC"};\n'
         '__attribute__((weak, visibility("default"))) char **__tzname = __tzname_arr;\n'
+        '__attribute__((weak, visibility("default"))) char *gettext(const char *msgid) { return (char *)msgid; }\n'
+        '__attribute__((weak, visibility("default"))) char *dgettext(const char *domainname, const char *msgid) { (void)domainname; return (char *)msgid; }\n'
+        '__attribute__((weak, visibility("default"))) char *dcgettext(const char *domainname, const char *msgid, int category) { (void)domainname; (void)category; return (char *)msgid; }\n'
+        '__attribute__((weak, visibility("default"))) char *ngettext(const char *msgid1, const char *msgid2, unsigned long int n) { return (char *)(n == 1 ? msgid1 : msgid2); }\n'
+        '__attribute__((weak, visibility("default"))) char *dngettext(const char *domainname, const char *msgid1, const char *msgid2, unsigned long int n) { (void)domainname; return (char *)(n == 1 ? msgid1 : msgid2); }\n'
+        '__attribute__((weak, visibility("default"))) char *dcngettext(const char *domainname, const char *msgid1, const char *msgid2, unsigned long int n, int category) { (void)domainname; (void)category; return (char *)(n == 1 ? msgid1 : msgid2); }\n'
+        '__attribute__((weak, visibility("default"))) char *textdomain(const char *domainname) { (void)domainname; return (char *)"messages"; }\n'
+        '__attribute__((weak, visibility("default"))) char *bindtextdomain(const char *domainname, const char *dirname) { (void)domainname; (void)dirname; return (char *)""; }\n'
+        '__attribute__((weak, visibility("default"))) char *bind_textdomain_codeset(const char *domainname, const char *codeset) { (void)domainname; (void)codeset; return (char *)"UTF-8"; }\n'
+        '__attribute__((weak, visibility("default"))) void error(int status, int errnum, const char *fmt, ...) { va_list ap; va_start(ap, fmt); vfprintf(stderr, fmt, ap); va_end(ap); if (errnum) fprintf(stderr, ": %s\\n", strerror(errnum)); else fputc(\'\\n\', stderr); if (status) exit(status); }\n'
+        '__attribute__((weak, visibility("default"))) void error_at_line(int status, int errnum, const char *fname, unsigned int lineno, const char *fmt, ...) { fprintf(stderr, "%s:%u: ", fname, lineno); va_list ap; va_start(ap, fmt); vfprintf(stderr, fmt, ap); va_end(ap); if (errnum) fprintf(stderr, ": %s\\n", strerror(errnum)); else fputc(\'\\n\', stderr); if (status) exit(status); }\n'
+        '__attribute__((weak, visibility("default"))) int fpurge(FILE *stream) { (void)stream; return 0; }\n'
+        '__attribute__((weak, visibility("default"))) void __fpurge(FILE *stream) { (void)stream; }\n'
+        "__attribute__((weak, visibility(\"default\"))) int getdomainname(char *name, size_t len) { if (len > 0) name[0] = '\\0'; return 0; }\n"
+        '__attribute__((weak, visibility("default"))) int setdomainname(const char *name, size_t len) { (void)name; (void)len; return 0; }\n'
         '__attribute__((weak, visibility("default"))) int *__errno(void) { return &errno; }\n'
         '__attribute__((weak, visibility("default"))) int *__errno_location(void) { return __errno(); }\n'
         '__attribute__((weak, visibility("default"))) int *__h_errno_location(void) { return __errno(); }\n'
@@ -448,6 +463,21 @@ def setup_bionic_compat() -> None:
         "extern int __daylight;\n"
         "extern char *tzname[2];\n"
         "extern char **__tzname;\n"
+        "char *gettext(const char *msgid);\n"
+        "char *dgettext(const char *domainname, const char *msgid);\n"
+        "char *dcgettext(const char *domainname, const char *msgid, int category);\n"
+        "char *ngettext(const char *msgid1, const char *msgid2, unsigned long int n);\n"
+        "char *dngettext(const char *domainname, const char *msgid1, const char *msgid2, unsigned long int n);\n"
+        "char *dcngettext(const char *domainname, const char *msgid1, const char *msgid2, unsigned long int n, int category);\n"
+        "char *textdomain(const char *domainname);\n"
+        "char *bindtextdomain(const char *domainname, const char *dirname);\n"
+        "char *bind_textdomain_codeset(const char *domainname, const char *codeset);\n"
+        "void error(int status, int errnum, const char *fmt, ...);\n"
+        "void error_at_line(int status, int errnum, const char *fname, unsigned int lineno, const char *fmt, ...);\n"
+        "int fpurge(FILE *stream);\n"
+        "void __fpurge(FILE *stream);\n"
+        "int getdomainname(char *name, size_t len);\n"
+        "int setdomainname(const char *name, size_t len);\n"
         "int *__get_h_errno(void);\n"
         "int *__h_errno(void);\n"
         "int __cxa_at_quick_exit(void (*func)(void), void *dso_handle);\n"
@@ -560,7 +590,7 @@ def setup_bionic_compat() -> None:
         "int __res_init(void);\n"
         "unsigned int gnu_dev_major(unsigned long long dev);\n"
         "unsigned int gnu_dev_minor(unsigned long long dev);\n"
-        "unsigned int gnu_dev_makedev(unsigned int maj, unsigned int min);\n"
+        "unsigned long long gnu_dev_makedev(unsigned int maj, unsigned int min);\n"
         "int strcoll_l(const char *s1, const char *s2, locale_t loc);\n"
         "size_t strxfrm_l(char *dest, const char *src, size_t n, locale_t loc);\n"
         "int wcscoll_l(const wchar_t *s1, const wchar_t *s2, locale_t loc);\n"

@@ -240,9 +240,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pre-fetch Container Images in Background
+      - name: Pre-fetch Tester Container in Background
         run: |
-          docker pull ghcr.io/sjnexe/repoexe-builder:latest >/dev/null 2>&1 &
           docker pull ghcr.io/sjnexe/repoexe-tester:latest >/dev/null 2>&1 &
 
       - name: Compile Package Payload
