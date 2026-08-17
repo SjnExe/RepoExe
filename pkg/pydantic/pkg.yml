@@ -11,9 +11,6 @@ formats:
   - apt
   - pip
 
-deps:
-  - python
-
 channels:
   latest:
     auto_update: true
@@ -80,9 +77,9 @@ phases:
       exit 1
     fi
     cd "$SRC_DIR"
+    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" typing-extensions annotated-types typing-inspection
     python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
     echo "Installed pydantic site-packages into staging"
   test: |
-    python3 -m pip install --break-system-packages typing-extensions annotated-types typing-inspection 2>/dev/null || true
     python3 -c "import pydantic; print('pydantic ok')"
