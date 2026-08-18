@@ -37,15 +37,27 @@ phases:
     curl -fsSL https://bun.sh/install | bash || true
 
     echo "⚡ Dynamically resolving exact WebKit commit SHA from Bun source..."
-    WEBKIT_SHA=$(python3 -c "import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))" << 'PY_WK_EOF'
-    import subprocess
-    try:
-        res = subprocess.run(['git', 'ls-tree', 'HEAD', 'submodules/WebKit'], capture_output=True, text=True)
-        print(res.stdout.split()[2] if res.returncode == 0 and res.stdout.strip() else '5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b')
-    except Exception:
-        print('5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b')
-    PY_WK_EOF
-    )
+    WEBKIT_SHA=$(python3 -c '
+    import re, pathlib
+    sha = ""
+    gm = pathlib.Path(".gitmodules")
+    if gm.exists():
+        txt = gm.read_text(encoding="utf-8", errors="ignore")
+        m = re.search(r"(?:branch|revision|commit|tag)\s*=\s*([0-9a-fA-F]{40})", txt)
+        if m: sha = m.group(1)
+    if not sha:
+        for p in pathlib.Path(".").rglob("*"):
+            if p.is_file() and p.suffix in (".ts", ".js", ".zig", ".cmake", ".txt") and "node_modules" not in str(p):
+                try:
+                    t = p.read_text(encoding="utf-8", errors="ignore")
+                    m = re.search(r"(?:webkit[_-]version|webkit_sha|WebKit/releases/download/autobuild-)([0-9a-fA-F]{40})", t, re.I)
+                    if m:
+                        sha = m.group(1)
+                        break
+                except Exception:
+                    pass
+    print(sha if sha else "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
+    ')
     echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
 
     CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_SYSTEM_VERSION=24 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DUSE_THINLTO=OFF -DENABLE_SAMPLING_PROFILER=OFF -DENABLE_REMOTE_INSPECTOR=OFF -DENABLE_EXTRA_BYTECODE_VERIFICATION=OFF -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_YARR_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
@@ -113,7 +125,7 @@ phases:
       cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
       cd /home/builder/RepoExe
       rm -rf "$WK_SRC" /tmp/icu-include 2>/dev/null || true
-      echo '✓ Reclaimed ~4GB RAM from WebKit tmpfs build tree'
+      echo "✓ Reclaimed ~4GB RAM from WebKit tmpfs build tree"
     fi
 
   make: |
@@ -123,15 +135,27 @@ phases:
     export ZIG_LOCAL_CACHE_DIR=/tmp/zig-cache
 
     echo "⚡ Locating WebKit commit SHA from Bun source..."
-    WEBKIT_SHA=$(python3 -c "import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))" << 'PY_WK_EOF'
-    import subprocess
-    try:
-        res = subprocess.run(['git', 'ls-tree', 'HEAD', 'submodules/WebKit'], capture_output=True, text=True)
-        print(res.stdout.split()[2] if res.returncode == 0 and res.stdout.strip() else '5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b')
-    except Exception:
-        print('5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b')
-    PY_WK_EOF
-    )
+    WEBKIT_SHA=$(python3 -c '
+    import re, pathlib
+    sha = ""
+    gm = pathlib.Path(".gitmodules")
+    if gm.exists():
+        txt = gm.read_text(encoding="utf-8", errors="ignore")
+        m = re.search(r"(?:branch|revision|commit|tag)\s*=\s*([0-9a-fA-F]{40})", txt)
+        if m: sha = m.group(1)
+    if not sha:
+        for p in pathlib.Path(".").rglob("*"):
+            if p.is_file() and p.suffix in (".ts", ".js", ".zig", ".cmake", ".txt") and "node_modules" not in str(p):
+                try:
+                    t = p.read_text(encoding="utf-8", errors="ignore")
+                    m = re.search(r"(?:webkit[_-]version|webkit_sha|WebKit/releases/download/autobuild-)([0-9a-fA-F]{40})", t, re.I)
+                    if m:
+                        sha = m.group(1)
+                        break
+                except Exception:
+                    pass
+    print(sha if sha else "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
+    ')
     CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_SYSTEM_VERSION=24 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DUSE_THINLTO=OFF -DENABLE_SAMPLING_PROFILER=OFF -DENABLE_REMOTE_INSPECTOR=OFF -DENABLE_EXTRA_BYTECODE_VERIFICATION=OFF -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_YARR_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
     COMPAT_HASH=$(sha256sum /home/builder/RepoExe/scripts/compat/bionic_compat.c /home/builder/RepoExe/scripts/compat/bionic_stub.h 2>/dev/null | sha256sum | head -c 8)
     CONFIG_HASH=$(echo "${CMAKE_FLAGS}-${COMPAT_HASH}" | sha256sum | head -c 8)
@@ -145,21 +169,26 @@ phases:
       cp -a "${JSC_CACHE_DIR}/include/"* "${c_dir}/include/" 2>/dev/null || true
     done
 
-    # Intercept WebKit fetch in Bun's scripts/build.ts
+    # Intercept WebKit fetch and glibc target derivations in Bun build scripts
     python3 -c "
     from pathlib import Path
     import re
-    for p in Path('scripts').rglob('*.ts'):
-        try:
-            txt = p.read_text(encoding='utf-8', errors='ignore')
-            if 'bun-webkit' in txt or 'fetchWebkit' in txt or 'webkit' in txt:
-                new_txt = re.sub(r'async function fetchWebkit\(.*?\)\s*\{.*?\}', 'async function fetchWebkit() { return; }', txt, flags=re.DOTALL)
+    for p in Path('.').rglob('*'):
+        if p.is_file() and p.suffix in ('.ts', '.js') and 'node_modules' not in str(p):
+            try:
+                txt = p.read_text(encoding='utf-8', errors='ignore')
+                new_txt = txt
+                new_txt = re.sub(r'async function fetchWebkit\(.*?\)\s*\{.*?\}', 'async function fetchWebkit() { return; }', new_txt, flags=re.DOTALL)
+                new_txt = re.sub(r'function fetchWebkit\(.*?\)\s*\{.*?\}', 'function fetchWebkit() { return; }', new_txt, flags=re.DOTALL)
                 new_txt = re.sub(r'const webkit_url\s*=.*?;', 'const webkit_url = \"\";', new_txt)
+                new_txt = re.sub(r'aarch64-linux-gnu(\.[0-9\.]+)?', 'aarch64-linux-android', new_txt)
+                new_txt = re.sub(r'linux-aarch64-gnu', 'linux-aarch64-android', new_txt)
+                new_txt = re.sub(r'\"linux-aarch64-gnu\"', '\"linux-aarch64-android\"', new_txt)
                 if new_txt != txt:
                     p.write_text(new_txt, encoding='utf-8')
-                    print(f'✓ Successfully neutralized WebKit download step in {p}')
-        except Exception as e:
-            print(f'Notice patching {p}: {e}')
+                    print(f'✓ Successfully patched build script {p}')
+            except Exception as e:
+                print(f'Notice patching {p}: {e}')
     "
 
     mkdir -p build/release/stamps build/stamps
@@ -203,7 +232,7 @@ phases:
                     print(f'Notice patching {p}: {e}')
     "
 
-    # Write version_shim with explicit echo commands
+    # Write version_shim compiler wrapper
     echo '#!/bin/bash' > /tmp/fake-clang/version_shim
     echo 'cmd="$(basename "$0")"' >> /tmp/fake-clang/version_shim
     echo 'if [[ "$*" == *"codegen-tool"* ]] || [[ "$*" == *"-DC2STR"* ]] || [[ "$*" == *"conftest.c"* ]]; then' >> /tmp/fake-clang/version_shim
