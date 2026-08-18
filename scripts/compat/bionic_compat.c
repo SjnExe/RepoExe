@@ -198,11 +198,39 @@ __attribute__((weak, visibility("default"))) int __libc_current_sigrtmax(void) {
 __attribute__((weak, visibility("default"))) int timespec_get(struct timespec *ts, int base) { if (base != 1) return 0; return clock_gettime(CLOCK_REALTIME, ts) == 0 ? base : 0; }
 __attribute__((weak, visibility("default"))) int timespec_getres(struct timespec *ts, int base) { if (base != 1) return 0; return clock_getres(CLOCK_REALTIME, ts) == 0 ? base : 0; }
 
-__attribute__((weak, visibility("default"))) locale_t __newlocale(int category_mask, const char *locale, locale_t base) { return newlocale(category_mask, locale, base); }
-__attribute__((weak, visibility("default"))) void __freelocale(locale_t loc) { freelocale(loc); }
-__attribute__((weak, visibility("default"))) locale_t __uselocale(locale_t loc) { return uselocale(loc); }
-__attribute__((weak, visibility("default"))) locale_t __duplocale(locale_t loc) { return duplocale(loc); }
-__attribute__((weak, visibility("default"))) char *__nl_langinfo_l(nl_item item, locale_t loc) { (void)loc; return nl_langinfo(item); }
+__attribute__((weak, visibility("default"))) locale_t __newlocale(int category_mask, const char *locale, locale_t base) {
+    typedef locale_t (*fn_t)(int, const char*, locale_t);
+    fn_t fn = (fn_t)dlsym(RTLD_DEFAULT, "newlocale");
+    if (fn) return fn(category_mask, locale, base);
+    return LC_GLOBAL_LOCALE;
+}
+
+__attribute__((weak, visibility("default"))) void __freelocale(locale_t loc) {
+    typedef void (*fn_t)(locale_t);
+    fn_t fn = (fn_t)dlsym(RTLD_DEFAULT, "freelocale");
+    if (fn && loc != LC_GLOBAL_LOCALE) fn(loc);
+}
+
+__attribute__((weak, visibility("default"))) locale_t __uselocale(locale_t loc) {
+    typedef locale_t (*fn_t)(locale_t);
+    fn_t fn = (fn_t)dlsym(RTLD_DEFAULT, "uselocale");
+    if (fn) return fn(loc);
+    return LC_GLOBAL_LOCALE;
+}
+
+__attribute__((weak, visibility("default"))) locale_t __duplocale(locale_t loc) {
+    typedef locale_t (*fn_t)(locale_t);
+    fn_t fn = (fn_t)dlsym(RTLD_DEFAULT, "duplocale");
+    if (fn && loc != LC_GLOBAL_LOCALE) return fn(loc);
+    return loc;
+}
+
+__attribute__((weak, visibility("default"))) char *__nl_langinfo_l(nl_item item, locale_t loc) {
+    typedef char* (*fn_t)(nl_item, locale_t);
+    fn_t fn = (fn_t)dlsym(RTLD_DEFAULT, "nl_langinfo_l");
+    if (fn) return fn(item, loc);
+    return nl_langinfo(item);
+}
 __attribute__((weak, visibility("default"))) int __toupper_l(int c, locale_t loc) { (void)loc; return toupper(c); }
 __attribute__((weak, visibility("default"))) int __tolower_l(int c, locale_t loc) { (void)loc; return tolower(c); }
 __attribute__((weak, visibility("default"))) wint_t __towupper_l(wint_t wc, locale_t loc) { (void)loc; return towupper(wc); }
