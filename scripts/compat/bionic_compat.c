@@ -122,8 +122,8 @@ __attribute__((weak, visibility("default"))) int __fwprintf_chk(FILE *stream, in
 __attribute__((weak, visibility("default"))) int __vfwprintf_chk(FILE *stream, int flag, const wchar_t *format, va_list ap) { (void)flag; return vfwprintf(stream, format, ap); }
 __attribute__((weak, visibility("default"))) int __wprintf_chk(int flag, const wchar_t *format, ...) { (void)flag; va_list ap; va_start(ap, format); int r = vwprintf(format, ap); va_end(ap); return r; }
 __attribute__((weak, visibility("default"))) int __vwprintf_chk(int flag, const wchar_t *format, va_list ap) { (void)flag; return vwprintf(format, ap); }
-__attribute__((weak, visibility("default"))) wchar_t *__fgetws_chk(wchar_t *s, size_t buflen, int n, FILE *stream) { (void)buflen; return fgetws(s, n, stream); }
-__attribute__((weak, visibility("default"))) wchar_t *__fgetws_unlocked_chk(wchar_t *s, size_t buflen, int n, FILE *stream) { (void)buflen; return fgetws(s, n, stream); }
+__attribute__((weak, visibility("default"))) wchar_t *__fgetws_chk(wchar_t *s, int n, FILE *stream, size_t buflen) { (void)buflen; return fgetws(s, n, stream); }
+__attribute__((weak, visibility("default"))) wchar_t *__fgetws_unlocked_chk(wchar_t *s, int n, FILE *stream, size_t buflen) { (void)buflen; return fgetws(s, n, stream); }
 
 __attribute__((weak, visibility("default"))) int __snprintf_chk(char *s, size_t maxlen, int flag, size_t slen, const char *format, ...) { (void)flag; (void)slen; va_list ap; va_start(ap, format); int r = vsnprintf(s, maxlen, format, ap); va_end(ap); return r; }
 __attribute__((weak, visibility("default"))) int __vsnprintf_chk(char *s, size_t maxlen, int flag, size_t slen, const char *format, va_list ap) { (void)flag; (void)slen; return vsnprintf(s, maxlen, format, ap); }
@@ -138,10 +138,10 @@ __attribute__((weak, visibility("default"))) int __vdprintf_chk(int fd, int flag
 __attribute__((weak, visibility("default"))) int __asprintf_chk(char **result_ptr, int flag, const char *format, ...) { (void)flag; va_list ap; va_start(ap, format); int r = vasprintf(result_ptr, format, ap); va_end(ap); return r; }
 __attribute__((weak, visibility("default"))) int __vasprintf_chk(char **result_ptr, int flag, const char *format, va_list ap) { (void)flag; return vasprintf(result_ptr, format, ap); }
 
-__attribute__((weak, visibility("default"))) char *__fgets_chk(char *s, size_t buflen, int n, FILE *stream) { (void)buflen; return fgets(s, n, stream); }
-__attribute__((weak, visibility("default"))) char *__fgets_unlocked_chk(char *s, size_t buflen, int n, FILE *stream) { (void)buflen; return fgets(s, n, stream); }
-__attribute__((weak, visibility("default"))) size_t __fread_chk(void *ptr, size_t buflen, size_t size, size_t n, FILE *stream) { (void)buflen; return fread(ptr, size, n, stream); }
-__attribute__((weak, visibility("default"))) size_t __fread_unlocked_chk(void *ptr, size_t buflen, size_t size, size_t n, FILE *stream) { (void)buflen; return fread(ptr, size, n, stream); }
+__attribute__((weak, visibility("default"))) char *__fgets_chk(char *s, int n, FILE *stream, size_t buflen) { (void)buflen; return fgets(s, n, stream); }
+__attribute__((weak, visibility("default"))) char *__fgets_unlocked_chk(char *s, int n, FILE *stream, size_t buflen) { (void)buflen; return fgets(s, n, stream); }
+__attribute__((weak, visibility("default"))) size_t __fread_chk(void *ptr, size_t size, size_t n, FILE *stream, size_t buflen) { (void)buflen; return fread(ptr, size, n, stream); }
+__attribute__((weak, visibility("default"))) size_t __fread_unlocked_chk(void *ptr, size_t size, size_t n, FILE *stream, size_t buflen) { (void)buflen; return fread(ptr, size, n, stream); }
 __attribute__((weak, visibility("default"))) ssize_t __read_chk(int fd, void *buf, size_t nbytes, size_t buflen) { (void)buflen; return read(fd, buf, nbytes); }
 __attribute__((weak, visibility("default"))) ssize_t __pread_chk(int fd, void *buf, size_t nbytes, off_t offset, size_t buflen) { (void)buflen; return pread(fd, buf, nbytes, offset); }
 __attribute__((weak, visibility("default"))) ssize_t __pread64_chk(int fd, void *buf, size_t nbytes, off64_t offset, size_t buflen) { (void)buflen; return pread64(fd, buf, nbytes, offset); }
