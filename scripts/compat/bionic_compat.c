@@ -297,8 +297,8 @@ __attribute__((weak, visibility("default"))) void __system_property_read_callbac
     }
     real_sys_prop_read_fn real_read = (real_sys_prop_read_fn)dlsym(RTLD_DEFAULT, "__system_property_read");
     if (real_read) {
-        char name[32] = {0};
-        char value[92] = {0};
+        static char name[32];
+        static char value[92];
         int r = real_read(pi, name, value);
         if (r >= 0) {
             callback(cookie, name, value, 0);
