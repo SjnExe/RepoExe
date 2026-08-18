@@ -66,7 +66,7 @@ jobs:
           python-version: "3.14"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           enable-cache: true
 
@@ -108,7 +108,7 @@ jobs:
           python-version: "3.14"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           enable-cache: true
 
@@ -152,7 +152,7 @@ jobs:
           python-version: "3.14"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           enable-cache: true
 
@@ -192,7 +192,7 @@ jobs:
         run: |
           BASE_REF="${GITHUB_BASE_REF:-main}"
           REF_NAME="${GITHUB_REF_NAME:-}"
-          if [ "${REF_NAME%%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^.github/workflows/docker.yml'; then
+          if [ "${REF_NAME\%\%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^.github/workflows/docker.yml'; then
             echo "::error::Docker environment files modified in branch."
           fi
 
@@ -274,7 +274,7 @@ jobs:
             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 \vert{} tee -a "${LOG_FILE}"
 
       - name: Profile Build Memory Peak
         if: always()
@@ -458,7 +458,7 @@ jobs:
           python-version: "3.14"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           enable-cache: true
 
