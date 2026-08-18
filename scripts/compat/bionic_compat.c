@@ -301,7 +301,30 @@ __attribute__((weak, visibility("default"))) int pthread_setcancelstate(int stat
 __attribute__((weak, visibility("default"))) int pthread_setcanceltype(int type, int *oldtype) { if (oldtype) *oldtype = type; return 0; }
 __attribute__((weak, visibility("default"))) int pthread_cancel(pthread_t thread) { (void)thread; return 0; }
 __attribute__((weak, visibility("default"))) void pthread_testcancel(void) {}
-__attribute__((weak, visibility("default"))) int pthread_yield(void) { return sched_yield(); }
+__attribute__((weak, visibility("default"))) __attribute__((weak, visibility("default"))) int pthread_getattr_np(pthread_t thread, pthread_attr_t *attr) {
+    typedef int (*fn_t)(pthread_t, pthread_attr_t*);
+    static fn_t real_fn = (fn_t)-1;
+    if (real_fn == (fn_t)-1) {
+        void *sym = dlsym(RTLD_NEXT, "pthread_getattr_np");
+        if (sym == (void*)pthread_getattr_np) sym = NULL;
+        real_fn = (fn_t)sym;
+    }
+    if (real_fn && real_fn(thread, attr) == 0) {
+        void *stack_addr = NULL;
+        size_t stack_size = 0;
+        if (pthread_attr_getstack(attr, &stack_addr, &stack_size) == 0 && stack_addr != NULL && stack_size > 0) {
+            return 0;
+        }
+    }
+    if (attr) {
+        pthread_attr_init(attr);
+        pthread_attr_setstack(attr, (void*)0x7f00000000UL, 8 * 1024 * 1024);
+        return 0;
+    }
+    return -1;
+}
+
+int pthread_yield(void) { return sched_yield(); }
 __attribute__((weak, visibility("default"))) int pthread_getname_np(pthread_t thread, char *name, size_t len) {
     if (!name || len == 0) return ERANGE;
     typedef int (*fn_t)(pthread_t, char*, size_t);

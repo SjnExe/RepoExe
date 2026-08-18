@@ -88,6 +88,7 @@ int pthread_setcancelstate(int state, int *oldstate);
 int pthread_setcanceltype(int type, int *oldtype);
 int pthread_cancel(pthread_t thread);
 void pthread_testcancel(void);
+int pthread_getattr_np(pthread_t thread, pthread_attr_t *attr);
 int pthread_yield(void);
 int pthread_getname_np(pthread_t thread, char *name, size_t len);
 
