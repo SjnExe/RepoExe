@@ -7,11 +7,6 @@ homepage: https://bun.sh
 license: MIT
 maintainer: SjnExe
 build_system: custom
-heavy_build: true
-resources:
-  zram: 8
-  swap: 16
-  free_space: true
 
 toolchains:
   clang: ">=21.0.0"
