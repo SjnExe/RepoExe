@@ -304,10 +304,18 @@ __attribute__((weak, visibility("default"))) void pthread_testcancel(void) {}
 __attribute__((weak, visibility("default"))) int pthread_yield(void) { return sched_yield(); }
 __attribute__((weak, visibility("default"))) int pthread_getname_np(pthread_t thread, char *name, size_t len) {
     if (!name || len == 0) return ERANGE;
+    typedef int (*fn_t)(pthread_t, char*, size_t);
+    static fn_t real_fn = (fn_t)-1;
+    if (real_fn == (fn_t)-1) {
+        void *sym = dlsym(RTLD_NEXT, "pthread_getname_np");
+        if (sym == (void*)pthread_getname_np) sym = NULL;
+        real_fn = (fn_t)sym;
+    }
+    if (real_fn) return real_fn(thread, name, len);
 #ifdef PR_GET_NAME
     if (thread == pthread_self()) {
         if (prctl(PR_GET_NAME, (unsigned long)name, 0, 0, 0) == 0) {
-            name[len - 1] = '\0';
+            name[len - 1] = ' ';
             return 0;
         }
     }
@@ -332,17 +340,24 @@ typedef int (*real_sys_prop_read_fn)(const void* pi, char* name, char* value);
 
 __attribute__((weak, visibility("default"))) void __system_property_read_callback(const struct prop_info* pi, prop_read_callback_fn callback, void* cookie) {
     if (!pi || !callback) return;
-    real_sys_prop_read_cb_fn real_cb = (real_sys_prop_read_cb_fn)dlsym(RTLD_DEFAULT, "__system_property_read_callback");
+    static real_sys_prop_read_cb_fn real_cb = (real_sys_prop_read_cb_fn)-1;
+    if (real_cb == (real_sys_prop_read_cb_fn)-1) {
+        void *sym = dlsym(RTLD_NEXT, "__system_property_read_callback");
+        if (sym == (void*)__system_property_read_callback) sym = NULL;
+        real_cb = (real_sys_prop_read_cb_fn)sym;
+    }
     if (real_cb) {
         real_cb(pi, callback, cookie);
         return;
     }
-    real_sys_prop_read_fn real_read = (real_sys_prop_read_fn)dlsym(RTLD_DEFAULT, "__system_property_read");
+    static real_sys_prop_read_fn real_read = (real_sys_prop_read_fn)-1;
+    if (real_read == (real_sys_prop_read_fn)-1) {
+        real_read = (real_sys_prop_read_fn)dlsym(RTLD_DEFAULT, "__system_property_read");
+    }
     if (real_read) {
-        static char name[32];
-        static char value[92];
-        int r = real_read(pi, name, value);
-        if (r >= 0) {
+        char name[32] = {0};
+        char value[92] = {0};
+        if (real_read(pi, name, value) >= 0) {
             callback(cookie, name, value, 0);
         }
     }
@@ -502,8 +517,13 @@ __attribute__((weak, visibility("default"))) const char *gnu_get_libc_version(vo
 __attribute__((weak, visibility("default"))) const char *gnu_get_libc_release(void) { return "stable"; }
 __attribute__((weak, visibility("default"))) int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) {
     typedef int (*fn_t)(void (*)(void*), void*, void*);
-    fn_t fn = (fn_t)dlsym(RTLD_DEFAULT, "__cxa_thread_atexit_impl");
-    if (fn) return fn(func, obj, dso_symbol);
+    static fn_t real_fn = (fn_t)-1;
+    if (real_fn == (fn_t)-1) {
+        void *sym = dlsym(RTLD_NEXT, "__cxa_thread_atexit_impl");
+        if (sym == (void*)__cxa_thread_atexit_impl) sym = NULL;
+        real_fn = (fn_t)sym;
+    }
+    if (real_fn) return real_fn(func, obj, dso_symbol);
     return 0;
 }
 
