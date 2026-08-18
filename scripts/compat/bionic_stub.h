@@ -7,7 +7,11 @@ extern "C" {
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -20,6 +24,12 @@ extern "C" {
 #include <dlfcn.h>
 #include <pthread.h>
 #include <signal.h>
+
+#if __has_include(<langinfo.h>)
+#include <langinfo.h>
+#else
+typedef int nl_item;
+#endif
 
 extern long __timezone;
 extern long timezone;
@@ -161,7 +171,10 @@ static inline void wordfree(wordexp_t *p) { (void)p; }
 
 #if !defined(__ANDROID_API__) || __ANDROID_API__ < 28
 #ifndef aligned_alloc
-static inline void* aligned_alloc(size_t a, size_t s) { void *p; return posix_memalign(&p, a, s) ? NULL : p; }
+static inline void* aligned_alloc(size_t a, size_t s) {
+    void *p = NULL;
+    return posix_memalign(&p, a, s) == 0 ? p : NULL;
+}
 #endif
 #endif
 
