@@ -182,15 +182,6 @@ static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p
 static inline void wordfree(wordexp_t *p) { (void)p; }
 #endif
 
-#if !defined(__ANDROID_API__) || __ANDROID_API__ < 28
-#ifndef aligned_alloc
-static inline void* aligned_alloc(size_t a, size_t s) {
-    void *p = NULL;
-    return posix_memalign(&p, a, s) == 0 ? p : NULL;
-}
-#endif
-#endif
-
 #ifdef __cplusplus
 }
 #endif
