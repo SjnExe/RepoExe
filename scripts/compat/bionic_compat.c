@@ -185,9 +185,23 @@ __attribute__((weak, visibility("default"))) int __cxa_at_quick_exit(void (*func
 __attribute__((weak, visibility("default"))) int at_quick_exit(void (*func)(void)) { return atexit(func); }
 __attribute__((weak, visibility("default"))) void quick_exit(int status) { exit(status); }
 __attribute__((weak, visibility("default"))) void __wrap_quick_exit(int status) { exit(status); }
-__attribute__((weak, visibility("default"))) int _dl_find_object(void *address, void *result) { (void)address; (void)result; return -1; }
-__attribute__((weak, visibility("default"))) int dl_find_object(void *address, void *result) { (void)address; (void)result; return -1; }
-__attribute__((weak, visibility("default"))) int dladdr1(const void *addr, Dl_info *info, void **extra_info, int flags) { (void)extra_info; (void)flags; return dladdr(addr, info); }
+__attribute__((weak, visibility("default"))) int _dl_find_object(void *address, void *result) {
+    (void)address; (void)result;
+    errno = ENOENT;
+    return -1;
+}
+
+__attribute__((weak, visibility("default"))) int dl_find_object(void *address, void *result) {
+    (void)address; (void)result;
+    errno = ENOENT;
+    return -1;
+}
+
+__attribute__((weak, visibility("default"))) int dladdr1(const void *addr, Dl_info *info, void **extra_info, int flags) {
+    if (extra_info) *extra_info = NULL;
+    if (flags != 0) return 0;
+    return dladdr(addr, info);
+}
 __attribute__((weak, visibility("default"))) void *__libc_dlopen_mode(const char *name, int mode) { return dlopen(name, mode); }
 __attribute__((weak, visibility("default"))) void *__libc_dlsym(void *handle, const char *name) { return dlsym(handle, name); }
 __attribute__((weak, visibility("default"))) int __libc_dlclose(void *handle) { return dlclose(handle); }
@@ -486,7 +500,12 @@ __attribute__((weak, visibility("default"))) int gethostbyaddr_r(const void *add
 
 __attribute__((weak, visibility("default"))) const char *gnu_get_libc_version(void) { return "2.38"; }
 __attribute__((weak, visibility("default"))) const char *gnu_get_libc_release(void) { return "stable"; }
-__attribute__((weak, visibility("default"))) int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) { (void)func; (void)obj; (void)dso_symbol; return 0; }
+__attribute__((weak, visibility("default"))) int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) {
+    typedef int (*fn_t)(void (*)(void*), void*, void*);
+    fn_t fn = (fn_t)dlsym(RTLD_DEFAULT, "__cxa_thread_atexit_impl");
+    if (fn) return fn(func, obj, dso_symbol);
+    return 0;
+}
 
 __attribute__((weak, visibility("default"))) int __isoc99_sscanf(const char *str, const char *format, ...) { va_list ap; va_start(ap, format); int r = vsscanf(str, format, ap); va_end(ap); return r; }
 __attribute__((weak, visibility("default"))) int __isoc99_vsscanf(const char *str, const char *format, va_list ap) { return vsscanf(str, format, ap); }
