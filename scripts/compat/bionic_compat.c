@@ -285,12 +285,24 @@ __attribute__((weak, visibility("default"))) int memfd_create(const char *name, 
 }
 
 typedef void (*prop_read_callback_fn)(void* cookie, const char* name, const char* value, uint32_t serial);
+typedef void (*real_sys_prop_read_cb_fn)(const void* pi, prop_read_callback_fn callback, void* cookie);
+typedef int (*real_sys_prop_read_fn)(const void* pi, char* name, char* value);
+
 __attribute__((weak, visibility("default"))) void __system_property_read_callback(const struct prop_info* pi, prop_read_callback_fn callback, void* cookie) {
-    char name[32] = {0};
-    char value[92] = {0};
-    int r = __system_property_read((const prop_info *)pi, name, value);
-    if (r >= 0 && callback) {
-        callback(cookie, name, value, 0);
+    if (!pi || !callback) return;
+    real_sys_prop_read_cb_fn real_cb = (real_sys_prop_read_cb_fn)dlsym(RTLD_DEFAULT, "__system_property_read_callback");
+    if (real_cb) {
+        real_cb(pi, callback, cookie);
+        return;
+    }
+    real_sys_prop_read_fn real_read = (real_sys_prop_read_fn)dlsym(RTLD_DEFAULT, "__system_property_read");
+    if (real_read) {
+        char name[32] = {0};
+        char value[92] = {0};
+        int r = real_read(pi, name, value);
+        if (r >= 0) {
+            callback(cookie, name, value, 0);
+        }
     }
 }
 
