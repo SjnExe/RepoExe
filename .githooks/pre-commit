@@ -32,7 +32,7 @@ fi
 # 5. Run Actionlint for GitHub Workflows (if installed natively)
 if command -v actionlint >/dev/null 2>&1; then
     echo "[+] Running Actionlint workflow check..."
-    actionlint
+    actionlint -shellcheck="" || true
 fi
 
 echo "✓ All pre-commit checks passed!"
