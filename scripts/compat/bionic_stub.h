@@ -87,6 +87,14 @@ void pthread_testcancel(void);
 int pthread_yield(void);
 int pthread_getname_np(pthread_t thread, char *name, size_t len);
 
+struct prop_info;
+typedef void (*prop_read_callback_fn)(void* cookie, const char* name, const char* value, uint32_t serial);
+void __system_property_read_callback(const struct prop_info* pi, prop_read_callback_fn callback, void* cookie);
+
+struct AHardwareBuffer;
+void AHardwareBuffer_acquire(struct AHardwareBuffer* buffer);
+void AHardwareBuffer_release(struct AHardwareBuffer* buffer);
+
 int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout);
 int sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int signalfd(int fd, const sigset_t *mask, int flags);

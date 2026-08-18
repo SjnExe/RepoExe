@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <poll.h>
 #include <sys/prctl.h>
+#include <sys/system_properties.h>
 
 #undef __timezone
 #undef timezone
@@ -282,6 +283,20 @@ __attribute__((weak, visibility("default"))) int memfd_create(const char *name, 
     return -1;
 #endif
 }
+
+typedef void (*prop_read_callback_fn)(void* cookie, const char* name, const char* value, uint32_t serial);
+__attribute__((weak, visibility("default"))) void __system_property_read_callback(const struct prop_info* pi, prop_read_callback_fn callback, void* cookie) {
+    char name[32] = {0};
+    char value[92] = {0};
+    int r = __system_property_read((const prop_info *)pi, name, value);
+    if (r >= 0 && callback) {
+        callback(cookie, name, value, 0);
+    }
+}
+
+struct AHardwareBuffer;
+__attribute__((weak, visibility("default"))) void AHardwareBuffer_acquire(struct AHardwareBuffer* buffer) { (void)buffer; }
+__attribute__((weak, visibility("default"))) void AHardwareBuffer_release(struct AHardwareBuffer* buffer) { (void)buffer; }
 
 __attribute__((weak, visibility("default"))) int getentropy(void *buffer, size_t length) {
     if (length > 256) { errno = EIO; return -1; }
