@@ -177,14 +177,11 @@ int __iswspace_l(wint_t wc, locale_t loc);
 int __iswctype_l(wint_t wc, wctype_t desc, locale_t loc);
 wctype_t __wctype_l(const char *name, locale_t loc);
 
-int pthread_getname_np(pthread_t __pthread, char* __buf, size_t __buf_size);
-int pthread_cond_clockwait(pthread_cond_t* __cond, pthread_mutex_t* __mutex, clockid_t __clock_id, const struct timespec* __abstime);
 int pthread_setcancelstate(int state, int *oldstate);
 int pthread_setcanceltype(int type, int *oldtype);
 int pthread_cancel(pthread_t thread);
 void pthread_testcancel(void);
 int pthread_yield(void);
-int pthread_getattr_np(pthread_t th, pthread_attr_t *attr);
 
 int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout);
 int sigwaitinfo(const sigset_t *set, siginfo_t *info);

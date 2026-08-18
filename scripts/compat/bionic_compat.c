@@ -67,6 +67,10 @@ __attribute__((weak, visibility("default"))) char *tzname[2] = {(char *)"UTC", (
 __attribute__((weak, visibility("default"))) char *__tzname_arr[2] = {(char *)"UTC", (char *)"UTC"};
 __attribute__((weak, visibility("default"))) char **__tzname = __tzname_arr;
 
+__attribute__((constructor)) static void __bionic_compat_init_timezone(void) {
+    tzset();
+}
+
 __attribute__((weak, visibility("default"))) char *gettext(const char *msgid) { return (char *)msgid; }
 __attribute__((weak, visibility("default"))) char *dgettext(const char *domainname, const char *msgid) { (void)domainname; return (char *)msgid; }
 __attribute__((weak, visibility("default"))) char *dcgettext(const char *domainname, const char *msgid, int category) { (void)domainname; (void)category; return (char *)msgid; }
@@ -158,23 +162,6 @@ __attribute__((weak, visibility("default"))) int *__h_errno_location(void) { ret
 __attribute__((weak, visibility("default"))) int *__get_h_errno(void) { return __errno(); }
 __attribute__((weak, visibility("default"))) int *__h_errno(void) { return __errno(); }
 
-__attribute__((weak, visibility("default"))) int __libc_start_main(
-    int (*main)(int, char **, char **),
-    int argc,
-    char **argv,
-    void (*init)(void),
-    void (*fini)(void),
-    void (*rtld_fini)(void),
-    void *stack_end
-) {
-    (void)stack_end;
-    if (init) init();
-    int ret = main(argc, argv, environ);
-    if (fini) fini();
-    if (rtld_fini) rtld_fini();
-    exit(ret);
-}
-
 __attribute__((weak, visibility("default"))) int __cxa_at_quick_exit(void (*func)(void), void *dso_handle) { (void)dso_handle; return atexit(func); }
 __attribute__((weak, visibility("default"))) int at_quick_exit(void (*func)(void)) { return atexit(func); }
 __attribute__((weak, visibility("default"))) void quick_exit(int status) { exit(status); }
@@ -249,14 +236,11 @@ __attribute__((weak, visibility("default"))) size_t wcsftime_l(wchar_t *s, size_
 __attribute__((weak, visibility("default"))) int backtrace(void **b, int s) { (void)b; (void)s; return 0; }
 __attribute__((weak, visibility("default"))) char **backtrace_symbols(void *const *b, int s) { (void)b; (void)s; return NULL; }
 __attribute__((weak, visibility("default"))) void backtrace_symbols_fd(void *const *b, int s, int f) { (void)b; (void)s; (void)f; }
-__attribute__((weak, visibility("default"))) int pthread_getname_np(pthread_t t, char *n, size_t s) { (void)t; (void)n; (void)s; return 0; }
-__attribute__((weak, visibility("default"))) int pthread_cond_clockwait(pthread_cond_t *c, pthread_mutex_t *m, clockid_t clock_id, const struct timespec *ts) { (void)clock_id; return pthread_cond_timedwait(c, m, ts); }
 __attribute__((weak, visibility("default"))) int pthread_setcancelstate(int state, int *oldstate) { if (oldstate) *oldstate = state; return 0; }
 __attribute__((weak, visibility("default"))) int pthread_setcanceltype(int type, int *oldtype) { if (oldtype) *oldtype = type; return 0; }
 __attribute__((weak, visibility("default"))) int pthread_cancel(pthread_t thread) { (void)thread; return 0; }
 __attribute__((weak, visibility("default"))) void pthread_testcancel(void) {}
 __attribute__((weak, visibility("default"))) int pthread_yield(void) { return sched_yield(); }
-__attribute__((weak, visibility("default"))) int pthread_getattr_np(pthread_t th, pthread_attr_t *attr) { (void)th; (void)attr; return 0; }
 
 __attribute__((weak, visibility("default"))) int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout) { (void)set; (void)info; (void)timeout; errno = ENOSYS; return -1; }
 __attribute__((weak, visibility("default"))) int sigwaitinfo(const sigset_t *set, siginfo_t *info) { (void)set; (void)info; errno = ENOSYS; return -1; }
@@ -283,7 +267,7 @@ __attribute__((weak, visibility("default"))) int posix_fallocate64(int fd, off64
 
 __attribute__((weak, visibility("default"))) int getloadavg(double loadavg[], int nelem) { for (int i = 0; i < nelem; ++i) loadavg[i] = 0.0; return nelem; }
 __attribute__((weak, visibility("default"))) int malloc_trim(size_t pad) { (void)pad; return 0; }
-__attribute__((weak, visibility("default"))) void malloc_stats(void) {}
+__attribute__((weak, visibility("default"))) void malloc_stats(void) {}\n
 __attribute__((weak, visibility("default"))) int mallopt(int param, int value) { (void)param; (void)value; return 1; }
 __attribute__((weak, visibility("default"))) char *secure_getenv(const char *name) { return getenv(name); }
 __attribute__((weak, visibility("default"))) char *__secure_getenv(const char *name) { return getenv(name); }
@@ -345,15 +329,14 @@ __attribute__((weak, visibility("default"))) void __sincosf(float x, float *s, f
 __attribute__((weak, visibility("default"))) int sched_getcpu(void) { return 0; }
 __attribute__((weak, visibility("default"))) void *reallocarray(void *ptr, size_t nmemb, size_t size) { if (size && nmemb > ((size_t)-1) / size) { errno = ENOMEM; return NULL; } return realloc(ptr, nmemb * size); }
 
-static const unsigned short *__ctype_b_ptr = NULL;
-static const int32_t *__ctype_tolower_ptr = NULL;
-static const int32_t *__ctype_toupper_ptr = NULL;
 static unsigned short __ctype_b_tab[384];
 static int32_t __ctype_tolower_tab[384];
 static int32_t __ctype_toupper_tab[384];
+static const unsigned short *__ctype_b_ptr = &__ctype_b_tab[128];
+static const int32_t *__ctype_tolower_ptr = &__ctype_tolower_tab[128];
+static const int32_t *__ctype_toupper_ptr = &__ctype_toupper_tab[128];
 
-static void __init_ctype_tables(void) {
-    if (__ctype_b_ptr) return;
+__attribute__((constructor)) static void __init_ctype_tables(void) {
     for (int i = 0; i < 256; ++i) {
         unsigned short flags = 0;
         if (isupper(i)) flags |= 0x0100;
@@ -372,14 +355,11 @@ static void __init_ctype_tables(void) {
         __ctype_tolower_tab[128 + i] = tolower(i);
         __ctype_toupper_tab[128 + i] = toupper(i);
     }
-    __ctype_b_ptr = &__ctype_b_tab[128];
-    __ctype_tolower_ptr = &__ctype_tolower_tab[128];
-    __ctype_toupper_ptr = &__ctype_toupper_tab[128];
 }
 
-__attribute__((weak, visibility("default"))) const unsigned short **__ctype_b_loc(void) { __init_ctype_tables(); return &__ctype_b_ptr; }
-__attribute__((weak, visibility("default"))) const int32_t **__ctype_tolower_loc(void) { __init_ctype_tables(); return &__ctype_tolower_ptr; }
-__attribute__((weak, visibility("default"))) const int32_t **__ctype_toupper_loc(void) { __init_ctype_tables(); return &__ctype_toupper_ptr; }
+__attribute__((weak, visibility("default"))) const unsigned short **__ctype_b_loc(void) { return &__ctype_b_ptr; }
+__attribute__((weak, visibility("default"))) const int32_t **__ctype_tolower_loc(void) { return &__ctype_tolower_ptr; }
+__attribute__((weak, visibility("default"))) const int32_t **__ctype_toupper_loc(void) { return &__ctype_toupper_ptr; }
 __attribute__((weak, visibility("default"))) size_t __ctype_get_mb_cur_max(void) { return 4; }
 
 __attribute__((weak, visibility("default"))) int getservbyname_r(const char *n, const char *p, struct servent *r, char *b, size_t l, struct servent **res) { struct servent *s = getservbyname(n, p); if (!s) { *res = NULL; return ENOENT; } *r = *s; *res = r; return 0; }
