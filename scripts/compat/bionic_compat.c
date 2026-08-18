@@ -33,6 +33,7 @@
 #include <math.h>
 #include <errno.h>
 #include <poll.h>
+#include <sys/prctl.h>
 
 #undef __timezone
 #undef timezone
@@ -258,6 +259,46 @@ __attribute__((weak, visibility("default"))) int pthread_setcanceltype(int type,
 __attribute__((weak, visibility("default"))) int pthread_cancel(pthread_t thread) { (void)thread; return 0; }
 __attribute__((weak, visibility("default"))) void pthread_testcancel(void) {}
 __attribute__((weak, visibility("default"))) int pthread_yield(void) { return sched_yield(); }
+__attribute__((weak, visibility("default"))) int pthread_getname_np(pthread_t thread, char *name, size_t len) {
+    if (!name || len == 0) return ERANGE;
+#ifdef PR_GET_NAME
+    if (thread == pthread_self()) {
+        if (prctl(PR_GET_NAME, (unsigned long)name, 0, 0, 0) == 0) {
+            name[len - 1] = '\0';
+            return 0;
+        }
+    }
+#endif
+    snprintf(name, len, "thread_%lu", (unsigned long)thread);
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int memfd_create(const char *name, unsigned int flags) {
+#ifdef __NR_memfd_create
+    return (int)syscall(__NR_memfd_create, name, flags);
+#else
+    (void)name; (void)flags;
+    errno = ENOSYS;
+    return -1;
+#endif
+}
+
+__attribute__((weak, visibility("default"))) int getentropy(void *buffer, size_t length) {
+    if (length > 256) { errno = EIO; return -1; }
+#ifdef __NR_getrandom
+    int r = (int)syscall(__NR_getrandom, buffer, length, 0);
+    if (r < 0) return -1;
+    if ((size_t)r != length) { errno = EIO; return -1; }
+    return 0;
+#else
+    int fd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
+    if (fd < 0) return -1;
+    ssize_t r = read(fd, buffer, length);
+    close(fd);
+    if (r != (ssize_t)length) { errno = EIO; return -1; }
+    return 0;
+#endif
+}
 
 __attribute__((weak, visibility("default"))) int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout) { (void)set; (void)info; (void)timeout; errno = ENOSYS; return -1; }
 __attribute__((weak, visibility("default"))) int sigwaitinfo(const sigset_t *set, siginfo_t *info) { (void)set; (void)info; errno = ENOSYS; return -1; }

@@ -85,6 +85,7 @@ int pthread_setcanceltype(int type, int *oldtype);
 int pthread_cancel(pthread_t thread);
 void pthread_testcancel(void);
 int pthread_yield(void);
+int pthread_getname_np(pthread_t thread, char *name, size_t len);
 
 int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout);
 int sigwaitinfo(const sigset_t *set, siginfo_t *info);
@@ -147,6 +148,8 @@ void sincosf(float x, float *s, float *c);
 void __sincosf(float x, float *s, float *c);
 int sched_getcpu(void);
 void *reallocarray(void *ptr, size_t nmemb, size_t size);
+int getentropy(void *buffer, size_t length);
+int memfd_create(const char *name, unsigned int flags);
 
 int getservbyname_r(const char *n, const char *p, struct servent *r, char *b, size_t l, struct servent **res);
 int getservbyport_r(int port, const char *p, struct servent *r, char *b, size_t l, struct servent **res);
