@@ -24,6 +24,7 @@ extern "C" {
 #include <dlfcn.h>
 #include <pthread.h>
 #include <signal.h>
+#include <math.h>
 
 #if __has_include(<langinfo.h>)
 #include <langinfo.h>
@@ -79,9 +80,6 @@ locale_t __uselocale(locale_t loc);
 locale_t __duplocale(locale_t loc);
 char *__nl_langinfo_l(nl_item item, locale_t loc);
 
-int backtrace(void **b, int s);
-char **backtrace_symbols(void *const *b, int s);
-void backtrace_symbols_fd(void *const *b, int s, int f);
 int pthread_setcancelstate(int state, int *oldstate);
 int pthread_setcanceltype(int type, int *oldtype);
 int pthread_cancel(pthread_t thread);
