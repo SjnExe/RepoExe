@@ -33,8 +33,7 @@ channels:
 phases:
   prepare: |
     set -e
-    echo "⚡ Preparing Bun Bionic build environment..."
-    sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config build-essential libssl-dev ruby ruby-dev bison flex gperf libicu-dev lld unzip wget gnupg patchelf
+    echo "⚡ Preparing Bun host tools..."
     curl -fsSL https://bun.sh/install | bash || true
 
     echo "⚡ Dynamically resolving exact WebKit commit SHA from Bun source..."
@@ -50,7 +49,7 @@ phases:
     echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
 
     CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_SYSTEM_VERSION=24 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DUSE_THINLTO=OFF -DENABLE_SAMPLING_PROFILER=OFF -DENABLE_REMOTE_INSPECTOR=OFF -DENABLE_EXTRA_BYTECODE_VERIFICATION=OFF -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_YARR_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
-    
+
     # Hash incorporates WebKit commit SHA, CMAKE_FLAGS, and bionic_compat/stub to guarantee rebuild if anything affecting JSC changes
     COMPAT_HASH=$(sha256sum /home/builder/RepoExe/scripts/compat/bionic_compat.c /home/builder/RepoExe/scripts/compat/bionic_stub.h 2>/dev/null | sha256sum | head -c 8)
     CONFIG_HASH=$(echo "${CMAKE_FLAGS}-${COMPAT_HASH}" | sha256sum | head -c 8)
@@ -242,7 +241,7 @@ phases:
     echo '    EXTRA_FLAGS="/tmp/bionic_compat.o -L/tmp -lbionic_compat"' >> /tmp/fake-clang/version_shim
     echo '  fi' >> /tmp/fake-clang/version_shim
     echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" $EXTRA_FLAGS' >> /tmp/fake-clang/version_shim
-    echo 'else' >> /tmp/fake-clang/version_shim
+    else
     echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}"' >> /tmp/fake-clang/version_shim
     echo 'fi' >> /tmp/fake-clang/version_shim
     chmod +x /tmp/fake-clang/version_shim
