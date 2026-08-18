@@ -267,7 +267,7 @@ __attribute__((weak, visibility("default"))) int posix_fallocate64(int fd, off64
 
 __attribute__((weak, visibility("default"))) int getloadavg(double loadavg[], int nelem) { for (int i = 0; i < nelem; ++i) loadavg[i] = 0.0; return nelem; }
 __attribute__((weak, visibility("default"))) int malloc_trim(size_t pad) { (void)pad; return 0; }
-__attribute__((weak, visibility("default"))) void malloc_stats(void) {}\n
+__attribute__((weak, visibility("default"))) void malloc_stats(void) {}
 __attribute__((weak, visibility("default"))) int mallopt(int param, int value) { (void)param; (void)value; return 1; }
 __attribute__((weak, visibility("default"))) char *secure_getenv(const char *name) { return getenv(name); }
 __attribute__((weak, visibility("default"))) char *__secure_getenv(const char *name) { return getenv(name); }
