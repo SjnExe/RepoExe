@@ -64,10 +64,9 @@ __attribute__((weak, visibility("default"))) long timezone = 0;
 __attribute__((weak, visibility("default"))) int daylight = 0;
 __attribute__((weak, visibility("default"))) int __daylight = 0;
 __attribute__((weak, visibility("default"))) char *tzname[2] = {(char *)"UTC", (char *)"UTC"};
-__attribute__((weak, visibility("default"))) char *__tzname_arr[2] = {(char *)"UTC", (char *)"UTC"};
-__attribute__((weak, visibility("default"))) char **__tzname = __tzname_arr;
+__attribute__((weak, visibility("default"))) char *__tzname[2] = {(char *)"UTC", (char *)"UTC"};
 
-__attribute__((constructor)) static void __bionic_compat_init_timezone(void) {
+__attribute__((constructor(101))) static void __bionic_compat_init_timezone(void) {
     tzset();
 }
 
@@ -161,6 +160,24 @@ __attribute__((weak, visibility("default"))) int *__errno_location(void) { retur
 __attribute__((weak, visibility("default"))) int *__h_errno_location(void) { return __errno(); }
 __attribute__((weak, visibility("default"))) int *__get_h_errno(void) { return __errno(); }
 __attribute__((weak, visibility("default"))) int *__h_errno(void) { return __errno(); }
+
+__attribute__((weak, visibility("default"))) int __libc_start_main(
+    int (*main)(int, char **, char **),
+    int argc,
+    char **argv,
+    int (*init)(int, char **, char **),
+    void (*fini)(void),
+    void (*rtld_fini)(void),
+    void *stack_end
+) {
+    (void)stack_end;
+    char **envp = argv + argc + 1;
+    environ = envp;
+    if (rtld_fini) atexit(rtld_fini);
+    if (fini) atexit(fini);
+    if (init) init(argc, argv, envp);
+    exit(main(argc, argv, envp));
+}
 
 __attribute__((weak, visibility("default"))) int __cxa_at_quick_exit(void (*func)(void), void *dso_handle) { (void)dso_handle; return atexit(func); }
 __attribute__((weak, visibility("default"))) int at_quick_exit(void (*func)(void)) { return atexit(func); }
@@ -336,7 +353,7 @@ static const unsigned short *__ctype_b_ptr = &__ctype_b_tab[128];
 static const int32_t *__ctype_tolower_ptr = &__ctype_tolower_tab[128];
 static const int32_t *__ctype_toupper_ptr = &__ctype_toupper_tab[128];
 
-__attribute__((constructor)) static void __init_ctype_tables(void) {
+__attribute__((constructor(101))) static void __init_ctype_tables(void) {
     for (int i = 0; i < 256; ++i) {
         unsigned short flags = 0;
         if (isupper(i)) flags |= 0x0100;

@@ -40,7 +40,7 @@ extern long timezone;
 extern int daylight;
 extern int __daylight;
 extern char *tzname[2];
-extern char **__tzname;
+extern char *__tzname[2];
 
 char *gettext(const char *msgid);
 char *dgettext(const char *domainname, const char *msgid);
@@ -176,76 +176,6 @@ int __iswdigit_l(wint_t wc, locale_t loc);
 int __iswspace_l(wint_t wc, locale_t loc);
 int __iswctype_l(wint_t wc, wctype_t desc, locale_t loc);
 wctype_t __wctype_l(const char *name, locale_t loc);
-
-int pthread_setcancelstate(int state, int *oldstate);
-int pthread_setcanceltype(int type, int *oldtype);
-int pthread_cancel(pthread_t thread);
-void pthread_testcancel(void);
-int pthread_yield(void);
-
-int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout);
-int sigwaitinfo(const sigset_t *set, siginfo_t *info);
-int signalfd(int fd, const sigset_t *mask, int flags);
-
-int __xstat(int ver, const char *path, struct stat *stat_buf);
-int __fxstat(int ver, int fd, struct stat *stat_buf);
-int __lxstat(int ver, const char *path, struct stat *stat_buf);
-int __fxstatat(int ver, int dirfd, const char *path, struct stat *stat_buf, int flags);
-int __xstat64(int ver, const char *path, void *stat_buf);
-int __fxstat64(int ver, int fd, void *stat_buf);
-int __lxstat64(int ver, const char *path, void *stat_buf);
-int __fxstatat64(int ver, int dirfd, const char *path, void *stat_buf, int flags);
-int __xmknod(int ver, const char *path, mode_t mode, dev_t *dev);
-int __xmknodat(int ver, int dirfd, const char *path, mode_t mode, dev_t *dev);
-
-int lchmod(const char *path, mode_t mode);
-int futimes(int fd, const struct timeval tv[2]);
-int lutimes(const char *path, const struct timeval tv[2]);
-int posix_fadvise(int fd, off_t offset, off_t len, int advice);
-int posix_fadvise64(int fd, off64_t offset, off64_t len, int advice);
-int posix_fallocate(int fd, off_t offset, off_t len);
-int posix_fallocate64(int fd, off64_t offset, off64_t len);
-
-int getloadavg(double loadavg[], int nelem);
-int malloc_trim(size_t pad);
-void malloc_stats(void);
-int mallopt(int param, int value);
-char *secure_getenv(const char *name);
-char *__secure_getenv(const char *name);
-int clearenv(void);
-
-char *strchrnul(const char *s, int c);
-char *__strchrnul(const char *s, int c);
-void *rawmemchr(const void *s, int c);
-void *__rawmemchr(const void *s, int c);
-void *mempcpy(void *dest, const void *src, size_t n);
-void *__mempcpy(void *dest, const void *src, size_t n);
-wchar_t *wmempcpy(wchar_t *dest, const wchar_t *src, size_t n);
-char *canonicalize_file_name(const char *path);
-char *get_current_dir_name(void);
-int sync_file_range(int fd, off64_t offset, off64_t nbytes, unsigned int flags);
-
-char *__strdup(const char *s);
-char *__strndup(const char *s, size_t n);
-char *__strtok_r(char *s, const char *d, char **p);
-char *__stpcpy(char *d, const char *s);
-char *__stpncpy(char *d, const char *s, size_t n);
-int __asprintf(char **strp, const char *fmt, ...);
-int __vasprintf(char **strp, const char *fmt, va_list ap);
-int __dprintf(int fd, const char *fmt, ...);
-int __vdprintf(int fd, const char *fmt, va_list ap);
-int __snprintf(char *s, size_t n, const char *fmt, ...);
-int __vsnprintf(char *s, size_t n, const char *fmt, va_list ap);
-int __sprintf(char *s, const char *fmt, ...);
-int __vsprintf(char *s, const char *fmt, va_list ap);
-
-time_t timelocal(struct tm *tm);
-int stime(const time_t *t);
-int res_init(void);
-int __res_init(void);
-unsigned int gnu_dev_major(unsigned long long dev);
-unsigned int gnu_dev_minor(unsigned long long dev);
-unsigned long long gnu_dev_makedev(unsigned int maj, unsigned int min);
 
 int strcoll_l(const char *s1, const char *s2, locale_t loc);
 size_t strxfrm_l(char *dest, const char *src, size_t n, locale_t loc);
