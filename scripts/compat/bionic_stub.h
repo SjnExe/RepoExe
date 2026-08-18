@@ -1,6 +1,10 @@
 #ifndef _BIONIC_STUB_H_
 #define _BIONIC_STUB_H_
 
+#ifndef __ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__
+#define __ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__ 1
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

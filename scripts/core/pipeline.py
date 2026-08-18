@@ -20,8 +20,8 @@ from utils.test import ProotTestRunner
 from utils.toolchains import setup_build_environment
 
 DEFAULT_BIONIC_ENV = {
-    "CFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fPIE -include /tmp/bionic_stub.h",
-    "CXXFLAGS": "-O3 -DNDEBUG -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fPIE -include /tmp/bionic_stub.h",
+    "CFLAGS": "-O3 -DNDEBUG -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fPIE -include /tmp/bionic_stub.h",
+    "CXXFLAGS": "-O3 -DNDEBUG -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fPIE -include /tmp/bionic_stub.h",
     "LDFLAGS": "-pie -fuse-ld=lld -static-libgcc -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z,max-page-size=16384 -Wl,--gc-sections -Wl,--threads=4 /tmp/bionic_compat.o -L/tmp -lcompat",
     "CARGO_BUILD_TARGET": "aarch64-linux-android",
     "GOOS": "android",
