@@ -301,7 +301,7 @@ __attribute__((weak, visibility("default"))) int pthread_setcancelstate(int stat
 __attribute__((weak, visibility("default"))) int pthread_setcanceltype(int type, int *oldtype) { if (oldtype) *oldtype = type; return 0; }
 __attribute__((weak, visibility("default"))) int pthread_cancel(pthread_t thread) { (void)thread; return 0; }
 __attribute__((weak, visibility("default"))) void pthread_testcancel(void) {}
-__attribute__((weak, visibility("default"))) __attribute__((weak, visibility("default"))) int pthread_getattr_np(pthread_t thread, pthread_attr_t *attr) {
+__attribute__((weak, visibility("default"))) int pthread_getattr_np(pthread_t thread, pthread_attr_t *attr) {
     typedef int (*fn_t)(pthread_t, pthread_attr_t*);
     static fn_t real_fn = (fn_t)-1;
     if (real_fn == (fn_t)-1) {
@@ -324,7 +324,7 @@ __attribute__((weak, visibility("default"))) __attribute__((weak, visibility("de
     return -1;
 }
 
-int pthread_yield(void) { return sched_yield(); }
+__attribute__((weak, visibility("default"))) int pthread_yield(void) { return sched_yield(); }
 __attribute__((weak, visibility("default"))) int pthread_getname_np(pthread_t thread, char *name, size_t len) {
     if (!name || len == 0) return ERANGE;
     typedef int (*fn_t)(pthread_t, char*, size_t);

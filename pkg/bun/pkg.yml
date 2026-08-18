@@ -210,7 +210,9 @@ phases:
                     with open(p, 'r', encoding='utf-8', errors='ignore') as fp:
                         content = fp.read()
                     new_c = content
-                    new_c = re.sub(r'aarch64-linux-gnu(\.[0-9\.]+)?', 'aarch64-linux-android', new_c)
+                    new_c = re.sub(r'aarch64-linux-gnu(?:\.[0-9\.]+)?', 'aarch64-linux-android', new_c)
+                    new_c = re.sub(r'linux-aarch64-gnu(?:\.[0-9\.]+)?', 'linux-aarch64-android', new_c)
+                    new_c = re.sub(r'\.glibc_version\s*=\s*[^,}]+', '', new_c)
                     new_c = re.sub(r'linux-aarch64-gnu', 'linux-aarch64-android', new_c)
                     new_c = re.sub(r'\.abi\s*=\s*\.gnu', '.abi = .android', new_c)
                     new_c = re.sub(r'\.abi\s*==\s*\.gnu', '.abi == .android', new_c)
@@ -289,7 +291,7 @@ phases:
 
     export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
     export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
-    export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm /tmp/bionic_compat.o -L/tmp -lbionic_compat"
+    export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,--allow-multiple-definition -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm /tmp/bionic_compat.o -L/tmp -lbionic_compat"
 
     find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.zig" -o -name "*.cmake" -o -name "CMakeLists.txt" \) -exec sed -i 's/-fno-pic/-fPIC/g; s/-Wl,-no-pie/-Wl,-pie/g; s/-no-pie/-pie/g' {} + 2>/dev/null || true
 
