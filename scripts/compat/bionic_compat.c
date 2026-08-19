@@ -821,6 +821,4 @@ static inline void wordfree(wordexp_t *p) { (void)p; }
 }
 #endif
 
-#endif /* !__ASSEMBLER__ && !__ASSEMBLY__ */
 
-#endif /* _BIONIC_STUB_H_ */
