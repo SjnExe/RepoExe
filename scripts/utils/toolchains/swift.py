@@ -24,11 +24,19 @@ class SwiftToolchain:
         return {}
 
     def get_swift_args(self) -> list[str]:
+        ndk = os.environ.get("NDK", "/opt/android-ndk")
+        prebuilt_base = os.path.join(ndk, "toolchains", "llvm", "prebuilt")
+        prebuilts = (
+            [d for d in os.listdir(prebuilt_base) if not d.startswith(".")]
+            if os.path.exists(prebuilt_base)
+            else []
+        )
+        prebuilt_dir = prebuilts[0] if prebuilts else "linux-arm64"
         return [
             "-target",
             self.target,
             "-sdk",
-            f"{os.environ.get('NDK', '/opt/android-ndk')}/toolchains/llvm/prebuilt/linux-x86_64/sysroot",
+            f"{ndk}/toolchains/llvm/prebuilt/{prebuilt_dir}/sysroot",
             "-L",
             f"{PREFIX}/lib",
             "-I",
