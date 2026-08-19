@@ -36,6 +36,8 @@
 #include <sys/prctl.h>
 #include <sys/system_properties.h>
 
+#include "bionic_stub.h"
+
 #undef __timezone
 #undef timezone
 #undef daylight
@@ -70,6 +72,241 @@ __attribute__((weak, visibility("default"))) char *__tzname[2] = {(char *)"UTC",
 
 __attribute__((constructor(101))) static void __bionic_compat_init_timezone(void) {
     tzset();
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawn_file_actions_init(posix_spawn_file_actions_t *fa) {
+    if (!fa) return EINVAL;
+    fa->head = NULL;
+    fa->tail = NULL;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawn_file_actions_destroy(posix_spawn_file_actions_t *fa) {
+    if (!fa) return EINVAL;
+    struct __spawn_action *act = fa->head;
+    while (act) {
+        struct __spawn_action *next = act->next;
+        if (act->path) free(act->path);
+        free(act);
+        act = next;
+    }
+    fa->head = fa->tail = NULL;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawn_file_actions_addclose(posix_spawn_file_actions_t *fa, int fd) {
+    if (!fa || fd < 0) return EINVAL;
+    struct __spawn_action *act = (struct __spawn_action *)calloc(1, sizeof(struct __spawn_action));
+    if (!act) return ENOMEM;
+    act->type = __SPAWN_ACT_CLOSE;
+    act->fd = fd;
+    if (!fa->head) fa->head = act;
+    else fa->tail->next = act;
+    fa->tail = act;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawn_file_actions_adddup2(posix_spawn_file_actions_t *fa, int fd, int newfd) {
+    if (!fa || fd < 0 || newfd < 0) return EINVAL;
+    struct __spawn_action *act = (struct __spawn_action *)calloc(1, sizeof(struct __spawn_action));
+    if (!act) return ENOMEM;
+    act->type = __SPAWN_ACT_DUP2;
+    act->fd = fd;
+    act->newfd = newfd;
+    if (!fa->head) fa->head = act;
+    else fa->tail->next = act;
+    fa->tail = act;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawn_file_actions_addopen(posix_spawn_file_actions_t *fa, int fd, const char *path, int oflag, mode_t mode) {
+    if (!fa || fd < 0 || !path) return EINVAL;
+    struct __spawn_action *act = (struct __spawn_action *)calloc(1, sizeof(struct __spawn_action));
+    if (!act) return ENOMEM;
+    act->type = __SPAWN_ACT_OPEN;
+    act->fd = fd;
+    act->path = strdup(path);
+    act->oflag = oflag;
+    act->mode = mode;
+    if (!fa->head) fa->head = act;
+    else fa->tail->next = act;
+    fa->tail = act;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawnattr_init(posix_spawnattr_t *attr) {
+    if (!attr) return EINVAL;
+    memset(attr, 0, sizeof(*attr));
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawnattr_destroy(posix_spawnattr_t *attr) {
+    if (!attr) return EINVAL;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawnattr_setflags(posix_spawnattr_t *attr, short flags) {
+    if (!attr) return EINVAL;
+    attr->flags = flags;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawnattr_getflags(const posix_spawnattr_t *attr, short *flags) {
+    if (!attr || !flags) return EINVAL;
+    *flags = attr->flags;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawnattr_setpgroup(posix_spawnattr_t *attr, pid_t pgroup) {
+    if (!attr) return EINVAL;
+    attr->pgroup = pgroup;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawnattr_getpgroup(const posix_spawnattr_t *attr, pid_t *pgroup) {
+    if (!attr || !pgroup) return EINVAL;
+    *pgroup = attr->pgroup;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawnattr_setsigmask(posix_spawnattr_t *attr, const sigset_t *sigmask) {
+    if (!attr || !sigmask) return EINVAL;
+    attr->sigmask = *sigmask;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawnattr_getsigmask(const posix_spawnattr_t *attr, sigset_t *sigmask) {
+    if (!attr || !sigmask) return EINVAL;
+    *sigmask = attr->sigmask;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawnattr_setsigdefault(posix_spawnattr_t *attr, const sigset_t *sigdefault) {
+    if (!attr || !sigdefault) return EINVAL;
+    attr->sigdefault = *sigdefault;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawnattr_getsigdefault(const posix_spawnattr_t *attr, sigset_t *sigdefault) {
+    if (!attr || !sigdefault) return EINVAL;
+    *sigdefault = attr->sigdefault;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawn(
+    pid_t *pid,
+    const char *path,
+    const posix_spawn_file_actions_t *file_actions,
+    const posix_spawnattr_t *attrp,
+    char *const argv[],
+    char *const envp[]
+) {
+    pid_t child = fork();
+    if (child < 0) return errno;
+    if (child == 0) {
+        if (attrp) {
+            if (attrp->flags & POSIX_SPAWN_SETPGROUP) {
+                setpgid(0, attrp->pgroup);
+            }
+            if (attrp->flags & POSIX_SPAWN_SETSIGMASK) {
+                sigprocmask(SIG_SETMASK, &attrp->sigmask, NULL);
+            }
+            if (attrp->flags & POSIX_SPAWN_SETSIGDEF) {
+                struct sigaction sa;
+                memset(&sa, 0, sizeof(sa));
+                sa.sa_handler = SIG_DFL;
+                for (int i = 1; i < 32; ++i) {
+                    if (sigismember(&attrp->sigdefault, i)) {
+                        sigaction(i, &sa, NULL);
+                    }
+                }
+            }
+            if (attrp->flags & POSIX_SPAWN_RESETIDS) {
+                seteuid(getuid());
+                setegid(getgid());
+            }
+        }
+        if (file_actions && file_actions->head) {
+            struct __spawn_action *act = file_actions->head;
+            while (act) {
+                if (act->type == __SPAWN_ACT_CLOSE) {
+                    close(act->fd);
+                } else if (act->type == __SPAWN_ACT_DUP2) {
+                    dup2(act->fd, act->newfd);
+                } else if (act->type == __SPAWN_ACT_OPEN) {
+                    int fd = open(act->path, act->oflag, act->mode);
+                    if (fd >= 0 && fd != act->fd) {
+                        dup2(fd, act->fd);
+                        close(fd);
+                    }
+                }
+                act = act->next;
+            }
+        }
+        char *const *cur_env = envp ? envp : (char *const *)environ;
+        execve(path, argv, cur_env);
+        _exit(127);
+    }
+    if (pid) *pid = child;
+    return 0;
+}
+
+__attribute__((weak, visibility("default"))) int posix_spawnp(
+    pid_t *pid,
+    const char *file,
+    const posix_spawn_file_actions_t *file_actions,
+    const posix_spawnattr_t *attrp,
+    char *const argv[],
+    char *const envp[]
+) {
+    pid_t child = fork();
+    if (child < 0) return errno;
+    if (child == 0) {
+        if (attrp) {
+            if (attrp->flags & POSIX_SPAWN_SETPGROUP) {
+                setpgid(0, attrp->pgroup);
+            }
+            if (attrp->flags & POSIX_SPAWN_SETSIGMASK) {
+                sigprocmask(SIG_SETMASK, &attrp->sigmask, NULL);
+            }
+            if (attrp->flags & POSIX_SPAWN_SETSIGDEF) {
+                struct sigaction sa;
+                memset(&sa, 0, sizeof(sa));
+                sa.sa_handler = SIG_DFL;
+                for (int i = 1; i < 32; ++i) {
+                    if (sigismember(&attrp->sigdefault, i)) {
+                        sigaction(i, &sa, NULL);
+                    }
+                }
+            }
+            if (attrp->flags & POSIX_SPAWN_RESETIDS) {
+                seteuid(getuid());
+                setegid(getgid());
+            }
+        }
+        if (file_actions && file_actions->head) {
+            struct __spawn_action *act = file_actions->head;
+            while (act) {
+                if (act->type == __SPAWN_ACT_CLOSE) {
+                    close(act->fd);
+                } else if (act->type == __SPAWN_ACT_DUP2) {
+                    dup2(act->fd, act->newfd);
+                } else if (act->type == __SPAWN_ACT_OPEN) {
+                    int fd = open(act->path, act->oflag, act->mode);
+                    if (fd >= 0 && fd != act->fd) {
+                        dup2(fd, act->fd);
+                        close(fd);
+                    }
+                }
+                act = act->next;
+            }
+        }
+        char *const *cur_env = envp ? envp : (char *const *)environ;
+        execvpe(file, argv, cur_env);
+        _exit(127);
+    }
+    if (pid) *pid = child;
+    return 0;
 }
 
 __attribute__((weak, visibility("default"))) char *gettext(const char *msgid) { return (char *)msgid; }

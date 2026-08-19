@@ -52,6 +52,7 @@ def setup_bionic_compat() -> None:
         res_cc = subprocess.run(
             [
                 ndk_clang,
+                "-I" + str(repo_root / "scripts" / "compat"),
                 "-fPIC",
                 "-O2",
                 "-Wno-error",
@@ -84,3 +85,9 @@ def setup_bionic_compat() -> None:
     shutil.copy2(cached_lib, "/tmp/libcompat.a")
     shutil.copy2(cached_lib, "/tmp/libbionic_compat.a")  # Compatibility symlink
     shutil.copy2(stub_src, "/tmp/bionic_stub.h")
+    (Path("/tmp") / "spawn.h").write_text(
+        '#pragma once\n#include "/tmp/bionic_stub.h"\n', encoding="utf-8"
+    )
+    (Path("/tmp") / "android_lf.h").write_text(
+        "#pragma once\n#include <sys/types.h>\n", encoding="utf-8"
+    )

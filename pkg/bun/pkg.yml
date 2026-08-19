@@ -91,8 +91,8 @@ phases:
         -DENABLE_FTL_JIT=ON \
         -DENABLE_WEBASSEMBLY=ON \
         -DENABLE_C_LOOP=OFF \
-        -DCMAKE_C_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-format -Wno-unused-variable -Wno-unavailable-declarations -Wno-unguarded-availability" \
-        -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-format -Wno-unused-variable -Wno-undefined-var-template -Wno-unavailable-declarations -Wno-unguarded-availability"
+        -DCMAKE_C_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -I/tmp -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-format -Wno-unused-variable -Wno-unavailable-declarations -Wno-unguarded-availability" \
+        -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -I/tmp -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-format -Wno-unused-variable -Wno-undefined-var-template -Wno-unavailable-declarations -Wno-unguarded-availability"
       ninja -j4 JavaScriptCore
 
       mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"
@@ -149,6 +149,7 @@ phases:
     for d in ("/tmp", "/tmp/fake-clang"):
         os.makedirs(d, exist_ok=True)
         pathlib.Path(f"{d}/android_lf.h").write_text("#pragma once\n#include <sys/types.h>\n")
+        pathlib.Path(f"{d}/spawn.h").write_text('#pragma once\n#include "/tmp/bionic_stub.h"\n')
 
     shim = """#!/bin/bash
     cmd="$(basename "$0")"
@@ -162,15 +163,19 @@ phases:
       exit 0
     fi
     ARGS=()
+    IS_COMPILE=0
     for a in "$@"; do
       case "$a" in
+        -c|-E|-S) IS_COMPILE=1; ARGS+=("$a") ;;
         -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;
         -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=("-pie") ;;
         *) ARGS+=("$a") ;;
       esac
     done
     EXTRA=""
-    [ -f /tmp/bionic_compat.o ] && EXTRA="/tmp/bionic_compat.o -L/tmp -lbionic_compat"
+    if [ "$IS_COMPILE" = "0" ] && [ -f /tmp/bionic_compat.o ]; then
+      EXTRA="/tmp/bionic_compat.o -L/tmp -lbionic_compat"
+    fi
     if [[ "$cmd" =~ ^clang ]]; then
       exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 -I/tmp -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA
     elif [[ "$cmd" =~ lld$ ]]; then
@@ -198,7 +203,7 @@ phases:
                 n = re.sub(r'[`"]https://github\.com/oven-sh/WebKit/releases/download/[^`"]*[`"]', '"file:///tmp/bun-webkit-bionic.tar.gz"', n)
                 if f.name == "build.zig":
                     n = re.sub(r'const android_ndk_sysroot = b\.option\(\[\]const u8, "android_ndk_sysroot", [^\)]+\);', f'const android_ndk_sysroot: ?[]const u8 = "{sysroot}";', n)
-                    n = n.replace('std.debug.panic("translate-c for Android requires -Dandroid_ndk_sysroot", .{});', f'"{sysroot}";')
+                    n = n.replace('std.debug.panic("translate-c for Android requires -Dandroid_ndk_sysroot", .{});', f'\"{sysroot}\";')
                 if n != t:
                     f.write_text(n, "utf-8")
             except Exception:
