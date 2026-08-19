@@ -95,29 +95,7 @@ phases:
         -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -I/tmp -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-format -Wno-unused-variable -Wno-undefined-var-template -Wno-unavailable-declarations -Wno-unguarded-availability"
       ninja -j4 JavaScriptCore
 
-      python3 - << 'PYEOF'
-      import os, pathlib, shutil
-      jsc_cache = pathlib.Path(os.environ.get("JSC_CACHE_DIR", "/tmp/jsc_cache"))
-      wk_src = pathlib.Path("/tmp/webkit-src")
-      inc_dir = jsc_cache / "include"
-      lib_dir = jsc_cache / "lib"
-      for d in (inc_dir / "JavaScriptCore", inc_dir / "wtf", inc_dir / "bmalloc", lib_dir):
-          d.mkdir(parents=True, exist_ok=True)
-
-      for f in (wk_src / "build" / "lib").glob("lib*"):
-          shutil.copy2(f, lib_dir / f.name)
-
-      for root, _, files in os.walk(wk_src):
-          for f in files:
-              if f.endswith((".h", ".def", ".lut.h")):
-                  p = os.path.join(root, f)
-                  shutil.copy2(p, inc_dir / f)
-                  shutil.copy2(p, inc_dir / "JavaScriptCore" / f)
-                  if "wtf" in root.lower():
-                      shutil.copy2(p, inc_dir / "wtf" / f)
-                  if "bmalloc" in root.lower():
-                      shutil.copy2(p, inc_dir / "bmalloc" / f)
-      PYEOF
+      python3 -c "import os, pathlib, shutil; jsc = pathlib.Path('${JSC_CACHE_DIR}'); wk = pathlib.Path('/tmp/webkit-src'); inc = jsc / 'include'; lib = jsc / 'lib'; [d.mkdir(parents=True, exist_ok=True) for d in (inc / 'JavaScriptCore', inc / 'wtf', inc / 'bmalloc', lib)]; [shutil.copy2(f, lib / f.name) for f in (wk / 'build' / 'lib').glob('lib*')]; [(shutil.copy2(os.path.join(r, f), inc / f), shutil.copy2(os.path.join(r, f), inc / 'JavaScriptCore' / f), shutil.copy2(os.path.join(r, f), inc / 'wtf' / f) if 'wtf' in r.lower() else None, shutil.copy2(os.path.join(r, f), inc / 'bmalloc' / f) if 'bmalloc' in r.lower() else None) for r, _, fs in os.walk(wk) for f in fs if f.endswith(('.h', '.def', '.lut.h'))]"
 
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
