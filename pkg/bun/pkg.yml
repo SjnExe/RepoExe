@@ -37,12 +37,13 @@ phases:
     curl -fsSL https://bun.sh/install | bash || true
 
     echo "⚡ Dynamically resolving exact WebKit commit SHA from Bun source..."
-    WEBKIT_SHA=$(python3 -c '
+    WEBKIT_SHA=$(python3 - << 'PYEOF'
     import re, pathlib
     p = pathlib.Path
     s = next((m.group(1) for f in p(".").rglob("*") if f.suffix in (".ts", ".js", ".zig", ".cmake", ".txt") and "node_modules" not in str(f) for m in [re.search(r"(?:webkit[_-]version|webkit_sha|WebKit/releases/download/autobuild-)([0-9a-fA-F]{40})", f.read_text("utf-8", "ignore"))] if m), "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
     print(s)
-    ')
+    PYEOF
+    )
     echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
 
     CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_SYSTEM_VERSION=24 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DENABLE_SAMPLING_PROFILER=OFF -DENABLE_REMOTE_INSPECTOR=OFF -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
@@ -118,12 +119,13 @@ phases:
     export ZIG_GLOBAL_CACHE_DIR=/home/builder/RepoExe/.cache/zig
     export ZIG_LOCAL_CACHE_DIR=/tmp/zig-cache
 
-    WEBKIT_SHA=$(python3 -c '
+    WEBKIT_SHA=$(python3 - << 'PYEOF'
     import re, pathlib
     p = pathlib.Path
     s = next((m.group(1) for f in p(".").rglob("*") if f.suffix in (".ts", ".js", ".zig", ".cmake", ".txt") and "node_modules" not in str(f) for m in [re.search(r"(?:webkit[_-]version|webkit_sha|WebKit/releases/download/autobuild-)([0-9a-fA-F]{40})", f.read_text("utf-8", "ignore"))] if m), "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
     print(s)
-    ')
+    PYEOF
+    )
     CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_SYSTEM_VERSION=24 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DENABLE_SAMPLING_PROFILER=OFF -DENABLE_REMOTE_INSPECTOR=OFF -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
     COMPAT_HASH=$(sha256sum /home/builder/RepoExe/scripts/compat/bionic_compat.c /home/builder/RepoExe/scripts/compat/bionic_stub.h 2>/dev/null | sha256sum | head -c 8)
     CONFIG_HASH=$(echo "${CMAKE_FLAGS}-${COMPAT_HASH}" | sha256sum | head -c 8)
@@ -137,7 +139,7 @@ phases:
       cp -a "${JSC_CACHE_DIR}/include/"* "${c_dir}/include/" 2>/dev/null || true
     done
 
-    python3 -c '
+    python3 - << 'PYEOF'
     import glob, os, pathlib, re
     ndk = os.environ.get("NDK", "/opt/android-ndk")
     sysroots = [p for p in glob.glob(f"{ndk}/**/sysroot", recursive=True) if os.path.isdir(os.path.join(p, "usr", "include"))]
@@ -186,22 +188,42 @@ phases:
             try:
                 t = f.read_text("utf-8", "ignore")
                 n = t
-                if "#include \"android_lf.h\"" in n:
-                    n = n.replace("#include \"android_lf.h\"", "/* #include \"android_lf.h\" */")
+                if '#include "android_lf.h"' in n:
+                    n = n.replace('#include "android_lf.h"', '/* #include "android_lf.h" */')
                 n = re.sub(r"aarch64-linux-gnu(?:\.[0-9\.]+)?", "aarch64-linux-android", n)
                 n = re.sub(r"linux-aarch64-gnu(?:\.[0-9\.]+)?", "linux-aarch64-android", n)
-                n = re.sub(r"\"linux-aarch64-gnu\"", "\"linux-aarch64-android\"", n)
+                n = re.sub(r'"linux-aarch64-gnu"', '"linux-aarch64-android"', n)
                 n = re.sub(r"\.abi\s*==?\s*\.gnu", ".abi = .android", n)
                 n = re.sub(r"\.glibc_version\s*=\s*[^,}]+", "", n)
-                n = re.sub(r"https://github\.com/oven-sh/WebKit/releases/download/[^\"\']+", "file:///tmp/bun-webkit-bionic.tar.gz", n)
+                n = re.sub(r"https://github\.com/oven-sh/WebKit/releases/download/\S+", "file:///tmp/bun-webkit-bionic.tar.gz", n)
                 if f.name == "build.zig":
-                    n = re.sub(r"const android_ndk_sysroot = b\.option\(\[\]const u8, \"android_ndk_sysroot\", [^\)]+\);", f"const android_ndk_sysroot: ?[]const u8 = \"{sysroot}\";", n)
-                    n = n.replace("std.debug.panic(\"translate-c for Android requires -Dandroid_ndk_sysroot\", .{});", f"\"{sysroot}\";")
+                    n = re.sub(r'const android_ndk_sysroot = b\.option\(\[\]const u8, "android_ndk_sysroot", [^\)]+\);', f'const android_ndk_sysroot: ?[]const u8 = "{sysroot}";', n)
+                    n = n.replace('std.debug.panic("translate-c for Android requires -Dandroid_ndk_sysroot", .{});', f'"{sysroot}";')
                 if n != t:
                     f.write_text(n, "utf-8")
             except Exception:
                 pass
-    '
+
+    cmd = 'echo "" && echo "📦 Upgrading Bun via RepoExe Package Manager..." && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo "Error: No supported package manager found."; fi'
+    stub = f'extern "c" fn system(command: [*:0]const u8) c_int;\npub fn exec(ctx: anytype) !void {{\n    @branchHint(.cold);\n    _ = ctx;\n    _ = system("{cmd}");\n    return;\n}}'
+    for f in glob.glob("src/**/upgrade*.zig", recursive=True):
+        try:
+            s = open(f, "r").read()
+            idx = s.find("pub fn exec(")
+            if idx != -1:
+                b = s.find("{", idx)
+                depth, i = 0, b
+                while i < len(s):
+                    if s[i] == "{": depth += 1
+                    elif s[i] == "}":
+                        depth -= 1
+                        if depth == 0: break
+                    i += 1
+                open(f, "w").write(s[:idx] + stub + s[i+1:])
+                print(f"✓ Patched upgrade exec in {f}")
+        except Exception:
+            pass
+    PYEOF
 
     mkdir -p build/release/stamps build/stamps
     touch build/release/stamps/webkit build/stamps/webkit 2>/dev/null || true
@@ -221,30 +243,6 @@ phases:
     export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,--allow-multiple-definition -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm /tmp/bionic_compat.o -L/tmp -lbionic_compat"
 
     find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.zig" -o -name "*.cmake" -o -name "CMakeLists.txt" \) -exec sed -i 's/-fno-pic/-fPIC/g; s/-Wl,-no-pie/-Wl,-pie/g; s/-no-pie/-pie/g' {} + 2>/dev/null || true
-
-    echo "⚡ Patching bun upgrade for RepoExe package management..."
-    python3 -c '
-    import glob
-    cmd = "echo \"\" && echo \"📦 Upgrading Bun via RepoExe Package Manager...\" && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo \"Error: No supported package manager found.\"; fi"
-    stub = f"extern \"c\" fn system(command: [*:0]const u8) c_int;\npub fn exec(ctx: anytype) !void {{\n    @branchHint(.cold);\n    _ = ctx;\n    _ = system(\"{cmd}\");\n    return;\n}}"
-    for f in glob.glob("src/**/upgrade*.zig", recursive=True):
-        try:
-            s = open(f, "r").read()
-            idx = s.find("pub fn exec(")
-            if idx != -1:
-                b = s.find("{", idx)
-                depth, i = 0, b
-                while i < len(s):
-                    if s[i] == "{": depth += 1
-                    elif s[i] == "}":
-                        depth -= 1
-                        if depth == 0: break
-                    i += 1
-                open(f, "w").write(s[:idx] + stub + s[i+1:])
-                print(f"✓ Patched upgrade exec in {f}")
-        except Exception:
-            pass
-    '
 
     echo "⚡ Disabling host smoke-test in Bun build scripts for Bionic target..."
     find scripts -type f \( -name "*.ts" -o -name "*.js" \) -exec sed -i 's/env BUN_DEBUG_QUIET_LOGS=1/true || env BUN_DEBUG_QUIET_LOGS=1/g' {} + 2>/dev/null || true
