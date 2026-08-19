@@ -177,7 +177,7 @@ phases:
       EXTRA="/tmp/bionic_compat.o -L/tmp -lbionic_compat"
     fi
     if [[ "$cmd" =~ ^clang ]]; then
-      exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 -I/tmp -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA
+      exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 -I/tmp -include /tmp/bionic_stub.h -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA
     elif [[ "$cmd" =~ lld$ ]]; then
       exec "$NDK_BIN/$cmd" "${ARGS[@]}" $EXTRA
     else
