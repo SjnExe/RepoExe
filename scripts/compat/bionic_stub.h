@@ -7,6 +7,10 @@
 
 #if !defined(__ASSEMBLER__) && !defined(__ASSEMBLY__)
 
+#define reallocarray __bionic_reallocarray_unused
+#include <malloc.h>
+#undef reallocarray
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
