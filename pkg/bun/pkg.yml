@@ -133,7 +133,7 @@ phases:
     SHORT_SHA=$(echo "${WEBKIT_SHA}" | cut -c1-16)
 
     echo "⚡ Pre-seeding Bun WebKit cache (${SHORT_SHA}) with native Bionic JavaScriptCore..."
-    for c_dir in "build/release/cache/webkit-${SHORT_SHA}-arm64" "build/release/cache/webkit-${WEBKIT_SHA}-arm64" "build/cache/webkit-${SHORT_SHA}-arm64" "build/cache/webkit-${WEBKIT_SHA}-arm64"; do
+    for c_dir in "build/release/cache/webkit-${SHORT_SHA}-arm64" "build/release/cache/webkit-${WEBKIT_SHA}-arm64" "build/release/cache/webkit-${SHORT_SHA}-linux-arm64" "build/release/cache/webkit-${SHORT_SHA}-android-arm64" "build/cache/webkit-${SHORT_SHA}-arm64" "build/cache/webkit-${WEBKIT_SHA}-arm64"; do
       mkdir -p "${c_dir}/lib" "${c_dir}/include"
       cp -a "${JSC_CACHE_DIR}/lib/"* "${c_dir}/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/"* "${c_dir}/include/" 2>/dev/null || true
@@ -195,7 +195,7 @@ phases:
                 n = re.sub(r'"linux-aarch64-gnu"', '"linux-aarch64-android"', n)
                 n = re.sub(r"\.abi\s*==?\s*\.gnu", ".abi = .android", n)
                 n = re.sub(r"\.glibc_version\s*=\s*[^,}]+", "", n)
-                n = re.sub(r"https://github\.com/oven-sh/WebKit/releases/download/\S+", "file:///tmp/bun-webkit-bionic.tar.gz", n)
+                n = re.sub(r'[`"]https://github\.com/oven-sh/WebKit/releases/download/[^`"]*[`"]', '"file:///tmp/bun-webkit-bionic.tar.gz"', n)
                 if f.name == "build.zig":
                     n = re.sub(r'const android_ndk_sysroot = b\.option\(\[\]const u8, "android_ndk_sysroot", [^\)]+\);', f'const android_ndk_sysroot: ?[]const u8 = "{sysroot}";', n)
                     n = n.replace('std.debug.panic("translate-c for Android requires -Dandroid_ndk_sysroot", .{});', f'"{sysroot}";')
