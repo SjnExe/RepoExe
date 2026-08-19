@@ -338,7 +338,7 @@ __attribute__((weak, visibility("default"))) int pthread_getname_np(pthread_t th
 #ifdef PR_GET_NAME
     if (thread == pthread_self()) {
         if (prctl(PR_GET_NAME, (unsigned long)name, 0, 0, 0) == 0) {
-            name[len - 1] = ' ';
+            name[len - 1] = '\0';
             return 0;
         }
     }
@@ -580,7 +580,6 @@ typedef struct { size_t we_wordc; char **we_wordv; size_t we_offs; } wordexp_t;
 static inline int wordexp(const char *w, wordexp_t *p, int f) { (void)w; (void)p; (void)f; return -1; }
 static inline void wordfree(wordexp_t *p) { (void)p; }
 #endif
-
 
 #ifdef __cplusplus
 }
