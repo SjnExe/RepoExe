@@ -5,9 +5,7 @@
 #define __ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__ 1
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#if !defined(__ASSEMBLER__) && !defined(__ASSEMBLY__)
 
 #include <stddef.h>
 #include <stdint.h>
@@ -34,6 +32,10 @@ extern "C" {
 #include <langinfo.h>
 #else
 typedef int nl_item;
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #ifndef POSIX_SPAWN_RESETIDS
@@ -244,5 +246,7 @@ static inline void wordfree(wordexp_t *p) { (void)p; }
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* !__ASSEMBLER__ && !__ASSEMBLY__ */
 
 #endif /* _BIONIC_STUB_H_ */

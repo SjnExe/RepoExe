@@ -164,9 +164,11 @@ phases:
     fi
     ARGS=()
     IS_COMPILE=0
+    IS_ASM=0
     for a in "$@"; do
       case "$a" in
         -c|-E|-S) IS_COMPILE=1; ARGS+=("$a") ;;
+        *.s|*.S) IS_ASM=1; ARGS+=("$a") ;;
         -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;
         -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=("-pie") ;;
         *) ARGS+=("$a") ;;
@@ -176,8 +178,12 @@ phases:
     if [ "$IS_COMPILE" = "0" ] && [ -f /tmp/bionic_compat.o ]; then
       EXTRA="/tmp/bionic_compat.o -L/tmp -lbionic_compat"
     fi
+    INC_FLAG=""
+    if [ "$IS_ASM" = "0" ]; then
+      INC_FLAG="-include /tmp/bionic_stub.h"
+    fi
     if [[ "$cmd" =~ ^clang ]]; then
-      exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 -I/tmp -include /tmp/bionic_stub.h -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA
+      exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 -I/tmp $INC_FLAG -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA
     elif [[ "$cmd" =~ lld$ ]]; then
       exec "$NDK_BIN/$cmd" "${ARGS[@]}" $EXTRA
     else
