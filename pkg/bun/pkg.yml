@@ -137,71 +137,71 @@ phases:
       cp -a "${JSC_CACHE_DIR}/include/"* "${c_dir}/include/" 2>/dev/null || true
     done
 
-    python3 -c "
-    import os, re, glob, pathlib
-    ndk = os.environ.get('NDK', '/opt/android-ndk')
-    sysroots = [p for p in glob.glob(f'{ndk}/**/sysroot', recursive=True) if os.path.isdir(os.path.join(p, 'usr', 'include'))]
-    sysroot = sysroots[0] if sysroots else f'{ndk}/toolchains/llvm/prebuilt/linux-arm64/sysroot'
-    print(f'🔒 Resolved NDK sysroot: {sysroot}')
+    python3 -c '
+    import glob, os, pathlib, re
+    ndk = os.environ.get("NDK", "/opt/android-ndk")
+    sysroots = [p for p in glob.glob(f"{ndk}/**/sysroot", recursive=True) if os.path.isdir(os.path.join(p, "usr", "include"))]
+    sysroot = sysroots[0] if sysroots else f"{ndk}/toolchains/llvm/prebuilt/linux-arm64/sysroot"
+    print(f"🔒 Resolved NDK sysroot: {sysroot}")
 
-    for d in ('/tmp', '/tmp/fake-clang', f'{sysroot}/usr/include'):
+    for d in ("/tmp", "/tmp/fake-clang"):
         os.makedirs(d, exist_ok=True)
-        pathlib.Path(f'{d}/android_lf.h').write_text('#pragma once\n#include <sys/types.h>\n')
+        pathlib.Path(f"{d}/android_lf.h").write_text("#pragma once\n#include <sys/types.h>\n")
 
-    shim = '''#!/bin/bash
-    cmd=\"$(basename \"\$0\")\"
-    if [[ \"\$*\" == *\"codegen-tool\"* ]] || [[ \"\$*\" == *\"-DC2STR\"* ]] || [[ \"\$*\" == *\"conftest.c\"* ]]; then
-      exec \"/usr/bin/\$cmd\" \"\$@\"
+    shim = """#!/bin/bash
+    cmd="$(basename "$0")"
+    if [[ "$*" == *"codegen-tool"* ]] || [[ "$*" == *"-DC2STR"* ]] || [[ "$*" == *"conftest.c"* ]]; then
+      exec "/usr/bin/$cmd" "$@"
     fi
-    NDK_BIN=\"\${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin\"
-    [ -d \"\$NDK_BIN\" ] || NDK_BIN=\$(find \"\${NDK:-/opt/android-ndk}\" -type f -name \"clang\" -exec dirname {} \; 2>/dev/null | head -n 1)
-    if [[ \"\$1\" =~ ^(-v|--version|-version)$ ]]; then
-      [[ \"\$cmd\" =~ lld$ ]] && echo \"LLD 21.1.0\" || echo \"Ubuntu clang version 21.1.0-repoexe\"
+    NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"
+    [ -d "$NDK_BIN" ] || NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \\; 2>/dev/null | head -n 1)
+    if [[ "$1" =~ ^(-v|--version|-version)$ ]]; then
+      [[ "$cmd" =~ lld$ ]] && echo "LLD 21.1.0" || echo "Ubuntu clang version 21.1.0-repoexe"
       exit 0
     fi
     ARGS=()
-    for a in \"\$@\"; do
-      case \"\$a\" in
-        -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=(\"-fPIC\" \"-fPIE\") ;;
-        -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=(\"-pie\") ;;
-        *) ARGS+=(\"\$a\") ;;
+    for a in "$@"; do
+      case "$a" in
+        -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;
+        -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=("-pie") ;;
+        *) ARGS+=("$a") ;;
       esac
     done
-    EXTRA=\"\"
-    [ -f /tmp/bionic_compat.o ] && EXTRA=\"/tmp/bionic_compat.o -L/tmp -lbionic_compat\"
-    if [[ \"\$cmd\" =~ ^clang ]]; then
-      exec \"\$NDK_BIN/\$cmd\" \"\${ARGS[@]}\" --target=aarch64-linux-android24 -I/tmp -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option \$EXTRA
-    elif [[ \"\$cmd\" =~ lld$ ]]; then
-      exec \"\$NDK_BIN/\$cmd\" \"\${ARGS[@]}\" \$EXTRA
+    EXTRA=""
+    [ -f /tmp/bionic_compat.o ] && EXTRA="/tmp/bionic_compat.o -L/tmp -lbionic_compat"
+    if [[ "$cmd" =~ ^clang ]]; then
+      exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 -I/tmp -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA
+    elif [[ "$cmd" =~ lld$ ]]; then
+      exec "$NDK_BIN/$cmd" "${ARGS[@]}" $EXTRA
     else
-      exec \"\$NDK_BIN/\$cmd\" \"\${ARGS[@]}\"
+      exec "$NDK_BIN/$cmd" "${ARGS[@]}"
     fi
-    '''
-    shim_p = pathlib.Path('/tmp/fake-clang/version_shim')
-    shim_p.write_text(re.sub(r'^[ ]{4}', '', shim, flags=re.M))
+    """
+    shim_p = pathlib.Path("/tmp/fake-clang/version_shim")
+    shim_p.write_text(re.sub(r"^[ ]{4}", "", shim, flags=re.M))
     shim_p.chmod(0o755)
 
-    for f in pathlib.Path('.').rglob('*'):
-        if f.is_file() and f.suffix in ('.ts', '.js', '.zig', '.cmake', '.json', '.h', '.c') and 'node_modules' not in str(f):
+    for f in pathlib.Path(".").rglob("*"):
+        if f.is_file() and f.suffix in (".ts", ".js", ".zig", ".cmake", ".json", ".h", ".c") and "node_modules" not in str(f):
             try:
-                t = f.read_text('utf-8', 'ignore')
+                t = f.read_text("utf-8", "ignore")
                 n = t
-                if '#include \"android_lf.h\"' in n:
-                    n = n.replace('#include \"android_lf.h\"', '/* #include \"android_lf.h\" */')
-                n = re.sub(r'aarch64-linux-gnu(?:\.[0-9\.]+)?', 'aarch64-linux-android', n)
-                n = re.sub(r'linux-aarch64-gnu(?:\.[0-9\.]+)?', 'linux-aarch64-android', n)
-                n = re.sub(r'\"linux-aarch64-gnu\"', '\"linux-aarch64-android\"', n)
-                n = re.sub(r'\.abi\s*==?\s*\.gnu', '.abi = .android', n)
-                n = re.sub(r'\.glibc_version\s*=\s*[^,}]+', '', n)
-                n = re.sub(r'https://github\.com/oven-sh/WebKit/releases/download/[^\"\']+', 'file:///tmp/bun-webkit-bionic.tar.gz', n)
-                if f.name == 'build.zig':
-                    n = re.sub(r'const android_ndk_sysroot = b\.option\(\[\]const u8, \"android_ndk_sysroot\", [^\)]+\);', f'const android_ndk_sysroot: ?[]const u8 = \"{sysroot}\";', n)
-                    n = n.replace('std.debug.panic(\"translate-c for Android requires -Dandroid_ndk_sysroot\", .{});', f'\"{sysroot}\";')
+                if "#include \"android_lf.h\"" in n:
+                    n = n.replace("#include \"android_lf.h\"", "/* #include \"android_lf.h\" */")
+                n = re.sub(r"aarch64-linux-gnu(?:\.[0-9\.]+)?", "aarch64-linux-android", n)
+                n = re.sub(r"linux-aarch64-gnu(?:\.[0-9\.]+)?", "linux-aarch64-android", n)
+                n = re.sub(r"\"linux-aarch64-gnu\"", "\"linux-aarch64-android\"", n)
+                n = re.sub(r"\.abi\s*==?\s*\.gnu", ".abi = .android", n)
+                n = re.sub(r"\.glibc_version\s*=\s*[^,}]+", "", n)
+                n = re.sub(r"https://github\.com/oven-sh/WebKit/releases/download/[^\"\']+", "file:///tmp/bun-webkit-bionic.tar.gz", n)
+                if f.name == "build.zig":
+                    n = re.sub(r"const android_ndk_sysroot = b\.option\(\[\]const u8, \"android_ndk_sysroot\", [^\)]+\);", f"const android_ndk_sysroot: ?[]const u8 = \"{sysroot}\";", n)
+                    n = n.replace("std.debug.panic(\"translate-c for Android requires -Dandroid_ndk_sysroot\", .{});", f"\"{sysroot}\";")
                 if n != t:
-                    f.write_text(n, 'utf-8')
+                    f.write_text(n, "utf-8")
             except Exception:
                 pass
-    "
+    '
 
     mkdir -p build/release/stamps build/stamps
     touch build/release/stamps/webkit build/stamps/webkit 2>/dev/null || true
@@ -223,28 +223,28 @@ phases:
     find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.zig" -o -name "*.cmake" -o -name "CMakeLists.txt" \) -exec sed -i 's/-fno-pic/-fPIC/g; s/-Wl,-no-pie/-Wl,-pie/g; s/-no-pie/-pie/g' {} + 2>/dev/null || true
 
     echo "⚡ Patching bun upgrade for RepoExe package management..."
-    python3 -c "
+    python3 -c '
     import glob
-    cmd = 'echo \\'\\' && echo \\'📦 Upgrading Bun via RepoExe Package Manager...\\' && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo \\'Error: No supported package manager found.\\'; fi'
-    stub = f'extern \"c\" fn system(command: [*:0]const u8) c_int;\\npub fn exec(ctx: anytype) !void {{\\n    @branchHint(.cold);\\n    _ = ctx;\\n    _ = system(\"{cmd}\");\\n    return;\\n}}'
-    for f in glob.glob('src/**/upgrade*.zig', recursive=True):
+    cmd = "echo \"\" && echo \"📦 Upgrading Bun via RepoExe Package Manager...\" && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo \"Error: No supported package manager found.\"; fi"
+    stub = f"extern \"c\" fn system(command: [*:0]const u8) c_int;\npub fn exec(ctx: anytype) !void {{\n    @branchHint(.cold);\n    _ = ctx;\n    _ = system(\"{cmd}\");\n    return;\n}}"
+    for f in glob.glob("src/**/upgrade*.zig", recursive=True):
         try:
-            s = open(f, 'r').read()
-            idx = s.find('pub fn exec(')
+            s = open(f, "r").read()
+            idx = s.find("pub fn exec(")
             if idx != -1:
-                b = s.find('{', idx)
+                b = s.find("{", idx)
                 depth, i = 0, b
                 while i < len(s):
-                    if s[i] == '{': depth += 1
-                    elif s[i] == '}':
+                    if s[i] == "{": depth += 1
+                    elif s[i] == "}":
                         depth -= 1
                         if depth == 0: break
                     i += 1
-                open(f, 'w').write(s[:idx] + stub + s[i+1:])
-                print(f'✓ Patched upgrade exec in {f}')
+                open(f, "w").write(s[:idx] + stub + s[i+1:])
+                print(f"✓ Patched upgrade exec in {f}")
         except Exception:
             pass
-    "
+    '
 
     echo "⚡ Disabling host smoke-test in Bun build scripts for Bionic target..."
     find scripts -type f \( -name "*.ts" -o -name "*.js" \) -exec sed -i 's/env BUN_DEBUG_QUIET_LOGS=1/true || env BUN_DEBUG_QUIET_LOGS=1/g' {} + 2>/dev/null || true
