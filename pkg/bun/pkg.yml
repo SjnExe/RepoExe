@@ -39,29 +39,13 @@ phases:
     echo "⚡ Dynamically resolving exact WebKit commit SHA from Bun source..."
     WEBKIT_SHA=$(python3 -c '
     import re, pathlib
-    sha = ""
-    gm = pathlib.Path(".gitmodules")
-    if gm.exists():
-        txt = gm.read_text(encoding="utf-8", errors="ignore")
-        m = re.search(r"(?:branch|revision|commit|tag)\s*=\s*([0-9a-fA-F]{40})", txt)
-        if m: sha = m.group(1)
-    if not sha:
-        for p in pathlib.Path(".").rglob("*"):
-            if p.is_file() and p.suffix in (".ts", ".js", ".zig", ".cmake", ".txt") and "node_modules" not in str(p):
-                try:
-                    t = p.read_text(encoding="utf-8", errors="ignore")
-                    m = re.search(r"(?:webkit[_-]version|webkit_sha|WebKit/releases/download/autobuild-)([0-9a-fA-F]{40})", t, re.I)
-                    if m:
-                        sha = m.group(1)
-                        break
-                except Exception:
-                    pass
-    print(sha if sha else "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
+    p = pathlib.Path
+    s = next((m.group(1) for f in p(".").rglob("*") if f.suffix in (".ts", ".js", ".zig", ".cmake", ".txt") and "node_modules" not in str(f) for m in [re.search(r"(?:webkit[_-]version|webkit_sha|WebKit/releases/download/autobuild-)([0-9a-fA-F]{40})", f.read_text("utf-8", "ignore"))] if m), "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
+    print(s)
     ')
     echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
 
     CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_SYSTEM_VERSION=24 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DENABLE_SAMPLING_PROFILER=OFF -DENABLE_REMOTE_INSPECTOR=OFF -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
-
     COMPAT_HASH=$(sha256sum /home/builder/RepoExe/scripts/compat/bionic_compat.c /home/builder/RepoExe/scripts/compat/bionic_stub.h 2>/dev/null | sha256sum | head -c 8)
     CONFIG_HASH=$(echo "${CMAKE_FLAGS}-${COMPAT_HASH}" | sha256sum | head -c 8)
     JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}-${CONFIG_HASH}"
@@ -72,6 +56,7 @@ phases:
       echo "✓ WebKit cache hit for SHA ${WEBKIT_SHA} (Config: ${CONFIG_HASH}). Restoring headers and libraries..."
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
+      tar -czf /tmp/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
     else
       echo "⚡ WebKit cache miss. Compiling JavaScriptCore natively for Bionic API 24..."
       WK_SRC="/tmp/webkit-src"
@@ -120,7 +105,6 @@ phases:
 
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
-
       tar -czf /tmp/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
 
       cd /home/builder/RepoExe
@@ -134,34 +118,18 @@ phases:
     export ZIG_GLOBAL_CACHE_DIR=/home/builder/RepoExe/.cache/zig
     export ZIG_LOCAL_CACHE_DIR=/tmp/zig-cache
 
-    echo "⚡ Locating WebKit commit SHA from Bun source..."
     WEBKIT_SHA=$(python3 -c '
     import re, pathlib
-    sha = ""
-    gm = pathlib.Path(".gitmodules")
-    if gm.exists():
-        txt = gm.read_text(encoding="utf-8", errors="ignore")
-        m = re.search(r"(?:branch|revision|commit|tag)\s*=\s*([0-9a-fA-F]{40})", txt)
-        if m: sha = m.group(1)
-    if not sha:
-        for p in pathlib.Path(".").rglob("*"):
-            if p.is_file() and p.suffix in (".ts", ".js", ".zig", ".cmake", ".txt") and "node_modules" not in str(p):
-                try:
-                    t = p.read_text(encoding="utf-8", errors="ignore")
-                    m = re.search(r"(?:webkit[_-]version|webkit_sha|WebKit/releases/download/autobuild-)([0-9a-fA-F]{40})", t, re.I)
-                    if m:
-                        sha = m.group(1)
-                        break
-                except Exception:
-                    pass
-    print(sha if sha else "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
+    p = pathlib.Path
+    s = next((m.group(1) for f in p(".").rglob("*") if f.suffix in (".ts", ".js", ".zig", ".cmake", ".txt") and "node_modules" not in str(f) for m in [re.search(r"(?:webkit[_-]version|webkit_sha|WebKit/releases/download/autobuild-)([0-9a-fA-F]{40})", f.read_text("utf-8", "ignore"))] if m), "5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b")
+    print(s)
     ')
     CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_SYSTEM_VERSION=24 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DENABLE_SAMPLING_PROFILER=OFF -DENABLE_REMOTE_INSPECTOR=OFF -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
     COMPAT_HASH=$(sha256sum /home/builder/RepoExe/scripts/compat/bionic_compat.c /home/builder/RepoExe/scripts/compat/bionic_stub.h 2>/dev/null | sha256sum | head -c 8)
     CONFIG_HASH=$(echo "${CMAKE_FLAGS}-${COMPAT_HASH}" | sha256sum | head -c 8)
     JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}-${CONFIG_HASH}"
-
     SHORT_SHA=$(echo "${WEBKIT_SHA}" | cut -c1-16)
+
     echo "⚡ Pre-seeding Bun WebKit cache (${SHORT_SHA}) with native Bionic JavaScriptCore..."
     for c_dir in "build/release/cache/webkit-${SHORT_SHA}-arm64" "build/release/cache/webkit-${WEBKIT_SHA}-arm64" "build/cache/webkit-${SHORT_SHA}-arm64" "build/cache/webkit-${WEBKIT_SHA}-arm64"; do
       mkdir -p "${c_dir}/lib" "${c_dir}/include"
@@ -169,117 +137,75 @@ phases:
       cp -a "${JSC_CACHE_DIR}/include/"* "${c_dir}/include/" 2>/dev/null || true
     done
 
-    # Intercept WebKit fetch and glibc target derivations in Bun build scripts
     python3 -c "
-    from pathlib import Path
-    import re, os
-    jsc_cache = '${JSC_CACHE_DIR}'
-    for p in Path('.').rglob('*'):
-        if p.is_file() and p.suffix in ('.ts', '.js') and 'node_modules' not in str(p):
+    import os, re, glob, pathlib
+    ndk = os.environ.get('NDK', '/opt/android-ndk')
+    sysroots = [p for p in glob.glob(f'{ndk}/**/sysroot', recursive=True) if os.path.isdir(os.path.join(p, 'usr', 'include'))]
+    sysroot = sysroots[0] if sysroots else f'{ndk}/toolchains/llvm/prebuilt/linux-arm64/sysroot'
+    print(f'🔒 Resolved NDK sysroot: {sysroot}')
+
+    for d in ('/tmp', '/tmp/fake-clang', f'{sysroot}/usr/include'):
+        os.makedirs(d, exist_ok=True)
+        pathlib.Path(f'{d}/android_lf.h').write_text('#pragma once\n#include <sys/types.h>\n')
+
+    shim = '''#!/bin/bash
+    cmd=\"$(basename \"\$0\")\"
+    if [[ \"\$*\" == *\"codegen-tool\"* ]] || [[ \"\$*\" == *\"-DC2STR\"* ]] || [[ \"\$*\" == *\"conftest.c\"* ]]; then
+      exec \"/usr/bin/\$cmd\" \"\$@\"
+    fi
+    NDK_BIN=\"\${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin\"
+    [ -d \"\$NDK_BIN\" ] || NDK_BIN=\$(find \"\${NDK:-/opt/android-ndk}\" -type f -name \"clang\" -exec dirname {} \; 2>/dev/null | head -n 1)
+    if [[ \"\$1\" =~ ^(-v|--version|-version)$ ]]; then
+      [[ \"\$cmd\" =~ lld$ ]] && echo \"LLD 21.1.0\" || echo \"Ubuntu clang version 21.1.0-repoexe\"
+      exit 0
+    fi
+    ARGS=()
+    for a in \"\$@\"; do
+      case \"\$a\" in
+        -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=(\"-fPIC\" \"-fPIE\") ;;
+        -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=(\"-pie\") ;;
+        *) ARGS+=(\"\$a\") ;;
+      esac
+    done
+    EXTRA=\"\"
+    [ -f /tmp/bionic_compat.o ] && EXTRA=\"/tmp/bionic_compat.o -L/tmp -lbionic_compat\"
+    if [[ \"\$cmd\" =~ ^clang ]]; then
+      exec \"\$NDK_BIN/\$cmd\" \"\${ARGS[@]}\" --target=aarch64-linux-android24 -I/tmp -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option \$EXTRA
+    elif [[ \"\$cmd\" =~ lld$ ]]; then
+      exec \"\$NDK_BIN/\$cmd\" \"\${ARGS[@]}\" \$EXTRA
+    else
+      exec \"\$NDK_BIN/\$cmd\" \"\${ARGS[@]}\"
+    fi
+    '''
+    shim_p = pathlib.Path('/tmp/fake-clang/version_shim')
+    shim_p.write_text(re.sub(r'^[ ]{4}', '', shim, flags=re.M))
+    shim_p.chmod(0o755)
+
+    for f in pathlib.Path('.').rglob('*'):
+        if f.is_file() and f.suffix in ('.ts', '.js', '.zig', '.cmake', '.json', '.h', '.c') and 'node_modules' not in str(f):
             try:
-                txt = p.read_text(encoding='utf-8', errors='ignore')
-                new_txt = txt
-                new_txt = re.sub(r'async function fetchWebkit\(.*?\)\s*\{.*?\}', 'async function fetchWebkit() { return; }', new_txt, flags=re.DOTALL)
-                new_txt = re.sub(r'function fetchWebkit\(.*?\)\s*\{.*?\}', 'function fetchWebkit() { return; }', new_txt, flags=re.DOTALL)
-                new_txt = re.sub(r'const webkit_url\s*=.*?;', 'const webkit_url = \"\";', new_txt)
-                new_txt = re.sub(r'aarch64-linux-gnu(?:\.[0-9\.]+)?', 'aarch64-linux-android', new_txt)
-                new_txt = re.sub(r'linux-aarch64-gnu', 'linux-aarch64-android', new_txt)
-                new_txt = re.sub(r'\"linux-aarch64-gnu\"', '\"linux-aarch64-android\"', new_txt)
-                if new_txt != txt:
-                    p.write_text(new_txt, encoding='utf-8')
-                    print(f'✓ Successfully patched build script {p}')
-            except Exception as e:
-                print(f'Notice patching {p}: {e}')
+                t = f.read_text('utf-8', 'ignore')
+                n = t
+                if '#include \"android_lf.h\"' in n:
+                    n = n.replace('#include \"android_lf.h\"', '/* #include \"android_lf.h\" */')
+                n = re.sub(r'aarch64-linux-gnu(?:\.[0-9\.]+)?', 'aarch64-linux-android', n)
+                n = re.sub(r'linux-aarch64-gnu(?:\.[0-9\.]+)?', 'linux-aarch64-android', n)
+                n = re.sub(r'\"linux-aarch64-gnu\"', '\"linux-aarch64-android\"', n)
+                n = re.sub(r'\.abi\s*==?\s*\.gnu', '.abi = .android', n)
+                n = re.sub(r'\.glibc_version\s*=\s*[^,}]+', '', n)
+                n = re.sub(r'https://github\.com/oven-sh/WebKit/releases/download/[^\"\']+', 'file:///tmp/bun-webkit-bionic.tar.gz', n)
+                if f.name == 'build.zig':
+                    n = re.sub(r'const android_ndk_sysroot = b\.option\(\[\]const u8, \"android_ndk_sysroot\", [^\)]+\);', f'const android_ndk_sysroot: ?[]const u8 = \"{sysroot}\";', n)
+                    n = n.replace('std.debug.panic(\"translate-c for Android requires -Dandroid_ndk_sysroot\", .{});', f'\"{sysroot}\";')
+                if n != t:
+                    f.write_text(n, 'utf-8')
+            except Exception:
+                pass
     "
 
     mkdir -p build/release/stamps build/stamps
     touch build/release/stamps/webkit build/stamps/webkit 2>/dev/null || true
 
-    echo "⚡ Applying intelligent Bionic aarch64 target transformations..."
-    python3 -c "
-    import os, re, glob
-    ndk = os.environ.get('NDK', '/opt/android-ndk')
-    sysroots = [p for p in glob.glob(f'{ndk}/**/sysroot', recursive=True) if os.path.isdir(os.path.join(p, 'usr', 'include'))]
-    sysroot = sysroots[0] if sysroots else f'{ndk}/toolchains/llvm/prebuilt/linux-arm64/sysroot'
-    print(f'🔒 Resolved NDK sysroot for Zig translate-c: {sysroot}')
-
-    for root, _, files in os.walk('.'):
-        for f in files:
-            if f.endswith(('.ts', '.js', '.zig', '.cmake', '.json')) and 'node_modules' not in root:
-                p = os.path.join(root, f)
-                try:
-                    with open(p, 'r', encoding='utf-8', errors='ignore') as fp:
-                        content = fp.read()
-                    new_c = content
-                    new_c = re.sub(r'aarch64-linux-gnu(?:\.[0-9\.]+)?', 'aarch64-linux-android', new_c)
-                    new_c = re.sub(r'linux-aarch64-gnu(?:\.[0-9\.]+)?', 'linux-aarch64-android', new_c)
-                    new_c = re.sub(r'\.glibc_version\s*=\s*[^,}]+', '', new_c)
-                    new_c = re.sub(r'linux-aarch64-gnu', 'linux-aarch64-android', new_c)
-                    new_c = re.sub(r'\.abi\s*=\s*\.gnu', '.abi = .android', new_c)
-                    new_c = re.sub(r'\.abi\s*==\s*\.gnu', '.abi == .android', new_c)
-                    new_c = re.sub(r'\"aarch64-linux-gnu\"', '\"aarch64-linux-android\"', new_c)
-                    if f == 'build.zig':
-                        new_c = re.sub(
-                            r'const android_ndk_sysroot = b\.option\(\[\]const u8, \"android_ndk_sysroot\", [^\)]+\);',
-                            f'const android_ndk_sysroot: ?[]const u8 = \"{sysroot}\";',
-                            new_c
-                        )
-                        new_c = new_c.replace(
-                            'std.debug.panic(\"translate-c for Android requires -Dandroid_ndk_sysroot\", .{});',
-                            f'\"{sysroot}\";'
-                        )
-                    if new_c != content:
-                        with open(p, 'w', encoding='utf-8') as fp:
-                            fp.write(new_c)
-                except Exception as e:
-                    print(f'Notice patching {p}: {e}')
-    "
-
-    # Write version_shim compiler wrapper
-    echo '#!/bin/bash' > /tmp/fake-clang/version_shim
-    echo 'cmd="$(basename "$0")"' >> /tmp/fake-clang/version_shim
-    echo 'if [[ "$*" == *"codegen-tool"* ]] || [[ "$*" == *"-DC2STR"* ]] || [[ "$*" == *"conftest.c"* ]]; then' >> /tmp/fake-clang/version_shim
-    echo '  exec "/usr/bin/$cmd" "$@"' >> /tmp/fake-clang/version_shim
-    echo 'fi' >> /tmp/fake-clang/version_shim
-    echo 'NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"' >> /tmp/fake-clang/version_shim
-    echo 'if [ ! -d "$NDK_BIN" ]; then' >> /tmp/fake-clang/version_shim
-    echo '  NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \; 2>/dev/null | head -n 1)' >> /tmp/fake-clang/version_shim
-    echo 'fi' >> /tmp/fake-clang/version_shim
-    echo 'if [ "$1" = "--version" ] || [ "$1" = "-v" ] || [ "$1" = "-version" ]; then' >> /tmp/fake-clang/version_shim
-    echo '  if [ "$cmd" = "ld.lld" ] || [ "$cmd" = "lld" ]; then echo "LLD 21.1.0"; else echo "Ubuntu clang version 21.1.0-repoexe"; fi' >> /tmp/fake-clang/version_shim
-    echo '  exit 0' >> /tmp/fake-clang/version_shim
-    echo 'fi' >> /tmp/fake-clang/version_shim
-    echo 'ARGS=()' >> /tmp/fake-clang/version_shim
-    echo 'IS_COMPILE_ONLY=0' >> /tmp/fake-clang/version_shim
-    echo 'for a in "$@"; do' >> /tmp/fake-clang/version_shim
-    echo '  case "$a" in' >> /tmp/fake-clang/version_shim
-    echo '    -c|-E|-S) IS_COMPILE_ONLY=1; ARGS+=("$a") ;;' >> /tmp/fake-clang/version_shim
-    echo '    -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;' >> /tmp/fake-clang/version_shim
-    echo '    -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=("-pie") ;;' >> /tmp/fake-clang/version_shim
-    echo '    *) ARGS+=("$a") ;;' >> /tmp/fake-clang/version_shim
-    echo '  esac' >> /tmp/fake-clang/version_shim
-    echo 'done' >> /tmp/fake-clang/version_shim
-    echo 'if [ "$cmd" = "clang" ] || [ "$cmd" = "clang++" ]; then' >> /tmp/fake-clang/version_shim
-    echo '  for obj in $(find /home/builder/RepoExe /tmp -name "bun-zig.o" 2>/dev/null); do' >> /tmp/fake-clang/version_shim
-    echo '    cp -f "$obj" ./bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
-    echo '    cp -f "$obj" ./build/release/bun-zig.o 2>/dev/null || true' >> /tmp/fake-clang/version_shim
-    echo '  done' >> /tmp/fake-clang/version_shim
-    echo '  EXTRA_FLAGS=""' >> /tmp/fake-clang/version_shim
-    echo '  if [ "$IS_COMPILE_ONLY" = "0" ] && [ -f /tmp/bionic_compat.o ]; then' >> /tmp/fake-clang/version_shim
-    echo '    EXTRA_FLAGS="/tmp/bionic_compat.o -L/tmp -lbionic_compat"' >> /tmp/fake-clang/version_shim
-    echo '  fi' >> /tmp/fake-clang/version_shim
-    echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA_FLAGS' >> /tmp/fake-clang/version_shim
-    echo 'elif [ "$cmd" = "ld.lld" ] || [ "$cmd" = "lld" ]; then' >> /tmp/fake-clang/version_shim
-    echo '  EXTRA_FLAGS=""' >> /tmp/fake-clang/version_shim
-    echo '  if [ -f /tmp/bionic_compat.o ]; then' >> /tmp/fake-clang/version_shim
-    echo '    EXTRA_FLAGS="/tmp/bionic_compat.o -L/tmp -lbionic_compat"' >> /tmp/fake-clang/version_shim
-    echo '  fi' >> /tmp/fake-clang/version_shim
-    echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" $EXTRA_FLAGS' >> /tmp/fake-clang/version_shim
-    echo 'else' >> /tmp/fake-clang/version_shim
-    echo '  exec "$NDK_BIN/$cmd" "${ARGS[@]}"' >> /tmp/fake-clang/version_shim
-    echo 'fi' >> /tmp/fake-clang/version_shim
-
-    chmod +x /tmp/fake-clang/version_shim
     ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/clang
     ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/clang++
     ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/ld.lld
@@ -290,8 +216,8 @@ phases:
     export CXX="/tmp/fake-clang/clang++"
     export LD="/tmp/fake-clang/ld.lld"
 
-    export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
-    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -include /tmp/bionic_stub.h"
+    export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -I/tmp -include /tmp/bionic_stub.h"
+    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -I/tmp -include /tmp/bionic_stub.h"
     export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,--allow-multiple-definition -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -landroid-support -landroid-exec -llog -lm /tmp/bionic_compat.o -L/tmp -lbionic_compat"
 
     find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.zig" -o -name "*.cmake" -o -name "CMakeLists.txt" \) -exec sed -i 's/-fno-pic/-fPIC/g; s/-Wl,-no-pie/-Wl,-pie/g; s/-no-pie/-pie/g' {} + 2>/dev/null || true
@@ -300,34 +226,24 @@ phases:
     python3 -c "
     import glob
     cmd = 'echo \\'\\' && echo \\'📦 Upgrading Bun via RepoExe Package Manager...\\' && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo \\'Error: No supported package manager found.\\'; fi'
-    extern_decl = 'extern \"c\" fn system(command: [*:0]const u8) c_int;\\n'
-    stub = f'''pub fn exec(ctx: anytype) !void {{
-        @branchHint(.cold);
-        _ = ctx;
-        _ = system(\"{cmd}\");
-        return;
-    }}'''
+    stub = f'extern \"c\" fn system(command: [*:0]const u8) c_int;\\npub fn exec(ctx: anytype) !void {{\\n    @branchHint(.cold);\\n    _ = ctx;\\n    _ = system(\"{cmd}\");\\n    return;\\n}}'
     for f in glob.glob('src/**/upgrade*.zig', recursive=True):
         try:
-            with open(f, 'r', encoding='utf-8') as fp:
-                s = fp.read()
+            s = open(f, 'r').read()
             idx = s.find('pub fn exec(')
             if idx != -1:
                 b = s.find('{', idx)
-                if b != -1:
-                    depth, i = 0, b
-                    while i < len(s):
-                        if s[i] == '{': depth += 1
-                        elif s[i] == '}':
-                            depth -= 1
-                            if depth == 0: break
-                        i += 1
-                    s = extern_decl + s[:idx] + stub + s[i+1:]
-                    with open(f, 'w', encoding='utf-8') as fp:
-                        fp.write(s)
-                    print(f'✓ Patched {f} completely replacing exec body')
-        except Exception as e:
-            print(f'Notice: {e}')
+                depth, i = 0, b
+                while i < len(s):
+                    if s[i] == '{': depth += 1
+                    elif s[i] == '}':
+                        depth -= 1
+                        if depth == 0: break
+                    i += 1
+                open(f, 'w').write(s[:idx] + stub + s[i+1:])
+                print(f'✓ Patched upgrade exec in {f}')
+        except Exception:
+            pass
     "
 
     echo "⚡ Disabling host smoke-test in Bun build scripts for Bionic target..."
@@ -342,9 +258,7 @@ phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
     BUN_BIN=$(find build -type f \( -name "bun" -o -name "bun-profile" \) -executable 2>/dev/null | grep -v "node_modules" | head -n 1)
-    if [ -z "$BUN_BIN" ]; then
-      BUN_BIN=$(find . -type f \( -name "bun" -o -name "bun-profile" \) -executable 2>/dev/null | grep -v "node_modules" | head -n 1)
-    fi
+    [ -z "$BUN_BIN" ] && BUN_BIN=$(find . -type f \( -name "bun" -o -name "bun-profile" \) -executable 2>/dev/null | grep -v "node_modules" | head -n 1)
     if [ -n "$BUN_BIN" ]; then
       install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     else
