@@ -134,7 +134,7 @@ phases:
 
     echo "⚡ Pre-seeding Bun WebKit cache (${SHORT_SHA}) with native Bionic JavaScriptCore..."
     for c_dir in "build/release/cache/webkit-${SHORT_SHA}-arm64" "build/release/cache/webkit-${WEBKIT_SHA}-arm64" "build/release/cache/webkit-${SHORT_SHA}-linux-arm64" "build/release/cache/webkit-${SHORT_SHA}-android-arm64" "build/cache/webkit-${SHORT_SHA}-arm64" "build/cache/webkit-${WEBKIT_SHA}-arm64"; do
-      mkdir -p "${c_dir}/lib" "${c_dir}/include"
+      mkdir -p "${c_dir}/lib" "${c_dir}/include" "${c_dir}/include/JavaScriptCore"
       cp -a "${JSC_CACHE_DIR}/lib/"* "${c_dir}/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/"* "${c_dir}/include/" 2>/dev/null || true
     done
@@ -151,47 +151,70 @@ phases:
         pathlib.Path(f"{d}/android_lf.h").write_text("#pragma once\n#include <sys/types.h>\n")
         pathlib.Path(f"{d}/spawn.h").write_text('#pragma once\n#include "/tmp/bionic_stub.h"\n')
 
-    shim = """#!/bin/bash
-    cmd="$(basename "$0")"
-    if [[ "$*" == *"codegen-tool"* ]] || [[ "$*" == *"-DC2STR"* ]] || [[ "$*" == *"conftest.c"* ]]; then
-      exec "/usr/bin/$cmd" "$@"
-    fi
-    NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"
-    [ -d "$NDK_BIN" ] || NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \\; 2>/dev/null | head -n 1)
-    if [[ "$1" =~ ^(-v|--version|-version)$ ]]; then
-      [[ "$cmd" =~ lld$ ]] && echo "LLD 21.1.0" || echo "Ubuntu clang version 21.1.0-repoexe"
-      exit 0
-    fi
-    ARGS=()
-    IS_COMPILE=0
-    IS_ASM=0
-    for a in "$@"; do
-      case "$a" in
-        -c|-E|-S) IS_COMPILE=1; ARGS+=("$a") ;;
-        *.s|*.S) IS_ASM=1; ARGS+=("$a") ;;
-        -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;
-        -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=("-pie") ;;
-        *) ARGS+=("$a") ;;
-      esac
-    done
-    EXTRA=""
-    if [ "$IS_COMPILE" = "0" ] && [ -f /tmp/bionic_compat.o ]; then
-      EXTRA="/tmp/bionic_compat.o -L/tmp -lbionic_compat"
-    fi
-    INC_FLAG=""
-    if [ "$IS_ASM" = "0" ]; then
-      INC_FLAG="-I/tmp -include /tmp/bionic_stub.h"
-    fi
-    if [[ "$cmd" =~ ^clang ]]; then
-      exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 $INC_FLAG -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA
-    elif [[ "$cmd" =~ lld$ ]]; then
-      exec "$NDK_BIN/$cmd" "${ARGS[@]}" $EXTRA
-    else
-      exec "$NDK_BIN/$cmd" "${ARGS[@]}"
-    fi
-    """
+    cfg_lines = [
+        "#pragma once",
+        "#define HAVE_STDINT_H 1",
+        "#define HAVE_INTTYPES_H 1",
+        "#define HAVE_SYS_PARAM_H 1",
+        "#define HAVE_SYS_TIME_H 1",
+        "#define HAVE_SYS_MMAN_H 1",
+        "#define WTF_OS_LINUX 1",
+        "#define WTF_OS_ANDROID 1",
+        "#define JSC_OBJC_API_ENABLED 0",
+        "#define STATICALLY_LINKED_WITH_JavaScriptCore 1",
+        "#define STATICALLY_LINKED_WITH_BMALLOC 1",
+        "",
+    ]
+    cfg_h = "\n".join(cfg_lines)
+
+    for d in glob.glob("build/**/include", recursive=True) + ["/tmp", "/tmp/fake-clang", "src/jsc/bindings", "src/jsc/bindings/webcore"]:
+        if os.path.exists(d):
+            pathlib.Path(f"{d}/cmakeconfig.h").write_text(cfg_h)
+            os.makedirs(f"{d}/JavaScriptCore", exist_ok=True)
+            pathlib.Path(f"{d}/JavaScriptCore/cmakeconfig.h").write_text(cfg_h)
+
+    shim_lines = [
+        "#!/bin/bash",
+        'cmd="$(basename "$0")"',
+        'if [[ "$*" == *"codegen-tool"* ]] || [[ "$*" == *"-DC2STR"* ]] || [[ "$*" == *"conftest.c"* ]]; then',
+        '  exec "/usr/bin/$cmd" "$@"',
+        "fi",
+        'NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"',
+        '[ -d "$NDK_BIN" ] || NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \\; 2>/dev/null | head -n 1)',
+        'if [[ "$1" =~ ^(-v|--version|-version)$ ]]; then',
+        '  [[ "$cmd" =~ lld$ ]] && echo "LLD 21.1.0" || echo "Ubuntu clang version 21.1.0-repoexe"',
+        "  exit 0",
+        "fi",
+        "ARGS=()",
+        "IS_COMPILE=0",
+        "IS_ASM=0",
+        'for a in "$@"; do',
+        '  case "$a" in',
+        '    -c|-E|-S) IS_COMPILE=1; ARGS+=("$a") ;;',
+        '    *.s|*.S) IS_ASM=1; ARGS+=("$a") ;;',
+        '    -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;',
+        '    -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=("-pie") ;;',
+        '    *) ARGS+=("$a") ;;',
+        "  esac",
+        "done",
+        'EXTRA=""',
+        'if [ "$IS_COMPILE" = "0" ] && [ -f /tmp/bionic_compat.o ]; then',
+        '  EXTRA="/tmp/bionic_compat.o -L/tmp -lbionic_compat"',
+        "fi",
+        'INC_FLAG=""',
+        'if [ "$IS_ASM" = "0" ]; then',
+        '  INC_FLAG="-I/tmp -include /tmp/bionic_stub.h"',
+        "fi",
+        'if [[ "$cmd" =~ ^clang ]]; then',
+        '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 $INC_FLAG -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA',
+        'elif [[ "$cmd" =~ lld$ ]]; then',
+        '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" $EXTRA',
+        "else",
+        '  exec "$NDK_BIN/$cmd" "${ARGS[@]}"',
+        "fi",
+    ]
     shim_p = pathlib.Path("/tmp/fake-clang/version_shim")
-    shim_p.write_text(re.sub(r"^[ ]{4}", "", shim, flags=re.M))
+    shim_p.write_text("\n".join(shim_lines) + "\n")
     shim_p.chmod(0o755)
 
     for f in pathlib.Path(".").rglob("*"):
@@ -206,12 +229,11 @@ phases:
                 n = re.sub(r"aarch64-linux-gnu(?:\.[0-9\.]+)?", "aarch64-linux-android", n)
                 n = re.sub(r"linux-aarch64-gnu(?:\.[0-9\.]+)?", "linux-aarch64-android", n)
                 n = re.sub(r'"linux-aarch64-gnu"', '"linux-aarch64-android"', n)
-                n = re.sub(r"\.abi\s*==?\s*\.gnu", ".abi = .android", n)
-                n = re.sub(r"\.glibc_version\s*=\s*[^,}]+", "", n)
                 n = re.sub(r'[`"]https://github\.com/oven-sh/WebKit/releases/download/[^`"]*[`"]', '"file:///tmp/bun-webkit-bionic.tar.gz"', n)
-                if f.name == "build.zig":
-                    n = re.sub(r'const android_ndk_sysroot = b\.option\(\[\]const u8, "android_ndk_sysroot", [^\)]+\);', f'const android_ndk_sysroot: ?[]const u8 = "{sysroot}";', n)
-                    n = n.replace('std.debug.panic("translate-c for Android requires -Dandroid_ndk_sysroot", .{});', f'\"{sysroot}\";')
+                if "-Dtarget=aarch64-linux-gnu" in n:
+                    n = n.replace("-Dtarget=aarch64-linux-gnu", f"-Dtarget=aarch64-linux-android -Dandroid_ndk_sysroot={sysroot}")
+                if "-Dtarget=aarch64-linux-android" in n and "-Dandroid_ndk_sysroot" not in n:
+                    n = n.replace("-Dtarget=aarch64-linux-android", f"-Dtarget=aarch64-linux-android -Dandroid_ndk_sysroot={sysroot}")
                 if n != t:
                     f.write_text(n, "utf-8")
             except Exception:
