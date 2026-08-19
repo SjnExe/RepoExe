@@ -729,8 +729,6 @@ __attribute__((weak, visibility("default"))) void sincos(double x, double *s, do
 __attribute__((weak, visibility("default"))) void __sincos(double x, double *s, double *c) { *s = sin(x); *c = cos(x); }
 __attribute__((weak, visibility("default"))) void sincosf(float x, float *s, float *c) { *s = sinf(x); *c = cosf(x); }
 __attribute__((weak, visibility("default"))) void __sincosf(float x, float *s, float *c) { *s = sinf(x); *c = cosf(x); }
-__attribute__((weak, visibility("default"))) int sched_getcpu(void) { return 0; }
-__attribute__((weak, visibility("default"))) void *reallocarray(void *ptr, size_t nmemb, size_t size) { if (size && nmemb > ((size_t)-1) / size) { errno = ENOMEM; return NULL; } return realloc(ptr, nmemb * size); }
 __attribute__((weak, visibility("default"))) void *aligned_alloc(size_t alignment, size_t size) { void *p = NULL; return posix_memalign(&p, alignment, size) == 0 ? p : NULL; }
 
 static unsigned short __ctype_b_tab[384];
@@ -822,3 +820,7 @@ static inline void wordfree(wordexp_t *p) { (void)p; }
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* !__ASSEMBLER__ && !__ASSEMBLY__ */
+
+#endif /* _BIONIC_STUB_H_ */

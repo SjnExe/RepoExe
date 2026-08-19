@@ -181,7 +181,7 @@ int futimesat(int dirfd, const char *path, const struct timeval times[2]);
 int posix_fadvise(int fd, off_t offset, off_t len, int advice);
 int posix_fadvise64(int fd, off64_t offset, off64_t len, int advice);
 int posix_fallocate(int fd, off_t offset, off_t len);
-int posix_fallocate64(int fd, off64_t offset, off64_t len);
+int posix_fallocate64(int fd, off64_t offset, off64_t len, int advice);
 
 int getloadavg(double loadavg[], int nelem);
 int malloc_trim(size_t pad);
@@ -219,8 +219,6 @@ void sincos(double x, double *s, double *c);
 void __sincos(double x, double *s, double *c);
 void sincosf(float x, float *s, float *c);
 void __sincosf(float x, float *s, float *c);
-int sched_getcpu(void);
-void *reallocarray(void *ptr, size_t nmemb, size_t size);
 int getentropy(void *buffer, size_t length);
 int memfd_create(const char *name, unsigned int flags);
 

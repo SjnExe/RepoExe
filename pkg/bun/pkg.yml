@@ -180,10 +180,10 @@ phases:
     fi
     INC_FLAG=""
     if [ "$IS_ASM" = "0" ]; then
-      INC_FLAG="-include /tmp/bionic_stub.h"
+      INC_FLAG="-I/tmp -include /tmp/bionic_stub.h"
     fi
     if [[ "$cmd" =~ ^clang ]]; then
-      exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 -I/tmp $INC_FLAG -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA
+      exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 $INC_FLAG -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA
     elif [[ "$cmd" =~ lld$ ]]; then
       exec "$NDK_BIN/$cmd" "${ARGS[@]}" $EXTRA
     else
@@ -195,12 +195,14 @@ phases:
     shim_p.chmod(0o755)
 
     for f in pathlib.Path(".").rglob("*"):
-        if f.is_file() and f.suffix in (".ts", ".js", ".zig", ".cmake", ".json", ".h", ".c") and "node_modules" not in str(f):
+        if f.is_file() and f.suffix in (".ts", ".js", ".zig", ".cmake", ".json", ".h", ".c", ".cpp") and "node_modules" not in str(f):
             try:
                 t = f.read_text("utf-8", "ignore")
                 n = t
                 if '#include "android_lf.h"' in n:
                     n = n.replace('#include "android_lf.h"', '/* #include "android_lf.h" */')
+                if "alloc-override.c" in f.name or "mimalloc" in str(f):
+                    n = re.sub(r'void\*\s*reallocarray\s*\([^)]*\)\s*\{[^}]*\}', '/* void* reallocarray disabled */', n)
                 n = re.sub(r"aarch64-linux-gnu(?:\.[0-9\.]+)?", "aarch64-linux-android", n)
                 n = re.sub(r"linux-aarch64-gnu(?:\.[0-9\.]+)?", "linux-aarch64-android", n)
                 n = re.sub(r'"linux-aarch64-gnu"', '"linux-aarch64-android"', n)
