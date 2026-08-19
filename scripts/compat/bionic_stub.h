@@ -175,6 +175,7 @@ int __xmknodat(int ver, int dirfd, const char *path, mode_t mode, dev_t *dev);
 int lchmod(const char *path, mode_t mode);
 int futimes(int fd, const struct timeval tv[2]);
 int lutimes(const char *path, const struct timeval tv[2]);
+int futimesat(int dirfd, const char *path, const struct timeval times[2]);
 int posix_fadvise(int fd, off_t offset, off_t len, int advice);
 int posix_fadvise64(int fd, off64_t offset, off64_t len, int advice);
 int posix_fallocate(int fd, off_t offset, off_t len);
