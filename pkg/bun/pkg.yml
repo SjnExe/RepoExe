@@ -95,14 +95,29 @@ phases:
         -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -I/tmp -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-format -Wno-unused-variable -Wno-undefined-var-template -Wno-unavailable-declarations -Wno-unguarded-availability"
       ninja -j4 JavaScriptCore
 
-      mkdir -p "${JSC_CACHE_DIR}/lib" "${JSC_CACHE_DIR}/include/JavaScriptCore"
-      cp -a lib/lib* "${JSC_CACHE_DIR}/lib/" 2>/dev/null || true
-      cp -a "${WK_SRC}/Source/JavaScriptCore/API/"*.h "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
-      cp -a JavaScriptCore/Headers/* "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
-      cp -a JavaScriptCore/PrivateHeaders/* "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
-      cp -a JavaScriptCore/DerivedSources/JavaScriptCore/* "${JSC_CACHE_DIR}/include/JavaScriptCore/" 2>/dev/null || true
-      cp -a WTF/Headers/* "${JSC_CACHE_DIR}/include/" 2>/dev/null || true
-      cp -a bmalloc/Headers/* "${JSC_CACHE_DIR}/include/" 2>/dev/null || true
+      python3 - << 'PYEOF'
+      import os, pathlib, shutil
+      jsc_cache = pathlib.Path(os.environ.get("JSC_CACHE_DIR", "/tmp/jsc_cache"))
+      wk_src = pathlib.Path("/tmp/webkit-src")
+      inc_dir = jsc_cache / "include"
+      lib_dir = jsc_cache / "lib"
+      for d in (inc_dir / "JavaScriptCore", inc_dir / "wtf", inc_dir / "bmalloc", lib_dir):
+          d.mkdir(parents=True, exist_ok=True)
+
+      for f in (wk_src / "build" / "lib").glob("lib*"):
+          shutil.copy2(f, lib_dir / f.name)
+
+      for root, _, files in os.walk(wk_src):
+          for f in files:
+              if f.endswith((".h", ".def", ".lut.h")):
+                  p = os.path.join(root, f)
+                  shutil.copy2(p, inc_dir / f)
+                  shutil.copy2(p, inc_dir / "JavaScriptCore" / f)
+                  if "wtf" in root.lower():
+                      shutil.copy2(p, inc_dir / "wtf" / f)
+                  if "bmalloc" in root.lower():
+                      shutil.copy2(p, inc_dir / "bmalloc" / f)
+      PYEOF
 
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
@@ -133,11 +148,31 @@ phases:
     SHORT_SHA=$(echo "${WEBKIT_SHA}" | cut -c1-16)
 
     echo "⚡ Pre-seeding Bun WebKit cache (${SHORT_SHA}) with native Bionic JavaScriptCore..."
-    for c_dir in "build/release/cache/webkit-${SHORT_SHA}-arm64" "build/release/cache/webkit-${WEBKIT_SHA}-arm64" "build/release/cache/webkit-${SHORT_SHA}-linux-arm64" "build/release/cache/webkit-${SHORT_SHA}-android-arm64" "build/cache/webkit-${SHORT_SHA}-arm64" "build/cache/webkit-${WEBKIT_SHA}-arm64"; do
-      mkdir -p "${c_dir}/lib" "${c_dir}/include" "${c_dir}/include/JavaScriptCore"
-      cp -a "${JSC_CACHE_DIR}/lib/"* "${c_dir}/lib/" 2>/dev/null || true
-      cp -a "${JSC_CACHE_DIR}/include/"* "${c_dir}/include/" 2>/dev/null || true
-    done
+    python3 - << 'PYEOF'
+    import glob, os, pathlib, shutil
+    jsc = pathlib.Path(os.environ.get("JSC_CACHE_DIR", "/tmp"))
+    short_sha = os.environ.get("SHORT_SHA", "")
+    full_sha = os.environ.get("WEBKIT_SHA", "")
+    all_headers = {h.name: h.read_bytes() for h in jsc.rglob("*.h") if h.is_file()}
+    for base in ("build/release/cache", "build/cache"):
+        for name in (f"webkit-{short_sha}-arm64", f"webkit-{full_sha}-arm64", f"webkit-{short_sha}-linux-arm64", f"webkit-{short_sha}-android-arm64", f"webkit-{short_sha}", f"webkit-{full_sha}"):
+            dest = pathlib.Path(base) / name
+            dest.mkdir(parents=True, exist_ok=True)
+            if (jsc / "lib").exists():
+                shutil.copytree(jsc / "lib", dest / "lib", dirs_exist_ok=True)
+            inc = dest / "include"
+            jsc_inc = inc / "JavaScriptCore"
+            wtf_inc = inc / "wtf"
+            bm_inc = inc / "bmalloc"
+            for d in (inc, jsc_inc, wtf_inc, bm_inc):
+                d.mkdir(parents=True, exist_ok=True)
+            if (jsc / "include").exists():
+                shutil.copytree(jsc / "include", inc, dirs_exist_ok=True)
+                shutil.copytree(jsc / "include", jsc_inc, dirs_exist_ok=True)
+            for hname, hdata in all_headers.items():
+                (inc / hname).write_bytes(hdata)
+                (jsc_inc / hname).write_bytes(hdata)
+    PYEOF
 
     python3 - << 'PYEOF'
     import glob, os, pathlib, re
@@ -167,11 +202,9 @@ phases:
     ]
     cfg_h = "\n".join(cfg_lines)
 
-    for d in glob.glob("build/**/include", recursive=True) + ["/tmp", "/tmp/fake-clang", "src/jsc/bindings", "src/jsc/bindings/webcore"]:
-        if os.path.exists(d):
-            pathlib.Path(f"{d}/cmakeconfig.h").write_text(cfg_h)
-            os.makedirs(f"{d}/JavaScriptCore", exist_ok=True)
-            pathlib.Path(f"{d}/JavaScriptCore/cmakeconfig.h").write_text(cfg_h)
+    for d in list(pathlib.Path(".").rglob("include")) + list(pathlib.Path(".").rglob("JavaScriptCore")) + [pathlib.Path("/tmp"), pathlib.Path("/tmp/fake-clang"), pathlib.Path("src/jsc/bindings"), pathlib.Path("src/jsc/bindings/webcore")]:
+        if d.is_dir():
+            (d / "cmakeconfig.h").write_text(cfg_h, encoding="utf-8")
 
     shim_lines = [
         "#!/bin/bash",
@@ -239,8 +272,17 @@ phases:
             except Exception:
                 pass
 
-    cmd = 'echo "" && echo "📦 Upgrading Bun via RepoExe Package Manager..." && if command -v pkg >/dev/null 2>&1; then pkg update -y bun || pkg install -y bun; elif command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get install --only-upgrade -y bun; elif command -v pacman >/dev/null 2>&1; then pacman -Sy --noconfirm bun; elif command -v apk >/dev/null 2>&1; then apk add --upgrade bun; else echo "Error: No supported package manager found."; fi'
-    stub = f'extern "c" fn system(command: [*:0]const u8) c_int;\npub fn exec(ctx: anytype) !void {{\n    @branchHint(.cold);\n    _ = ctx;\n    _ = system("{cmd}");\n    return;\n}}'
+    stub_lines = [
+        'extern "c" fn system(command: [*:0]const u8) c_int;',
+        "pub fn exec(ctx: anytype) !void {",
+        "    @branchHint(.cold);",
+        "    _ = ctx;",
+        '    _ = system("pkg install -y bun || apt-get install --only-upgrade -y bun || pacman -Sy --noconfirm bun || apk add --upgrade bun");',
+        "    return;",
+        "}",
+        "",
+    ]
+    stub = "\n".join(stub_lines)
     for f in glob.glob("src/**/upgrade*.zig", recursive=True):
         try:
             s = open(f, "r").read()
