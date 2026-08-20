@@ -152,6 +152,7 @@ def build_matrix_layer(
                     "zram": max_zram,
                     "swap": max_swap,
                     "free_space": max_free_space,
+                    "tmpfs": getattr(r.resources, "tmpfs", 12),
                 }
             )
         except Exception:

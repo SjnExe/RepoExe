@@ -258,7 +258,7 @@ jobs:
 
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
-            --tmpfs /tmp:exec,mode=1777,size=12g \
+            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
@@ -281,31 +281,48 @@ jobs:
         run: |
           RAM_STR="N/A"
           SWAP_STR="N/A"
+          RSS_STR="N/A"
+          CACHE_STR="N/A"
           CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
           [ -d "$CG_DIR" ] || CG_DIR="/sys/fs/cgroup"
+          TOTAL_RAM_BYTES="$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2 * 1024}' || echo 17179869184)"
+
           if [ -f "$CG_DIR/memory.peak" ]; then
             BYTES="$(cat "$CG_DIR/memory.peak" 2>/dev/null || echo 0)"
             if [ "$BYTES" -gt 0 ] 2>/dev/null; then
-              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+              RAM_STR="$(awk -v b="$BYTES" -v t="$TOTAL_RAM_BYTES" 'BEGIN {printf "%.2f GB (%.1f%% of host)", b/1073741824, (b/t)*100}')"
             fi
           elif [ -f "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" ]; then
             BYTES="$(cat "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" 2>/dev/null || echo 0)"
             if [ "$BYTES" -gt 0 ] 2>/dev/null; then
-              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+              RAM_STR="$(awk -v b="$BYTES" -v t="$TOTAL_RAM_BYTES" 'BEGIN {printf "%.2f GB (%.1f%% of host)", b/1073741824, (b/t)*100}')"
             fi
           fi
+
           if [ -f "$CG_DIR/memory.swap.peak" ]; then
             SBYTES="$(cat "$CG_DIR/memory.swap.peak" 2>/dev/null || echo 0)"
             if [ "$SBYTES" -gt 0 ] 2>/dev/null; then
               SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            else
+              SWAP_STR="0.00 GB (0 bytes)"
             fi
           fi
+
+          if [ -f "$CG_DIR/memory.stat" ]; then
+            ANON="$(grep -E '^anon ' "$CG_DIR/memory.stat" | awk '{print $2}' || echo 0)"
+            FILE_CACHE="$(grep -E '^file ' "$CG_DIR/memory.stat" | awk '{print $2}' || echo 0)"
+            [ "$ANON" -gt 0 ] 2>/dev/null && RSS_STR="$(awk -v b="$ANON" 'BEGIN {printf "%.2f GB", b/1073741824}')"
+            [ "$FILE_CACHE" -gt 0 ] 2>/dev/null && CACHE_STR="$(awk -v b="$FILE_CACHE" 'BEGIN {printf "%.2f GB", b/1073741824}')"
+          fi
+
           {
-            echo "### 📊 Peak Memory Consumption (${{ matrix.package }})"
-            echo '```text'
-            echo "Peak RAM Usage:  ${RAM_STR}"
-            echo "Peak Swap Usage: ${SWAP_STR}"
-            echo '```'
+            echo "### 📊 Memory & Resource Telemetry (${{ matrix.package }})"
+            echo "| Metric | Consumption | Target Limit |"
+            echo "| :--- | :--- | :--- |"
+            echo "| **Peak RAM Usage** | \`${RAM_STR}\` | 16.00 GB Physical |"
+            echo "| **Peak Swap / ZRAM** | \`${SWAP_STR}\` | ${{ matrix.swap }}GB Swap / ${{ matrix.zram }}GB ZRAM |"
+            echo "| **Anonymous RSS** | \`${RSS_STR}\` | Working Set |"
+            echo "| **Page Cache / tmpfs** | \`${CACHE_STR}\` | ${{ matrix.tmpfs }}GB tmpfs Max |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
@@ -321,7 +338,7 @@ jobs:
 
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
-            --tmpfs /tmp:exec,mode=1777,size=12g \
+            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
@@ -355,7 +372,7 @@ jobs:
 
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
-            --tmpfs /tmp:exec,mode=1777,size=12g \
+            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \

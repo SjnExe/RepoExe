@@ -8,6 +8,11 @@ license: MIT
 maintainer: SjnExe
 build_system: custom
 
+resources:
+  tmpfs: 2
+  zram: 0
+  swap: 0
+
 toolchains:
   clang: ">=21.0.0"
   rust: "stable"
@@ -48,7 +53,7 @@ phases:
 
     CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_SYSTEM_VERSION=24 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DENABLE_SAMPLING_PROFILER=OFF -DENABLE_REMOTE_INSPECTOR=OFF -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
     COMPAT_HASH=$(sha256sum /home/builder/RepoExe/scripts/compat/bionic_compat.c /home/builder/RepoExe/scripts/compat/bionic_stub.h 2>/dev/null | sha256sum | head -c 8)
-    CONFIG_HASH=$(echo "${CMAKE_FLAGS}-${COMPAT_HASH}-v3" | sha256sum | head -c 8)
+    CONFIG_HASH=$(echo "${CMAKE_FLAGS}-${COMPAT_HASH}-v4" | sha256sum | head -c 8)
     export JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}-${CONFIG_HASH}"
 
     mkdir -p "${DESTDIR}${PREFIX}/lib" "${DESTDIR}${PREFIX}/include/JavaScriptCore"
@@ -57,7 +62,7 @@ phases:
       echo "✓ WebKit cache hit for SHA ${WEBKIT_SHA} (Config: ${CONFIG_HASH}). Restoring headers and libraries..."
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
-      tar -czf /tmp/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
+      tar -czf /home/builder/RepoExe/.cache/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
     else
       echo "⚡ WebKit cache miss. Compiling JavaScriptCore natively for Bionic API 24..."
       WK_SRC="/tmp/webkit-src"
@@ -91,26 +96,54 @@ phases:
         -DENABLE_FTL_JIT=ON \
         -DENABLE_WEBASSEMBLY=ON \
         -DENABLE_C_LOOP=OFF \
-        -DCMAKE_C_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -I/tmp -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-unsafe-buffer-usage-in-container -Wno-format -Wno-unused-variable -Wno-unavailable-declarations -Wno-unguarded-availability" \
-        -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -I/tmp -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-unsafe-buffer-usage-in-container -Wno-format -Wno-unused-variable -Wno-undefined-var-template -Wno-unavailable-declarations -Wno-unguarded-availability"
+        -DCMAKE_C_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -I/tmp -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-unsafe-buffer-usage-in-container -Wno-format -Wno-unused-variable -Wno-unavailable-declarations -Wno-unguarded-availability -Wno-macro-redefined" \
+        -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -I/tmp -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-unsafe-buffer-usage-in-container -Wno-format -Wno-unused-variable -Wno-undefined-var-template -Wno-unavailable-declarations -Wno-unguarded-availability -Wno-macro-redefined"
       ninja -j4 JavaScriptCore
 
-      python3 -c "import os, pathlib, shutil; jsc = pathlib.Path(os.environ.get('JSC_CACHE_DIR', '/home/builder/RepoExe/.cache/bun-jsc')); wk = pathlib.Path('/tmp/webkit-src'); inc = jsc / 'include'; lib = jsc / 'lib'; [d.mkdir(parents=True, exist_ok=True) for d in (inc / 'JavaScriptCore', inc / 'wtf', inc / 'bmalloc', lib)]; [shutil.copy2(f, lib / f.name) for f in (wk / 'build' / 'lib').glob('lib*')]; [(shutil.copy2(os.path.join(r, f), inc / 'JavaScriptCore' / f) if ('javascriptcore' in r.lower() or 'jsc' in r.lower() or 'derivedsources' in r.lower()) else (shutil.copy2(os.path.join(r, f), inc / 'wtf' / f) if 'wtf' in r.lower() else (shutil.copy2(os.path.join(r, f), inc / 'bmalloc' / f) if 'bmalloc' in r.lower() else None))) for r, _, fs in os.walk(wk) for f in fs if f.endswith(('.h', '.def', '.lut.h'))]; [f.unlink() for f in inc.iterdir() if f.is_file()]"
+      python3 - << 'HEADER_EOF'
+      import os, pathlib, shutil
+      jsc = pathlib.Path(os.environ.get("JSC_CACHE_DIR", "/home/builder/RepoExe/.cache/bun-jsc"))
+      wk = pathlib.Path("/tmp/webkit-src")
+      inc = jsc / "include"
+      lib = jsc / "lib"
+      inc.mkdir(parents=True, exist_ok=True)
+      lib.mkdir(parents=True, exist_ok=True)
+
+      for f in (wk / "build" / "lib").glob("lib*"):
+          shutil.copy2(f, lib / f.name)
+
+      for comp in ("JavaScriptCore", "WTF", "bmalloc"):
+          for hdir in (wk / "build" / comp / "Headers", wk / "build" / comp / "PrivateHeaders", wk / "build" / comp / "DerivedSources"):
+              if hdir.exists():
+                  dest = inc / comp
+                  if (hdir / comp).exists():
+                      shutil.copytree(hdir / comp, dest, dirs_exist_ok=True)
+                  else:
+                      shutil.copytree(hdir, dest, dirs_exist_ok=True)
+          src_inc = wk / "Source" / comp
+          if src_inc.exists():
+              for h in src_inc.rglob("*.h"):
+                  rel = h.relative_to(src_inc)
+                  target = inc / comp / rel
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(h, target)
+      HEADER_EOF
 
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
-      tar -czf /tmp/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
+      mkdir -p /home/builder/RepoExe/.cache
+      tar -czf /home/builder/RepoExe/.cache/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
 
       cd /home/builder/RepoExe
       rm -rf "$WK_SRC" /tmp/icu-include 2>/dev/null || true
-      echo "✓ Reclaimed ~4GB RAM from WebKit tmpfs build tree"
+      echo "✓ Cleaned WebKit build tree from RAM"
     fi
 
   make: |
     set -e
-    mkdir -p /home/builder/RepoExe/.cache/zig /tmp/zig-cache /tmp/fake-clang
+    mkdir -p /home/builder/RepoExe/.cache/zig /tmp/fake-clang
     export ZIG_GLOBAL_CACHE_DIR=/home/builder/RepoExe/.cache/zig
-    export ZIG_LOCAL_CACHE_DIR=/tmp/zig-cache
+    export ZIG_LOCAL_CACHE_DIR=/home/builder/RepoExe/.cache/zig
 
     export WEBKIT_SHA=$(python3 - << 'PYEOF'
     import re, pathlib
@@ -121,7 +154,7 @@ phases:
     )
     CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_SYSTEM_VERSION=24 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DENABLE_SAMPLING_PROFILER=OFF -DENABLE_REMOTE_INSPECTOR=OFF -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
     COMPAT_HASH=$(sha256sum /home/builder/RepoExe/scripts/compat/bionic_compat.c /home/builder/RepoExe/scripts/compat/bionic_stub.h 2>/dev/null | sha256sum | head -c 8)
-    CONFIG_HASH=$(echo "${CMAKE_FLAGS}-${COMPAT_HASH}-v3" | sha256sum | head -c 8)
+    CONFIG_HASH=$(echo "${CMAKE_FLAGS}-${COMPAT_HASH}-v4" | sha256sum | head -c 8)
     export JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}-${CONFIG_HASH}"
     export SHORT_SHA=$(echo "${WEBKIT_SHA}" | cut -c1-16)
 
@@ -131,9 +164,6 @@ phases:
     jsc = pathlib.Path(os.environ.get("JSC_CACHE_DIR", "/home/builder/RepoExe/.cache/bun-jsc"))
     short_sha = os.environ.get("SHORT_SHA", "")
     full_sha = os.environ.get("WEBKIT_SHA", "")
-    if (jsc / "include").exists():
-        for f in (jsc / "include").iterdir():
-            if f.is_file(): f.unlink()
     for base in ("build/release/cache", "build/cache", "build/release/deps", "build/deps"):
         for name in (f"webkit-{short_sha}-arm64", f"webkit-{full_sha}-arm64", f"webkit-{short_sha}-linux-arm64", f"webkit-{short_sha}-android-arm64", f"webkit-{short_sha}", f"webkit-{full_sha}"):
             dest = pathlib.Path(base) / name
@@ -143,9 +173,6 @@ phases:
             inc = dest / "include"
             if (jsc / "include").exists():
                 shutil.copytree(jsc / "include", inc, dirs_exist_ok=True)
-            if inc.exists():
-                for f in inc.iterdir():
-                    if f.is_file(): f.unlink()
     PYEOF
 
     python3 - << 'PYEOF'
@@ -197,6 +224,7 @@ phases:
         "IS_ASM=0",
         'for a in "$@"; do',
         '  case "$a" in',
+        '    -Werror|-Werror=*) ;;',
         '    -c|-E|-S) IS_COMPILE=1; ARGS+=("$a") ;;',
         '    *.s|*.S) IS_ASM=1; ARGS+=("$a") ;;',
         '    -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;',
@@ -213,7 +241,7 @@ phases:
         '  INC_FLAG="-I/tmp -include /tmp/bionic_stub.h"',
         "fi",
         'if [[ "$cmd" =~ ^clang ]]; then',
-        '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 $INC_FLAG -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option $EXTRA',
+        '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 $INC_FLAG -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option -Wno-unsafe-buffer-usage -Wno-unsafe-buffer-usage-in-container $EXTRA',
         'elif [[ "$cmd" =~ lld$ ]]; then',
         '  exec "$NDK_BIN/$cmd" "${ARGS[@]}" $EXTRA',
         "else",
@@ -236,7 +264,8 @@ phases:
                 n = re.sub(r"aarch64-linux-gnu(?:\.[0-9\.]+)?", "aarch64-linux-android", n)
                 n = re.sub(r"linux-aarch64-gnu(?:\.[0-9\.]+)?", "linux-aarch64-android", n)
                 n = re.sub(r'"linux-aarch64-gnu"', '"linux-aarch64-android"', n)
-                n = re.sub(r'[`"]https://github\.com/oven-sh/WebKit/releases/download/[^`"]*[`"]', '"file:///tmp/bun-webkit-bionic.tar.gz"', n)
+                n = re.sub(r"'linux-aarch64-gnu'", "'linux-aarch64-android'", n)
+                n = re.sub(r'[`"]https://github\.com/oven-sh/WebKit/releases/download/[^`"]*[`"]', '"file:///home/builder/RepoExe/.cache/bun-webkit-bionic.tar.gz"', n)
                 if "-Dtarget=aarch64-linux-gnu" in n:
                     n = n.replace("-Dtarget=aarch64-linux-gnu", f"-Dtarget=aarch64-linux-android -Dandroid_ndk_sysroot={sysroot}")
                 if "-Dtarget=aarch64-linux-android" in n and "-Dandroid_ndk_sysroot" not in n:

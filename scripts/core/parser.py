@@ -11,6 +11,7 @@ class ResourceConfig:
     zram: int = 0
     swap: int = 0
     free_space: bool = False
+    tmpfs: int = 12
 
 
 @dataclass
@@ -167,7 +168,10 @@ def parse_recipe(recipe_path: Path | str, channel: str = "latest") -> PackageRec
 
     raw_data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
     if "resources" in raw_data and isinstance(raw_data["resources"], dict):
-        raw_data["resources"] = ResourceConfig(**raw_data["resources"])
+        res_data = dict(raw_data["resources"])
+        if "tmpfs" in res_data:
+            res_data["tmpfs"] = max(0, min(12, int(res_data["tmpfs"])))
+        raw_data["resources"] = ResourceConfig(**res_data)
     else:
         raw_data["resources"] = ResourceConfig()
 
