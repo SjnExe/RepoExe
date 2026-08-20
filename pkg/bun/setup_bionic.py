@@ -48,23 +48,48 @@ def archive_jsc():
     for f in (wk / "build" / "lib").glob("lib*"):
         shutil.copy2(f, lib / f.name)
 
-    for comp in ("JavaScriptCore", "WTF", "bmalloc"):
-        for hdir in (
-            wk / "build" / comp / "Headers",
-            wk / "build" / comp / "PrivateHeaders",
-            wk / "build" / comp / "DerivedSources",
-        ):
-            if hdir.exists():
-                src_dir = hdir / comp if (hdir / comp).exists() else hdir
-                shutil.copytree(src_dir, inc / comp, dirs_exist_ok=True)
+    # Copy built header trees directly into target include directories
+    targets = [
+        ("JavaScriptCore", "JavaScriptCore", "JavaScriptCore"),
+        ("WTF", "wtf", "wtf"),
+        ("bmalloc", "bmalloc", "bmalloc"),
+    ]
 
-    for comp in ("JavaScriptCore", "WTF", "bmalloc"):
-        s = wk / "Source" / comp
+    for build_comp, sub_name, out_name in targets:
+        out_dir = inc / out_name
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for hdir_name in ("Headers", "PrivateHeaders", "DerivedSources"):
+            hdir = wk / "build" / build_comp / hdir_name
+            if not hdir.exists():
+                continue
+            sub = hdir / sub_name
+            if sub.exists() and sub.is_dir():
+                shutil.copytree(sub, out_dir, dirs_exist_ok=True)
+            else:
+                for item in hdir.iterdir():
+                    if item.is_dir():
+                        shutil.copytree(item, out_dir / item.name, dirs_exist_ok=True)
+                    elif item.suffix in (".h", ".lut.h", ".def", ".json"):
+                        shutil.copy2(item, out_dir / item.name)
+
+    # Copy remaining source headers to prevent any missing definitions
+    for src_sub, out_name in [
+        ("JavaScriptCore", "JavaScriptCore"),
+        ("WTF/wtf", "wtf"),
+        ("WTF", "wtf"),
+        ("bmalloc/bmalloc", "bmalloc"),
+        ("bmalloc", "bmalloc"),
+    ]:
+        s = wk / "Source" / src_sub
         if s.exists():
             for h in s.rglob("*.h"):
-                dest = inc / comp / h.relative_to(s)
+                rel = h.relative_to(s)
+                dest = inc / out_name / rel
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(h, dest)
+
+    if (inc / "wtf").exists() and not (inc / "WTF").exists():
+        shutil.copytree(inc / "wtf", inc / "WTF", dirs_exist_ok=True)
 
 
 def seed_bun():
