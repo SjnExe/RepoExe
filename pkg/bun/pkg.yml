@@ -101,33 +101,33 @@ phases:
       ninja -j4 JavaScriptCore
 
       python3 - << 'HEADER_EOF'
-      import os, pathlib, shutil
-      jsc = pathlib.Path(os.environ.get("JSC_CACHE_DIR", "/home/builder/RepoExe/.cache/bun-jsc"))
-      wk = pathlib.Path("/tmp/webkit-src")
-      inc = jsc / "include"
-      lib = jsc / "lib"
-      inc.mkdir(parents=True, exist_ok=True)
-      lib.mkdir(parents=True, exist_ok=True)
+    import os, pathlib, shutil
+    jsc = pathlib.Path(os.environ.get("JSC_CACHE_DIR", "/home/builder/RepoExe/.cache/bun-jsc"))
+    wk = pathlib.Path("/tmp/webkit-src")
+    inc = jsc / "include"
+    lib = jsc / "lib"
+    inc.mkdir(parents=True, exist_ok=True)
+    lib.mkdir(parents=True, exist_ok=True)
 
-      for f in (wk / "build" / "lib").glob("lib*"):
-          shutil.copy2(f, lib / f.name)
+    for f in (wk / "build" / "lib").glob("lib*"):
+        shutil.copy2(f, lib / f.name)
 
-      for comp in ("JavaScriptCore", "WTF", "bmalloc"):
-          for hdir in (wk / "build" / comp / "Headers", wk / "build" / comp / "PrivateHeaders", wk / "build" / comp / "DerivedSources"):
-              if hdir.exists():
-                  dest = inc / comp
-                  if (hdir / comp).exists():
-                      shutil.copytree(hdir / comp, dest, dirs_exist_ok=True)
-                  else:
-                      shutil.copytree(hdir, dest, dirs_exist_ok=True)
-          src_inc = wk / "Source" / comp
-          if src_inc.exists():
-              for h in src_inc.rglob("*.h"):
-                  rel = h.relative_to(src_inc)
-                  target = inc / comp / rel
-                  target.parent.mkdir(parents=True, exist_ok=True)
-                  shutil.copy2(h, target)
-      HEADER_EOF
+    for comp in ("JavaScriptCore", "WTF", "bmalloc"):
+        for hdir in (wk / "build" / comp / "Headers", wk / "build" / comp / "PrivateHeaders", wk / "build" / comp / "DerivedSources"):
+            if hdir.exists():
+                dest = inc / comp
+                if (hdir / comp).exists():
+                    shutil.copytree(hdir / comp, dest, dirs_exist_ok=True)
+                else:
+                    shutil.copytree(hdir, dest, dirs_exist_ok=True)
+        src_inc = wk / "Source" / comp
+        if src_inc.exists():
+            for h in src_inc.rglob("*.h"):
+                rel = h.relative_to(src_inc)
+                target = inc / comp / rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(h, target)
+    HEADER_EOF
 
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
