@@ -9,7 +9,7 @@ maintainer: SjnExe
 build_system: custom
 
 resources:
-  tmpfs: 2
+  tmpfs: 10
   zram: 0
   swap: 0
 
@@ -62,17 +62,20 @@ phases:
       echo "✓ WebKit cache hit for SHA ${WEBKIT_SHA} (Config: ${CONFIG_HASH}). Restoring headers and libraries..."
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
-      tar -czf /home/builder/RepoExe/.cache/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
+      tar -czf /tmp/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
     else
-      echo "⚡ WebKit cache miss. Compiling JavaScriptCore natively for Bionic API 24..."
+      echo "⚡ WebKit cache miss. Compiling JavaScriptCore natively for Bionic API 24 with sparse checkout..."
       WK_SRC="/tmp/webkit-src"
+      rm -rf "$WK_SRC" 2>/dev/null || true
       mkdir -p "$WK_SRC"
       git init "$WK_SRC"
       git -C "$WK_SRC" remote add origin https://github.com/oven-sh/webkit.git
+      git -C "$WK_SRC" config core.sparseCheckout true
+      printf "Source/\ncmake/\nCMakeLists.txt\nTools/Scripts/\n" > "$WK_SRC/.git/info/sparse-checkout"
       git -C "$WK_SRC" fetch --depth 1 origin "$WEBKIT_SHA"
       git -C "$WK_SRC" checkout FETCH_HEAD
 
-      python3 -c "from pathlib import Path; import re; p = Path('/tmp/webkit-src/Source/cmake/OptionsJSCOnly.cmake'); stub = 'add_library(ICU::uc UNKNOWN IMPORTED)\\nset_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\\nadd_library(ICU::i18n UNKNOWN IMPORTED)\\nset_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\\nadd_library(ICU::data UNKNOWN IMPORTED)\\nset_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\\nset(ICU_FOUND TRUE)\\nset(ICU_INCLUDE_DIRS /tmp/icu-include)\\nset(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)\\nset(ENABLE_BUN ON CACHE BOOL \"\" FORCE)\\nset(ENABLE_BUN_JSC ON CACHE BOOL \"\" FORCE)\\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL \"\" FORCE)'; p.exists() and p.write_text(re.sub(r'find_package\\(ICU[^\\)]*\\)', stub, p.read_text()) + '\\nset(ENABLE_BUN ON CACHE BOOL \"\" FORCE)\\nset(ENABLE_BUN_JSC ON CACHE BOOL \"\" FORCE)\\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL \"\" FORCE)\\n')"
+      python3 -c "from pathlib import Path; import re; p = Path('/tmp/webkit-src/Source/cmake/OptionsJSCOnly.cmake'); stub = 'add_library(ICU::uc UNKNOWN IMPORTED)\nset_target_properties(ICU::uc PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicuuc.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::i18n UNKNOWN IMPORTED)\nset_target_properties(ICU::i18n PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicui18n.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nadd_library(ICU::data UNKNOWN IMPORTED)\nset_target_properties(ICU::data PROPERTIES IMPORTED_LOCATION /usr/lib/aarch64-linux-gnu/libicudata.so INTERFACE_INCLUDE_DIRECTORIES /tmp/icu-include)\nset(ICU_FOUND TRUE)\nset(ICU_INCLUDE_DIRS /tmp/icu-include)\nset(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)\nset(ENABLE_BUN ON CACHE BOOL "" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL "" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL "" FORCE)'; p.exists() and p.write_text(re.sub(r'find_package\(ICU[^\)]*\)', stub, p.read_text()) + '\nset(ENABLE_BUN ON CACHE BOOL "" FORCE)\nset(ENABLE_BUN_JSC ON CACHE BOOL "" FORCE)\nset(USE_BUN_JSC_ADDITIONS ON CACHE BOOL "" FORCE)\n')"
       mkdir -p /tmp/icu-include && ln -sfn /usr/include/unicode /tmp/icu-include/unicode
       mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
       cmake -G Ninja .. \
@@ -101,49 +104,48 @@ phases:
       ninja -j4 JavaScriptCore
 
       python3 - << 'HEADER_EOF'
-    import os, pathlib, shutil
-    jsc = pathlib.Path(os.environ.get("JSC_CACHE_DIR", "/home/builder/RepoExe/.cache/bun-jsc"))
-    wk = pathlib.Path("/tmp/webkit-src")
-    inc = jsc / "include"
-    lib = jsc / "lib"
-    inc.mkdir(parents=True, exist_ok=True)
-    lib.mkdir(parents=True, exist_ok=True)
+      import os, pathlib, shutil
+      jsc = pathlib.Path(os.environ.get("JSC_CACHE_DIR", "/home/builder/RepoExe/.cache/bun-jsc"))
+      wk = pathlib.Path("/tmp/webkit-src")
+      inc = jsc / "include"
+      lib = jsc / "lib"
+      inc.mkdir(parents=True, exist_ok=True)
+      lib.mkdir(parents=True, exist_ok=True)
 
-    for f in (wk / "build" / "lib").glob("lib*"):
-        shutil.copy2(f, lib / f.name)
+      for f in (wk / "build" / "lib").glob("lib*"):
+          shutil.copy2(f, lib / f.name)
 
-    for comp in ("JavaScriptCore", "WTF", "bmalloc"):
-        for hdir in (wk / "build" / comp / "Headers", wk / "build" / comp / "PrivateHeaders", wk / "build" / comp / "DerivedSources"):
-            if hdir.exists():
-                dest = inc / comp
-                if (hdir / comp).exists():
-                    shutil.copytree(hdir / comp, dest, dirs_exist_ok=True)
-                else:
-                    shutil.copytree(hdir, dest, dirs_exist_ok=True)
-        src_inc = wk / "Source" / comp
-        if src_inc.exists():
-            for h in src_inc.rglob("*.h"):
-                rel = h.relative_to(src_inc)
-                target = inc / comp / rel
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(h, target)
-    HEADER_EOF
+      for comp in ("JavaScriptCore", "WTF", "bmalloc"):
+          for hdir in (wk / "build" / comp / "Headers", wk / "build" / comp / "PrivateHeaders", wk / "build" / comp / "DerivedSources"):
+              if hdir.exists():
+                  dest = inc / comp
+                  if (hdir / comp).exists():
+                      shutil.copytree(hdir / comp, dest, dirs_exist_ok=True)
+                  else:
+                      shutil.copytree(hdir, dest, dirs_exist_ok=True)
+          src_inc = wk / "Source" / comp
+          if src_inc.exists():
+              for h in src_inc.rglob("*.h"):
+                  rel = h.relative_to(src_inc)
+                  target = inc / comp / rel
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(h, target)
+      HEADER_EOF
 
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
       cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
-      mkdir -p /home/builder/RepoExe/.cache
-      tar -czf /home/builder/RepoExe/.cache/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
+      tar -czf /tmp/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
 
       cd /home/builder/RepoExe
       rm -rf "$WK_SRC" /tmp/icu-include 2>/dev/null || true
-      echo "✓ Cleaned WebKit build tree from RAM"
+      echo "✓ Reclaimed memory from WebKit build tree"
     fi
 
   make: |
     set -e
     mkdir -p /home/builder/RepoExe/.cache/zig /tmp/fake-clang
     export ZIG_GLOBAL_CACHE_DIR=/home/builder/RepoExe/.cache/zig
-    export ZIG_LOCAL_CACHE_DIR=/home/builder/RepoExe/.cache/zig
+    export ZIG_LOCAL_CACHE_DIR=/tmp/zig-cache
 
     export WEBKIT_SHA=$(python3 - << 'PYEOF'
     import re, pathlib
@@ -265,7 +267,7 @@ phases:
                 n = re.sub(r"linux-aarch64-gnu(?:\.[0-9\.]+)?", "linux-aarch64-android", n)
                 n = re.sub(r'"linux-aarch64-gnu"', '"linux-aarch64-android"', n)
                 n = re.sub(r"'linux-aarch64-gnu'", "'linux-aarch64-android'", n)
-                n = re.sub(r'[`"]https://github\.com/oven-sh/WebKit/releases/download/[^`"]*[`"]', '"file:///home/builder/RepoExe/.cache/bun-webkit-bionic.tar.gz"', n)
+                n = re.sub(r'[`"]https://github\.com/oven-sh/WebKit/releases/download/[^`"]*[`"]', '"file:///tmp/bun-webkit-bionic.tar.gz"', n)
                 if "-Dtarget=aarch64-linux-gnu" in n:
                     n = n.replace("-Dtarget=aarch64-linux-gnu", f"-Dtarget=aarch64-linux-android -Dandroid_ndk_sysroot={sysroot}")
                 if "-Dtarget=aarch64-linux-android" in n and "-Dandroid_ndk_sysroot" not in n:

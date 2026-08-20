@@ -225,6 +225,9 @@ jobs:
       - name: Fix Cache Permissions
         run: |
           mkdir -p .sccache .gocache .gomodcache .cargoregistry .cargogit .cache
+          # Prune temporary compiler object caches before committing to Actions cache
+          rm -rf .cache/zig/z /tmp/* 2>/dev/null || true
+          find .cache -name "*.tar.gz" -delete 2>/dev/null || true
           sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit .cache 2>/dev/null || true
 
       - name: Optimize Docker Daemon Concurrency
@@ -266,6 +269,7 @@ jobs:
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env SCCACHE_CACHE_SIZE="1G" \
             --env GOCACHE="/home/builder/.cache/go-build" \
             --env GOMODCACHE="/home/builder/go/pkg/mod" \
             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
@@ -346,6 +350,7 @@ jobs:
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env SCCACHE_CACHE_SIZE="1G" \
             --env GOCACHE="/home/builder/.cache/go-build" \
             --env GOMODCACHE="/home/builder/go/pkg/mod" \
             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
@@ -380,6 +385,7 @@ jobs:
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env SCCACHE_CACHE_SIZE="1G" \
             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
@@ -387,6 +393,9 @@ jobs:
       - name: Fix Cache Permissions Before Save
         if: always()
         run: |
+          # Prune temporary compiler object caches before committing to Actions cache
+          rm -rf .cache/zig/z /tmp/* 2>/dev/null || true
+          find .cache -name "*.tar.gz" -delete 2>/dev/null || true
           sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit .cache 2>/dev/null || true
 
       - name: Save Toolchain & Build Caches
