@@ -58,13 +58,13 @@ phases:
       git init "$WK_SRC"
       git -C "$WK_SRC" remote add origin https://github.com/oven-sh/webkit.git
       git -C "$WK_SRC" config core.sparseCheckout true
-      printf "Source/bmalloc/\nSource/WTF/\nSource/JavaScriptCore/\nSource/cmake/\nSource/CMakeLists.txt\ncmake/\nCMakeLists.txt\n" > "$WK_SRC/.git/info/sparse-checkout"
+      printf "Source/bmalloc/\nSource/WTF/\nSource/JavaScriptCore/\nSource/ThirdParty/unifdef/\nSource/cmake/\nSource/CMakeLists.txt\ncmake/\nCMakeLists.txt\n" > "$WK_SRC/.git/info/sparse-checkout"
       git -C "$WK_SRC" fetch --depth 1 origin "$WEBKIT_SHA"
       git -C "$WK_SRC" checkout FETCH_HEAD
 
       sed -i '/add_subdirectory(Tools)/d; /add_subdirectory(Source\/ThirdParty\/gtest)/d' "$WK_SRC/CMakeLists.txt" 2>/dev/null || true
 
-      PKG_HELPER="$(find /home/builder/RepoExe "$PWD" -name setup_bionic.py 2>/dev/null | head -n 1)"
+      PKG_HELPER="$(find /home/builder/RepoExe "${REPO_ROOT:-.}" "$PWD" -name setup_bionic.py 2>/dev/null | head -n 1)"
       python3 "$PKG_HELPER" patch_cmake
 
       mkdir -p /tmp/icu-include && ln -sfn /usr/include/unicode /tmp/icu-include/unicode
@@ -98,7 +98,7 @@ phases:
 
       find /home/builder/RepoExe/.cache -maxdepth 1 -name "bun-jsc-*" ! -name "$(basename ${JSC_CACHE_DIR})" -exec rm -rf {} + 2>/dev/null || true
 
-      PKG_HELPER="$(find /home/builder/RepoExe "$PWD" -name setup_bionic.py 2>/dev/null | head -n 1)"
+      PKG_HELPER="$(find /home/builder/RepoExe "${REPO_ROOT:-.}" "$PWD" -name setup_bionic.py 2>/dev/null | head -n 1)"
       python3 "$PKG_HELPER" archive_jsc
 
       cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
@@ -124,7 +124,7 @@ phases:
     export SHORT_SHA=$(echo "${WEBKIT_SHA}" | cut -c1-16)
 
     echo "⚡ Pre-seeding Bun WebKit cache (${SHORT_SHA}) with native Bionic JavaScriptCore..."
-    PKG_HELPER="$(find /home/builder/RepoExe "$PWD" -name setup_bionic.py 2>/dev/null | head -n 1)"
+    PKG_HELPER="$(find /home/builder/RepoExe "${REPO_ROOT:-.}" "$PWD" -name setup_bionic.py 2>/dev/null | head -n 1)"
     python3 "$PKG_HELPER" seed_bun
     python3 "$PKG_HELPER" setup_shims
 
