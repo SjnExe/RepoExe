@@ -22,6 +22,7 @@ def patch_cmake():
             'set(ENABLE_BUN ON CACHE BOOL "" FORCE)\n'
             'set(ENABLE_BUN_JSC ON CACHE BOOL "" FORCE)\n'
             'set(USE_BUN_JSC_ADDITIONS ON CACHE BOOL "" FORCE)\n'
+            'set(ENABLE_REMOTE_INSPECTOR ON CACHE BOOL "" FORCE)\n'
             'set(ENABLE_API_TESTS OFF CACHE BOOL "" FORCE)\n'
             'set(BUILD_TESTING OFF CACHE BOOL "" FORCE)'
         )
@@ -31,6 +32,7 @@ def patch_cmake():
             '\nset(ENABLE_BUN ON CACHE BOOL "" FORCE)\n'
             'set(ENABLE_BUN_JSC ON CACHE BOOL "" FORCE)\n'
             'set(USE_BUN_JSC_ADDITIONS ON CACHE BOOL "" FORCE)\n'
+            'set(ENABLE_REMOTE_INSPECTOR ON CACHE BOOL "" FORCE)\n'
             'set(ENABLE_API_TESTS OFF CACHE BOOL "" FORCE)\n'
             'set(BUILD_TESTING OFF CACHE BOOL "" FORCE)\n'
         )
@@ -47,6 +49,20 @@ def archive_jsc():
 
     for f in (wk / "build" / "lib").glob("lib*"):
         shutil.copy2(f, lib / f.name)
+
+    # Copy real compiled cmakeconfig.h headers
+    for cfg in (
+        wk / "build" / "cmakeconfig.h",
+        wk / "build" / "WTF" / "Headers" / "wtf" / "cmakeconfig.h",
+        wk
+        / "build"
+        / "JavaScriptCore"
+        / "Headers"
+        / "JavaScriptCore"
+        / "cmakeconfig.h",
+    ):
+        if cfg.exists():
+            shutil.copy2(cfg, inc / "cmakeconfig.h")
 
     # Copy built header trees directly into target include directories
     targets = [
@@ -72,7 +88,7 @@ def archive_jsc():
                     elif item.suffix in (".h", ".lut.h", ".def", ".json"):
                         shutil.copy2(item, out_dir / item.name)
 
-    # Copy remaining source headers to prevent any missing definitions
+    # Copy source headers
     for src_sub, out_name in [
         ("JavaScriptCore", "JavaScriptCore"),
         ("WTF/wtf", "wtf"),
@@ -88,8 +104,17 @@ def archive_jsc():
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(h, dest)
 
+    # Copy ICU unicode headers into include/unicode so <unicode/uidna.h> is always bundled
+    icu_src = Path("/usr/include/unicode")
+    if not icu_src.exists():
+        icu_src = Path("/tmp/icu-include/unicode")
+    if icu_src.exists():
+        shutil.copytree(icu_src, inc / "unicode", dirs_exist_ok=True)
+
     if (inc / "wtf").exists() and not (inc / "WTF").exists():
         shutil.copytree(inc / "wtf", inc / "WTF", dirs_exist_ok=True)
+    if (inc / "WTF").exists() and not (inc / "wtf").exists():
+        shutil.copytree(inc / "WTF", inc / "wtf", dirs_exist_ok=True)
 
 
 def seed_bun():
@@ -142,33 +167,22 @@ def setup_shims():
             '#pragma once\n#include "/tmp/bionic_stub.h"\n', encoding="utf-8"
         )
 
-    cfg_h = (
-        "#pragma once\n"
-        "#define HAVE_STDINT_H 1\n"
-        "#define HAVE_INTTYPES_H 1\n"
-        "#define HAVE_SYS_PARAM_H 1\n"
-        "#define HAVE_SYS_TIME_H 1\n"
-        "#define HAVE_SYS_MMAN_H 1\n"
-        "#define WTF_OS_LINUX 1\n"
-        "#define WTF_OS_ANDROID 1\n"
-        "#define JSC_OBJC_API_ENABLED 0\n"
-        "#define STATICALLY_LINKED_WITH_JavaScriptCore 1\n"
-        "#define STATICALLY_LINKED_WITH_BMALLOC 1\n"
-    )
-
-    scan_dirs = (
-        list(Path(".").rglob("include"))
-        + list(Path(".").rglob("JavaScriptCore"))
-        + [
-            Path("/tmp"),
-            Path("/tmp/fake-clang"),
-            Path("src/jsc/bindings"),
-            Path("src/jsc/bindings/webcore"),
-        ]
-    )
-    for d in scan_dirs:
-        if d.is_dir():
-            (d / "cmakeconfig.h").write_text(cfg_h, encoding="utf-8")
+    # Propagate the real WebKit cmakeconfig.h if present
+    jsc = Path(os.environ.get("JSC_CACHE_DIR", "/home/builder/RepoExe/.cache/bun-jsc"))
+    cached_cfg = jsc / "include" / "cmakeconfig.h"
+    if cached_cfg.exists():
+        for d in (
+            list(Path(".").rglob("include"))
+            + list(Path(".").rglob("JavaScriptCore"))
+            + [
+                Path("/tmp"),
+                Path("/tmp/fake-clang"),
+                Path("src/jsc/bindings"),
+                Path("src/jsc/bindings/webcore"),
+            ]
+        ):
+            if d.is_dir():
+                shutil.copy2(cached_cfg, d / "cmakeconfig.h")
 
     shim_code = """#!/bin/bash
 cmd="$(basename "$0")"
@@ -200,7 +214,7 @@ if [ "$IS_COMPILE" = "0" ] && [ -f /tmp/bionic_compat.o ]; then
 fi
 INC_FLAG=""
 if [ "$IS_ASM" = "0" ]; then
-  INC_FLAG="-I/tmp -include /tmp/bionic_stub.h"
+  INC_FLAG="-I/tmp -I/tmp/icu-include -include /tmp/bionic_stub.h"
 fi
 if [[ "$cmd" =~ ^clang ]]; then
   exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 $INC_FLAG -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option -Wno-unsafe-buffer-usage -Wno-unsafe-buffer-usage-in-container $EXTRA
