@@ -176,6 +176,14 @@ def setup_shims():
         Path(f"{d}/android_lf.h").write_text(
             "#pragma once\n#include <sys/types.h>\n", encoding="utf-8"
         )
+        for stub_lib in ("libpthread.a", "librt.a", "libresolv.a"):
+            subprocess.run(["ar", "crs", f"{d}/{stub_lib}"], check=False)
+
+    if sysroot:
+        for slib in Path(sysroot).rglob("lib"):
+            if slib.is_dir():
+                for stub_lib in ("libpthread.a", "librt.a", "libresolv.a"):
+                    subprocess.run(["ar", "crs", str(slib / stub_lib)], check=False)
 
     sysroot_inc = Path(sysroot) / "usr" / "include"
     if sysroot_inc.exists():
@@ -223,6 +231,7 @@ for a in "$@"; do
     *.s|*.S) IS_ASM=1; ARGS+=("$a") ;;
     -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;
     -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=("-pie") ;;
+    -lpthread|-lrt|-lresolv|-Wl,-lpthread|-Wl,-lrt|-Wl,-lresolv) ;;
     *) ARGS+=("$a") ;;
   esac
 done
@@ -232,8 +241,8 @@ if [ "$IS_COMPILE" = "0" ]; then
     ZIG_O=$(find . .. /tmp /home/builder/RepoExe -name "bun-zig.o" -type f 2>/dev/null | head -n 1)
     [ -n "$ZIG_O" ] && [ -f "$ZIG_O" ] && ln -sfn "$ZIG_O" bun-zig.o
   fi
-  for icu in libicudata.a libicui18n.a libicuuc.a; do
-    find . .. cache build -type d -name "lib" 2>/dev/null | while read -r ldir; do
+  for icu in libicudata.a libicui18n.a libicuuc.a libpthread.a librt.a libresolv.a; do
+    find . .. cache build /tmp -type d -name "lib" 2>/dev/null | while read -r ldir; do
       [ ! -f "$ldir/$icu" ] && ar crs "$ldir/$icu" 2>/dev/null || true
     done
   done
