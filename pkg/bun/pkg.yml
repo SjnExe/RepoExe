@@ -155,7 +155,7 @@ phases:
     export BUN_CANARY=0
     export BUN_TAG="bun-v${VERSION:-1.3.14}"
     unset JSC_CACHE_DIR
-    bun scripts/build.ts --profile=release --ci=true --target=linux-aarch64-android
+    bun scripts/build.ts --profile=release --ci=true
 
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
