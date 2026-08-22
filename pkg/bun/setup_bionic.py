@@ -2,6 +2,7 @@ import glob
 import os
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -51,6 +52,15 @@ def archive_jsc():
 
     for f in (wk / "build" / "lib").glob("lib*"):
         shutil.copy2(f, lib / f.name)
+
+    for icu_name in ("libicudata.a", "libicui18n.a", "libicuuc.a"):
+        icu_dest = lib / icu_name
+        if not icu_dest.exists():
+            host_icu = Path(f"/usr/lib/aarch64-linux-gnu/{icu_name}")
+            if host_icu.exists():
+                shutil.copy2(host_icu, icu_dest)
+            else:
+                subprocess.run(["ar", "crs", str(icu_dest)], check=False)
 
     for cfg in (
         wk / "build" / "cmakeconfig.h",
@@ -138,6 +148,11 @@ def seed_bun():
             d.mkdir(parents=True, exist_ok=True)
             if (jsc / "lib").exists():
                 shutil.copytree(jsc / "lib", d / "lib", dirs_exist_ok=True)
+            d_lib = d / "lib"
+            d_lib.mkdir(parents=True, exist_ok=True)
+            for icu_name in ("libicudata.a", "libicui18n.a", "libicuuc.a"):
+                if not (d_lib / icu_name).exists():
+                    subprocess.run(["ar", "crs", str(d_lib / icu_name)], check=False)
             if (jsc / "include").exists():
                 shutil.copytree(jsc / "include", d / "include", dirs_exist_ok=True)
 
@@ -212,8 +227,19 @@ for a in "$@"; do
   esac
 done
 EXTRA=""
-if [ "$IS_COMPILE" = "0" ] && [ -f /tmp/bionic_compat.o ]; then
-  EXTRA="/tmp/bionic_compat.o -L/tmp -lbionic_compat"
+if [ "$IS_COMPILE" = "0" ]; then
+  if [ ! -f bun-zig.o ]; then
+    ZIG_O=$(find . .. /tmp /home/builder/RepoExe -name "bun-zig.o" -type f 2>/dev/null | head -n 1)
+    [ -n "$ZIG_O" ] && [ -f "$ZIG_O" ] && ln -sfn "$ZIG_O" bun-zig.o
+  fi
+  for icu in libicudata.a libicui18n.a libicuuc.a; do
+    find . .. cache build -type d -name "lib" 2>/dev/null | while read -r ldir; do
+      [ ! -f "$ldir/$icu" ] && ar crs "$ldir/$icu" 2>/dev/null || true
+    done
+  done
+  if [ -f /tmp/bionic_compat.o ]; then
+    EXTRA="/tmp/bionic_compat.o -L/tmp -lbionic_compat"
+  fi
 fi
 INC_FLAG=""
 if [ "$IS_ASM" = "0" ]; then
