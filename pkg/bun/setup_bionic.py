@@ -23,6 +23,7 @@ def patch_cmake():
             'set(ENABLE_BUN_JSC ON CACHE BOOL "" FORCE)\n'
             'set(USE_BUN_JSC_ADDITIONS ON CACHE BOOL "" FORCE)\n'
             'set(ENABLE_REMOTE_INSPECTOR ON CACHE BOOL "" FORCE)\n'
+            'set(ENABLE_SAMPLING_PROFILER ON CACHE BOOL "" FORCE)\n'
             'set(ENABLE_API_TESTS OFF CACHE BOOL "" FORCE)\n'
             'set(BUILD_TESTING OFF CACHE BOOL "" FORCE)'
         )
@@ -33,6 +34,7 @@ def patch_cmake():
             'set(ENABLE_BUN_JSC ON CACHE BOOL "" FORCE)\n'
             'set(USE_BUN_JSC_ADDITIONS ON CACHE BOOL "" FORCE)\n'
             'set(ENABLE_REMOTE_INSPECTOR ON CACHE BOOL "" FORCE)\n'
+            'set(ENABLE_SAMPLING_PROFILER ON CACHE BOOL "" FORCE)\n'
             'set(ENABLE_API_TESTS OFF CACHE BOOL "" FORCE)\n'
             'set(BUILD_TESTING OFF CACHE BOOL "" FORCE)\n'
         )
@@ -50,7 +52,6 @@ def archive_jsc():
     for f in (wk / "build" / "lib").glob("lib*"):
         shutil.copy2(f, lib / f.name)
 
-    # Copy real compiled cmakeconfig.h headers
     for cfg in (
         wk / "build" / "cmakeconfig.h",
         wk / "build" / "WTF" / "Headers" / "wtf" / "cmakeconfig.h",
@@ -64,7 +65,6 @@ def archive_jsc():
         if cfg.exists():
             shutil.copy2(cfg, inc / "cmakeconfig.h")
 
-    # Copy built header trees directly into target include directories
     targets = [
         ("JavaScriptCore", "JavaScriptCore", "JavaScriptCore"),
         ("WTF", "wtf", "wtf"),
@@ -88,7 +88,6 @@ def archive_jsc():
                     elif item.suffix in (".h", ".lut.h", ".def", ".json"):
                         shutil.copy2(item, out_dir / item.name)
 
-    # Copy source headers
     for src_sub, out_name in [
         ("JavaScriptCore", "JavaScriptCore"),
         ("WTF/wtf", "wtf"),
@@ -104,7 +103,6 @@ def archive_jsc():
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(h, dest)
 
-    # Copy ICU unicode headers into include/unicode so <unicode/uidna.h> is always bundled
     icu_src = Path("/usr/include/unicode")
     if not icu_src.exists():
         icu_src = Path("/tmp/icu-include/unicode")
@@ -173,7 +171,6 @@ def setup_shims():
         except Exception:
             pass
 
-    # Propagate the real WebKit cmakeconfig.h if present
     jsc = Path(os.environ.get("JSC_CACHE_DIR", "/home/builder/RepoExe/.cache/bun-jsc"))
     cached_cfg = jsc / "include" / "cmakeconfig.h"
     if cached_cfg.exists():
@@ -190,13 +187,13 @@ def setup_shims():
             if d.is_dir():
                 shutil.copy2(cached_cfg, d / "cmakeconfig.h")
 
-    shim_code = """#!/bin/bash
+    shim_code = r"""#!/bin/bash
 cmd="$(basename "$0")"
 if [[ "$*" == *"codegen-tool"* ]] || [[ "$*" == *"-DC2STR"* ]] || [[ "$*" == *"conftest.c"* ]]; then
   exec "/usr/bin/$cmd" "$@"
 fi
 NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"
-[ -d "$NDK_BIN" ] || NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \\; 2>/dev/null | head -n 1)
+[ -d "$NDK_BIN" ] || NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \; 2>/dev/null | head -n 1)
 if [[ "$1" =~ ^(-v|--version|-version)$ ]]; then
   [[ "$cmd" =~ lld$ ]] && echo "LLD 21.1.0" || echo "Ubuntu clang version 21.1.0-repoexe"
   exit 0
@@ -252,6 +249,12 @@ fi
                     n = re.sub(
                         r"void\*\s*reallocarray\s*\([^)]*\)\s*\{[^}]*\}",
                         "/* void* reallocarray disabled */",
+                        n,
+                    )
+                if "BunCPUProfiler.cpp" in f.name:
+                    n = re.sub(
+                        r"(\[\s*&?\s*\]\s*\()\s*(?:unsigned\s+long|size_t|uint32_t|uint64_t|int)\s*([a-zA-Z0-9_]+)\s*,\s*(?:unsigned\s+long|size_t|uint32_t|uint64_t|int)\s*([a-zA-Z0-9_]+)\s*\)",
+                        r"\1const auto& \2, const auto& \3)",
                         n,
                     )
                 n = re.sub(
