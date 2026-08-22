@@ -163,9 +163,6 @@ def setup_shims():
         Path(f"{d}/android_lf.h").write_text(
             "#pragma once\n#include <sys/types.h>\n", encoding="utf-8"
         )
-        Path(f"{d}/spawn.h").write_text(
-            '#pragma once\n#include "/tmp/bionic_stub.h"\n', encoding="utf-8"
-        )
 
     # Propagate the real WebKit cmakeconfig.h if present
     jsc = Path(os.environ.get("JSC_CACHE_DIR", "/home/builder/RepoExe/.cache/bun-jsc"))
@@ -214,7 +211,7 @@ if [ "$IS_COMPILE" = "0" ] && [ -f /tmp/bionic_compat.o ]; then
 fi
 INC_FLAG=""
 if [ "$IS_ASM" = "0" ]; then
-  INC_FLAG="-I/tmp -I/tmp/icu-include -include /tmp/bionic_stub.h"
+  INC_FLAG="-I/tmp/icu-include -include /tmp/bionic_stub.h"
 fi
 if [[ "$cmd" =~ ^clang ]]; then
   exec "$NDK_BIN/$cmd" "${ARGS[@]}" --target=aarch64-linux-android24 $INC_FLAG -Wno-error -Wno-undefined-var-template -Wno-dangling -Wno-unknown-warning-option -Wno-unsafe-buffer-usage -Wno-unsafe-buffer-usage-in-container $EXTRA
@@ -255,6 +252,11 @@ fi
                     r"linux-aarch64-gnu(?:\.[0-9\.]+)?", "linux-aarch64-android", n
                 )
                 n = re.sub(r'"linux-aarch64-gnu"', '"linux-aarch64-android"', n)
+                n = re.sub(
+                    r'target:\s*["\'](?:linux-)?aarch64-gnu["\']',
+                    'target: "linux-aarch64-android"',
+                    n,
+                )
                 n = re.sub(r"'linux-aarch64-gnu'", "'linux-aarch64-android'", n)
                 n = re.sub(
                     r'[`"]https://github\.com/oven-sh/WebKit/releases/download/[^`"]*[`"]',
