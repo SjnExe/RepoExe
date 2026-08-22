@@ -91,3 +91,7 @@ def setup_bionic_compat() -> None:
     (Path("/tmp") / "android_lf.h").write_text(
         "#pragma once\n#include <sys/types.h>\n", encoding="utf-8"
     )
+    Path("/tmp/icu-include").mkdir(parents=True, exist_ok=True)
+    (Path("/tmp/icu-include") / "android_lf.h").write_text(
+        "#pragma once\n#include <sys/types.h>\n", encoding="utf-8"
+    )

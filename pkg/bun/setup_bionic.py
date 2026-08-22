@@ -158,11 +158,20 @@ def setup_shims():
     )
     print(f"🔒 Resolved NDK sysroot: {sysroot}")
 
-    for d in ("/tmp", "/tmp/fake-clang"):
+    for d in ("/tmp", "/tmp/fake-clang", "/tmp/icu-include"):
         os.makedirs(d, exist_ok=True)
         Path(f"{d}/android_lf.h").write_text(
             "#pragma once\n#include <sys/types.h>\n", encoding="utf-8"
         )
+
+    sysroot_inc = Path(sysroot) / "usr" / "include"
+    if sysroot_inc.exists():
+        try:
+            (sysroot_inc / "android_lf.h").write_text(
+                "#pragma once\n#include <sys/types.h>\n", encoding="utf-8"
+            )
+        except Exception:
+            pass
 
     # Propagate the real WebKit cmakeconfig.h if present
     jsc = Path(os.environ.get("JSC_CACHE_DIR", "/home/builder/RepoExe/.cache/bun-jsc"))
