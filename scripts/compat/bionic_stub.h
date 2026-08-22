@@ -42,6 +42,9 @@ typedef int nl_item;
 extern "C" {
 #endif
 
+#if __has_include(<spawn.h>)
+#include <spawn.h>
+#else
 #ifndef POSIX_SPAWN_RESETIDS
 #define POSIX_SPAWN_RESETIDS 0x01
 #define POSIX_SPAWN_SETPGROUP 0x02
@@ -98,6 +101,7 @@ int posix_spawnattr_setsigmask(posix_spawnattr_t *attr, const sigset_t *sigmask)
 int posix_spawnattr_getsigmask(const posix_spawnattr_t *attr, sigset_t *sigmask);
 int posix_spawnattr_setsigdefault(posix_spawnattr_t *attr, const sigset_t *sigdefault);
 int posix_spawnattr_getsigdefault(const posix_spawnattr_t *attr, sigset_t *sigdefault);
+#endif
 
 extern long __timezone;
 extern long timezone;
