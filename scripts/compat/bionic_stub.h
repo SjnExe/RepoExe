@@ -38,10 +38,6 @@
 typedef int nl_item;
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #if __has_include(<spawn.h>)
 #include <spawn.h>
 #else
@@ -56,33 +52,12 @@ extern "C" {
 #define POSIX_SPAWN_CLOEXEC_DEFAULT 0x2000
 #endif
 
-typedef enum {
-    __SPAWN_ACT_CLOSE,
-    __SPAWN_ACT_DUP2,
-    __SPAWN_ACT_OPEN
-} __spawn_act_type;
+typedef struct __posix_spawn_file_actions* posix_spawn_file_actions_t;
+typedef struct __posix_spawnattr* posix_spawnattr_t;
 
-struct __spawn_action {
-    __spawn_act_type type;
-    int fd;
-    int newfd;
-    char *path;
-    int oflag;
-    mode_t mode;
-    struct __spawn_action *next;
-};
-
-typedef struct {
-    struct __spawn_action *head;
-    struct __spawn_action *tail;
-} posix_spawn_file_actions_t;
-
-typedef struct {
-    short flags;
-    pid_t pgroup;
-    sigset_t sigmask;
-    sigset_t sigdefault;
-} posix_spawnattr_t;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *file_actions, const posix_spawnattr_t *attrp, char *const argv[], char *const envp[]);
 int posix_spawnp(pid_t *pid, const char *file, const posix_spawn_file_actions_t *file_actions, const posix_spawnattr_t *attrp, char *const argv[], char *const envp[]);
@@ -101,6 +76,15 @@ int posix_spawnattr_setsigmask(posix_spawnattr_t *attr, const sigset_t *sigmask)
 int posix_spawnattr_getsigmask(const posix_spawnattr_t *attr, sigset_t *sigmask);
 int posix_spawnattr_setsigdefault(posix_spawnattr_t *attr, const sigset_t *sigdefault);
 int posix_spawnattr_getsigdefault(const posix_spawnattr_t *attr, sigset_t *sigdefault);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 extern long __timezone;
@@ -187,9 +171,9 @@ int futimes(int fd, const struct timeval tv[2]);
 int lutimes(const char *path, const struct timeval tv[2]);
 int futimesat(int dirfd, const char *path, const struct timeval times[2]);
 int posix_fadvise(int fd, off_t offset, off_t len, int advice);
-int posix_fadvise64(int fd, off64_t offset, off64_t len, int advice);
+int posix_fadvise64(int fd, off_t offset, off_t len, int advice);
 int posix_fallocate(int fd, off_t offset, off_t len);
-int posix_fallocate64(int fd, off64_t offset, off64_t len);
+int posix_fallocate64(int fd, off_t offset, off_t len);
 
 int getloadavg(double loadavg[], int nelem);
 int malloc_trim(size_t pad);
