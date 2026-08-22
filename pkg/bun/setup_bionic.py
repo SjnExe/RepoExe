@@ -7,6 +7,23 @@ import sys
 from pathlib import Path
 
 
+def copy_real_icu(target_dir: Path):
+    target_dir.mkdir(parents=True, exist_ok=True)
+    for name in ("libicudata.a", "libicui18n.a", "libicuuc.a"):
+        dest = target_dir / name
+        if not dest.exists() or dest.stat().st_size < 1024:
+            for root_dir in (
+                "/usr/lib/aarch64-linux-gnu",
+                "/usr/lib",
+                "/usr/lib64",
+                "/usr/local/lib",
+            ):
+                cand = Path(root_dir) / name
+                if cand.exists() and cand.stat().st_size > 1024:
+                    shutil.copy2(cand, dest)
+                    break
+
+
 def patch_cmake():
     opt_file = Path("/tmp/webkit-src/Source/cmake/OptionsJSCOnly.cmake")
     if opt_file.exists():
@@ -53,14 +70,7 @@ def archive_jsc():
     for f in (wk / "build" / "lib").glob("lib*"):
         shutil.copy2(f, lib / f.name)
 
-    for icu_name in ("libicudata.a", "libicui18n.a", "libicuuc.a"):
-        icu_dest = lib / icu_name
-        if not icu_dest.exists():
-            host_icu = Path(f"/usr/lib/aarch64-linux-gnu/{icu_name}")
-            if host_icu.exists():
-                shutil.copy2(host_icu, icu_dest)
-            else:
-                subprocess.run(["ar", "crs", str(icu_dest)], check=False)
+    copy_real_icu(lib)
 
     for cfg in (
         wk / "build" / "cmakeconfig.h",
@@ -148,11 +158,7 @@ def seed_bun():
             d.mkdir(parents=True, exist_ok=True)
             if (jsc / "lib").exists():
                 shutil.copytree(jsc / "lib", d / "lib", dirs_exist_ok=True)
-            d_lib = d / "lib"
-            d_lib.mkdir(parents=True, exist_ok=True)
-            for icu_name in ("libicudata.a", "libicui18n.a", "libicuuc.a"):
-                if not (d_lib / icu_name).exists():
-                    subprocess.run(["ar", "crs", str(d_lib / icu_name)], check=False)
+            copy_real_icu(d / "lib")
             if (jsc / "include").exists():
                 shutil.copytree(jsc / "include", d / "include", dirs_exist_ok=True)
 
@@ -179,11 +185,7 @@ def setup_shims():
         for stub_lib in ("libpthread.a", "librt.a", "libresolv.a"):
             subprocess.run(["ar", "crs", f"{d}/{stub_lib}"], check=False)
 
-    if sysroot:
-        for slib in Path(sysroot).rglob("lib"):
-            if slib.is_dir():
-                for stub_lib in ("libpthread.a", "librt.a", "libresolv.a"):
-                    subprocess.run(["ar", "crs", str(slib / stub_lib)], check=False)
+    copy_real_icu(Path("/tmp/fake-clang"))
 
     sysroot_inc = Path(sysroot) / "usr" / "include"
     if sysroot_inc.exists():
@@ -232,6 +234,7 @@ for a in "$@"; do
     -fno-pic|-fno-PIC|-fno-pie|-fno-PIE) ARGS+=("-fPIC" "-fPIE") ;;
     -Wl,-no-pie|-Wl,-nopie|-no-pie|-nopie) ARGS+=("-pie") ;;
     -lpthread|-lrt|-lresolv|-Wl,-lpthread|-Wl,-lrt|-Wl,-lresolv) ;;
+    -Wl,--wrap=*|--wrap=*|-wrap=*|-Wl,-wrap,*) ;;
     *) ARGS+=("$a") ;;
   esac
 done
@@ -241,13 +244,20 @@ if [ "$IS_COMPILE" = "0" ]; then
     ZIG_O=$(find . .. /tmp /home/builder/RepoExe -name "bun-zig.o" -type f 2>/dev/null | head -n 1)
     [ -n "$ZIG_O" ] && [ -f "$ZIG_O" ] && ln -sfn "$ZIG_O" bun-zig.o
   fi
-  for icu in libicudata.a libicui18n.a libicuuc.a libpthread.a librt.a libresolv.a; do
-    find . .. cache build /tmp -type d -name "lib" 2>/dev/null | while read -r ldir; do
-      [ ! -f "$ldir/$icu" ] && ar crs "$ldir/$icu" 2>/dev/null || true
+  for icu in libicudata.a libicui18n.a libicuuc.a; do
+    find . .. cache build -type d -name "lib" 2>/dev/null | while read -r ldir; do
+      if [ ! -f "$ldir/$icu" ] || [ $(stat -c%s "$ldir/$icu" 2>/dev/null || echo 0) -lt 1024 ]; then
+        for rdir in /usr/lib/aarch64-linux-gnu /usr/lib /usr/lib64; do
+          [ -f "$rdir/$icu" ] && cp -f "$rdir/$icu" "$ldir/$icu" 2>/dev/null && break
+        done
+      fi
     done
   done
+  for stub in libpthread.a librt.a libresolv.a; do
+    [ ! -f "/tmp/fake-clang/$stub" ] && ar crs "/tmp/fake-clang/$stub" 2>/dev/null || true
+  done
   if [ -f /tmp/bionic_compat.o ]; then
-    EXTRA="/tmp/bionic_compat.o -L/tmp -lbionic_compat"
+    EXTRA="-L/tmp/fake-clang /tmp/bionic_compat.o -L/tmp -lbionic_compat"
   fi
 fi
 INC_FLAG=""
@@ -292,6 +302,8 @@ fi
                         r"\1const auto& \2, const auto& \3)",
                         n,
                     )
+                n = re.sub(r"-Wl,--wrap=[a-zA-Z0-9_]+", "", n)
+                n = re.sub(r"--wrap=[a-zA-Z0-9_]+", "", n)
                 n = re.sub(
                     r"aarch64-linux-gnu(?:\.[0-9\.]+)?", "aarch64-linux-android", n
                 )
