@@ -298,8 +298,8 @@ fi
                     )
                 if "build.zig" in f.name:
                     n = re.sub(
-                        r"android_ndk_sysroot\s+orelse\s*\{[^}]*\}",
-                        f'android_ndk_sysroot orelse "{sysroot}"',
+                        r"android_ndk_sysroot\s+orelse\s*\{[\s\S]*?panic\([\s\S]*?\);?[\s\S]*?\};?",
+                        f'android_ndk_sysroot orelse "{sysroot}";',
                         n,
                     )
                     n = n.replace(
