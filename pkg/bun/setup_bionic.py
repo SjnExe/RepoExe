@@ -316,6 +316,12 @@ fi
                     'target: "linux-aarch64-android"',
                     n,
                 )
+                n = re.sub(r"(\babi\s*=\s*)\.gnu\b", r"\1.android", n)
+                n = re.sub(r"(\bglibc_version\s*=\s*)[^,\n}]+", r"\1null", n)
+                n = re.sub(r"std\.Target\.Abi\.gnu\b", "std.Target.Abi.android", n)
+                n = re.sub(
+                    r'"aarch64-linux-gnu(?:\.2\.17)?"', '"aarch64-linux-android"', n
+                )
                 n = re.sub(r"'linux-aarch64-gnu'", "'linux-aarch64-android'", n)
                 n = re.sub(
                     r'[`"]https://github\.com/oven-sh/WebKit/releases/download/[^`"]*[`"]',
