@@ -2,12 +2,7 @@ import struct
 import subprocess
 from pathlib import Path
 
-GLIBC_MAP = {
-    "libc.so.6": "libc.so",
-    "libm.so.6": "libm.so",
-    "libdl.so.2": "libdl.so",
-}
-GLIBC_REMOVALS = ["libpthread.so.0", "librt.so.1", "ld-linux-aarch64.so.1"]
+GLIBC_LIBS = {"libc.so.6", "libpthread.so.0", "librt.so.1", "libdl.so.2", "libm.so.6"}
 
 # ELF dynamic tags to zero out (DT_NULL = 0)
 DYNAMIC_TAGS_TO_NULLIFY = {
@@ -66,34 +61,38 @@ def strip_verneed_from_elf(elf_path: Path) -> None:
 def sanitize_elf_binary(
     elf_path: Path, prefix: str = "/data/data/com.termux/files/usr"
 ) -> None:
-    """Replaces glibc sonames with Bionic equivalents, removes verneed references, and enforces RPATH."""
+    """Strictly validates Native Bionic enforcement, removes verneed references, and enforces RPATH."""
     try:
         with open(elf_path, "rb") as f:
             magic = f.read(4)
         if magic != b"\x7fELF":
             return
 
+        # 0. STRICT BIONIC VALIDATOR
+        res = subprocess.run(
+            ["readelf", "-d", str(elf_path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode == 0:
+            for line in res.stdout.splitlines():
+                if "(NEEDED)" in line:
+                    for glibc_lib in GLIBC_LIBS:
+                        if f"[{glibc_lib}]" in line:
+                            raise RuntimeError(
+                                f"Strict Bionic Enforcement Failed: '{elf_path.name}' linked against glibc library '{glibc_lib}'. Native Android builds must not use glibc."
+                            )
+
         # 1. Zero out DT_VERNEED / DT_VERSYM directly
         strip_verneed_from_elf(elf_path)
 
-        # 2. Patch dynamic library names via patchelf
+        # 2. Set dynamic interpreter and enforce relative RPATH
         subprocess.run(
             ["patchelf", "--set-interpreter", "/system/bin/linker64", str(elf_path)],
             check=False,
             capture_output=True,
         )
-        for glibc_lib, bionic_lib in GLIBC_MAP.items():
-            subprocess.run(
-                ["patchelf", "--replace-needed", glibc_lib, bionic_lib, str(elf_path)],
-                check=False,
-                capture_output=True,
-            )
-        for remove_lib in GLIBC_REMOVALS:
-            subprocess.run(
-                ["patchelf", "--remove-needed", remove_lib, str(elf_path)],
-                check=False,
-                capture_output=True,
-            )
         subprocess.run(
             ["patchelf", "--set-rpath", f"{prefix}/lib", str(elf_path)],
             check=False,
@@ -102,6 +101,8 @@ def sanitize_elf_binary(
 
         # 3. Clean remaining version tags
         strip_verneed_from_elf(elf_path)
+    except RuntimeError:
+        raise
     except Exception:
         pass
 

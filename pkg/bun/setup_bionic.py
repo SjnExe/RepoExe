@@ -37,6 +37,7 @@ def patch_cmake():
             "set(ICU_FOUND TRUE)\n"
             "set(ICU_INCLUDE_DIRS /tmp/icu-include)\n"
             "set(ICU_LIBRARIES /usr/lib/aarch64-linux-gnu/libicuuc.so /usr/lib/aarch64-linux-gnu/libicui18n.so /usr/lib/aarch64-linux-gnu/libicudata.so)\n"
+            "add_compile_options(-Wno-unsafe-buffer-usage -Wno-unsafe-buffer-usage-in-container)\n"
             'set(ENABLE_BUN ON CACHE BOOL "" FORCE)\n'
             'set(ENABLE_BUN_JSC ON CACHE BOOL "" FORCE)\n'
             'set(USE_BUN_JSC_ADDITIONS ON CACHE BOOL "" FORCE)\n'
@@ -212,6 +213,40 @@ def setup_shims():
             if d.is_dir():
                 shutil.copy2(cached_cfg, d / "cmakeconfig.h")
 
+    # The universal Zig compiler wrapper that rewrites all GNU targets to Android natively
+    zig_shim_code = r"""#!/bin/bash
+DIR="$(pwd)"
+while [ ! -d "$DIR/vendor" ] && [ "$DIR" != "/" ]; do
+    DIR="$(dirname "$DIR")"
+done
+
+REAL_ZIG="$DIR/vendor/zig/zig-bin"
+if [ ! -f "$REAL_ZIG" ]; then
+  if [ -f "$DIR/vendor/zig/zig" ]; then
+    mv "$DIR/vendor/zig/zig" "$REAL_ZIG"
+  elif [ -f "$DIR/vendor/zig/zig.exe" ]; then
+    mv "$DIR/vendor/zig/zig.exe" "$REAL_ZIG"
+  fi
+fi
+
+ARGS=()
+for a in "$@"; do
+  # Forcefully translate GNU triples to Android to decouple glibc
+  mod="${a//-gnu/-android}"
+  mod="${mod//.gnu/.android}"
+  ARGS+=("$mod")
+done
+
+if [ -f "$REAL_ZIG" ]; then
+  exec "$REAL_ZIG" "${ARGS[@]}"
+else
+  exec zig "${ARGS[@]}"
+fi
+"""
+    zig_shim_p = Path("/tmp/fake-clang/zig")
+    zig_shim_p.write_text(zig_shim_code, encoding="utf-8")
+    zig_shim_p.chmod(0o755)
+
     shim_code = r"""#!/bin/bash
 cmd="$(basename "$0")"
 if [[ "$*" == *"codegen-tool"* ]] || [[ "$*" == *"-DC2STR"* ]] || [[ "$*" == *"conftest.c"* ]]; then
@@ -280,7 +315,7 @@ fi
         if (
             f.is_file()
             and f.suffix
-            in (".ts", ".js", ".zig", ".cmake", ".json", ".h", ".c", ".cpp")
+            in (".ts", ".js", ".sh", ".zig", ".cmake", ".json", ".h", ".c", ".cpp")
             and "node_modules" not in str(f)
         ):
             try:
@@ -302,7 +337,7 @@ fi
                         f'android_ndk_sysroot orelse "{sysroot}"',
                         n,
                     )
-                if f.suffix in (".ts", ".js"):
+                if f.suffix in (".ts", ".js", ".sh"):
                     n = re.sub(
                         r'("-Dtarget=(?:linux-)?aarch64-(?:linux-)?(?:gnu|android)[^"]*")',
                         r'\1, "-Dandroid_ndk_sysroot=' + sysroot + '"',
@@ -313,6 +348,12 @@ fi
                         r"\1, '-Dandroid_ndk_sysroot=" + sysroot + "'",
                         n,
                     )
+                    # Redirect hardcoded zig paths to our wrapper
+                    n = re.sub(
+                        r'("|\'|`)vendor/zig/zig("|\'|`)', r"\1/tmp/fake-clang/zig\2", n
+                    )
+                    n = re.sub(r"\bvendor/zig/zig\b", "/tmp/fake-clang/zig", n)
+
                 if "BunCPUProfiler.cpp" in f.name:
                     n = re.sub(
                         r"(\[\s*&?\s*\]\s*\()\s*(?:unsigned\s+long|size_t|uint32_t|uint64_t|int)\s*([a-zA-Z0-9_]+)\s*,\s*(?:unsigned\s+long|size_t|uint32_t|uint64_t|int)\s*([a-zA-Z0-9_]+)\s*\)",
