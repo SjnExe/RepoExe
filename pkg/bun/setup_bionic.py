@@ -296,6 +296,26 @@ fi
                         "/* void* reallocarray disabled */",
                         n,
                     )
+                if "build.zig" in f.name:
+                    n = re.sub(
+                        r"(\bvar\s+android_ndk_sysroot\b[^=]*=)[^;\n]+;",
+                        f'\1 "{sysroot}";',
+                        n,
+                    )
+                    n = re.sub(
+                        r"(\bconst\s+android_ndk_sysroot\b[^=]*=)[^;\n]+;",
+                        f'\1 "{sysroot}";',
+                        n,
+                    )
+                    n = re.sub(
+                        r"android_ndk_sysroot\s+orelse\s+\{[^\}]*panic\([^\}]*\);?\s*\}",
+                        f'android_ndk_sysroot orelse "{sysroot}"',
+                        n,
+                    )
+                    n = n.replace(
+                        'std.debug.panic("translate-c for Android requires -Dandroid_ndk_sysroot", .{});',
+                        f'break :blk "{sysroot}";',
+                    )
                 if "BunCPUProfiler.cpp" in f.name:
                     n = re.sub(
                         r"(\[\s*&?\s*\]\s*\()\s*(?:unsigned\s+long|size_t|uint32_t|uint64_t|int)\s*([a-zA-Z0-9_]+)\s*,\s*(?:unsigned\s+long|size_t|uint32_t|uint64_t|int)\s*([a-zA-Z0-9_]+)\s*\)",
@@ -319,7 +339,7 @@ fi
                 n = re.sub(r"(\babi\s*=\s*)\.gnu\b", r"\1.android", n)
                 n = re.sub(
                     r"(\bglibc_version\s*=\s*)[^;\n,]+",
-                    lambda m: f"{m.group(1)}null",
+                    r"\1null",
                     n,
                 )
                 n = re.sub(
@@ -329,7 +349,9 @@ fi
                 )
                 n = re.sub(r"std\.Target\.Abi\.gnu\b", "std.Target.Abi.android", n)
                 n = re.sub(
-                    r'"aarch64-linux-gnu(?:\.2\.17)?"', '"aarch64-linux-android"', n
+                    r'"aarch64-linux-gnu(?:\.2\.17)?"',
+                    '"aarch64-linux-android"',
+                    n,
                 )
                 n = re.sub(r"'linux-aarch64-gnu'", "'linux-aarch64-android'", n)
                 n = re.sub(
@@ -385,6 +407,33 @@ fi
             pass
 
 
+def patch_ninja():
+    ndk = os.environ.get("NDK", "/opt/android-ndk")
+    sysroots = [
+        p
+        for p in glob.glob(f"{ndk}/**/sysroot", recursive=True)
+        if os.path.isdir(os.path.join(p, "usr", "include"))
+    ]
+    sysroot = (
+        sysroots[0]
+        if sysroots
+        else f"{ndk}/toolchains/llvm/prebuilt/linux-arm64/sysroot"
+    )
+    for ninja_f in Path(".").rglob("build.ninja"):
+        try:
+            c = ninja_f.read_text(encoding="utf-8")
+            c = c.replace(
+                "-Dtarget=aarch64-linux-gnu",
+                f"-Dtarget=aarch64-linux-android -Dandroid_ndk_sysroot={sysroot}",
+            )
+            c = c.replace("aarch64-linux-gnu.2.17", "aarch64-linux-android")
+            c = c.replace("linux-aarch64-gnu", "linux-aarch64-android")
+            ninja_f.write_text(c, encoding="utf-8")
+            print(f"✓ Patched {ninja_f} with Android Bionic target & NDK sysroot")
+        except Exception:
+            pass
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     if cmd == "patch_cmake":
@@ -395,3 +444,5 @@ if __name__ == "__main__":
         seed_bun()
     elif cmd == "setup_shims":
         setup_shims()
+    elif cmd == "patch_ninja":
+        patch_ninja()
