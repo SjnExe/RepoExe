@@ -1,8 +1,11 @@
-import re
-import tempfile
+import sys
 from pathlib import Path
 
-from pkg.bun.setup_bionic import patch_ninja
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from pkg.bun.setup_bionic import patch_cmake
 
 
 def test_bionic_compat_c_symbols():
@@ -16,68 +19,36 @@ def test_bionic_compat_c_symbols():
     assert "_ZSt11__once_call" in text
 
 
-def test_build_zig_sysroot_unwrap():
-    sample_build_zig = """
-    pub fn getTranslateC(b: *std.Build, target: anytype, optimize: anytype, android_ndk_sysroot: ?[]const u8, freebsd_sysroot: ?[]const u8) *std.Build.Step.TranslateC {
-        if (target.result.os.tag == .android) {
-            const sysroot = android_ndk_sysroot orelse {
-                std.debug.panic("translate-c for Android requires -Dandroid_ndk_sysroot", .{});
-            };
-            return b.addTranslateC(.{
-                .root_source_file = b.path("src/bun.js/bindings/c.zig"),
-                .target = target,
-                .optimize = optimize,
-            });
-        }
-    }
-    const sysroot_opt = b.option([]const u8, "android_ndk_sysroot", "path to android ndk sysroot");
-    """
-    sysroot = "/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
+def test_bionic_stub_headers():
+    stub_p = Path("scripts/compat/bionic_stub.h")
+    assert stub_p.exists(), "scripts/compat/bionic_stub.h not found"
+    text = stub_p.read_text(encoding="utf-8")
+    assert "POSIX_SPAWN_RESETIDS" in text
+    assert "POSIX_SPAWN_SETPGROUP" in text
+    assert "posix_spawn" in text
+    assert "reallocarray" in text
 
-    # Verify regex matches multiline panic blocks with inner .{} struct literals
-    patched = re.sub(
-        r"android_ndk_sysroot\s+orelse\s*\{[\s\S]*?panic\([\s\S]*?\);?[\s\S]*?\};?",
-        f'android_ndk_sysroot orelse "{sysroot}";',
-        sample_build_zig,
-    )
-    patched = patched.replace(
-        'b.option([]const u8, "android_ndk_sysroot", "path to android ndk sysroot")',
-        f'b.option([]const u8, "android_ndk_sysroot", "path to android ndk sysroot") orelse "{sysroot}"',
+
+def test_cmake_options_jsc_patch(tmp_path):
+    cmake_dir = tmp_path / "Source" / "cmake"
+    cmake_dir.mkdir(parents=True)
+    cmake_file = cmake_dir / "OptionsJSCOnly.cmake"
+    cmake_file.write_text(
+        "find_package(ICU REQUIRED COMPONENTS uc i18n data)\n", encoding="utf-8"
     )
 
-    assert "std.debug.panic" not in patched
-    assert f'android_ndk_sysroot orelse "{sysroot}";' in patched
-    assert (
-        f'b.option([]const u8, "android_ndk_sysroot", "path to android ndk sysroot") orelse "{sysroot}"'
-        in patched
-    )
+    import pkg.bun.setup_bionic as sb
 
-
-def test_patch_ninja_substitutions(monkeypatch):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp_p = Path(tmpdir)
-        sysroot_dir = (
-            tmp_p / "opt/android-ndk/toolchains/llvm/prebuilt/linux-arm64/sysroot"
+    orig_path = sb.Path
+    try:
+        sb.Path = lambda p: (
+            tmp_path / str(p).removeprefix("/tmp/webkit-src/")
+            if str(p).startswith("/tmp/webkit-src")
+            else orig_path(p)
         )
-        (sysroot_dir / "usr/include").mkdir(parents=True, exist_ok=True)
-        monkeypatch.setenv("NDK", str(tmp_p / "opt/android-ndk"))
-
-        ninja_file = tmp_p / "build.ninja"
-        ninja_file.write_text(
-            "build bun-zig.o: zig ... -Dtarget=aarch64-linux-gnu ... aarch64-linux-gnu.2.17 ... linux-aarch64-gnu\n",
-            encoding="utf-8",
-        )
-
-        import os
-
-        cwd = Path.cwd()
-        try:
-            os.chdir(tmpdir)
-            patch_ninja()
-            content = ninja_file.read_text(encoding="utf-8")
-            assert "-Dtarget=aarch64-linux-android" in content
-            assert f"-Dandroid_ndk_sysroot={sysroot_dir}" in content
-            assert "aarch64-linux-gnu" not in content
-            assert "linux-aarch64-gnu" not in content
-        finally:
-            os.chdir(cwd)
+        patch_cmake()
+        content = cmake_file.read_text(encoding="utf-8")
+        assert "add_library(ICU::uc UNKNOWN IMPORTED)" in content
+        assert "ENABLE_BUN_JSC" in content
+    finally:
+        sb.Path = orig_path
