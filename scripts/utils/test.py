@@ -107,9 +107,26 @@ class ProotTestRunner:
         )
 
         with open(script_path, "rb") as stdin_f:
-            res = subprocess.run(
-                docker_cmd, stdin=stdin_f, capture_output=True, text=True, check=False
-            )
+            try:
+                res = subprocess.run(
+                    docker_cmd,
+                    stdin=stdin_f,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=180,
+                )
+            except subprocess.TimeoutExpired as exc:
+                stdout_txt = (
+                    exc.stdout.decode("utf-8", errors="replace") if exc.stdout else ""
+                )
+                stderr_txt = (
+                    exc.stderr.decode("utf-8", errors="replace") if exc.stderr else ""
+                )
+                raise RuntimeError(
+                    f"❌ Smoke test timed out after 180 seconds for {package_name}:\n"
+                    f"--- STDOUT ---\n{stdout_txt}\n--- STDERR ---\n{stderr_txt}"
+                ) from exc
 
         if res.returncode == 0:
             print(

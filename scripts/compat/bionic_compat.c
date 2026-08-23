@@ -883,7 +883,12 @@ __attribute__((weak, visibility("default"))) void __once_proxy(void) {
 }
 
 /* --- Bun Runtime Stubs --- */
-__attribute__((weak, visibility("default"))) void WTFTimer__fire(void *timer) { (void)timer; }
+extern void _ZN3WTF7RunLoop9TimerBase5firedEv(void *timer) __attribute__((weak));
+__attribute__((weak, visibility("default"))) void WTFTimer__fire(void *timer) {
+    if (timer && _ZN3WTF7RunLoop9TimerBase5firedEv) {
+        _ZN3WTF7RunLoop9TimerBase5firedEv(timer);
+    }
+}
 __attribute__((weak, visibility("default"))) void* _ZN2v85Array3NewENS_5LocalINS_7ContextEEEmSt8functionIFNS_10MaybeLocalINS_5ValueEEEvEE(void* ctx, unsigned long len, void* fn) { (void)ctx; (void)len; (void)fn; return NULL; }
 __attribute__((weak, visibility("default"))) void* _ZN2v85Array3NewENS_5LocalINS_7ContextEEEjSt8functionIFNS_10MaybeLocalINS_5ValueEEEvEE(void* ctx, unsigned int len, void* fn) { (void)ctx; (void)len; (void)fn; return NULL; }
 
