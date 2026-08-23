@@ -303,13 +303,13 @@ fi
                         n,
                     )
                     n = re.sub(
-                        r"android_ndk_sysroot\s+orelse\s*(?:\{[\s\S]*?std\.debug\.panic\([^;]+;[\s\S]*?\}|std\.debug\.panic\([^;]+;\))",
-                        f'android_ndk_sysroot orelse "{sysroot}"',
+                        r'android_ndk_sysroot\s+orelse\s*\{[\s\S]*?std\.debug\.panic\s*\(\s*"translate-c for Android requires -Dandroid_ndk_sysroot"[^\)]*\);?[\s\S]*?\};?',
+                        f'android_ndk_sysroot orelse "{sysroot}";',
                         n,
                     )
                     n = re.sub(
-                        r'std\.debug\.panic\s*\(\s*"translate-c for Android requires -Dandroid_ndk_sysroot"[^\)]*\);?',
-                        f'android_ndk_sysroot = "{sysroot}";',
+                        r'std\.debug\.panic\s*\(\s*"translate-c for Android requires -Dandroid_ndk_sysroot"[^\)]*\)',
+                        f'"{sysroot}"',
                         n,
                     )
                 if f.suffix in (".ts", ".js"):
