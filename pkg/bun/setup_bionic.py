@@ -298,18 +298,8 @@ fi
                     )
                 if "build.zig" in f.name:
                     n = re.sub(
-                        r'b\.option\(\s*\[\]const\s+u8\s*,\s*"android_ndk_sysroot"[^\)]*\)',
-                        f'b.option([]const u8, "android_ndk_sysroot", "path to android ndk sysroot") orelse "{sysroot}"',
-                        n,
-                    )
-                    n = re.sub(
-                        r'android_ndk_sysroot\s+orelse\s*\{[\s\S]*?std\.debug\.panic\s*\(\s*"translate-c for Android requires -Dandroid_ndk_sysroot"[^\)]*\);?[\s\S]*?\};?',
-                        f'android_ndk_sysroot orelse "{sysroot}";',
-                        n,
-                    )
-                    n = re.sub(
-                        r'std\.debug\.panic\s*\(\s*"translate-c for Android requires -Dandroid_ndk_sysroot"[^\)]*\)',
-                        f'"{sysroot}"',
+                        r'android_ndk_sysroot\s+orelse\s*(?:\{[\s\S]*?std\.debug\.panic\s*\(\s*"translate-c for Android requires -Dandroid_ndk_sysroot"[^\)]*\);?[\s\S]*?\}|std\.debug\.panic\s*\(\s*"translate-c for Android requires -Dandroid_ndk_sysroot"[^\)]*\))',
+                        f'android_ndk_sysroot orelse "{sysroot}"',
                         n,
                     )
                 if f.suffix in (".ts", ".js"):
