@@ -618,7 +618,7 @@ __attribute__((weak, visibility("default"))) int pthread_getname_np(pthread_t th
     return 0;
 }
 
-__attribute__((weak, visibility("default"))) __attribute__((weak, visibility("default"))) ssize_t copy_file_range(
+__attribute__((weak, visibility("default"))) ssize_t copy_file_range(
     int fd_in, off64_t *off_in,
     int fd_out, off64_t *off_out,
     size_t len, unsigned int flags
@@ -632,7 +632,7 @@ __attribute__((weak, visibility("default"))) __attribute__((weak, visibility("de
 #endif
 }
 
-int memfd_create(const char *name, unsigned int flags) {
+__attribute__((weak, visibility("default"))) int memfd_create(const char *name, unsigned int flags) {
 #ifdef __NR_memfd_create
     return (int)syscall(__NR_memfd_create, name, flags);
 #else
