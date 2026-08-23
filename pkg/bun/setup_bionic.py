@@ -212,13 +212,13 @@ def setup_shims():
             if d.is_dir():
                 shutil.copy2(cached_cfg, d / "cmakeconfig.h")
 
-    shim_code = r"""#!/bin/bash
+    shim_code = """#!/bin/bash
 cmd="$(basename "$0")"
 if [[ "$*" == *"codegen-tool"* ]] || [[ "$*" == *"-DC2STR"* ]] || [[ "$*" == *"conftest.c"* ]]; then
   exec "/usr/bin/$cmd" "$@"
 fi
 NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"
-[ -d "$NDK_BIN" ] || NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \; 2>/dev/null | head -n 1)
+[ -d "$NDK_BIN" ] || NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \\; 2>/dev/null | head -n 1)
 if [[ "$1" =~ ^(-v|--version|-version)$ ]]; then
   [[ "$cmd" =~ lld$ ]] && echo "LLD 21.1.0" || echo "Ubuntu clang version 21.1.0-repoexe"
   exit 0
@@ -297,24 +297,17 @@ fi
                         n,
                     )
                 if "build.zig" in f.name:
-                    n = re.sub(
-                        r"(\bvar\s+android_ndk_sysroot\b[^=]*=)[^;\n]+;",
-                        f'\1 "{sysroot}";',
-                        n,
-                    )
-                    n = re.sub(
-                        r"(\bconst\s+android_ndk_sysroot\b[^=]*=)[^;\n]+;",
-                        f'\1 "{sysroot}";',
-                        n,
-                    )
-                    n = re.sub(
-                        r"android_ndk_sysroot\s+orelse\s+\{[^\}]*panic\([^\}]*\);?\s*\}",
-                        f'android_ndk_sysroot orelse "{sysroot}"',
-                        n,
+                    n = n.replace(
+                        'b.option([]const u8, "android_ndk_sysroot", "path to android ndk sysroot")',
+                        f'b.option([]const u8, "android_ndk_sysroot", "path to android ndk sysroot") orelse "{sysroot}"',
                     )
                     n = n.replace(
                         'std.debug.panic("translate-c for Android requires -Dandroid_ndk_sysroot", .{});',
                         f'break :blk "{sysroot}";',
+                    )
+                    n = n.replace(
+                        'std.debug.panic("translate-c for Android requires -Dandroid_ndk_sysroot", .{})',
+                        f'"{sysroot}"',
                     )
                 if "BunCPUProfiler.cpp" in f.name:
                     n = re.sub(
@@ -419,19 +412,27 @@ def patch_ninja():
         if sysroots
         else f"{ndk}/toolchains/llvm/prebuilt/linux-arm64/sysroot"
     )
-    for ninja_f in Path(".").rglob("build.ninja"):
-        try:
-            c = ninja_f.read_text(encoding="utf-8")
-            c = c.replace(
-                "-Dtarget=aarch64-linux-gnu",
-                f"-Dtarget=aarch64-linux-android -Dandroid_ndk_sysroot={sysroot}",
-            )
-            c = c.replace("aarch64-linux-gnu.2.17", "aarch64-linux-android")
-            c = c.replace("linux-aarch64-gnu", "linux-aarch64-android")
-            ninja_f.write_text(c, encoding="utf-8")
-            print(f"✓ Patched {ninja_f} with Android Bionic target & NDK sysroot")
-        except Exception:
-            pass
+    print(f"🔒 Patching build files with NDK sysroot: {sysroot}")
+    for ninja_f in list(Path(".").rglob("*.ninja")) + list(
+        Path("build").rglob("*.ninja")
+    ):
+        if ninja_f.is_file():
+            try:
+                c = ninja_f.read_text(encoding="utf-8")
+                orig = c
+                c = c.replace(
+                    "-Dtarget=aarch64-linux-gnu",
+                    f"-Dtarget=aarch64-linux-android -Dandroid_ndk_sysroot={sysroot}",
+                )
+                c = c.replace("aarch64-linux-gnu.2.17", "aarch64-linux-android")
+                c = c.replace("linux-aarch64-gnu", "linux-aarch64-android")
+                if c != orig:
+                    ninja_f.write_text(c, encoding="utf-8")
+                    print(
+                        f"✓ Patched {ninja_f} with Android Bionic target & NDK sysroot"
+                    )
+            except Exception as e:
+                print(f"Failed to patch {ninja_f}: {e}")
 
 
 if __name__ == "__main__":
