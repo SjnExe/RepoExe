@@ -43,26 +43,7 @@ class ProotTestRunner:
             test_commands,
             "TEST_EOF",
             "chmod +x $HOME/test_payload.sh",
-            "run_test() {",
-            '  if command -v xvfb-run >/dev/null 2>&1 && [ -z "$DISPLAY" ]; then',
-            "    xvfb-run -a $HOME/test_payload.sh",
-            "  else",
-            "    $HOME/test_payload.sh",
-            "  fi",
-            "}",
-            "if ! run_test; then",
-            '  echo "=== AUTOMATED CRASH DIAGNOSTICS ===" >&2',
-            "  FIRST_CMD=$(grep -v '^[[:space:]]*#' $HOME/test_payload.sh | grep -v '^[[:space:]]*$' | head -n 1)",
-            "  FIRST_BIN=$(echo \"$FIRST_CMD\" | awk '{print $1}')",
-            "  if command -v gdb >/dev/null 2>&1; then",
-            '    echo "--- GDB BACKTRACE ($FIRST_BIN) ---" >&2',
-            '    gdb -batch -ex "run" -ex "thread apply all bt full" --args $FIRST_CMD >&2 || true',
-            "  elif command -v strace >/dev/null 2>&1; then",
-            '    echo "--- STRACE TRACE ($FIRST_BIN) ---" >&2',
-            "    strace -f -s 256 $FIRST_CMD >&2 || true",
-            "  fi",
-            "  exit 1",
-            "fi",
+            "$HOME/test_payload.sh",
         ]
         script_content = "\n".join(script_lines) + "\n"
         script_path.write_text(script_content, encoding="utf-8")
@@ -76,7 +57,14 @@ class ProotTestRunner:
                 "/home/builder/RepoExe", github_workspace
             )
 
-        docker_cmd = ["docker", "run", "--rm", "-i"]
+        docker_cmd = [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--security-opt",
+            "seccomp=unconfined",
+        ]
         if stage_dir and stage_dir.exists():
             docker_cmd.extend(["-v", f"{host_stage_dir}:/tmp/stage:ro"])
 
@@ -118,10 +106,22 @@ class ProotTestRunner:
                 )
             except subprocess.TimeoutExpired as exc:
                 stdout_txt = (
-                    exc.stdout.decode("utf-8", errors="replace") if exc.stdout else ""
+                    exc.stdout
+                    if isinstance(exc.stdout, str)
+                    else (
+                        exc.stdout.decode("utf-8", errors="replace")
+                        if exc.stdout
+                        else ""
+                    )
                 )
                 stderr_txt = (
-                    exc.stderr.decode("utf-8", errors="replace") if exc.stderr else ""
+                    exc.stderr
+                    if isinstance(exc.stderr, str)
+                    else (
+                        exc.stderr.decode("utf-8", errors="replace")
+                        if exc.stderr
+                        else ""
+                    )
                 )
                 raise RuntimeError(
                     f"❌ Smoke test timed out after 180 seconds for {package_name}:\n"
