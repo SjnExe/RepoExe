@@ -298,11 +298,6 @@ fi
                     )
                 if "build.zig" in f.name:
                     n = re.sub(
-                        r'std\.debug\.panic\("translate-c for Android requires -Dandroid_ndk_sysroot",\s*\.\{\}\);?',
-                        f'return b.addTranslateC(.{{ .root_source_file = b.path("src/bun.js/bindings/c.zig"), .target = target, .optimize = optimize, .sysroot = "{sysroot}" }});',
-                        n,
-                    )
-                    n = re.sub(
                         r"android_ndk_sysroot\s+orelse\s*\{[^}]*\}",
                         f'android_ndk_sysroot orelse "{sysroot}"',
                         n,
@@ -428,6 +423,14 @@ def patch_ninja():
                 )
                 c = c.replace("aarch64-linux-gnu.2.17", "aarch64-linux-android")
                 c = c.replace("linux-aarch64-gnu", "linux-aarch64-android")
+                if (
+                    "-Dtarget=aarch64-linux-android" in c
+                    and "-Dandroid_ndk_sysroot" not in c
+                ):
+                    c = c.replace(
+                        "-Dtarget=aarch64-linux-android",
+                        f"-Dtarget=aarch64-linux-android -Dandroid_ndk_sysroot={sysroot}",
+                    )
                 if c != orig:
                     ninja_f.write_text(c, encoding="utf-8")
                     print(
