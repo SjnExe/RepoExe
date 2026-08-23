@@ -212,13 +212,13 @@ def setup_shims():
             if d.is_dir():
                 shutil.copy2(cached_cfg, d / "cmakeconfig.h")
 
-    shim_code = """#!/bin/bash
+    shim_code = r"""#!/bin/bash
 cmd="$(basename "$0")"
 if [[ "$*" == *"codegen-tool"* ]] || [[ "$*" == *"-DC2STR"* ]] || [[ "$*" == *"conftest.c"* ]]; then
   exec "/usr/bin/$cmd" "$@"
 fi
 NDK_BIN="${NDK:-/opt/android-ndk}/toolchains/llvm/prebuilt/linux-arm64/bin"
-[ -d "$NDK_BIN" ] || NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \\; 2>/dev/null | head -n 1)
+[ -d "$NDK_BIN" ] || NDK_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "clang" -exec dirname {} \; 2>/dev/null | head -n 1)
 if [[ "$1" =~ ^(-v|--version|-version)$ ]]; then
   [[ "$cmd" =~ lld$ ]] && echo "LLD 21.1.0" || echo "Ubuntu clang version 21.1.0-repoexe"
   exit 0
@@ -297,17 +297,19 @@ fi
                         n,
                     )
                 if "build.zig" in f.name:
+                    n = re.sub(
+                        r'std\.debug\.panic\("translate-c for Android requires -Dandroid_ndk_sysroot",\s*\.\{\}\);?',
+                        f'return b.addTranslateC(.{{ .root_source_file = b.path("src/bun.js/bindings/c.zig"), .target = target, .optimize = optimize, .sysroot = "{sysroot}" }});',
+                        n,
+                    )
+                    n = re.sub(
+                        r"android_ndk_sysroot\s+orelse\s*\{[^}]*\}",
+                        f'android_ndk_sysroot orelse "{sysroot}"',
+                        n,
+                    )
                     n = n.replace(
                         'b.option([]const u8, "android_ndk_sysroot", "path to android ndk sysroot")',
                         f'b.option([]const u8, "android_ndk_sysroot", "path to android ndk sysroot") orelse "{sysroot}"',
-                    )
-                    n = n.replace(
-                        'std.debug.panic("translate-c for Android requires -Dandroid_ndk_sysroot", .{});',
-                        f'break :blk "{sysroot}";',
-                    )
-                    n = n.replace(
-                        'std.debug.panic("translate-c for Android requires -Dandroid_ndk_sysroot", .{})',
-                        f'"{sysroot}"',
                     )
                 if "BunCPUProfiler.cpp" in f.name:
                     n = re.sub(
