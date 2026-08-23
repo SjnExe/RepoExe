@@ -15,7 +15,6 @@ def test_bionic_compat_c_symbols():
     assert "WTFTimer__fire" in text
     assert "copy_file_range" in text
     assert "_ZSt20__throw_system_errori" in text
-    assert "_ZNSt18condition_variable4waitERSt11unique_lockISt5mutexE" in text
     assert "_ZN2v85Array3New" in text
     assert "_ZSt11__once_call" in text
 

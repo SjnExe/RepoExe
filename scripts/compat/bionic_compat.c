@@ -851,20 +851,7 @@ __attribute__((weak, visibility("default"))) void _ZSt20__throw_length_errorPKc(
 __attribute__((weak, visibility("default"))) void _ZSt20__throw_out_of_rangePKc(const char *s) { (void)s; abort(); }
 __attribute__((weak, visibility("default"))) void _ZSt21__throw_runtime_errorPKc(const char *s) { (void)s; abort(); }
 
-__attribute__((weak, visibility("default"))) void _ZNSt18condition_variableC1Ev(pthread_cond_t *cv) { if (cv) pthread_cond_init(cv, NULL); }
-__attribute__((weak, visibility("default"))) void _ZNSt18condition_variableC2Ev(pthread_cond_t *cv) { if (cv) pthread_cond_init(cv, NULL); }
-__attribute__((weak, visibility("default"))) void _ZNSt18condition_variableD1Ev(pthread_cond_t *cv) { if (cv) pthread_cond_destroy(cv); }
-__attribute__((weak, visibility("default"))) void _ZNSt18condition_variableD2Ev(pthread_cond_t *cv) { if (cv) pthread_cond_destroy(cv); }
-__attribute__((weak, visibility("default"))) void _ZNSt18condition_variable4waitERSt11unique_lockISt5mutexE(pthread_cond_t *cv, void *lock) {
-    if (cv && lock) {
-        pthread_mutex_t **pmutex_ptr = (pthread_mutex_t **)lock;
-        if (*pmutex_ptr) {
-            pthread_cond_wait(cv, *pmutex_ptr);
-        }
-    }
-}
-__attribute__((weak, visibility("default"))) void _ZNSt18condition_variable10notify_allEv(pthread_cond_t *cv) { if (cv) pthread_cond_broadcast(cv); }
-__attribute__((weak, visibility("default"))) void _ZNSt18condition_variable10notify_oneEv(pthread_cond_t *cv) { if (cv) pthread_cond_signal(cv); }
+
 
 __attribute__((weak, visibility("default"))) void (*_ZSt11__once_call)(void) = NULL;
 __attribute__((weak, visibility("default"))) void *_ZSt15__once_callable = NULL;
