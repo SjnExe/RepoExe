@@ -212,6 +212,7 @@ void __sincos(double x, double *s, double *c);
 void sincosf(float x, float *s, float *c);
 void __sincosf(float x, float *s, float *c);
 int getentropy(void *buffer, size_t length);
+ssize_t copy_file_range(int fd_in, off64_t *off_in, int fd_out, off64_t *off_out, size_t len, unsigned int flags);
 int memfd_create(const char *name, unsigned int flags);
 
 int getservbyname_r(const char *n, const char *p, struct servent *r, char *b, size_t l, struct servent **res);

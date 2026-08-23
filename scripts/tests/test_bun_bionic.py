@@ -13,6 +13,7 @@ def test_bionic_compat_c_symbols():
     assert compat_p.exists(), "scripts/compat/bionic_compat.c not found"
     text = compat_p.read_text(encoding="utf-8")
     assert "WTFTimer__fire" in text
+    assert "copy_file_range" in text
     assert "_ZSt20__throw_system_errori" in text
     assert "_ZNSt18condition_variable4waitERSt11unique_lockISt5mutexE" in text
     assert "_ZN2v85Array3New" in text
@@ -27,6 +28,7 @@ def test_bionic_stub_headers():
     assert "POSIX_SPAWN_SETPGROUP" in text
     assert "posix_spawn" in text
     assert "reallocarray" in text
+    assert "copy_file_range" in text
 
 
 def test_cmake_options_jsc_patch(tmp_path):
