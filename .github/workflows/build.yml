@@ -498,6 +498,7 @@ jobs:
         env:
           PYTHONPATH: scripts
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           python scripts/cli/index_gen.py
 
