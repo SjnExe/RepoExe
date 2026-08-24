@@ -110,6 +110,9 @@ ar = '{ndk_ar}'
 strip = '{ndk_strip}'
 pkg-config = 'pkg-config'
 
+[built-in options]
+pkg_config_path = '/data/data/com.termux/files/usr/lib/pkgconfig:/data/data/com.termux/files/usr/share/pkgconfig'
+
 [host_machine]
 system = 'android'
 cpu_family = 'aarch64'
