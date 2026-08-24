@@ -107,7 +107,23 @@ phases:
     install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/libexec/bun-bin"
     install -Dm755 libbun_shim.so "${DESTDIR}${PREFIX}/lib/libbun_shim.so"
 
-    printf '#!/data/data/com.termux/files/usr/bin/bash\nexport LD_PRELOAD="%s/lib/libbun_shim.so${LD_PRELOAD:+:$LD_PRELOAD}"\nexec %s/libexec/bun-bin "$@"\n' "${PREFIX}" "${PREFIX}" > "${DESTDIR}${PREFIX}/bin/bun"
+    cat << 'LAUNCHER' > "${DESTDIR}${PREFIX}/bin/bun"
+    #!/data/data/com.termux/files/usr/bin/bash
+    SELF_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+    BASE_DIR="$(cd "$SELF_DIR/.." && pwd)"
+
+    if [ -f "$BASE_DIR/lib/libbun_shim.so" ]; then
+      export LD_PRELOAD="$BASE_DIR/lib/libbun_shim.so${LD_PRELOAD:+:$LD_PRELOAD}"
+    elif [ -f "/data/data/com.termux/files/usr/lib/libbun_shim.so" ]; then
+      export LD_PRELOAD="/data/data/com.termux/files/usr/lib/libbun_shim.so${LD_PRELOAD:+:$LD_PRELOAD}"
+    fi
+
+    if [ -f "$BASE_DIR/libexec/bun-bin" ]; then
+      exec "$BASE_DIR/libexec/bun-bin" "$@"
+    else
+      exec "/data/data/com.termux/files/usr/libexec/bun-bin" "$@"
+    fi
+    LAUNCHER
     chmod +x "${DESTDIR}${PREFIX}/bin/bun"
   test: |
     bun --version
