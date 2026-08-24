@@ -13,11 +13,11 @@ build_system: custom
 formats:
   - pip
   - apt
-deps:
-  - pyyaml
 phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}"
-    python3 -m pip install --no-deps --ignore-installed --prefix="${DESTDIR}${PREFIX}" .
+    python3 -m pip install --ignore-installed --prefix="${DESTDIR}${PREFIX}" .
+    # Delete host-compiled C-extensions to enforce pure-Python mode without glibc
+    find "${DESTDIR}${PREFIX}" -name "*_yaml*.so" -delete 2>/dev/null || true
   test: |
     pre-commit --version

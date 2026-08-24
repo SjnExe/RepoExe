@@ -303,10 +303,23 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                 ],
                 check=True,
             )
-            subprocess.run(
-                ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
-                check=False,
-            )
+            if src_url_str.endswith(".zip") or ".zip" in src_url_str:
+                subprocess.run(
+                    [
+                        "unzip",
+                        "-q",
+                        "-o",
+                        str(archive_path),
+                        "-d",
+                        str(src_extract_dir),
+                    ],
+                    check=False,
+                )
+            else:
+                subprocess.run(
+                    ["tar", "-xf", str(archive_path), "-C", str(src_extract_dir)],
+                    check=False,
+                )
             extracted_items = [
                 i for i in src_extract_dir.iterdir() if i.name != "source.tar.gz"
             ]

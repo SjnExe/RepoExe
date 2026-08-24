@@ -20,8 +20,6 @@ channels:
     source_url: https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-linux-aarch64-android.zip
 
 phases:
-  make: |
-    unzip -q -o ../source.tar.gz -d . 2>/dev/null || true
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
     BUN_BIN=$(find . -name bun -type f | head -n 1)
