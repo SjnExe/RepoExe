@@ -28,6 +28,8 @@ vars:
   GOARCH: "arm64"
   CGO_ENABLED: "0"
   GOTOOLCHAIN: "local"
+  npm_name: "@typescript/typescript-android-arm64"
+  npm_bin_dir: "lib"
 
 phases:
   prepare: |

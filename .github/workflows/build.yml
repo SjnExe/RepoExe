@@ -465,7 +465,7 @@ jobs:
     name: Deploy
     needs: [generate-matrix, build]
     if: always() && needs.generate-matrix.outputs.should_publish == 'true' && !cancelled()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
@@ -501,6 +501,12 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           python scripts/cli/index_gen.py
+
+      - name: Run Termux E2E Tests
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python scripts/cli/e2e_test.py --site-dir site
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v6

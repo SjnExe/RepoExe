@@ -21,18 +21,21 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     if recipe.revision > 0:
         npm_version = f"{recipe.version}-repoexe.{recipe.revision}"
 
+    npm_name = recipe.vars.get("npm_name", recipe.name) if recipe.vars else recipe.name
+    npm_bin_dir_name = recipe.vars.get("npm_bin_dir", "bin") if recipe.vars else "bin"
+
     pkg_json = {
-        "name": recipe.name,
+        "name": npm_name,
         "version": npm_version,
         "description": recipe.description,
         "license": recipe.license,
-        "bin": {recipe.name: f"bin/{recipe.name}"},
+        "bin": {recipe.name: f"{npm_bin_dir_name}/{recipe.name}"},
     }
     (npm_pkg_dir / "package.json").write_text(
         json.dumps(pkg_json, indent=2), encoding="utf-8"
     )
 
-    bin_dir = npm_pkg_dir / "bin"
+    bin_dir = npm_pkg_dir / npm_bin_dir_name
     bin_dir.mkdir(parents=True, exist_ok=True)
 
     # Copy the entire Termux structure into the NPM package to preserve shared libraries and resources
@@ -52,6 +55,7 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
                 )
 
     # Generate a robust bash wrapper to execute the deep-nested binary with the correct dynamic linker and library paths
+    # Using dynamic relative path to account for custom bin dir
     wrapper_script = (
         "#!/data/data/com.termux/files/usr/bin/bash\n"
         "set -e\n"
@@ -67,7 +71,7 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     tgz_path = out_path / f"{recipe.name}-{npm_version}.tgz"
 
     def set_exec_perms(tarinfo: tarfile.TarInfo, path: str = "") -> tarfile.TarInfo:
-        if "bin/" in tarinfo.name:
+        if f"{npm_bin_dir_name}/" in tarinfo.name:
             tarinfo.mode = 0o755
         return tarinfo
 
@@ -84,53 +88,56 @@ def generate_npm_index(output_dir: str | Path) -> None:
     npm_dir.mkdir(parents=True, exist_ok=True)
 
     tgz_files = list(base_dir.rglob("*.tgz"))
-    packages: dict[str, list[Path]] = {}
+    packages: dict[str, list[tuple[Path, dict]]] = {}
 
     for tgz in tgz_files:
-        parts = tgz.name.replace(".tgz", "").split("-")
-        ver_idx = len(parts) - 1
-        for i, p in enumerate(parts):
-            if p and p[0].isdigit():
-                ver_idx = i
-                break
+        inner_meta = {}
+        try:
+            with tarfile.open(tgz, "r:gz") as tar:
+                member = tar.getmember("package/package.json")
+                f = tar.extractfile(member)
+                if f:
+                    inner_meta = json.loads(f.read().decode("utf-8"))
+        except Exception:
+            pass
 
-        name = "-".join(parts[:ver_idx]) if ver_idx > 0 else parts[0]
-        packages.setdefault(name, []).append(tgz)
+        # Fallback to filename parsing if inner_meta fails
+        if not inner_meta:
+            parts = tgz.name.replace(".tgz", "").split("-")
+            ver_idx = len(parts) - 1
+            for i, p in enumerate(parts):
+                if p and p[0].isdigit():
+                    ver_idx = i
+                    break
+            pkg_name = "-".join(parts[:ver_idx]) if ver_idx > 0 else parts[0]
 
-    for pkg_name, files in packages.items():
+            filename = tgz.name.replace(".tgz", "")
+            filename_ver = (
+                filename[len(pkg_name) + 1 :]
+                if filename.startswith(f"{pkg_name}-")
+                else "1.0.0"
+            )
+            inner_meta = {"name": pkg_name, "version": filename_ver}
+        else:
+            pkg_name = inner_meta.get("name", "")
+
+        if pkg_name:
+            packages.setdefault(pkg_name, []).append((tgz, inner_meta))
+
+    for pkg_name, files_with_meta in packages.items():
         pkg_dir = npm_dir / pkg_name
         pkg_dir.mkdir(parents=True, exist_ok=True)
 
         versions_manifest = {}
         latest_ver = "0.0.0"
 
-        for tgz_path in files:
+        for tgz_path, inner_meta in files_with_meta:
             dest = pkg_dir / tgz_path.name
             if tgz_path != dest:
                 shutil.copy2(tgz_path, dest)
 
-            filename = tgz_path.name.replace(".tgz", "")
-            filename_ver = (
-                filename[len(pkg_name) + 1 :]
-                if filename.startswith(f"{pkg_name}-")
-                else "1.0.0"
-            )
-
-            inner_meta = {}
-            try:
-                with tarfile.open(tgz_path, "r:gz") as tar:
-                    member = tar.getmember("package/package.json")
-                    f = tar.extractfile(member)
-                    if f:
-                        inner_meta = json.loads(f.read().decode("utf-8"))
-            except Exception:
-                pass
-
-            ver = inner_meta.get("version") or filename_ver
+            ver = inner_meta.get("version", "1.0.0")
             latest_ver = ver
-
-            inner_meta["name"] = pkg_name
-            inner_meta["version"] = ver
 
             if "bin" not in inner_meta:
                 inner_meta["bin"] = {pkg_name: f"bin/{pkg_name}"}
