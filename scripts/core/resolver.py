@@ -12,17 +12,34 @@ def _to_dict(obj: Any) -> dict[str, Any]:
     if obj is None:
         return {}
     if isinstance(obj, dict):
-        return {k: copy.deepcopy(v) for k, v in obj.items()}
+        return {k: copy.deepcopy(v) for k, v in obj.items() if v is not None}
+
+    # Handle Pydantic v2 / Custom model_dump()
     if hasattr(obj, "model_dump") and callable(obj.model_dump):
-        return obj.model_dump(exclude_none=True)
+        try:
+            res = obj.model_dump(exclude_none=True)
+        except TypeError:
+            res = obj.model_dump()
+        if isinstance(res, dict):
+            return {k: copy.deepcopy(v) for k, v in res.items() if v is not None}
+
+    # Handle Pydantic v1 / Custom dict()
     if hasattr(obj, "dict") and callable(obj.dict):
-        return obj.dict(exclude_none=True)
+        try:
+            res = obj.dict(exclude_none=True)
+        except TypeError:
+            res = obj.dict()
+        if isinstance(res, dict):
+            return {k: copy.deepcopy(v) for k, v in res.items() if v is not None}
+
+    # Handle generic Python class instances / Dataclasses
     if hasattr(obj, "__dict__"):
         return {
             k: copy.deepcopy(v)
             for k, v in vars(obj).items()
             if not k.startswith("_") and v is not None
         }
+
     return {}
 
 

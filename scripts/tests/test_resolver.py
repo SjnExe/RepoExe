@@ -8,6 +8,20 @@ from core.resolver import (
 )
 
 
+class CustomRecipeModel:
+    def __init__(self, name: str, version: str, channels: dict):
+        self.name = name
+        self.version = version
+        self.channels = channels
+
+    def model_dump(self):  # Zero-argument signature
+        return {
+            "name": self.name,
+            "version": self.version,
+            "channels": self.channels,
+        }
+
+
 @dataclass
 class MockChannelOverride:
     source_url: str | None = None
@@ -87,6 +101,18 @@ def test_channel_overlay_object_model():
     apply_channel_overlay(recipe, "latest")
     assert recipe.source_url == "https://example.com/bun-v1.4.0.zip"
     assert "llvm" in recipe.build_deps
+
+
+def test_channel_overlay_zero_arg_model_dump():
+    recipe = CustomRecipeModel(
+        name="pydantic",
+        version="2.6.0",
+        channels={
+            "latest": {"source_url": "https://example.com/pydantic-{version}.tar.gz"}
+        },
+    )
+    apply_channel_overlay(recipe, "latest")
+    assert recipe.source_url == "https://example.com/pydantic-2.6.0.tar.gz"
 
 
 def test_channel_state_hash(tmp_path: Path):
