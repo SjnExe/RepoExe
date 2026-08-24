@@ -1,9 +1,30 @@
+from dataclasses import dataclass
 from pathlib import Path
 
 from core.resolver import (
+    apply_channel_overlay,
     compute_channel_state_hash,
     resolve_channel_recipe,
 )
+
+
+@dataclass
+class MockChannelOverride:
+    source_url: str | None = None
+    version: str | None = None
+    extra_build_deps: list[str] | None = None
+    phases: dict[str, str] | None = None
+
+
+@dataclass
+class MockRecipe:
+    name: str
+    version: str
+    revision: int
+    build_deps: list[str]
+    phases: dict[str, str]
+    channels: dict[str, MockChannelOverride]
+    channel: str = "latest"
 
 
 def test_channel_overlay_and_interpolation():
@@ -31,7 +52,6 @@ def test_channel_overlay_and_interpolation():
         },
     }
 
-    # Test latest channel overlay
     latest = resolve_channel_recipe(raw_recipe, "latest")
     assert (
         latest["source_url"]
@@ -40,7 +60,6 @@ def test_channel_overlay_and_interpolation():
     assert latest["build_deps"] == ["clang", "llvm"]
     assert latest["phases"]["test"] == "echo base test"
 
-    # Test canary channel overlay
     canary = resolve_channel_recipe(raw_recipe, "canary")
     assert canary["version"] == "1.4.1-canary.1"
     assert (
@@ -49,6 +68,25 @@ def test_channel_overlay_and_interpolation():
     )
     assert canary["phases"]["test"] == "echo canary test"
     assert canary["phases"]["make"] == "echo make"
+
+
+def test_channel_overlay_object_model():
+    recipe = MockRecipe(
+        name="bun",
+        version="1.4.0",
+        revision=0,
+        build_deps=["clang"],
+        phases={"make": "echo make"},
+        channels={
+            "latest": MockChannelOverride(
+                source_url="https://example.com/bun-v{version}.zip",
+                extra_build_deps=["llvm"],
+            )
+        },
+    )
+    apply_channel_overlay(recipe, "latest")
+    assert recipe.source_url == "https://example.com/bun-v1.4.0.zip"
+    assert "llvm" in recipe.build_deps
 
 
 def test_channel_state_hash(tmp_path: Path):

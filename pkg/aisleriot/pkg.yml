@@ -34,6 +34,15 @@ deps:
 phases:
   configure: |
     export SCCACHE_DISABLE=1
+    mkdir -p "${PREFIX}/bin"
+    # Bridge host guile binary so build-time scheme scripts compile into .go bytecode
+    if [ -x /usr/bin/guile-3.0 ]; then
+      ln -sf /usr/bin/guile-3.0 "${PREFIX}/bin/guile"
+      ln -sf /usr/bin/guile-3.0 "${PREFIX}/bin/guile-3.0"
+    elif [ -x /usr/bin/guile ]; then
+      ln -sf /usr/bin/guile "${PREFIX}/bin/guile"
+      ln -sf /usr/bin/guile "${PREFIX}/bin/guile-3.0"
+    fi
     meson setup build \
       --cross-file /tmp/meson-cross.ini \
       --prefix="${PREFIX}" \
@@ -44,6 +53,7 @@ phases:
     ninja -C build -j4 -k 0
   install: |
     DESTDIR="${DESTDIR}" ninja -C build install
+    rm -f "${DESTDIR}${PREFIX}/bin/guile" "${DESTDIR}${PREFIX}/bin/guile-3.0"
     if command -v termux-elf-cleaner >/dev/null 2>&1; then
       termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/sol" 2>/dev/null || true
       termux-elf-cleaner "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true

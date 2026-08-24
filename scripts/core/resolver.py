@@ -7,6 +7,25 @@ from pathlib import Path
 from typing import Any
 
 
+def _to_dict(obj: Any) -> dict[str, Any]:
+    """Safely converts dicts, Pydantic models, dataclasses, and custom objects to raw dicts."""
+    if obj is None:
+        return {}
+    if isinstance(obj, dict):
+        return {k: copy.deepcopy(v) for k, v in obj.items()}
+    if hasattr(obj, "model_dump") and callable(obj.model_dump):
+        return obj.model_dump(exclude_none=True)
+    if hasattr(obj, "dict") and callable(obj.dict):
+        return obj.dict(exclude_none=True)
+    if hasattr(obj, "__dict__"):
+        return {
+            k: copy.deepcopy(v)
+            for k, v in vars(obj).items()
+            if not k.startswith("_") and v is not None
+        }
+    return {}
+
+
 def _interpolate_values(obj: Any, ctx: dict[str, str]) -> Any:
     """Recursively formats templated strings like {version} across all nested data structures."""
     if isinstance(obj, str):
@@ -21,20 +40,25 @@ def _interpolate_values(obj: Any, ctx: dict[str, str]) -> Any:
 
 
 def resolve_channel_recipe(
-    raw_recipe: dict[str, Any], channel_name: str = "latest"
+    raw_recipe: Any, channel_name: str = "latest"
 ) -> dict[str, Any]:
-    """Resolves and flattens a recipe dictionary for a targeted release channel."""
-    base_data = copy.deepcopy(raw_recipe)
-    channels_map: dict[str, Any] = base_data.pop("channels", {})
+    """Resolves and flattens a recipe dictionary or model for a targeted release channel."""
+    base_data = _to_dict(raw_recipe)
+    channels_map = base_data.pop("channels", {})
+    if not isinstance(channels_map, dict):
+        channels_map = _to_dict(channels_map)
 
-    channel_cfg: dict[str, Any] = channels_map.get(channel_name, {})
-    if not channel_cfg and channel_name != "latest":
-        raise ValueError(f"Requested channel '{channel_name}' not defined in recipe.")
+    channel_raw = channels_map.get(channel_name, {})
+    channel_cfg = (
+        _to_dict(channel_raw) if not isinstance(channel_raw, dict) else channel_raw
+    )
 
     resolved = copy.deepcopy(base_data)
     resolved["channel"] = channel_name
 
     for key, val in channel_cfg.items():
+        if val is None:
+            continue
         if key in ("deps", "build_deps", "patches", "formats"):
             resolved[key] = copy.deepcopy(val)
         elif key.startswith("extra_"):
@@ -64,15 +88,14 @@ def resolve_channel_recipe(
 
 def apply_channel_overlay(recipe: Any, channel_name: str = "latest") -> Any:
     """Applies channel overlay and template resolution to a Recipe instance or dictionary."""
-    if isinstance(recipe, dict):
-        return resolve_channel_recipe(recipe, channel_name)
-
-    raw_dict = {}
-    for k in dir(recipe):
-        if not k.startswith("_") and not callable(getattr(recipe, k)):
-            raw_dict[k] = getattr(recipe, k)
-
+    raw_dict = _to_dict(recipe)
     resolved_dict = resolve_channel_recipe(raw_dict, channel_name)
+
+    if isinstance(recipe, dict):
+        recipe.clear()
+        recipe.update(resolved_dict)
+        return recipe
+
     for k, v in resolved_dict.items():
         setattr(recipe, k, v)
     return recipe
