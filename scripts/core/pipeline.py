@@ -12,6 +12,7 @@ from builders.pacman import build_pacman
 from builders.pip import build_pip
 from core.compat import setup_bionic_compat
 from core.fetcher import resolve_and_fetch_build_dependencies
+from core.resolver import apply_channel_overlay
 from core.subpkg import process_subpackages
 from sanitizer.elf import sanitize_staging_elfs
 from sanitizer.shebang import sanitize_shebangs
@@ -207,6 +208,8 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         shutil.rmtree(destdir)
     destdir.mkdir(parents=True, exist_ok=True)
 
+    channel_name = getattr(recipe, "channel", "latest")
+    apply_channel_overlay(recipe, channel_name)
     stage_dir = destdir / "stage"
     stage_dir.mkdir(parents=True, exist_ok=True)
 

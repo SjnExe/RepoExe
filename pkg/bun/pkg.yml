@@ -8,8 +8,6 @@ license: MIT
 maintainer: SjnExe
 build_system: custom
 
-source_url: https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-linux-aarch64-android.zip
-
 formats:
   - apt
   - pacman
