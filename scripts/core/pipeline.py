@@ -154,8 +154,9 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
             env[k] = v
 
     cpus = str(os.cpu_count() or 4)
-    env["MAKEFLAGS"] = f"-j{cpus}"
+    env["MAKEFLAGS"] = f"-j{cpus} -k"
     env["NINJA_JOBS"] = cpus
+    env["NINJAFLAGS"] = "-k 0"
     env["CARGO_BUILD_JOBS"] = cpus
     env["GOMAXPROCS"] = cpus
 

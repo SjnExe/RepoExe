@@ -41,7 +41,7 @@ phases:
       -Dguile=3.0 \
       -Dtheme_kde=false
   make: |
-    ninja -C build -j4
+    ninja -C build -j4 -k 0
   install: |
     DESTDIR="${DESTDIR}" ninja -C build install
     if command -v termux-elf-cleaner >/dev/null 2>&1; then

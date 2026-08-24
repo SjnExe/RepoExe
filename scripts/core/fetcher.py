@@ -164,14 +164,16 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
         )
         if deb_asset:
             download_url = deb_asset["browser_download_url"]
-            dep_deb = destdir / deb_asset["name"]
-            _download_file(download_url, dep_deb)
-            subprocess.run(["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True)
+            deb_path = destdir / deb_asset["name"]
+            _download_file(download_url, deb_path)
+            subprocess.run(
+                ["dpkg-deb", "-x", str(deb_path), str(stage_dir)], check=True
+            )
             subprocess.run(
                 [
                     "dpkg-deb",
                     "-x",
-                    str(dep_deb),
+                    str(deb_path),
                     str(prefix_root.parent.parent.parent.parent),
                 ],
                 check=False,
@@ -201,19 +203,33 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
 
         extracted_usr = extract_tmp / "data" / "data" / "com.termux" / "files" / "usr"
         if extracted_usr.exists():
-            shutil.copytree(extracted_usr, prefix_root, dirs_exist_ok=True)
+            shutil.copytree(
+                extracted_usr,
+                prefix_root,
+                dirs_exist_ok=True,
+                symlinks=True,
+                ignore_dangling_symlinks=True,
+            )
             shutil.copytree(
                 extracted_usr,
                 stage_dir / "data" / "data" / "com.termux" / "files" / "usr",
                 dirs_exist_ok=True,
+                symlinks=True,
+                ignore_dangling_symlinks=True,
             )
         else:
             for item in extract_tmp.iterdir():
                 if item.name != "DEBIAN":
                     if item.is_dir():
-                        shutil.copytree(item, prefix_root, dirs_exist_ok=True)
+                        shutil.copytree(
+                            item,
+                            prefix_root,
+                            dirs_exist_ok=True,
+                            symlinks=True,
+                            ignore_dangling_symlinks=True,
+                        )
                     else:
-                        shutil.copy2(item, prefix_root)
+                        shutil.copy2(item, prefix_root, follow_symlinks=False)
         shutil.rmtree(extract_tmp, ignore_errors=True)
 
         fetched.add(dep)
