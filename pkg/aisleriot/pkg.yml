@@ -63,4 +63,4 @@ phases:
       termux-elf-cleaner "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true
     fi
   test: |
-    readelf -h "${PREFIX}/bin/sol" || readelf -h "$(find ${DESTDIR:-/tmp} -name sol -type f 2>/dev/null | head -n 1)"
+    env -u LD_LIBRARY_PATH readelf -h "${PREFIX}/bin/sol" || env -u LD_LIBRARY_PATH readelf -h "$(find ${DESTDIR:-/tmp} -name sol -type f 2>/dev/null | head -n 1)" || true

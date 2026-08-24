@@ -367,6 +367,8 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     lib_dir.mkdir(parents=True, exist_ok=True)
     (lib_dir / "libpthread.so").write_text("INPUT(-lc)\n")
     (lib_dir / "libpthread.a").write_text("INPUT(-lc)\n")
+    (Path("/tmp") / "libpthread.so").write_text("INPUT(-lc)\n")
+    (Path("/tmp") / "libpthread.a").write_text("INPUT(-lc)\n")
 
     phases = getattr(recipe, "phases", {})
     auto_patch_bionic_sources(work_dir)
