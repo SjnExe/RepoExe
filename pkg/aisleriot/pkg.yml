@@ -32,6 +32,7 @@ phases:
   configure: |
     export SCCACHE_DISABLE=1
     meson setup build \
+      --cross-file /tmp/meson-cross.ini \
       --prefix="${PREFIX}" \
       --libdir="${PREFIX}/lib" \
       -Dguile=3.0

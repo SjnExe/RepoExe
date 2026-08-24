@@ -95,3 +95,28 @@ def setup_bionic_compat() -> None:
     (Path("/tmp/icu-include") / "android_lf.h").write_text(
         "#pragma once\n#include <sys/types.h>\n", encoding="utf-8"
     )
+
+    ndk_clangxx = resolve_ndk_tool("aarch64-linux-android24-clang++")
+    if not ndk_clangxx or not Path(ndk_clangxx).exists():
+        ndk_clangxx = ndk_clang.replace("clang", "clang++")
+    ndk_strip = resolve_ndk_tool("llvm-strip")
+    if ndk_strip == "llvm-strip" and not shutil.which("llvm-strip"):
+        ndk_strip = resolve_ndk_tool("strip")
+
+    meson_cross = f"""[binaries]
+c = '{ndk_clang}'
+cpp = '{ndk_clangxx}'
+ar = '{ndk_ar}'
+strip = '{ndk_strip}'
+pkg-config = 'pkg-config'
+
+[host_machine]
+system = 'android'
+cpu_family = 'aarch64'
+cpu = 'aarch64'
+endian = 'little'
+
+[properties]
+needs_exe_wrapper = true
+"""
+    (Path("/tmp") / "meson-cross.ini").write_text(meson_cross, encoding="utf-8")
