@@ -1,5 +1,5 @@
 name: bun
-version: "1.3.14"
+version: "1.4.0"
 revision: 0
 arch: aarch64
 description: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
@@ -7,15 +7,6 @@ homepage: https://bun.sh
 license: MIT
 maintainer: SjnExe
 build_system: custom
-
-resources:
-  tmpfs: 10
-  zram: 0
-  swap: 0
-
-toolchains:
-  clang: ">=21.0.0"
-  rust: "stable"
 
 formats:
   - apt
@@ -25,159 +16,22 @@ formats:
 channels:
   latest:
     auto_update: true
-    update_strategy: github_tag
-    source_url: https://github.com/oven-sh/bun/archive/refs/tags/bun-v{version}.tar.gz
+    update_strategy: github_release
+    source_url: https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-linux-aarch64-android.zip
 
 phases:
-  prepare: |
-    set -e
-    echo "⚡ Preparing Bun host tools..."
-    curl -fsSL https://bun.sh/install | bash || true
-
-    echo "⚡ Dynamically resolving exact WebKit commit SHA from Bun source..."
-    export WEBKIT_SHA=$(python3 -c "import re, pathlib; p = pathlib.Path; print(next((m.group(1) for f in p('.').rglob('*') if f.suffix in ('.ts', '.js', '.zig', '.cmake', '.txt') and 'node_modules' not in str(f) for m in [re.search(r'(?:webkit[_-]version|webkit_sha|WebKit/releases/download/autobuild-)([0-9a-fA-F]{40})', f.read_text('utf-8', 'ignore'))] if m), '5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b'))")
-    echo "🔒 Target WebKit SHA: ${WEBKIT_SHA}"
-
-    CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_SYSTEM_VERSION=24 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DENABLE_API_TESTS=OFF -DBUILD_TESTING=OFF -DENABLE_SAMPLING_PROFILER=ON -DENABLE_REMOTE_INSPECTOR=ON -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
-    COMPAT_HASH=$(sha256sum /home/builder/RepoExe/scripts/compat/bionic_compat.c /home/builder/RepoExe/scripts/compat/bionic_stub.h 2>/dev/null | sha256sum | head -c 8)
-    CONFIG_HASH=$(echo "${CMAKE_FLAGS}-${COMPAT_HASH}-v8" | sha256sum | head -c 8)
-    export JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}-${CONFIG_HASH}"
-
-    mkdir -p "${DESTDIR}${PREFIX}/lib" "${DESTDIR}${PREFIX}/include/JavaScriptCore"
-
-    if [ -f "${JSC_CACHE_DIR}/lib/libJavaScriptCore.a" ]; then
-      echo "✓ WebKit cache hit for SHA ${WEBKIT_SHA} (Config: ${CONFIG_HASH}). Restoring headers and libraries..."
-      cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
-      cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
-      tar -czf /tmp/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
-    else
-      echo "⚡ WebKit cache miss. Compiling JavaScriptCore natively for Bionic API 24 with sparse checkout..."
-      WK_SRC="/tmp/webkit-src"
-      rm -rf "$WK_SRC" 2>/dev/null || true
-      mkdir -p "$WK_SRC"
-      git init "$WK_SRC"
-      git -C "$WK_SRC" remote add origin https://github.com/oven-sh/webkit.git
-      git -C "$WK_SRC" config core.sparseCheckout true
-      printf "Source/bmalloc/\nSource/WTF/\nSource/JavaScriptCore/\nSource/ThirdParty/unifdef/\nSource/cmake/\nSource/CMakeLists.txt\ncmake/\nCMakeLists.txt\n" > "$WK_SRC/.git/info/sparse-checkout"
-      git -C "$WK_SRC" fetch --depth 1 origin "$WEBKIT_SHA"
-      git -C "$WK_SRC" checkout FETCH_HEAD
-
-      sed -i '/add_subdirectory(Tools)/d; /add_subdirectory(Source\/ThirdParty\/gtest)/d' "$WK_SRC/CMakeLists.txt" 2>/dev/null || true
-
-      PKG_HELPER="$(find /home/builder/RepoExe "${REPO_ROOT:-.}" "$PWD" -name setup_bionic.py 2>/dev/null | head -n 1)"
-      python3 "$PKG_HELPER" patch_cmake
-
-      mkdir -p /tmp/icu-include && ln -sfn /usr/include/unicode /tmp/icu-include/unicode
-      mkdir -p "${WK_SRC}/build" && cd "${WK_SRC}/build"
-      cmake -G Ninja .. \
-        -DCMAKE_TOOLCHAIN_FILE="${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake" \
-        -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH \
-        -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH \
-        -DANDROID_ABI=arm64-v8a \
-        -DANDROID_PLATFORM=android-24 \
-        -DCMAKE_SYSTEM_VERSION=24 \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DPORT=JSCOnly \
-        -DENABLE_STATIC_JSC=ON \
-        -DENABLE_BUN=ON \
-        -DENABLE_BUN_JSC=ON \
-        -DUSE_BUN_JSC_ADDITIONS=ON \
-        -DDEVELOPER_MODE=OFF \
-        -DENABLE_API_TESTS=OFF \
-        -DBUILD_TESTING=OFF \
-        -DENABLE_SAMPLING_PROFILER=ON \
-        -DENABLE_REMOTE_INSPECTOR=ON \
-        -DENABLE_JIT=ON \
-        -DENABLE_DFG_JIT=ON \
-        -DENABLE_FTL_JIT=ON \
-        -DENABLE_WEBASSEMBLY=ON \
-        -DENABLE_C_LOOP=OFF \
-        -DCMAKE_C_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -I/tmp -I/tmp/icu-include -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-unsafe-buffer-usage-in-container -Wno-format -Wno-unused-variable -Wno-unused-but-set-variable -Wno-deprecated-declarations -Wno-unavailable-declarations -Wno-unguarded-availability -Wno-macro-redefined" \
-        -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -D_GNU_SOURCE -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -fPIC -I/tmp -I/tmp/icu-include -include /tmp/bionic_stub.h -DENABLE_BUN=1 -DENABLE_BUN_JSC=1 -DBUN_JSC=1 -DBUN_MACOSX=0 -Wno-unsafe-buffer-usage -Wno-unsafe-buffer-usage-in-container -Wno-format -Wno-unused-variable -Wno-unused-but-set-variable -Wno-deprecated-declarations -Wno-undefined-var-template -Wno-unavailable-declarations -Wno-unguarded-availability -Wno-macro-redefined"
-      ninja -j4 JavaScriptCore
-
-      find /home/builder/RepoExe/.cache -maxdepth 1 -name "bun-jsc-*" ! -name "$(basename ${JSC_CACHE_DIR})" -exec rm -rf {} + 2>/dev/null || true
-
-      PKG_HELPER="$(find /home/builder/RepoExe "${REPO_ROOT:-.}" "$PWD" -name setup_bionic.py 2>/dev/null | head -n 1)"
-      python3 "$PKG_HELPER" archive_jsc
-
-      cp -a "${JSC_CACHE_DIR}/lib/"* "${DESTDIR}${PREFIX}/lib/" 2>/dev/null || true
-      cp -a "${JSC_CACHE_DIR}/include/"* "${DESTDIR}${PREFIX}/include/" 2>/dev/null || true
-      tar -czf /tmp/bun-webkit-bionic.tar.gz -C "${JSC_CACHE_DIR}" . 2>/dev/null || true
-
-      cd /home/builder/RepoExe
-      rm -rf "$WK_SRC" /tmp/icu-include 2>/dev/null || true
-      echo "✓ Reclaimed memory from WebKit build tree"
-    fi
-
   make: |
-    set -e
-    mkdir -p /home/builder/RepoExe/.cache/zig /tmp/fake-clang
-    export ZIG_GLOBAL_CACHE_DIR=/home/builder/RepoExe/.cache/zig
-    export ZIG_LOCAL_CACHE_DIR=/tmp/zig-cache
-
-    export WEBKIT_SHA=$(python3 -c "import re, pathlib; p = pathlib.Path; print(next((m.group(1) for f in p('.').rglob('*') if f.suffix in ('.ts', '.js', '.zig', '.cmake', '.txt') and 'node_modules' not in str(f) for m in [re.search(r'(?:webkit[_-]version|webkit_sha|WebKit/releases/download/autobuild-)([0-9a-fA-F]{40})', f.read_text('utf-8', 'ignore'))] if m), '5488984d20e0dbfe4be2c3ba8fb18eb81a5e0e8b'))")
-    CMAKE_FLAGS="-DCMAKE_TOOLCHAIN_FILE=${NDK:-/opt/android-ndk}/build/cmake/android.toolchain.cmake -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_SYSTEM_VERSION=24 -DCMAKE_BUILD_TYPE=Release -DPORT=JSCOnly -DENABLE_STATIC_JSC=ON -DENABLE_BUN=ON -DENABLE_BUN_JSC=ON -DUSE_BUN_JSC_ADDITIONS=ON -DDEVELOPER_MODE=OFF -DENABLE_API_TESTS=OFF -DBUILD_TESTING=OFF -DENABLE_SAMPLING_PROFILER=ON -DENABLE_REMOTE_INSPECTOR=ON -DENABLE_JIT=ON -DENABLE_DFG_JIT=ON -DENABLE_FTL_JIT=ON -DENABLE_WEBASSEMBLY=ON -DENABLE_C_LOOP=OFF"
-    COMPAT_HASH=$(sha256sum /home/builder/RepoExe/scripts/compat/bionic_compat.c /home/builder/RepoExe/scripts/compat/bionic_stub.h 2>/dev/null | sha256sum | head -c 8)
-    CONFIG_HASH=$(echo "${CMAKE_FLAGS}-${COMPAT_HASH}-v8" | sha256sum | head -c 8)
-    export JSC_CACHE_DIR="/home/builder/RepoExe/.cache/bun-jsc-${WEBKIT_SHA}-${CONFIG_HASH}"
-    export SHORT_SHA=$(echo "${WEBKIT_SHA}" | cut -c1-16)
-
-    echo "⚡ Pre-seeding Bun WebKit cache (${SHORT_SHA}) with native Bionic JavaScriptCore..."
-    PKG_HELPER="$(find /home/builder/RepoExe "${REPO_ROOT:-.}" "$PWD" -name setup_bionic.py 2>/dev/null | head -n 1)"
-    python3 "$PKG_HELPER" seed_bun
-    python3 "$PKG_HELPER" setup_shims
-
-    mkdir -p build/release/stamps build/stamps
-    touch build/release/stamps/webkit build/stamps/webkit 2>/dev/null || true
-
-    ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/clang
-    ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/clang++
-    ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/ld.lld
-    ln -sfn /tmp/fake-clang/version_shim /tmp/fake-clang/lld
-
-    export PATH="/tmp/fake-clang:$HOME/.bun/bin:${PATH}"
-    export CC="/tmp/fake-clang/clang"
-    export CXX="/tmp/fake-clang/clang++"
-    export LD="/tmp/fake-clang/ld.lld"
-
-    export CFLAGS="${CFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -I/tmp -include /tmp/bionic_stub.h"
-    export CXXFLAGS="${CXXFLAGS:-} -O3 -DNDEBUG -D_GNU_SOURCE -fPIC -fPIE -I/tmp -include /tmp/bionic_stub.h"
-    export LDFLAGS="${LDFLAGS:-} -pie -fuse-ld=lld -Wl,--allow-multiple-definition -Wl,-z,max-page-size=16384 -Wl,-z,relro -Wl,-z,now -llog -lm /tmp/bionic_compat.o -L/tmp -lbionic_compat"
-
-    find . -type f \( -name "*.ts" -o -name "*.js" -o -name "*.zig" -o -name "*.cmake" -o -name "CMakeLists.txt" \) -exec sed -i 's/-fno-pic/-fPIC/g; s/-Wl,-no-pie/-Wl,-pie/g; s/-no-pie/-pie/g' {} + 2>/dev/null || true
-
-    echo "⚡ Disabling host smoke-test in Bun build scripts for Bionic target..."
-    find scripts -type f \( -name "*.ts" -o -name "*.js" \) -exec sed -i 's/env BUN_DEBUG_QUIET_LOGS=1/true || env BUN_DEBUG_QUIET_LOGS=1/g' {} + 2>/dev/null || true
-
-    export BUN_TARGET="linux-aarch64-android"
-    export ZIG_TARGET="aarch64-linux-android"
-    export BUN_VERSION="${VERSION:-1.3.14}"
-    export BUN_RELEASE=1
-    export BUN_CANARY=0
-    export BUN_TAG="bun-v${VERSION:-1.3.14}"
-    unset JSC_CACHE_DIR
-    bun scripts/build.ts --profile=release --ci=true
-
+    unzip -q -o ../source.tar.gz -d . 2>/dev/null || true
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin"
-    BUN_BIN=$(find build -type f \( -name "bun" -o -name "bun-profile" \) -executable 2>/dev/null | grep -v "node_modules" | head -n 1)
-    [ -z "$BUN_BIN" ] && BUN_BIN=$(find . -type f \( -name "bun" -o -name "bun-profile" \) -executable 2>/dev/null | grep -v "node_modules" | head -n 1)
+    BUN_BIN=$(find . -name bun -type f | head -n 1)
     if [ -n "$BUN_BIN" ]; then
+      chmod +x "$BUN_BIN"
       install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     else
-      echo "::error::bun executable binary not found after build!"
+      echo "::error::bun executable not found in release archive"
       exit 1
     fi
-
   test: |
     bun --version
-    bun -e "console.log('Arch/Platform:', process.arch, process.platform)"
-    bun -e "let x=0; for(let i=0;i<1e5;i++) x+=i; console.log('JIT Loop OK:', x)"
-    bun -e "import crypto from 'node:crypto'; console.log('BoringSSL UUID:', crypto.randomUUID())"
-    bun -e "import { Database } from 'bun:sqlite'; const db = new Database(':memory:'); db.run('CREATE TABLE t(x);'); console.log('SQLite OK')"
-    bun -e "import { spawnSync } from 'node:child_process'; const p = spawnSync('echo', ['Bionic spawn OK']); console.log(p.stdout.toString().trim())"
-    bun -e "import { xxhash64 } from 'bun'; console.log('xxhash:', xxhash64('android'))"
-
-vars:
-  RUSTC_BOOTSTRAP: "1"
+    bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"

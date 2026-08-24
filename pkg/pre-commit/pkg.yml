@@ -11,14 +11,13 @@ update_strategy: pypi
 source_url: https://files.pythonhosted.org/packages/source/p/pre-commit/pre_commit-{version}.tar.gz
 build_system: custom
 formats:
-- pip
-- apt
+  - pip
+  - apt
+deps:
+  - pyyaml
 phases:
-  install: 'mkdir -p "${DESTDIR}${PREFIX}"
-
-    python3 -m pip install --ignore-installed --prefix="${DESTDIR}${PREFIX}" .
-
-    '
-  test: 'pre-commit --version
-
-    '
+  install: |
+    mkdir -p "${DESTDIR}${PREFIX}"
+    python3 -m pip install --no-deps --ignore-installed --prefix="${DESTDIR}${PREFIX}" .
+  test: |
+    pre-commit --version
