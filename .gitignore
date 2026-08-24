@@ -14,9 +14,10 @@ venv/
 output/
 artifacts/
 apt_staging/
+npm_staging/
+site/
 *.deb
 *.apk
 *.pkg.tar.zst
 *.whl
 *.tgz
-site/packages.json

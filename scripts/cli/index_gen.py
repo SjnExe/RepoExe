@@ -51,6 +51,9 @@ def prepare_site(
     apt_staging = Path("apt_staging")
     apt_staging.mkdir(parents=True, exist_ok=True)
 
+    npm_staging = Path("npm_staging")
+    npm_staging.mkdir(parents=True, exist_ok=True)
+
     # 1. Copy downloaded artifacts to respective format directories
     if art_path.exists():
         for f in art_path.rglob("*"):
@@ -66,16 +69,7 @@ def prepare_site(
             elif f.name.endswith(".whl"):
                 shutil.copy2(f, s_path / "pip" / f.name)
             elif f.name.endswith(".tgz"):
-                parts = f.name.replace(".tgz", "").split("-")
-                ver_idx = len(parts) - 1
-                for i, p in enumerate(parts):
-                    if p and p[0].isdigit():
-                        ver_idx = i
-                        break
-                pkg_name = "-".join(parts[:ver_idx]) if ver_idx > 0 else parts[0]
-                pkg_npm_dir = s_path / "npm" / pkg_name
-                pkg_npm_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(f, pkg_npm_dir / f.name)
+                shutil.copy2(f, npm_staging / f.name)
 
     # 2. Generate APT Metadata and Release File
     deb_files = list(apt_staging.glob("*.deb"))
@@ -104,7 +98,13 @@ def prepare_site(
 
     # 3. Generate Pip, NPM, & packages.json Store Manifests
     generate_pip_index(s_path)
-    generate_npm_index(s_path)
+
+    if npm_staging.exists():
+        generate_npm_index(str(npm_staging))
+        if (npm_staging / "npm").exists():
+            shutil.copytree(npm_staging / "npm", s_path / "npm", dirs_exist_ok=True)
+        shutil.rmtree(npm_staging, ignore_errors=True)
+
     generate_packages_json(
         Path(__file__).resolve().parents[2] / "pkg",
         s_path / "packages.json",
@@ -146,7 +146,6 @@ def prepare_site(
                         tag,
                         "--notes",
                         f"Automated release for {tag}",
-                        "--clobber",
                     ],
                     capture_output=True,
                     text=True,
