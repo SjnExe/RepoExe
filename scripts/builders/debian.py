@@ -211,27 +211,34 @@ def generate_release_file(
     with open(release_path, "w", encoding="utf-8") as f:
         f.write(release_content)
 
-    key_path = Path("scripts/repoexe.gpg")
-    if not key_path.exists():
-        key_path = Path("repoexe.gpg")
+    gpg_private_key = os.environ.get("GPG_PRIVATE_KEY")
+    if gpg_private_key:
+        subprocess.run(
+            ["gpg", "--import"], input=gpg_private_key, text=True, capture_output=True, check=False
+        )
+    else:
+        key_path = Path("scripts/repoexe.gpg")
+        if not key_path.exists():
+            key_path = Path("repoexe.gpg")
 
-    if key_path.exists():
-        subprocess.run(
-            ["gpg", "--import", str(key_path)], capture_output=True, check=False
-        )
-        subprocess.run(
-            [
-                "gpg",
-                "--clearsign",
-                "-o",
-                os.path.join(dists_dir, "InRelease"),
-                release_path,
-            ],
-            capture_output=True,
-            check=False,
-        )
-        subprocess.run(
-            ["gpg", "-abs", "-o", os.path.join(dists_dir, "Release.gpg"), release_path],
-            capture_output=True,
-            check=False,
-        )
+        if key_path.exists():
+            subprocess.run(
+                ["gpg", "--import", str(key_path)], capture_output=True, check=False
+            )
+
+    subprocess.run(
+        [
+            "gpg",
+            "--clearsign",
+            "-o",
+            os.path.join(dists_dir, "InRelease"),
+            release_path,
+        ],
+        capture_output=True,
+        check=False,
+    )
+    subprocess.run(
+        ["gpg", "-abs", "-o", os.path.join(dists_dir, "Release.gpg"), release_path],
+        capture_output=True,
+        check=False,
+    )
