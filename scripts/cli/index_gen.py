@@ -146,7 +146,6 @@ def prepare_site(
                         tag,
                         "--notes",
                         f"Automated release for {tag}",
-                        "--clobber",
                     ],
                     capture_output=True,
                     text=True,
