@@ -6,11 +6,17 @@ from pathlib import Path
 
 
 class ProotTestRunner:
-    def __init__(self, prefix: str = "/data/data/com.termux/files/usr", home: str = "/data/data/com.termux/files/home"):
+    def __init__(
+        self,
+        prefix: str = "/data/data/com.termux/files/usr",
+        home: str = "/data/data/com.termux/files/home",
+    ):
         self.prefix = prefix
         self.home = home
 
-    def execute_test(self, package_name: str, test_commands: str, destdir: Path | None = None) -> bool:
+    def execute_test(
+        self, package_name: str, test_commands: str, destdir: Path | None = None
+    ) -> bool:
         print(f"[{package_name}] Running tests in Termux Docker sandbox...")
 
         stage_dir = destdir / "stage" if destdir else None
@@ -37,11 +43,7 @@ class ProotTestRunner:
             test_commands,
             "TEST_EOF",
             "chmod +x $HOME/test_payload.sh",
-            'if command -v xvfb-run >/dev/null 2>&1 && [ -z "$DISPLAY" ]; then',
-            '  xvfb-run -a $HOME/test_payload.sh',
-            'else',
-            '  $HOME/test_payload.sh',
-            'fi',
+            "$HOME/test_payload.sh",
         ]
         script_content = "\n".join(script_lines) + "\n"
         script_path.write_text(script_content, encoding="utf-8")
@@ -55,7 +57,14 @@ class ProotTestRunner:
                 "/home/builder/RepoExe", github_workspace
             )
 
-        docker_cmd = ["docker", "run", "--rm", "-i"]
+        docker_cmd = [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--security-opt",
+            "seccomp=unconfined",
+        ]
         if stage_dir and stage_dir.exists():
             docker_cmd.extend(["-v", f"{host_stage_dir}:/tmp/stage:ro"])
 
@@ -72,19 +81,57 @@ class ProotTestRunner:
             bool(shutil.which("docker"))
             and subprocess.run(
                 ["docker", "info"], capture_output=True, check=False
-            ).returncode == 0
+            ).returncode
+            == 0
         )
 
         if not has_docker:
-            raise RuntimeError(f"❌ [{package_name}] Docker is unavailable. Termux Docker sandbox is required for smoke tests.")
-
-        with open(script_path, "rb") as stdin_f:
-            res = subprocess.run(
-                docker_cmd, stdin=stdin_f, capture_output=True, text=True, check=False
+            raise RuntimeError(
+                f"❌ [{package_name}] Docker is unavailable. Termux Docker sandbox is required for smoke tests."
             )
 
+        subprocess.run(
+            ["docker", "pull", termux_image], check=False, capture_output=True
+        )
+
+        with open(script_path, "rb") as stdin_f:
+            try:
+                res = subprocess.run(
+                    docker_cmd,
+                    stdin=stdin_f,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=180,
+                )
+            except subprocess.TimeoutExpired as exc:
+                stdout_txt = (
+                    exc.stdout
+                    if isinstance(exc.stdout, str)
+                    else (
+                        exc.stdout.decode("utf-8", errors="replace")
+                        if exc.stdout
+                        else ""
+                    )
+                )
+                stderr_txt = (
+                    exc.stderr
+                    if isinstance(exc.stderr, str)
+                    else (
+                        exc.stderr.decode("utf-8", errors="replace")
+                        if exc.stderr
+                        else ""
+                    )
+                )
+                raise RuntimeError(
+                    f"❌ Smoke test timed out after 180 seconds for {package_name}:\n"
+                    f"--- STDOUT ---\n{stdout_txt}\n--- STDERR ---\n{stderr_txt}"
+                ) from exc
+
         if res.returncode == 0:
-            print(f"✓ [{package_name}] Smoke test passed successfully inside Termux Docker.")
+            print(
+                f"✓ [{package_name}] Smoke test passed successfully inside Termux Docker."
+            )
             if res.stdout.strip():
                 print(f"--- STDOUT ---\n{res.stdout.strip()}")
             if res.stderr.strip():

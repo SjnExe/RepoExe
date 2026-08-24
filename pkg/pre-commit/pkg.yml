@@ -1,5 +1,5 @@
 name: pre-commit
-version: "4.1.0"
+version: 4.6.2
 revision: 0
 arch: aarch64
 description: Framework for managing and maintaining multi-language pre-commit hooks
@@ -13,10 +13,11 @@ build_system: custom
 formats:
   - pip
   - apt
-
 phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}"
     python3 -m pip install --ignore-installed --prefix="${DESTDIR}${PREFIX}" .
+    # Delete host-compiled C-extensions to enforce pure-Python mode without glibc
+    find "${DESTDIR}${PREFIX}" -name "*_yaml*.so" -delete 2>/dev/null || true
   test: |
     pre-commit --version

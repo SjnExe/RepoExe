@@ -3,6 +3,10 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+_scripts_dir = str(Path(__file__).resolve().parents[1])
+if _scripts_dir not in sys.path:
+    sys.path.insert(0, _scripts_dir)
 from typing import Any
 
 import requests
@@ -153,7 +157,7 @@ def resolve_latest_version(recipe: Any) -> str | None:
 
 def check_package_channel_updates(pkg_dir: Path) -> None:
     for p_dir in sorted(pkg_dir.iterdir()):
-        recipe_file = p_dir / "build.yml"
+        recipe_file = p_dir / "pkg.yml"
         if not (p_dir.is_dir() and recipe_file.exists()):
             continue
 

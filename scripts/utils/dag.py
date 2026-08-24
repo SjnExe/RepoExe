@@ -12,7 +12,7 @@ class DependencyGraph:
 
     def _load_recipes(self) -> None:
         for pkg_dir in self.packages_dir.iterdir():
-            recipe_file = pkg_dir / "build.yml"
+            recipe_file = pkg_dir / "pkg.yml"
             if pkg_dir.is_dir() and recipe_file.exists():
                 recipe = parse_recipe(recipe_file)
                 self.recipes[recipe.name] = recipe

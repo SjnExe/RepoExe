@@ -19,3 +19,4 @@ apt_staging/
 *.pkg.tar.zst
 *.whl
 *.tgz
+site/packages.json

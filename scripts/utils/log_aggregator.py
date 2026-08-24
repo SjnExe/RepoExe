@@ -4,8 +4,13 @@ from pathlib import Path
 
 def classify_log(content: str) -> tuple[str, str, bool]:
     lines = content.splitlines()
-    has_traceback = "Traceback (most recent call last):" in content or "RuntimeError:" in content
-    has_subcommand_failed = "ninja: build stopped: subcommand failed" in content or "cgo: C compiler" in content
+    has_traceback = (
+        "Traceback (most recent call last):" in content or "RuntimeError:" in content
+    )
+    has_subcommand_failed = (
+        "ninja: build stopped: subcommand failed" in content
+        or "cgo: C compiler" in content
+    )
     has_smoke_test_failure = "Smoke test failed for" in content
     has_smoke_test_pass = "Smoke test passed" in content or "✓ [" in content
     has_pack_stage = "=== STAGE: PACK ===" in content
@@ -18,12 +23,35 @@ def classify_log(content: str) -> tuple[str, str, bool]:
                 capture = True
             if capture:
                 failure_lines.append(line)
-                if len(failure_lines) > 30:
+                if len(failure_lines) > 40:
                     break
         detail = "\n".join(failure_lines) if failure_lines else "\n".join(lines[-25:])
         return "❌ STATUS: TEST FAILURE", detail, True
     elif has_traceback or has_subcommand_failed or not has_pack_stage:
-        detail = "\n".join(lines[-30:])
+        error_snippets = []
+        error_keywords = (
+            "error:",
+            "fatal error:",
+            "panic:",
+            "FAILED:",
+            "undefined reference to",
+        )
+        for i, line in enumerate(lines):
+            if any(kw in line for kw in error_keywords) and not line.strip().startswith(
+                "note:"
+            ):
+                start = max(0, i - 2)
+                end = min(len(lines), i + 4)
+                error_snippets.extend(lines[start:end])
+                error_snippets.append("---")
+        if error_snippets:
+            deduped = []
+            for item in error_snippets:
+                if not deduped or item != deduped[-1]:
+                    deduped.append(item)
+            detail = "\n".join(deduped[:50])
+        else:
+            detail = "\n".join(lines[-30:])
         return "❌ STATUS: BUILD FAILURE", detail, True
     elif has_smoke_test_pass or has_pack_stage:
         return "✓ STATUS: SUCCESS", "", False
@@ -35,7 +63,8 @@ def generate_summary(logs_dir: Path, output_file: Path) -> bool:
     summary = [
         "================================================================================",
         "REPOEXE CI/CD BUILD & TEST SUMMARY",
-        "================================================================ dialect\n",
+        "================================================================================",
+        "",
     ]
 
     if not logs_dir.exists() or not any(logs_dir.iterdir()):

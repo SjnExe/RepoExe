@@ -1,0 +1,132 @@
+name: bun
+version: "1.4.0"
+revision: 0
+arch: aarch64
+description: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
+homepage: https://bun.sh
+license: MIT
+maintainer: SjnExe
+build_system: custom
+
+formats:
+  - apt
+  - pacman
+  - apk
+
+channels:
+  latest:
+    auto_update: true
+    update_strategy: github_release
+    source_url: https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-linux-aarch64-android.zip
+
+phases:
+  make: |
+    cat << 'CSHIM' > bun_shim.c
+    #define _GNU_SOURCE
+    #include <signal.h>
+    #include <ucontext.h>
+    #include <unistd.h>
+    #include <errno.h>
+    #include <stdint.h>
+    #include <dlfcn.h>
+    #include <pthread.h>
+
+    #ifndef __NR_close_range
+    #define __NR_close_range 436
+    #endif
+    #ifndef __NR_openat2
+    #define __NR_openat2 437
+    #endif
+    #ifndef __NR_fchmodat2
+    #define __NR_fchmodat2 438
+    #endif
+
+    static void sigsys_handler(int sig, siginfo_t *info, void *context) {
+        if (sig == SIGSYS && context != NULL) {
+            ucontext_t *ctx = (ucontext_t *)context;
+            ctx->uc_mcontext.regs[0] = -ENOSYS;
+            ctx->uc_mcontext.pc += 4;
+        }
+    }
+
+    static void install_sigsys_handler(void) {
+        int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
+            dlsym(RTLD_NEXT, "sigaction");
+
+        struct sigaction sa;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
+        sa.sa_sigaction = sigsys_handler;
+
+        if (real_sigaction) {
+            real_sigaction(SIGSYS, &sa, NULL);
+        } else {
+            sigaction(SIGSYS, &sa, NULL);
+        }
+    }
+
+    int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact) {
+        int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
+            dlsym(RTLD_NEXT, "sigaction");
+
+        if (signum == SIGSYS) {
+            if (oldact != NULL) {
+                sigemptyset(&oldact->sa_mask);
+                oldact->sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
+                oldact->sa_sigaction = sigsys_handler;
+            }
+            return 0;
+        }
+
+        if (real_sigaction) {
+            return real_sigaction(signum, act, oldact);
+        }
+        return 0;
+    }
+
+    static void on_fork_child(void) {
+        install_sigsys_handler();
+    }
+
+    __attribute__((constructor)) static void init_bun_shim(void) {
+        install_sigsys_handler();
+        pthread_atfork(NULL, NULL, on_fork_child);
+    }
+    CSHIM
+
+    ${CC:-clang} -shared -fPIC -O2 bun_shim.c -ldl -o libbun_shim.so
+    rm -f bun_shim.c
+  install: |
+    mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/libexec" "${DESTDIR}${PREFIX}/lib"
+    BUN_BIN=$(find . -name bun -type f | head -n 1)
+    if [ -z "$BUN_BIN" ]; then
+      echo "::error::bun executable not found in release archive"
+      exit 1
+    fi
+    chmod +x "$BUN_BIN"
+    install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/libexec/bun-bin"
+    install -Dm755 libbun_shim.so "${DESTDIR}${PREFIX}/lib/libbun_shim.so"
+
+    cat << 'LAUNCHER' > "${DESTDIR}${PREFIX}/bin/bun"
+    #!/data/data/com.termux/files/usr/bin/bash
+    SELF_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+    BASE_DIR="$(cd "$SELF_DIR/.." && pwd)"
+
+    if [ -f "$BASE_DIR/lib/libbun_shim.so" ]; then
+      export LD_PRELOAD="$BASE_DIR/lib/libbun_shim.so${LD_PRELOAD:+:$LD_PRELOAD}"
+    elif [ -f "/data/data/com.termux/files/usr/lib/libbun_shim.so" ]; then
+      export LD_PRELOAD="/data/data/com.termux/files/usr/lib/libbun_shim.so${LD_PRELOAD:+:$LD_PRELOAD}"
+    fi
+
+    if [ -f "$BASE_DIR/libexec/bun-bin" ]; then
+      exec "$BASE_DIR/libexec/bun-bin" "$@"
+    else
+      exec "/data/data/com.termux/files/usr/libexec/bun-bin" "$@"
+    fi
+    LAUNCHER
+    chmod +x "${DESTDIR}${PREFIX}/bin/bun"
+  test: |
+    bun --version
+    bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"
+    bun -e "const { spawnSync } = require('child_process'); const res = spawnSync('bun', ['--version']); if (res.status !== 0) process.exit(1);"
+    bun -e "console.log('Math test:', 21 + 21)"

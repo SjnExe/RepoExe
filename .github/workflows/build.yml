@@ -66,7 +66,7 @@ jobs:
           python-version: "3.14"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           enable-cache: true
 
@@ -108,7 +108,7 @@ jobs:
           python-version: "3.14"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           enable-cache: true
 
@@ -152,7 +152,7 @@ jobs:
           python-version: "3.14"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           enable-cache: true
 
@@ -221,13 +221,20 @@ jobs:
           restore-keys: |
             build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-
             build-cache-${{ matrix.build_system }}-${{ matrix.package }}-
-            build-cache-${{ matrix.build_system }}-
-            build-cache-
 
       - name: Fix Cache Permissions
         run: |
           mkdir -p .sccache .gocache .gomodcache .cargoregistry .cargogit .cache
+          # Prune temporary compiler object caches before committing to Actions cache
+          rm -rf .cache/zig/z /tmp/* 2>/dev/null || true
+          find .cache -name "*.tar.gz" -delete 2>/dev/null || true
           sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit .cache 2>/dev/null || true
+
+      - name: Optimize Docker Daemon Concurrency
+        run: |
+          sudo mkdir -p /etc/docker
+          echo '{"max-concurrent-downloads": 10, "max-concurrent-uploads": 10, "features": {"buildkit": true}}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker || true
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0
@@ -235,6 +242,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pre-fetch Tester Container in Background
+        run: |
+          docker pull ghcr.io/sjnexe/repoexe-tester:latest >/dev/null 2>&1 &
 
       - name: Compile Package Payload
         env:
@@ -250,6 +261,7 @@ jobs:
 
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
+            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
@@ -257,6 +269,7 @@ jobs:
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env SCCACHE_CACHE_SIZE="1G" \
             --env GOCACHE="/home/builder/.cache/go-build" \
             --env GOMODCACHE="/home/builder/go/pkg/mod" \
             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
@@ -272,31 +285,48 @@ jobs:
         run: |
           RAM_STR="N/A"
           SWAP_STR="N/A"
+          RSS_STR="N/A"
+          CACHE_STR="N/A"
           CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
           [ -d "$CG_DIR" ] || CG_DIR="/sys/fs/cgroup"
+          TOTAL_RAM_BYTES="$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2 * 1024}' || echo 17179869184)"
+
           if [ -f "$CG_DIR/memory.peak" ]; then
             BYTES="$(cat "$CG_DIR/memory.peak" 2>/dev/null || echo 0)"
             if [ "$BYTES" -gt 0 ] 2>/dev/null; then
-              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+              RAM_STR="$(awk -v b="$BYTES" -v t="$TOTAL_RAM_BYTES" 'BEGIN {printf "%.2f GB (%.1f%% of host)", b/1073741824, (b/t)*100}')"
             fi
           elif [ -f "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" ]; then
             BYTES="$(cat "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" 2>/dev/null || echo 0)"
             if [ "$BYTES" -gt 0 ] 2>/dev/null; then
-              RAM_STR="$(awk -v b="$BYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+              RAM_STR="$(awk -v b="$BYTES" -v t="$TOTAL_RAM_BYTES" 'BEGIN {printf "%.2f GB (%.1f%% of host)", b/1073741824, (b/t)*100}')"
             fi
           fi
+
           if [ -f "$CG_DIR/memory.swap.peak" ]; then
             SBYTES="$(cat "$CG_DIR/memory.swap.peak" 2>/dev/null || echo 0)"
             if [ "$SBYTES" -gt 0 ] 2>/dev/null; then
               SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            else
+              SWAP_STR="0.00 GB (0 bytes)"
             fi
           fi
+
+          if [ -f "$CG_DIR/memory.stat" ]; then
+            ANON="$(grep -E '^anon ' "$CG_DIR/memory.stat" | awk '{print $2}' || echo 0)"
+            FILE_CACHE="$(grep -E '^file ' "$CG_DIR/memory.stat" | awk '{print $2}' || echo 0)"
+            [ "$ANON" -gt 0 ] 2>/dev/null && RSS_STR="$(awk -v b="$ANON" 'BEGIN {printf "%.2f GB", b/1073741824}')"
+            [ "$FILE_CACHE" -gt 0 ] 2>/dev/null && CACHE_STR="$(awk -v b="$FILE_CACHE" 'BEGIN {printf "%.2f GB", b/1073741824}')"
+          fi
+
           {
-            echo "### 📊 Peak Memory Consumption (${{ matrix.package }})"
-            echo '```text'
-            echo "Peak RAM Usage:  ${RAM_STR}"
-            echo "Peak Swap Usage: ${SWAP_STR}"
-            echo '```'
+            echo "### 📊 Memory & Resource Telemetry (${{ matrix.package }})"
+            echo "| Metric | Consumption | Target Limit |"
+            echo "| :--- | :--- | :--- |"
+            echo "| **Peak RAM Usage** | \`${RAM_STR}\` | 16.00 GB Physical |"
+            echo "| **Peak Swap / ZRAM** | \`${SWAP_STR}\` | ${{ matrix.swap }}GB Swap / ${{ matrix.zram }}GB ZRAM |"
+            echo "| **Anonymous RSS** | \`${RSS_STR}\` | Working Set |"
+            echo "| **Page Cache / tmpfs** | \`${CACHE_STR}\` | ${{ matrix.tmpfs }}GB tmpfs Max |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Assemble Package Archives
@@ -312,6 +342,7 @@ jobs:
 
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
+            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
@@ -319,6 +350,7 @@ jobs:
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env SCCACHE_CACHE_SIZE="1G" \
             --env GOCACHE="/home/builder/.cache/go-build" \
             --env GOMODCACHE="/home/builder/go/pkg/mod" \
             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
@@ -345,6 +377,7 @@ jobs:
 
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
+            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
@@ -352,6 +385,7 @@ jobs:
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env SCCACHE_CACHE_SIZE="1G" \
             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
             python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
@@ -359,6 +393,9 @@ jobs:
       - name: Fix Cache Permissions Before Save
         if: always()
         run: |
+          # Prune temporary compiler object caches before committing to Actions cache
+          rm -rf .cache/zig/z /tmp/* 2>/dev/null || true
+          find .cache -name "*.tar.gz" -delete 2>/dev/null || true
           sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit .cache 2>/dev/null || true
 
       - name: Save Toolchain & Build Caches
@@ -447,7 +484,7 @@ jobs:
           python-version: "3.14"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           enable-cache: true
 

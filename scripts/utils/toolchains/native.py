@@ -16,11 +16,13 @@ def generate_cmake_toolchain(arch: str, ndk_path: str, output_path: str) -> str:
         raise ValueError(f"Unsupported architecture for CMake generation: {arch}")
 
     api_level = "24"
-    prebuilt_dir = (
-        "linux-aarch64"
-        if os.path.exists(f"{ndk_path}/toolchains/llvm/prebuilt/linux-aarch64")
-        else "linux-x86_64"
+    prebuilt_base = os.path.join(ndk_path, "toolchains", "llvm", "prebuilt")
+    prebuilts = (
+        [d for d in os.listdir(prebuilt_base) if not d.startswith(".")]
+        if os.path.exists(prebuilt_base)
+        else []
     )
+    prebuilt_dir = prebuilts[0] if prebuilts else "linux-arm64"
 
     cmake_content = f"""
 set(CMAKE_SYSTEM_NAME Android)
@@ -77,11 +79,13 @@ class NativeToolchain:
         self.clang_target = f"{self.target_triple}{self.api_level}"
 
     def get_env(self) -> dict:
-        prebuilt_dir = (
-            "linux-aarch64"
-            if os.path.exists(f"{self.ndk_path}/toolchains/llvm/prebuilt/linux-aarch64")
-            else "linux-x86_64"
+        prebuilt_base = os.path.join(self.ndk_path, "toolchains", "llvm", "prebuilt")
+        prebuilts = (
+            [d for d in os.listdir(prebuilt_base) if not d.startswith(".")]
+            if os.path.exists(prebuilt_base)
+            else []
         )
+        prebuilt_dir = prebuilts[0] if prebuilts else "linux-arm64"
         llvm_bin = f"{self.ndk_path}/toolchains/llvm/prebuilt/{prebuilt_dir}/bin"
 
         env = {

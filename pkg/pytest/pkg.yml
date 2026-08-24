@@ -1,5 +1,5 @@
 name: pytest
-version: "8.3.4"
+version: 9.1.1
 revision: 0
 arch: aarch64
 description: Simple powerful testing framework for Python
@@ -11,17 +11,20 @@ update_strategy: pypi
 source_url: https://files.pythonhosted.org/packages/source/p/pytest/pytest-{version}.tar.gz
 build_system: custom
 formats:
-  - pip
-  - apt
-
+- pip
+- apt
 phases:
-  install: |
-    git config --global --add safe.directory "*" || true
-    export SETUPTOOLS_SCM_PRETEND_VERSION="8.3.4"
-    mkdir -p "${DESTDIR}${PREFIX}"
-    python3 -m pip install --ignore-installed --prefix="${DESTDIR}${PREFIX}" .
-  test: |
-    pytest --version
+  install: 'git config --global --add safe.directory "*" || true
 
+    export SETUPTOOLS_SCM_PRETEND_VERSION="8.3.4"
+
+    mkdir -p "${DESTDIR}${PREFIX}"
+
+    python3 -m pip install --ignore-installed --prefix="${DESTDIR}${PREFIX}" .
+
+    '
+  test: 'pytest --version
+
+    '
 vars:
-  SETUPTOOLS_SCM_PRETEND_VERSION: "8.3.4"
+  SETUPTOOLS_SCM_PRETEND_VERSION: 8.3.4

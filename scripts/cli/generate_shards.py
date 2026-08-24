@@ -57,7 +57,9 @@ def get_changed_packages(repo_root: Path) -> set[str]:
     }
 
 
-def parse_target_tokens(raw_input: str, dag: DependencyGraph, pkgs_dir: Path) -> list[str]:
+def parse_target_tokens(
+    raw_input: str, dag: DependencyGraph, pkgs_dir: Path
+) -> list[str]:
     all_pkgs = set(dag.recipes.keys())
     tokens = raw_input.split()
 
@@ -99,10 +101,10 @@ def parse_target_tokens(raw_input: str, dag: DependencyGraph, pkgs_dir: Path) ->
             deps = set((recipe.deps or []) + (recipe.build_deps or []))
             for dep in deps:
                 if dep in excluded and not check_remote_release_exists(dep):
-                        print(
-                            f"::error:: Target '{pkg}' requires '{dep}', but '{dep}' was explicitly excluded (!{dep}) and no remote release exists."
-                        )
-                        sys.exit(1)
+                    print(
+                        f"::error:: Target '{pkg}' requires '{dep}', but '{dep}' was explicitly excluded (!{dep}) and no remote release exists."
+                    )
+                    sys.exit(1)
 
     expanded_targets = set(final_requested)
     for pkg in list(final_requested):
@@ -116,10 +118,12 @@ def parse_target_tokens(raw_input: str, dag: DependencyGraph, pkgs_dir: Path) ->
     return list(expanded_targets)
 
 
-def build_matrix_layer(pkgs_list: list[str], pkgs_dir: Path, dag: DependencyGraph) -> list[dict]:
+def build_matrix_layer(
+    pkgs_list: list[str], pkgs_dir: Path, dag: DependencyGraph
+) -> list[dict]:
     matrix = []
     for p in sorted(pkgs_list):
-        recipe_path = pkgs_dir / p / "build.yml"
+        recipe_path = pkgs_dir / p / "pkg.yml"
         if not recipe_path.exists():
             continue
         try:
@@ -129,23 +133,28 @@ def build_matrix_layer(pkgs_list: list[str], pkgs_dir: Path, dag: DependencyGrap
             max_swap = getattr(r.resources, "swap", 0)
             max_free_space = getattr(r.resources, "free_space", False)
 
-            for dep_name in (r.build_deps or []):
-                dep_recipe_path = pkgs_dir / dep_name / "build.yml"
+            for dep_name in r.build_deps or []:
+                dep_recipe_path = pkgs_dir / dep_name / "pkg.yml"
                 if dep_recipe_path.exists():
                     dr = parse_recipe(dep_recipe_path, channel="latest")
                     max_zram = max(max_zram, getattr(dr.resources, "zram", 0))
                     max_swap = max(max_swap, getattr(dr.resources, "swap", 0))
-                    max_free_space = max_free_space or getattr(dr.resources, "free_space", False)
+                    max_free_space = max_free_space or getattr(
+                        dr.resources, "free_space", False
+                    )
 
-            matrix.append({
-                "package": p,
-                "channel": "latest",
-                "heavy": r.heavy_build or (max_swap > 0 or max_zram > 0),
-                "build_system": r.build_system,
-                "zram": max_zram,
-                "swap": max_swap,
-                "free_space": max_free_space,
-            })
+            matrix.append(
+                {
+                    "package": p,
+                    "channel": "latest",
+                    "heavy": r.heavy_build or (max_swap > 0 or max_zram > 0),
+                    "build_system": r.build_system,
+                    "zram": max_zram,
+                    "swap": max_swap,
+                    "free_space": max_free_space,
+                    "tmpfs": getattr(r.resources, "tmpfs", 12),
+                }
+            )
         except Exception:
             pass
     return matrix
@@ -161,7 +170,9 @@ def main() -> None:
     if not raw_input or raw_input == "auto":
         changed_pkgs = list(get_changed_packages(repo_root))
         if changed_pkgs:
-            target_pkgs = list(parse_target_tokens(" ".join(changed_pkgs), dag, pkgs_dir))
+            target_pkgs = list(
+                parse_target_tokens(" ".join(changed_pkgs), dag, pkgs_dir)
+            )
         else:
             target_pkgs = list(dag.recipes.keys())
     else:

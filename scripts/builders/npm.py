@@ -42,16 +42,22 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     else:
         # Fallback if it's a flat build structure without full Termux prefix
         for item in stage_dir.iterdir():
-            if item.is_dir() and item.name not in ("DEBIAN", "npm_package", "wheel_build"):
-                shutil.copytree(item, npm_pkg_dir / "usr" / item.name, dirs_exist_ok=True)
+            if item.is_dir() and item.name not in (
+                "DEBIAN",
+                "npm_package",
+                "wheel_build",
+            ):
+                shutil.copytree(
+                    item, npm_pkg_dir / "usr" / item.name, dirs_exist_ok=True
+                )
 
     # Generate a robust bash wrapper to execute the deep-nested binary with the correct dynamic linker and library paths
     wrapper_script = (
         "#!/data/data/com.termux/files/usr/bin/bash\n"
         "set -e\n"
-        "DIR=\"$(dirname \"$(readlink -f \"$0\" 2>/dev/null || realpath \"$0\" 2>/dev/null || echo \"$0\")\")\"\n"
-        "export LD_LIBRARY_PATH=\"${DIR}/../usr/lib:$LD_LIBRARY_PATH\"\n"
-        "exec \"${DIR}/../usr/bin/" + recipe.name + "\" \"$@\"\n"
+        'DIR="$(dirname "$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")")"\n'
+        'export LD_LIBRARY_PATH="${DIR}/../usr/lib:$LD_LIBRARY_PATH"\n'
+        'exec "${DIR}/../usr/bin/' + recipe.name + '" "$@"\n'
     )
 
     bin_target = bin_dir / recipe.name

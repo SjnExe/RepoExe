@@ -18,9 +18,21 @@ def get_exact_package_artifacts(art_path: Path, pkg_name: str) -> list[Path]:
         if not f.is_file():
             continue
         name = f.name
-        
+
         # 1. Metadata file
-        if name == f"{pkg_name}_metadata.json" or name.startswith(f"{pkg_name}_") and name.endswith(".deb") or name.startswith(f"{pkg_name}-") and (".pkg.tar.zst" in name or ".pkg.tar.gz" in name) or name.startswith(f"{pkg_name}-") and name.endswith(".apk") or name.startswith(f"{pkg_name}-") and name.endswith(".tgz") or name.startswith(f"{clean_pkg}-") and name.endswith(".whl"):
+        if (
+            name == f"{pkg_name}_metadata.json"
+            or name.startswith(f"{pkg_name}_")
+            and name.endswith(".deb")
+            or name.startswith(f"{pkg_name}-")
+            and (".pkg.tar.zst" in name or ".pkg.tar.gz" in name)
+            or name.startswith(f"{pkg_name}-")
+            and name.endswith(".apk")
+            or name.startswith(f"{pkg_name}-")
+            and name.endswith(".tgz")
+            or name.startswith(f"{clean_pkg}-")
+            and name.endswith(".whl")
+        ):
             matching.append(f)
 
     return sorted(set(matching))
@@ -123,12 +135,22 @@ def prepare_site(
 
                 upload_args = [str(f) for f in matching_files]
 
-                subprocess.run(["gh", "release", "view", tag], capture_output=True, check=False)
+                subprocess.run(
+                    ["gh", "release", "view", tag], capture_output=True, check=False
+                )
                 res = subprocess.run(
-                    ["gh", "release", "create", tag] + upload_args + ["--title", tag, "--notes", f"Automated release for {tag}", "--clobber"],
+                    ["gh", "release", "create", tag]
+                    + upload_args
+                    + [
+                        "--title",
+                        tag,
+                        "--notes",
+                        f"Automated release for {tag}",
+                        "--clobber",
+                    ],
                     capture_output=True,
                     text=True,
-                    check=False
+                    check=False,
                 )
                 if res.returncode == 0:
                     print(f"✓ Successfully published GitHub release tag: {tag}")
@@ -137,14 +159,18 @@ def prepare_site(
                         ["gh", "release", "upload", tag] + upload_args + ["--clobber"],
                         capture_output=True,
                         text=True,
-                        check=False
+                        check=False,
                     )
                     if res_up.returncode == 0:
                         print(f"✓ Uploaded release assets to existing tag: {tag}")
                     else:
-                        print(f"::warning:: Failed to upload release assets for {tag}: {res_up.stderr.strip()}")
+                        print(
+                            f"::warning:: Failed to upload release assets for {tag}: {res_up.stderr.strip()}"
+                        )
             except Exception as e:
-                print(f"::warning:: Failed publishing release tag for {pkg_meta_file.name}: {e}")
+                print(
+                    f"::warning:: Failed publishing release tag for {pkg_meta_file.name}: {e}"
+                )
 
     (s_path / ".nojekyll").touch()
     print(f"✓ Complete RepoExe site environment successfully generated at {s_path}")

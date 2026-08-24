@@ -121,7 +121,7 @@ def prune_release_tags() -> None:
             continue
 
         pkg, channel = tag.split("@", 1)
-        recipe_path = pkgs_dir / pkg / "build.yml"
+        recipe_path = pkgs_dir / pkg / "pkg.yml"
 
         if recipe_path.exists():
             try:

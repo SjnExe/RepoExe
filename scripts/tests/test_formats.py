@@ -14,7 +14,7 @@ def test_all_package_formats_valid():
     supported_formats = {"apt", "pacman", "apk", "pip", "npm"}
 
     for p_dir in sorted(pkg_dir.iterdir()):
-        recipe_file = p_dir / "build.yml"
+        recipe_file = p_dir / "pkg.yml"
         if p_dir.is_dir() and recipe_file.exists():
             recipe = parse_recipe(recipe_file)
             assert len(recipe.formats) > 0, (
@@ -33,7 +33,6 @@ def test_pip_index_generation(tmp_path):
 
     generate_pip_index(tmp_path)
 
-    # Verify simple index HTML files are correctly structured
     assert (tmp_path / "pip" / "index.html").exists()
     assert (tmp_path / "pip" / "pydantic" / "index.html").exists()
 
@@ -51,7 +50,6 @@ def test_npm_index_generation(tmp_path):
 
     generate_npm_index(tmp_path)
 
-    # Verify NPM package directory and package.json manifest exist
     assert (tmp_path / "npm" / "tsc" / "package.json").exists()
     assert (tmp_path / "npm" / "tsc" / "tsc-7.0.2.tgz").exists()
 
@@ -67,3 +65,21 @@ def test_repository_recipe_consistency():
 
     assert report["total_packages"] == report["valid_packages"]
     assert len(report["invalid_packages"]) == 0
+
+
+def test_all_recipes_pinned_to_version():
+    """Ensures every remote recipe explicitly pins its source_url to {version} or a tag/ref."""
+    pkg_dir = REPO_ROOT / "pkg"
+    for p_dir in sorted(pkg_dir.iterdir()):
+        recipe_file = p_dir / "pkg.yml"
+        if p_dir.is_dir() and recipe_file.exists():
+            raw_text = recipe_file.read_text(encoding="utf-8")
+            recipe = parse_recipe(recipe_file)
+            src = recipe.source_url or ""
+            if src and src != "local":
+                assert (
+                    "{version}" in raw_text or "#" in src or "releases/download" in src
+                ), (
+                    f"Package {recipe.name} has unpinned source_url '{src}' which"
+                    " could pull unreleased HEAD."
+                )

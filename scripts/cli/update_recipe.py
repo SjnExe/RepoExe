@@ -5,7 +5,7 @@ import yaml
 
 
 def update_recipe(pkg: str, channel: str, new_version: str) -> None:
-    recipe_path = Path("pkg") / pkg / "build.yml"
+    recipe_path = Path("pkg") / pkg / "pkg.yml"
     if not recipe_path.exists():
         print(f"Error: {recipe_path} does not exist.", file=sys.stderr)
         sys.exit(1)
@@ -24,6 +24,7 @@ def update_recipe(pkg: str, channel: str, new_version: str) -> None:
         yaml.dump(d, f, sort_keys=False)
 
     print(f"✓ Successfully updated {pkg} ({channel}) to {new_version}")
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:

@@ -15,7 +15,7 @@ This universal script will automatically detect your active package manager (APT
 ## Features
 
 - **Multi-Format Support:** Natively distributes `.deb` (APT), `.pkg.tar.zst` (Pacman), and `.apk` (Alpine) packages.
-- **Standalone Build System**: Packages are defined declaratively via `build.yml` using a custom Python orchestrator.
+- **Standalone Build System**: Packages are defined declaratively via `pkg.yml` using a custom Python orchestrator.
 - **Independent CI/CD Pipelines**: Automated dependency tracking, dynamic CI matrix sharding, and static Pages deployments.
 - **Hermetic Docker Environments**: Reproducible artifact generation through strictly sandboxed custom Docker builder images.
 
