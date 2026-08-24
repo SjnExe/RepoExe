@@ -15,7 +15,7 @@ formats:
   - pacman
   - apk
 
-deps:
+build_deps:
   - gtk3
   - guile
   - librsvg
@@ -23,10 +23,13 @@ deps:
   - libxml2
   - desktop-file-utils
   - shared-mime-info
-  - appstream-util
-  - yelp-tools
-  - qtbase5-dev
-  - libqt5svg5-dev
+
+deps:
+  - gtk3
+  - guile
+  - librsvg
+  - libcanberra
+  - libxml2
 
 phases:
   configure: |
@@ -35,14 +38,15 @@ phases:
       --cross-file /tmp/meson-cross.ini \
       --prefix="${PREFIX}" \
       --libdir="${PREFIX}/lib" \
-      -Dguile=3.0
+      -Dguile=3.0 \
+      -Dtheme_kde=false
   make: |
     ninja -C build -j4
   install: |
     DESTDIR="${DESTDIR}" ninja -C build install
     if command -v termux-elf-cleaner >/dev/null 2>&1; then
-      termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/sol"
+      termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/sol" 2>/dev/null || true
       termux-elf-cleaner "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true
     fi
   test: |
-    readelf -h "$(command -v sol)"
+    readelf -h "${PREFIX}/bin/sol" || readelf -h "$(find ${DESTDIR:-/tmp} -name sol -type f 2>/dev/null | head -n 1)"

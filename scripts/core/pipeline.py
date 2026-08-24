@@ -209,7 +209,12 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     stage_dir = destdir / "stage"
     stage_dir.mkdir(parents=True, exist_ok=True)
 
-    resolve_and_fetch_build_dependencies(getattr(recipe, "build_deps", []), destdir)
+    all_needed_deps = list(getattr(recipe, "build_deps", [])) + [
+        d
+        for d in getattr(recipe, "deps", [])
+        if d not in getattr(recipe, "build_deps", [])
+    ]
+    resolve_and_fetch_build_dependencies(all_needed_deps, destdir)
 
     work_dir = pkg_dir
     src_url = getattr(recipe, "source_url", None)
@@ -342,6 +347,14 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                     check=True,
                 )
 
+    env["PKG_CONFIG_DIR"] = ""
+    env["PKG_CONFIG_LIBDIR"] = (
+        "/data/data/com.termux/files/usr/lib/pkgconfig:/data/data/com.termux/files/usr/share/pkgconfig"
+    )
+    env["PKG_CONFIG_PATH"] = (
+        "/data/data/com.termux/files/usr/lib/pkgconfig:/data/data/com.termux/files/usr/share/pkgconfig"
+    )
+    env["PKG_CONFIG_SYSROOT_DIR"] = ""
     env["DESTDIR"] = str(stage_dir.resolve())
     env["PREFIX"] = "/data/data/com.termux/files/usr"
 

@@ -83,7 +83,7 @@ def setup_bionic_compat() -> None:
     Path("/tmp").mkdir(parents=True, exist_ok=True)
     shutil.copy2(cached_obj, "/tmp/bionic_compat.o")
     shutil.copy2(cached_lib, "/tmp/libcompat.a")
-    shutil.copy2(cached_lib, "/tmp/libbionic_compat.a")  # Compatibility symlink
+    shutil.copy2(cached_lib, "/tmp/libbionic_compat.a")
     shutil.copy2(stub_src, "/tmp/bionic_stub.h")
     (Path("/tmp") / "spawn.h").write_text(
         '#pragma once\n#include "/tmp/bionic_stub.h"\n', encoding="utf-8"
@@ -111,15 +111,20 @@ strip = '{ndk_strip}'
 pkg-config = 'pkg-config'
 
 [built-in options]
-pkg_config_path = '/data/data/com.termux/files/usr/lib/pkgconfig:/data/data/com.termux/files/usr/share/pkgconfig'
+c_args = ['-I/data/data/com.termux/files/usr/include', '-I/tmp', '-include', '/tmp/bionic_stub.h', '-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1', '-fPIC']
+cpp_args = ['-I/data/data/com.termux/files/usr/include', '-I/tmp', '-include', '/tmp/bionic_stub.h', '-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1', '-fPIC']
+c_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L/tmp', '-lbionic_compat', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
+cpp_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L/tmp', '-lbionic_compat', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
+
+[properties]
+needs_exe_wrapper = true
+sys_root = '/data/data/com.termux/files/usr'
+pkg_config_libdir = '/data/data/com.termux/files/usr/lib/pkgconfig:/data/data/com.termux/files/usr/share/pkgconfig'
 
 [host_machine]
 system = 'android'
 cpu_family = 'aarch64'
 cpu = 'aarch64'
 endian = 'little'
-
-[properties]
-needs_exe_wrapper = true
 """
     (Path("/tmp") / "meson-cross.ini").write_text(meson_cross, encoding="utf-8")
