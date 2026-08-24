@@ -22,16 +22,26 @@ TERMUX_REPOS = [
     ),
 ]
 
+USER_AGENT = "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
 _PKG_INDEX: dict[str, dict] = {}
+
+
+def _download_file(url: str, dest_path: Path) -> None:
+    """Streams remote files to disk with standard User-Agent headers to bypass CDN bot protection."""
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    with (
+        urllib.request.urlopen(req, timeout=30) as resp,
+        open(dest_path, "wb") as out_f,
+    ):
+        shutil.copyfileobj(resp, out_f)
 
 
 def check_existing_release_hash(pkg_name: str, channel: str, target_hash: str) -> bool:
     tag = f"{pkg_name}@{channel}"
     api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
     try:
-        req = urllib.request.Request(
-            api_url, headers={"User-Agent": "RepoExe-Orchestrator"}
-        )
+        req = urllib.request.Request(api_url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
 
@@ -66,9 +76,7 @@ def _load_termux_index() -> dict[str, dict]:
         for ext in (".gz", ""):
             url = f"{base_url}/{rel_path}{ext}"
             with contextlib.suppress(Exception):
-                req = urllib.request.Request(
-                    url, headers={"User-Agent": "RepoExe-Fetcher"}
-                )
+                req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     raw = resp.read()
                     text = (
@@ -142,9 +150,7 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
     tag = f"{dep}@latest"
     api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
     try:
-        req = urllib.request.Request(
-            api_url, headers={"User-Agent": "RepoExe-Orchestrator"}
-        )
+        req = urllib.request.Request(api_url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=5) as resp:
             rel_data = json.loads(resp.read().decode("utf-8"))
 
@@ -159,7 +165,7 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
         if deb_asset:
             download_url = deb_asset["browser_download_url"]
             dep_deb = destdir / deb_asset["name"]
-            urllib.request.urlretrieve(download_url, dep_deb)
+            _download_file(download_url, dep_deb)
             subprocess.run(["dpkg-deb", "-x", str(dep_deb), str(stage_dir)], check=True)
             subprocess.run(
                 [
@@ -186,7 +192,7 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
         deb_url = f"{base_url}/{pkg_info['Filename']}"
         deb_dest = destdir / deb_filename
         print(f"⚡ Fetching Termux upstream dependency '{dep}' from {deb_url}...")
-        urllib.request.urlretrieve(deb_url, deb_dest)
+        _download_file(deb_url, deb_dest)
 
         extract_tmp = Path("/tmp/deb_extract")
         shutil.rmtree(extract_tmp, ignore_errors=True)
