@@ -111,8 +111,14 @@ def prepare_site(
         artifacts_dir=art_path,
     )
 
-    # 4. Copy Security Keyrings to site/ root
+    # 4. Copy Frontend Source & Security Keyrings to site/ root
     root_dir = Path(__file__).resolve().parents[2]
+
+    # Copy frontend static files
+    site_src_dir = root_dir / "scripts" / "site"
+    if site_src_dir.exists():
+        shutil.copytree(site_src_dir, s_path, dirs_exist_ok=True)
+
     for key in ["scripts/repoexe.gpg", "scripts/repoexe.rsa.pub"]:
         src = root_dir / key
         if src.exists():

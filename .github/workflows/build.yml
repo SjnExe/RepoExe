@@ -502,6 +502,17 @@ jobs:
         run: |
           python scripts/cli/index_gen.py
 
+      - name: Set up QEMU for Multi-Arch Docker
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Run Termux E2E Tests
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python scripts/cli/e2e_test.py --site-dir site
+
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v6
 
