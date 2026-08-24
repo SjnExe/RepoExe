@@ -23,7 +23,7 @@ from utils.toolchains import setup_build_environment
 DEFAULT_BIONIC_ENV = {
     "CFLAGS": "-O3 -DNDEBUG -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fPIE -include /tmp/bionic_stub.h",
     "CXXFLAGS": "-O3 -DNDEBUG -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1 -pipe -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fPIE -include /tmp/bionic_stub.h",
-    "LDFLAGS": "-pie -fuse-ld=lld -static-libgcc -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z,max-page-size=16384 -Wl,--gc-sections -Wl,--threads=4 /tmp/bionic_compat.o -L/tmp -lcompat",
+    "LDFLAGS": "-pie -fuse-ld=lld -static-libgcc -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,-z,max-page-size=16384 -Wl,--gc-sections -Wl,--threads=4 /tmp/bionic_compat.o -L/tmp -lcompat -lm",
     "CARGO_BUILD_TARGET": "aarch64-linux-android",
     "GOOS": "android",
     "GOARCH": "arm64",
@@ -361,6 +361,14 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     env["PKG_CONFIG_SYSROOT_DIR"] = ""
     env["DESTDIR"] = str(stage_dir.resolve())
     env["PREFIX"] = "/data/data/com.termux/files/usr"
+
+    # Termux/Bionic threading is bundled into libc, so satisfy any explicit -lpthread linkages
+    lib_dir = Path("/data/data/com.termux/files/usr/lib")
+    lib_dir.mkdir(parents=True, exist_ok=True)
+    (lib_dir / "libpthread.so").write_text("INPUT(-lc)\n")
+    (lib_dir / "libpthread.a").write_text("INPUT(-lc)\n")
+    (Path("/tmp") / "libpthread.so").write_text("INPUT(-lc)\n")
+    (Path("/tmp") / "libpthread.a").write_text("INPUT(-lc)\n")
 
     phases = getattr(recipe, "phases", {})
     auto_patch_bionic_sources(work_dir)
