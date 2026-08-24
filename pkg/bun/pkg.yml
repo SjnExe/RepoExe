@@ -8,6 +8,8 @@ license: MIT
 maintainer: SjnExe
 build_system: custom
 
+source_url: https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-linux-aarch64-android.zip
+
 formats:
   - apt
   - pacman
@@ -21,7 +23,7 @@ channels:
 
 phases:
   make: |
-    cat << 'CSHIM' > /tmp/bun_shim.c
+    cat << 'CSHIM' > bun_shim.c
     #define _GNU_SOURCE
     #include <signal.h>
     #include <ucontext.h>
@@ -50,7 +52,7 @@ phases:
     }
 
     static void install_sigsys_handler(void) {
-        int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) = 
+        int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
             dlsym(RTLD_NEXT, "sigaction");
 
         struct sigaction sa;
@@ -66,7 +68,7 @@ phases:
     }
 
     int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact) {
-        int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) = 
+        int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
             dlsym(RTLD_NEXT, "sigaction");
 
         if (signum == SIGSYS) {
@@ -94,26 +96,23 @@ phases:
     }
     CSHIM
 
-    ${CC:-clang} -shared -fPIC -O2 /tmp/bun_shim.c -ldl -o /tmp/libbun_shim.so
-    rm -f /tmp/bun_shim.c
+    ${CC:-clang} -shared -fPIC -O2 bun_shim.c -ldl -o libbun_shim.so
+    rm -f bun_shim.c
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/libexec" "${DESTDIR}${PREFIX}/lib"
     BUN_BIN=$(find . -name bun -type f | head -n 1)
-    if [ -n "$BUN_BIN" ]; then
-      chmod +x "$BUN_BIN"
-      install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/libexec/bun-bin"
-      install -Dm755 /tmp/libbun_shim.so "${DESTDIR}${PREFIX}/lib/libbun_shim.so"
-
-      cat << 'LAUNCHER' > "${DESTDIR}${PREFIX}/bin/bun"
-    #!/data/data/com.termux/files/usr/bin/bash
-    export LD_PRELOAD="/data/data/com.termux/files/usr/lib/libbun_shim.so${LD_PRELOAD:+:$LD_PRELOAD}"
-    exec /data/data/com.termux/files/usr/libexec/bun-bin "$@"
-    LAUNCHER
-      chmod +x "${DESTDIR}${PREFIX}/bin/bun"
-    else
+    if [ -z "$BUN_BIN" ]; then
       echo "::error::bun executable not found in release archive"
       exit 1
     fi
+    chmod +x "$BUN_BIN"
+    install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/libexec/bun-bin"
+    install -Dm755 libbun_shim.so "${DESTDIR}${PREFIX}/lib/libbun_shim.so"
+
+    printf '#!/data/data/com.termux/files/usr/bin/bash\nexport LD_PRELOAD="%s/lib/libbun_shim.so${LD_PRELOAD:+:$LD_PRELOAD}"\nexec %s/libexec/bun-bin "$@"\n' "${PREFIX}" "${PREFIX}" > "${DESTDIR}${PREFIX}/bin/bun"
+    chmod +x "${DESTDIR}${PREFIX}/bin/bun"
   test: |
-    LD_PRELOAD="${DESTDIR}${PREFIX}/lib/libbun_shim.so" "${DESTDIR}${PREFIX}/libexec/bun-bin" --version
-    LD_PRELOAD="${DESTDIR}${PREFIX}/lib/libbun_shim.so" "${DESTDIR}${PREFIX}/libexec/bun-bin" -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"
+    bun --version
+    bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"
+    bun -e "const { spawnSync } = require('child_process'); const res = spawnSync('bun', ['--version']); if (res.status !== 0) process.exit(1);"
+    bun -e "console.log('Math test:', 21 + 21)"
