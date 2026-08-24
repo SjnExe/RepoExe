@@ -113,8 +113,8 @@ pkg-config = 'pkg-config'
 [built-in options]
 c_args = ['-I/data/data/com.termux/files/usr/include', '-I/tmp', '-include', '/tmp/bionic_stub.h', '-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1', '-fPIC']
 cpp_args = ['-I/data/data/com.termux/files/usr/include', '-I/tmp', '-include', '/tmp/bionic_stub.h', '-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1', '-fPIC']
-c_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L/tmp', '-lbionic_compat', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
-cpp_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L/tmp', '-lbionic_compat', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
+c_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L/tmp', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
+cpp_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L/tmp', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
 
 [properties]
 needs_exe_wrapper = true
