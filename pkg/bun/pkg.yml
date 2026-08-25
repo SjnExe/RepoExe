@@ -125,8 +125,10 @@ phases:
     fi
     LAUNCHER
     chmod +x "${DESTDIR}${PREFIX}/bin/bun"
+    ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
   test: |
     bun --version
+    bunx --version
     bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"
     bun -e "const { spawnSync } = require('child_process'); const res = spawnSync('bun', ['--version']); if (res.status !== 0) process.exit(1);"
     bun -e "console.log('Math test:', 21 + 21)"

@@ -17,7 +17,9 @@ ARCH_MAP = {
 }
 
 
-def generate_control_file(recipe: PackageRecipe) -> str:
+def generate_control_file(
+    recipe: PackageRecipe, installed_size_kib: int | None = None
+) -> str:
     version_str = (
         f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
     )
@@ -30,6 +32,9 @@ def generate_control_file(recipe: PackageRecipe) -> str:
         f"Maintainer: {recipe.maintainer or 'SjnExe'}",
         f"Description: {recipe.description or 'RepoExe package'}",
     ]
+
+    if installed_size_kib is not None:
+        control_lines.append(f"Installed-Size: {installed_size_kib}")
 
     if recipe.homepage:
         control_lines.append(f"Homepage: {recipe.homepage}")
@@ -98,6 +103,19 @@ def build_deb(
         subprocess.run(
             ["termux-elf-cleaner", str(stage_dir)], check=False, capture_output=True
         )
+
+    # Calculate Installed-Size in KiB (Debian standard)
+    total_bytes = 0
+    for file in stage_dir.rglob("*"):
+        if file.is_file() and "DEBIAN" not in file.parts:
+            total_bytes += file.stat().st_size
+    installed_size_kib = (total_bytes + 1023) // 1024
+
+    control_content = generate_control_file(
+        recipe, installed_size_kib=installed_size_kib
+    )
+    control_file = stage_dir / "DEBIAN" / "control"
+    control_file.write_text(control_content, encoding="utf-8")
 
     version_str = (
         f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
