@@ -16,10 +16,18 @@ formats:
 channels:
   latest:
     auto_update: true
-    update_strategy: github_release
-    source_url: https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-linux-aarch64-android.zip
+    update_strategy: github_tag
+    source_url: https://github.com/oven-sh/bun.git#bun-v{version}
+
+toolchains:
+  rust: ">=1.80"
+  cmake: ">=3.25"
+  ninja: ">=1.11"
+  go: ">=1.22"
 
 phases:
+  prepare: |
+    git submodule update --init --recursive || true
   make: |
     cat << 'CSHIM' > bun_shim.c
     #define _GNU_SOURCE
@@ -96,11 +104,18 @@ phases:
 
     ${CC:-clang} -shared -fPIC -O2 bun_shim.c -ldl -o libbun_shim.so
     rm -f bun_shim.c
+
+    mkdir -p build
+    cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+    ninja -C build bun
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/libexec" "${DESTDIR}${PREFIX}/lib"
     BUN_BIN=$(find . -name bun -type f | head -n 1)
     if [ -z "$BUN_BIN" ]; then
-      echo "::error::bun executable not found in release archive"
+      BUN_BIN=$(find . -name bun-release -type f | head -n 1)
+    fi
+    if [ -z "$BUN_BIN" ]; then
+      echo "::error::bun executable not found after build"
       exit 1
     fi
     chmod +x "$BUN_BIN"
