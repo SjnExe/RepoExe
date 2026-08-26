@@ -97,84 +97,6 @@ phases:
     export PATH="/tmp/host-bun:$PATH"
     export ANDROID_NDK_ROOT="${NDK:-/opt/android-ndk}"
 
-    # 1. Build Seccomp SIGSYS shim natively
-    cat << 'CSHIM' > bun_shim.c
-    #define _GNU_SOURCE
-    #include <signal.h>
-    #include <ucontext.h>
-    #include <unistd.h>
-    #include <errno.h>
-    #include <stdint.h>
-    #include <dlfcn.h>
-    #include <pthread.h>
-
-    #ifndef __NR_close_range
-    #define __NR_close_range 436
-    #endif
-    #ifndef __NR_openat2
-    #define __NR_openat2 437
-    #endif
-    #ifndef __NR_fchmodat2
-    #define __NR_fchmodat2 438
-    #endif
-
-    static void sigsys_handler(int sig, siginfo_t *info, void *context) {
-        if (sig == SIGSYS && context != NULL) {
-            ucontext_t *ctx = (ucontext_t *)context;
-            ctx->uc_mcontext.regs[0] = -ENOSYS;
-            ctx->uc_mcontext.pc += 4;
-        }
-    }
-
-    static void install_sigsys_handler(void) {
-        int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
-            dlsym(RTLD_NEXT, "sigaction");
-
-        struct sigaction sa;
-        sigemptyset(&sa.sa_mask);
-        sa.sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
-        sa.sa_sigaction = sigsys_handler;
-
-        if (real_sigaction) {
-            real_sigaction(SIGSYS, &sa, NULL);
-        } else {
-            sigaction(SIGSYS, &sa, NULL);
-        }
-    }
-
-    int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact) {
-        int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
-            dlsym(RTLD_NEXT, "sigaction");
-
-        if (signum == SIGSYS) {
-            if (oldact != NULL) {
-                sigemptyset(&oldact->sa_mask);
-                oldact->sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
-                oldact->sa_sigaction = sigsys_handler;
-            }
-            return 0;
-        }
-
-        if (real_sigaction) {
-            return real_sigaction(signum, act, oldact);
-        }
-        return 0;
-    }
-
-    static void on_fork_child(void) {
-        install_sigsys_handler();
-    }
-
-    __attribute__((constructor)) static void init_bun_shim(void) {
-        install_sigsys_handler();
-        pthread_atfork(NULL, NULL, on_fork_child);
-    }
-    CSHIM
-
-    ${CC:-clang} -shared -fPIC -O2 bun_shim.c -ldl -o libbun_shim.so
-    rm -f bun_shim.c
-
-    # 2. Build Bun binary natively from source using Bun's build system
     if [ -f "scripts/build.ts" ]; then
       bun scripts/build.ts --profile=release --os=linux --arch=aarch64 --abi=android
     elif [ -f "CMakeLists.txt" ]; then
@@ -192,34 +114,14 @@ phases:
       zig build -Doptimize=ReleaseFast
     fi
   install: |
-    mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/libexec" "${DESTDIR}${PREFIX}/lib"
+    mkdir -p "${DESTDIR}${PREFIX}/bin"
     BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
     if [ -z "$BUN_BIN" ]; then
       echo "::error::bun executable not found after build"
       exit 1
     fi
     chmod +x "$BUN_BIN"
-    install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/libexec/bun-bin"
-    install -Dm755 libbun_shim.so "${DESTDIR}${PREFIX}/lib/libbun_shim.so"
-
-    cat << 'LAUNCHER' > "${DESTDIR}${PREFIX}/bin/bun"
-    #!/data/data/com.termux/files/usr/bin/bash
-    SELF_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-    BASE_DIR="$(cd "$SELF_DIR/.." && pwd)"
-
-    if [ -f "$BASE_DIR/lib/libbun_shim.so" ]; then
-      export LD_PRELOAD="$BASE_DIR/lib/libbun_shim.so${LD_PRELOAD:+:$LD_PRELOAD}"
-    elif [ -f "/data/data/com.termux/files/usr/lib/libbun_shim.so" ]; then
-      export LD_PRELOAD="/data/data/com.termux/files/usr/lib/libbun_shim.so${LD_PRELOAD:+:$LD_PRELOAD}"
-    fi
-
-    if [ -f "$BASE_DIR/libexec/bun-bin" ]; then
-      exec "$BASE_DIR/libexec/bun-bin" "$@"
-    else
-      exec "/data/data/com.termux/files/usr/libexec/bun-bin" "$@"
-    fi
-    LAUNCHER
-    chmod +x "${DESTDIR}${PREFIX}/bin/bun"
+    install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
   test: |
     bun --version
@@ -227,3 +129,32 @@ phases:
     bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"
     bun -e "const { spawnSync } = require('child_process'); const res = spawnSync('bun', ['--version']); if (res.status !== 0) process.exit(1);"
     bun -e "console.log('Math test:', 21 + 21)"
+    bun -e "
+      const path = '/tmp/bun_test_file.txt';
+      await Bun.write(path, 'Hello Termux!');
+      const content = await Bun.file(path).text();
+      if (content !== 'Hello Termux!') process.exit(1);
+      console.log('File I/O test passed:', content);
+    "
+    bun -e "
+      import { Database } from 'bun:sqlite';
+      const db = new Database(':memory:');
+      db.query('CREATE TABLE foo (bar TEXT)').run();
+      db.query('INSERT INTO foo VALUES (?)').run('hello');
+      const row = db.query('SELECT * FROM foo').get();
+      if (row.bar !== 'hello') process.exit(1);
+      console.log('SQLite test passed:', row);
+    "
+    bun -e "
+      const server = Bun.serve({
+        port: 0,
+        fetch(req) {
+          return new Response('Hello from Bun HTTP!');
+        },
+      });
+      const res = await fetch(\`http://\${server.hostname}:\${server.port}\`);
+      const text = await res.text();
+      server.stop();
+      if (text !== 'Hello from Bun HTTP!') process.exit(1);
+      console.log('HTTP Server & Fetch test passed:', text);
+    "

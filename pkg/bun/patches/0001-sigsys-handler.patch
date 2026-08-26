@@ -1,0 +1,81 @@
+diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/workaround-missing-symbols.cpp
+index 0ee12ba..f65eac0 100644
+--- a/src/jsc/bindings/workaround-missing-symbols.cpp
++++ b/src/jsc/bindings/workaround-missing-symbols.cpp
+@@ -539,3 +539,76 @@ void std::__libcpp_verbose_abort(char const* format, ...) BUN_VERBOSE_ABORT_NOEX
+ #endif
+
+ extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
++
++#if defined(__ANDROID__)
++#define _GNU_SOURCE
++#include <signal.h>
++#include <ucontext.h>
++#include <unistd.h>
++#include <errno.h>
++#include <stdint.h>
++#include <dlfcn.h>
++#include <pthread.h>
++
++#ifndef __NR_close_range
++#define __NR_close_range 436
++#endif
++#ifndef __NR_openat2
++#define __NR_openat2 437
++#endif
++#ifndef __NR_fchmodat2
++#define __NR_fchmodat2 438
++#endif
++
++static void sigsys_handler(int sig, siginfo_t *info, void *context) {
++    if (sig == SIGSYS && context != NULL) {
++        ucontext_t *ctx = (ucontext_t *)context;
++        ctx->uc_mcontext. regs[0] = -ENOSYS;
++        ctx->uc_mcontext.pc += 4;
++    }
++}
++
++static void install_sigsys_handler(void) {
++    int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
++        (int (*)(int, const struct sigaction *, struct sigaction *))dlsym(RTLD_NEXT, "sigaction");
++
++    struct sigaction sa;
++    sigemptyset(&sa.sa_mask);
++    sa.sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
++    sa.sa_sigaction = sigsys_handler;
++
++    if (real_sigaction) {
++        real_sigaction(SIGSYS, &sa, NULL);
++    } else {
++        sigaction(SIGSYS, &sa, NULL);
++    }
++}
++
++extern "C" int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact) {
++    int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
++        (int (*)(int, const struct sigaction *, struct sigaction *))dlsym(RTLD_NEXT, "sigaction");
++
++    if (signum == SIGSYS) {
++        if (oldact != NULL) {
++            sigemptyset(&oldact->sa_mask);
++            oldact->sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
++            oldact->sa_sigaction = sigsys_handler;
++        }
++        return 0;
++    }
++
++    if (real_sigaction) {
++        return real_sigaction(signum, act, oldact);
++    }
++    return 0;
++}
++
++static void on_fork_child(void) {
++    install_sigsys_handler();
++}
++
++__attribute__((constructor)) static void init_bun_sigsys(void) {
++    install_sigsys_handler();
++    pthread_atfork(NULL, NULL, on_fork_child);
++}
++#endif
