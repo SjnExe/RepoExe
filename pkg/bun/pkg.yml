@@ -30,7 +30,21 @@ channels:
 
 phases:
   prepare: |
-    # Dynamically inspect rust toolchain required by Bun repo
+    # 1. Install host Bun matching system architecture to run Bun's build system
+    HOST_ARCH="$(uname -m)"
+    if [ "$HOST_ARCH" = "aarch64" ] || [ "$HOST_ARCH" = "arm64" ]; then
+      BUN_ARCH="aarch64"
+    else
+      BUN_ARCH="x64"
+    fi
+    mkdir -p /tmp/host-bun
+    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v1.2.4/bun-linux-${BUN_ARCH}.zip" -o /tmp/host-bun/bun.zip
+    unzip -q -o /tmp/host-bun/bun.zip -d /tmp/host-bun
+    mv /tmp/host-bun/bun-linux-${BUN_ARCH}/bun /tmp/host-bun/bun 2>/dev/null || true
+    chmod +x /tmp/host-bun/bun
+    export PATH="/tmp/host-bun:$PATH"
+
+    # 2. Dynamically inspect Rust toolchain required by Bun repo
     if [ -f "rust-toolchain.toml" ]; then
       RUST_VER=$(grep -E '^channel\s*=' rust-toolchain.toml | cut -d'"' -f2 | cut -d"'" -f2 || true)
     elif [ -f "rust-toolchain" ]; then
@@ -43,13 +57,13 @@ phases:
       export RUSTUP_TOOLCHAIN="$RUST_VER"
     fi
 
-    # Sync WebKit source dynamically
+    # 3. Sync WebKit source dynamically
+    git submodule update --init --recursive || true
     if [ -f "scripts/sync-webkit-source" ]; then
       bash scripts/sync-webkit-source || true
     fi
-    git submodule update --init --recursive || true
   make: |
-    export PATH="/data/data/com.termux/files/usr/bin:$PATH"
+    export PATH="/tmp/host-bun:/data/data/com.termux/files/usr/bin:$PATH"
 
     # 1. Build Seccomp SIGSYS shim natively
     cat << 'CSHIM' > bun_shim.c
@@ -128,9 +142,9 @@ phases:
     ${CC:-clang} -shared -fPIC -O2 bun_shim.c -ldl -o libbun_shim.so
     rm -f bun_shim.c
 
-    # 2. Build Bun binary using Bun's native build system
+    # 2. Build Bun binary natively from source using Bun's build system
     if [ -f "scripts/build.ts" ]; then
-      npx -y tsx scripts/build.ts --profile=release --os=android --arch=aarch64 || true
+      bun scripts/build.ts --profile=release --os=android --arch=aarch64
     elif [ -f "CMakeLists.txt" ]; then
       mkdir -p build && cd build
       cmake .. -G Ninja \
@@ -139,23 +153,11 @@ phases:
         -DCMAKE_SYSTEM_VERSION=24 \
         -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
         -DCMAKE_C_COMPILER="${CC:-clang}" \
-        -DCMAKE_CXX_COMPILER="${CXX:-clang++}" || true
-      ninja || make -j$(nproc) || true
+        -DCMAKE_CXX_COMPILER="${CXX:-clang++}"
+      ninja || make -j$(nproc)
       cd ..
-    fi
-
-    BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
-    if [ -z "$BUN_BIN" ] && [ -x "$(command -v zig)" ]; then
-      zig build -Doptimize=ReleaseFast || true
-      BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
-    fi
-
-    # Fallback to pre-built release binary if compilation in environment is unfulfilled
-    if [ -z "$BUN_BIN" ]; then
-      echo "::warning::Building Bun from source in CI container requires complete host toolchain, fetching release archive fallback"
-      curl -L -sS "https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-linux-aarch64-android.zip" -o bun-release.zip
-      unzip -q -o bun-release.zip
-      BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
+    elif [ -x "$(command -v zig)" ]; then
+      zig build -Doptimize=ReleaseFast
     fi
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/libexec" "${DESTDIR}${PREFIX}/lib"
