@@ -1,6 +1,6 @@
 name: bun
 version: "1.4.0"
-revision: 0
+revision: 1
 arch: aarch64
 description: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
 homepage: https://bun.sh
@@ -227,3 +227,6 @@ phases:
     bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"
     bun -e "const { spawnSync } = require('child_process'); const res = spawnSync('bun', ['--version']); if (res.status !== 0) process.exit(1);"
     bun -e "console.log('Math test:', 21 + 21)"
+    bun -e "const server = Bun.serve({ port: 0, fetch(req) { return new Response('OK'); } }); fetch('http://' + server.hostname + ':' + server.port).then(r => r.text()).then(t => { if (t !== 'OK') process.exit(1); server.stop(); console.log('HTTP Server & Fetch test passed'); });"
+    bun -e "await Bun.write('/tmp/bun_test.txt', 'Hello Termux'); const txt = await Bun.file('/tmp/bun_test.txt').text(); if (txt !== 'Hello Termux') process.exit(1); console.log('File I/O test passed');"
+    bun -e "import { Database } from 'bun:sqlite'; const db = new Database(':memory:'); db.run('CREATE TABLE foo (bar TEXT)'); db.run('INSERT INTO foo VALUES (?)', ['hello']); const row = db.query('SELECT * FROM foo').get(); if (row.bar !== 'hello') process.exit(1); console.log('SQLite test passed');"
