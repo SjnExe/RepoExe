@@ -12,7 +12,6 @@ source: https://files.pythonhosted.org/packages/source/p/pre-commit/pre_commit-{
 build_system: custom
 formats:
   - pip
-  - apt
 phases:
   install: |
     mkdir -p "${DESTDIR}${PREFIX}"

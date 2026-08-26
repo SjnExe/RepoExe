@@ -8,9 +8,6 @@ homepage: https://github.com/SjnExe/RepoExe
 maintainer: SjnExe
 
 formats:
-  - apt
-  - pacman
-  - apk
   - npm
 
 channels:

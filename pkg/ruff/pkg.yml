@@ -7,9 +7,6 @@ license: MIT
 homepage: https://github.com/astral-sh/ruff
 maintainer: SjnExe
 formats:
-- apt
-- pacman
-- apk
 - pip
 channels:
   latest:

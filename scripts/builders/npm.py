@@ -1,3 +1,4 @@
+import contextlib
 import json
 import shutil
 import tarfile
@@ -81,7 +82,7 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     return tgz_path
 
 
-def generate_npm_index(output_dir: str | Path) -> None:
+def generate_npm_index(output_dir: str | Path, pkg_dir: str | Path | None = None) -> None:
     """Generates standard NPM registry package manifests containing complete bin mappings."""
     base_dir = Path(output_dir)
     npm_dir = base_dir / "npm"
@@ -125,14 +126,14 @@ def generate_npm_index(output_dir: str | Path) -> None:
             packages.setdefault(pkg_name, []).append((tgz, inner_meta))
 
     for pkg_name, files_with_meta in packages.items():
-        pkg_dir = npm_dir / pkg_name
-        pkg_dir.mkdir(parents=True, exist_ok=True)
+        pkg_dir_target = npm_dir / pkg_name
+        pkg_dir_target.mkdir(parents=True, exist_ok=True)
 
         versions_manifest = {}
         latest_ver = "0.0.0"
 
         for tgz_path, inner_meta in files_with_meta:
-            dest = pkg_dir / tgz_path.name
+            dest = pkg_dir_target / tgz_path.name
             if tgz_path != dest:
                 shutil.copy2(tgz_path, dest)
 
@@ -148,11 +149,26 @@ def generate_npm_index(output_dir: str | Path) -> None:
 
             versions_manifest[ver] = inner_meta
 
+        patched_range = None
+        if pkg_dir:
+            p_recipe = Path(pkg_dir) / pkg_name / "pkg.yml"
+            if p_recipe.exists():
+                try:
+                    from core.parser import parse_recipe
+                    r_obj = parse_recipe(p_recipe)
+                    if getattr(r_obj, "patched_version_range", None):
+                        patched_range = r_obj.patched_version_range
+                except Exception as e:
+                    print(f"Notice: failed to parse recipe for {pkg_name} in npm index gen: {e}")
+
         meta = {
             "name": pkg_name,
             "dist-tags": {"latest": latest_ver},
             "versions": versions_manifest,
         }
-        (pkg_dir / "package.json").write_text(
+        if patched_range:
+            meta["patched_version_range"] = patched_range
+
+        (pkg_dir_target / "package.json").write_text(
             json.dumps(meta, indent=2), encoding="utf-8"
         )

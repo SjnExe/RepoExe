@@ -100,7 +100,8 @@ def prepare_site(
     generate_pip_index(s_path)
 
     if npm_staging.exists():
-        generate_npm_index(str(npm_staging))
+        pkg_recipes_dir = Path(__file__).resolve().parents[2] / "pkg"
+        generate_npm_index(str(npm_staging), pkg_dir=pkg_recipes_dir)
         if (npm_staging / "npm").exists():
             shutil.copytree(npm_staging / "npm", s_path / "npm", dirs_exist_ok=True)
         shutil.rmtree(npm_staging, ignore_errors=True)

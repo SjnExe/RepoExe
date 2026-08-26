@@ -32,6 +32,57 @@ export default {
     });
 
     if (localRes.status === 200) {
+      if (!pathname.endsWith('.tgz') && targetPath.endsWith('package.json')) {
+        try {
+          const localData = await localRes.json();
+          const patchedRange = localData.patched_version_range;
+
+          // If local manifest defines a patched_version_range, rewrite latest/dist-tags to local latest patched release
+          if (patchedRange) {
+            const upstreamUrl = `https://registry.npmjs.org${pathname}`;
+            const upstreamRes = await fetch(upstreamUrl, {
+              headers: {
+                'User-Agent': request.headers.get('User-Agent') || 'RepoExe-Proxy',
+                'Accept': request.headers.get('Accept') || '*/*'
+              }
+            });
+
+            if (upstreamRes.status === 200) {
+              const upstreamData = await upstreamRes.json();
+              const mergedVersions = { ...upstreamData.versions, ...localData.versions };
+              const latestLocalVer = localData['dist-tags'] ? localData['dist-tags'].latest : null;
+
+              const mergedManifest = {
+                ...upstreamData,
+                'dist-tags': {
+                  ...upstreamData['dist-tags'],
+                  latest: latestLocalVer || upstreamData['dist-tags']?.latest
+                },
+                versions: mergedVersions
+              };
+
+              return new Response(JSON.stringify(mergedManifest), {
+                status: 200,
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*'
+                }
+              });
+            }
+          }
+
+          const headers = new Headers();
+          headers.set('Content-Type', 'application/json');
+          headers.set('Access-Control-Allow-Origin', '*');
+          return new Response(JSON.stringify(localData), {
+            status: 200,
+            headers: headers
+          });
+        } catch (e) {
+          // Fallback if parsing json fails
+        }
+      }
+
       const headers = new Headers(localRes.headers);
       headers.set('Content-Type', pathname.endsWith('.tgz') ? 'application/gzip' : 'application/json');
       headers.set('Access-Control-Allow-Origin', '*');
