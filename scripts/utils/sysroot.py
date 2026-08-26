@@ -21,7 +21,7 @@ class Sysroot:
 
     def fetch_source(
         self,
-        source_url: str,
+        source: str,
         dest_dir: str,
         sha256: str | None = None,
         mirror: bool = False,
@@ -30,25 +30,30 @@ class Sysroot:
         """Fetches the source code either via Git or downloading a tarball, validates signatures and mirrors to GitHub Releases."""
         os.makedirs(dest_dir, exist_ok=True)
 
-        if source_url == "local":
+        if source == "local":
             logger.info("Using local source")
             return dest_dir
         elif (
-            source_url.endswith(".git")
-            or source_url.startswith("git://")
+            "#" in source
+            or source.endswith(".git")
+            or source.startswith("git://")
             or git_branch is not None
         ):
             # Source is a Git repository
-            logger.info(f"Cloning Git repository: {source_url}")
+            repo_url = source
+            branch = git_branch
+            if "#" in source:
+                repo_url, branch = source.split("#", 1)
+            logger.info(f"Cloning Git repository: {repo_url} (branch/ref: {branch})")
             clone_cmd = ["git", "clone", "--recurse-submodules"]
-            if git_branch:
-                clone_cmd.extend(["--branch", git_branch, "--single-branch"])
-            clone_cmd.extend([source_url, dest_dir])
+            if branch:
+                clone_cmd.extend(["--branch", branch, "--single-branch"])
+            clone_cmd.extend([repo_url, dest_dir])
             subprocess.run(clone_cmd, check=True, capture_output=True)
             return dest_dir
         else:
             # Source is an archive
-            filename = source_url.split("/")[-1]
+            filename = source.split("/")[-1]
             archive_path = os.path.join(dest_dir, filename)
 
             # Try to fetch from our mirror first if enabled
@@ -64,9 +69,9 @@ class Sysroot:
                     logger.info("Mirror download failed, falling back to upstream")
 
             if not downloaded:
-                logger.info(f"Downloading archive: {source_url}")
+                logger.info(f"Downloading archive: {source}")
                 req = urllib.request.Request(
-                    source_url, headers={"User-Agent": "Mozilla/5.0"}
+                    source, headers={"User-Agent": "Mozilla/5.0"}
                 )
                 with (
                     urllib.request.urlopen(req) as response,
@@ -123,7 +128,7 @@ class Sysroot:
                     )
 
             # Try to verify GPG signature if a .sig or .asc file exists alongside
-            sig_url = f"{source_url}.sig"
+            sig_url = f"{source}.sig"
             sig_path = f"{archive_path}.sig"
             try:
                 urllib.request.urlretrieve(sig_url, sig_path)

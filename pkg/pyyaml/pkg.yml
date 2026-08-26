@@ -15,7 +15,7 @@ channels:
   latest:
     auto_update: true
     update_strategy: pypi
-    source_url: https://files.pythonhosted.org/packages/source/p/pyyaml/pyyaml-{version}.tar.gz
+    source: https://files.pythonhosted.org/packages/source/p/pyyaml/pyyaml-{version}.tar.gz
 
 build_system: custom
 phases:

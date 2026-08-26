@@ -7,6 +7,15 @@ homepage: https://bun.sh
 license: MIT
 maintainer: SjnExe
 build_system: custom
+build_deps:
+  - cmake
+  - ninja
+  - clang
+  - lld
+  - llvm
+auto_update: true
+update_strategy: github_release
+source: https://github.com/oven-sh/bun.git#bun-v{version}
 
 formats:
   - apt
@@ -17,10 +26,64 @@ channels:
   latest:
     auto_update: true
     update_strategy: github_release
-    source_url: https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-linux-aarch64-android.zip
+    source: https://github.com/oven-sh/bun.git#bun-v{version}
 
 phases:
+  prepare: |
+    # 1. Ensure host LLVM 21, nasm, and host Bun runner are installed
+    if ! command -v clang-21 >/dev/null 2>&1; then
+      curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add - 2>/dev/null || true
+      echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+      sudo apt-get update -qq || true
+      sudo apt-get install -yq clang-21 lld-21 llvm-21 nasm || true
+    fi
+
+    HOST_ARCH="$(uname -m)"
+    if [ "$HOST_ARCH" = "aarch64" ] || [ "$HOST_ARCH" = "arm64" ]; then
+      BUN_ARCH="aarch64"
+    else
+      BUN_ARCH="x64"
+    fi
+    mkdir -p /tmp/host-bun
+    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v1.2.4/bun-linux-${BUN_ARCH}.zip" -o /tmp/host-bun/bun.zip
+    unzip -q -o /tmp/host-bun/bun.zip -d /tmp/host-bun
+    mv /tmp/host-bun/bun-linux-${BUN_ARCH}/bun /tmp/host-bun/bun 2>/dev/null || true
+    chmod +x /tmp/host-bun/bun
+    export PATH="/tmp/host-bun:$PATH"
+
+    # 2. Fix NDK prebuilt directory symlinks for Bun build system
+    if [ -d "${NDK:-/opt/android-ndk}" ]; then
+      NDK_PATH="${NDK:-/opt/android-ndk}"
+      PREBUILT_DIR=$(ls "${NDK_PATH}/toolchains/llvm/prebuilt" 2>/dev/null | head -n1 || true)
+      if [ -n "$PREBUILT_DIR" ]; then
+        sudo ln -sf "${NDK_PATH}/toolchains/llvm/prebuilt/${PREBUILT_DIR}" "${NDK_PATH}/toolchains/llvm/prebuilt/linux-x86_64" 2>/dev/null || true
+        sudo ln -sf "${NDK_PATH}/toolchains/llvm/prebuilt/${PREBUILT_DIR}" "${NDK_PATH}/toolchains/llvm/prebuilt/linux-aarch64" 2>/dev/null || true
+      fi
+    fi
+
+    # 3. Dynamically inspect Rust toolchain required by Bun repo
+    if [ -f "rust-toolchain.toml" ]; then
+      RUST_VER=$(grep -E '^channel\s*=' rust-toolchain.toml | cut -d'"' -f2 | cut -d"'" -f2 || true)
+    elif [ -f "rust-toolchain" ]; then
+      RUST_VER=$(cat rust-toolchain | tr -d '\n\r')
+    fi
+    if [ -n "$RUST_VER" ]; then
+      echo "Installing detected Rust toolchain: $RUST_VER"
+      rustup toolchain install "$RUST_VER" --component rust-src || true
+      rustup target add aarch64-linux-android --toolchain "$RUST_VER" || true
+      export RUSTUP_TOOLCHAIN="$RUST_VER"
+    fi
+
+    # 4. Sync WebKit source dynamically
+    git submodule update --init --recursive || true
+    if [ -f "scripts/sync-webkit-source" ]; then
+      bash scripts/sync-webkit-source || true
+    fi
   make: |
+    export PATH="/tmp/host-bun:$PATH"
+    export ANDROID_NDK_ROOT="${NDK:-/opt/android-ndk}"
+
+    # 1. Build Seccomp SIGSYS shim natively
     cat << 'CSHIM' > bun_shim.c
     #define _GNU_SOURCE
     #include <signal.h>
@@ -96,11 +159,29 @@ phases:
 
     ${CC:-clang} -shared -fPIC -O2 bun_shim.c -ldl -o libbun_shim.so
     rm -f bun_shim.c
+
+    # 2. Build Bun binary natively from source using Bun's build system
+    if [ -f "scripts/build.ts" ]; then
+      bun scripts/build.ts --profile=release --os=linux --arch=aarch64 --abi=android
+    elif [ -f "CMakeLists.txt" ]; then
+      mkdir -p build && cd build
+      cmake .. -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_SYSTEM_NAME=Android \
+        -DCMAKE_SYSTEM_VERSION=24 \
+        -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
+        -DCMAKE_C_COMPILER="${CC:-clang}" \
+        -DCMAKE_CXX_COMPILER="${CXX:-clang++}"
+      ninja || make -j$(nproc)
+      cd ..
+    elif [ -x "$(command -v zig)" ]; then
+      zig build -Doptimize=ReleaseFast
+    fi
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/libexec" "${DESTDIR}${PREFIX}/lib"
-    BUN_BIN=$(find . -name bun -type f | head -n 1)
+    BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
     if [ -z "$BUN_BIN" ]; then
-      echo "::error::bun executable not found in release archive"
+      echo "::error::bun executable not found after build"
       exit 1
     fi
     chmod +x "$BUN_BIN"
