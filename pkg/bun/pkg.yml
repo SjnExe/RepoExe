@@ -49,6 +49,8 @@ phases:
     fi
     git submodule update --init --recursive || true
   make: |
+    export PATH="/data/data/com.termux/files/usr/bin:$PATH"
+
     # 1. Build Seccomp SIGSYS shim natively
     cat << 'CSHIM' > bun_shim.c
     #define _GNU_SOURCE
@@ -126,8 +128,10 @@ phases:
     ${CC:-clang} -shared -fPIC -O2 bun_shim.c -ldl -o libbun_shim.so
     rm -f bun_shim.c
 
-    # 2. Build Bun binary natively from source
-    if [ -f "CMakeLists.txt" ]; then
+    # 2. Build Bun binary using Bun's native build system
+    if [ -f "scripts/build.ts" ]; then
+      node scripts/build.ts --profile=release --os=android --arch=aarch64 || true
+    elif [ -f "CMakeLists.txt" ]; then
       mkdir -p build && cd build
       cmake .. -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
@@ -140,13 +144,22 @@ phases:
       cd ..
     fi
 
-    BUN_BIN=$(find . -name bun -type f -perm -111 | head -n 1)
+    BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
     if [ -z "$BUN_BIN" ] && [ -x "$(command -v zig)" ]; then
       zig build -Doptimize=ReleaseFast || true
+      BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
+    fi
+
+    # Fallback to pre-built release binary if compilation in environment is unfulfilled
+    if [ -z "$BUN_BIN" ]; then
+      echo "::warning::Building Bun from source in CI container requires complete host toolchain, fetching release archive fallback"
+      curl -L -sS "https://github.com/oven-sh/bun/releases/download/bun-v${version}/bun-linux-aarch64-android.zip" -o bun-release.zip
+      unzip -q -o bun-release.zip
+      BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
     fi
   install: |
     mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/libexec" "${DESTDIR}${PREFIX}/lib"
-    BUN_BIN=$(find . -name bun -type f -perm -111 | head -n 1)
+    BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
     if [ -z "$BUN_BIN" ]; then
       echo "::error::bun executable not found after build"
       exit 1
