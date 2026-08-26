@@ -98,7 +98,7 @@ phases:
     export ANDROID_NDK_ROOT="${NDK:-/opt/android-ndk}"
 
     if [ -f "scripts/build.ts" ]; then
-      bun scripts/build.ts --profile=release --os=linux --arch=aarch64 --abi=android
+      bun scripts/build.ts --profile=android-release
     elif [ -f "CMakeLists.txt" ]; then
       mkdir -p build && cd build
       cmake .. -G Ninja \
@@ -121,6 +121,13 @@ phases:
       exit 1
     fi
     chmod +x "$BUN_BIN"
+
+    STRIP_TOOL="$(command -v llvm-strip || command -v aarch64-linux-gnu-strip || command -v strip || echo "")"
+    if [ -n "$STRIP_TOOL" ]; then
+      echo "Stripping debug symbols from $BUN_BIN using $STRIP_TOOL..."
+      "$STRIP_TOOL" --strip-all "$BUN_BIN" || "$STRIP_TOOL" "$BUN_BIN" || true
+    fi
+
     install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
   test: |
