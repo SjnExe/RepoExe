@@ -39,6 +39,7 @@ class ChannelOverride:
     auto_update: bool | None = None
     update_strategy: str | None = None
     custom_update_cmd: str | None = None
+    patched_version_range: str | None = None
     patches: list[str] | None = None
     cflags: str | None = None
     cxxflags: str | None = None
@@ -75,6 +76,7 @@ class PackageRecipe:
     auto_update: bool = False
     update_strategy: str | None = None
     custom_update_cmd: str | None = None
+    patched_version_range: str | None = None
     patches: list[str] = field(default_factory=list)
     cflags: str | None = None
     cxxflags: str | None = None

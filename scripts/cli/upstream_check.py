@@ -39,6 +39,22 @@ def fetch_github_release(owner: str, repo: str) -> str | None:
     return None
 
 
+def fetch_crates_version(crate_name: str) -> str | None:
+    """Queries crates.io API for the latest published crate version."""
+    headers = {"User-Agent": "RepoExe-Orchestrator (https://github.com/SjnExe/RepoExe)"}
+    url = f"https://crates.io/api/v1/crates/{crate_name}"
+    with contextlib.suppress(
+        requests.RequestException, ValueError, KeyError, TypeError
+    ):
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code == 200:
+            raw_ver = res.json().get("crate", {}).get("max_version", "")
+            parsed = extract_semver(raw_ver)
+            if parsed:
+                return str(parsed)
+    return None
+
+
 def fetch_github_tag(owner: str, repo: str) -> str | None:
     headers = {"User-Agent": "RepoExe-Orchestrator"}
     url = f"https://api.github.com/repos/{owner}/{repo}/tags?per_page=100"
@@ -148,6 +164,9 @@ def resolve_latest_version(recipe: Any) -> str | None:
 
     if strategy == "npm":
         return fetch_npm_version(recipe.name)
+
+    if strategy == "crates":
+        return fetch_crates_version(recipe.name)
 
     if strategy == "custom":
         return fetch_custom_update(recipe)

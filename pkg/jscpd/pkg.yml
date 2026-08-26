@@ -8,12 +8,11 @@ homepage: https://jscpd.dev
 maintainer: SjnExe
 auto_update: true
 update_strategy: crates
+patched_version_range: ">=5.0.0"
 source: https://static.crates.io/crates/jscpd/jscpd-{version}.crate
 build_system: cargo
 formats:
   - npm
-  - apt
-  - pacman
 
 phases:
   install: |

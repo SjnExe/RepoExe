@@ -114,8 +114,25 @@ def _load_termux_index() -> dict[str, dict]:
     return _PKG_INDEX
 
 
+def parse_dep_spec(dep_spec: str) -> tuple[str, str | None]:
+    """Parses dependency specification strings like 'clang@21', 'cmake>=3.26', 'libpng=1.6.40' into (name, constraint)."""
+    clean = dep_spec.strip()
+    for op in ("==", ">=", "<=", "=", ">", "<", "@"):
+        if op in clean:
+            parts = clean.split(op, 1)
+            return parts[0].strip(), f"{op}{parts[1].strip()}"
+    return clean, None
+
+
 def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
-    if dep in fetched:
+    pkg_name, _version_constraint = parse_dep_spec(dep)
+    if pkg_name in fetched:
+        return True
+
+    # Filter out static/doc/man subpackages from dynamic runtime dependencies
+    if pkg_name.endswith(("-static", "-doc", "-man")):
+        print(f"Notice: Skipping static/doc subpackage fetch for '{pkg_name}' as dynamic runtime dependency.")
+        fetched.add(pkg_name)
         return True
 
     stage_dir = destdir / "stage"
@@ -125,12 +142,12 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
 
     # 1. Local artifacts
     local_arts = (
-        list(Path("artifacts").glob(f"{dep}*.deb"))
+        list(Path("artifacts").glob(f"{pkg_name}*.deb"))
         if Path("artifacts").exists()
         else []
-    ) + (list(output_dir.glob(f"{dep}*.deb")) if output_dir.exists() else [])
+    ) + (list(output_dir.glob(f"{pkg_name}*.deb")) if output_dir.exists() else [])
     if local_arts:
-        print(f"✓ Found local artifact for dependency '{dep}': {local_arts[0].name}")
+        print(f"✓ Found local artifact for dependency '{pkg_name}': {local_arts[0].name}")
         subprocess.run(
             ["dpkg-deb", "-x", str(local_arts[0]), str(stage_dir)], check=True
         )
@@ -143,11 +160,11 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
             ],
             check=False,
         )
-        fetched.add(dep)
+        fetched.add(pkg_name)
         return True
 
     # 2. RepoExe releases
-    tag = f"{dep}@latest"
+    tag = f"{pkg_name}@latest"
     api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
     try:
         req = urllib.request.Request(api_url, headers={"User-Agent": USER_AGENT})
@@ -178,7 +195,7 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
                 ],
                 check=False,
             )
-            fetched.add(dep)
+            fetched.add(pkg_name)
             return True
     except Exception:
         pass
@@ -186,14 +203,14 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
     # 3. Official Termux Upstream Mirrors
     index = _load_termux_index()
     pkg_info = (
-        index.get(dep) or index.get(f"lib{dep}") or index.get(dep.removeprefix("lib"))
+        index.get(pkg_name) or index.get(f"lib{pkg_name}") or index.get(pkg_name.removeprefix("lib"))
     )
     if pkg_info:
         base_url = pkg_info["BaseUrl"]
         deb_filename = Path(pkg_info["Filename"]).name
         deb_url = f"{base_url}/{pkg_info['Filename']}"
         deb_dest = destdir / deb_filename
-        print(f"⚡ Fetching Termux upstream dependency '{dep}' from {deb_url}...")
+        print(f"⚡ Fetching Termux upstream dependency '{pkg_name}' from {deb_url}...")
         _download_file(deb_url, deb_dest)
 
         extract_tmp = Path("/tmp/deb_extract")
@@ -232,8 +249,8 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
                         shutil.copy2(item, prefix_root, follow_symlinks=False)
         shutil.rmtree(extract_tmp, ignore_errors=True)
 
-        fetched.add(dep)
-        fetched.add(pkg_info.get("Package", dep))
+        fetched.add(pkg_name)
+        fetched.add(pkg_info.get("Package", pkg_name))
 
         # Recursively resolve dependencies
         depends_str = pkg_info.get("Depends", "")
