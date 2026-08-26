@@ -51,13 +51,27 @@ phases:
     chmod +x /tmp/host-bun/bun
     export PATH="/tmp/host-bun:$PATH"
 
-    # 2. Fix NDK prebuilt directory symlinks for Bun build system
+    # 2. Fix NDK prebuilt directory symlinks for Bun build system & host LLVM 21 compiler-rt
     if [ -d "${NDK:-/opt/android-ndk}" ]; then
       NDK_PATH="${NDK:-/opt/android-ndk}"
       PREBUILT_DIR=$(ls "${NDK_PATH}/toolchains/llvm/prebuilt" 2>/dev/null | head -n1 || true)
       if [ -n "$PREBUILT_DIR" ]; then
         sudo ln -sf "${NDK_PATH}/toolchains/llvm/prebuilt/${PREBUILT_DIR}" "${NDK_PATH}/toolchains/llvm/prebuilt/linux-x86_64" 2>/dev/null || true
         sudo ln -sf "${NDK_PATH}/toolchains/llvm/prebuilt/${PREBUILT_DIR}" "${NDK_PATH}/toolchains/llvm/prebuilt/linux-aarch64" 2>/dev/null || true
+
+        BUILTINS_A=$(find "${NDK_PATH}" -name "libclang_rt.builtins-aarch64-android.a" 2>/dev/null | head -n1 || true)
+        LIBUNWIND_A=$(find "${NDK_PATH}" -name "libunwind.a" 2>/dev/null | grep -i "aarch64" | head -n1 || true)
+
+        if [ -n "$BUILTINS_A" ] && [ -d "/usr/lib/llvm-21" ]; then
+          sudo mkdir -p "/usr/lib/llvm-21/lib/clang/21/lib/aarch64-unknown-linux-android28"
+          sudo mkdir -p "/usr/lib/llvm-21/lib/clang/21/lib/linux/aarch64"
+          sudo ln -sf "$BUILTINS_A" "/usr/lib/llvm-21/lib/clang/21/lib/aarch64-unknown-linux-android28/libclang_rt.builtins.a"
+          sudo ln -sf "$BUILTINS_A" "/usr/lib/llvm-21/lib/clang/21/lib/linux/libclang_rt.builtins-aarch64-android.a"
+          if [ -n "$LIBUNWIND_A" ]; then
+            sudo ln -sf "$LIBUNWIND_A" "/usr/lib/llvm-21/lib/clang/21/lib/aarch64-unknown-linux-android28/libunwind.a"
+            sudo ln -sf "$LIBUNWIND_A" "/usr/lib/llvm-21/lib/clang/21/lib/linux/aarch64/libunwind.a"
+          fi
+        fi
       fi
     fi
 
