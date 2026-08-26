@@ -41,7 +41,7 @@ def build_alpine(
     apk_path = out_path / filename
 
     subprocess.run(
-        ["tar", "--exclude=DEBIAN", "-czf", str(apk_path), "-C", str(stage_dir), "."],
+        ["tar", "--exclude=DEBIAN", "-I", "gzip -9", "-cf", str(apk_path), "-C", str(stage_dir), "."],
         check=True,
         capture_output=True,
         text=True,
