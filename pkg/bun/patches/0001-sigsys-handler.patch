@@ -1,14 +1,16 @@
 diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/workaround-missing-symbols.cpp
-index 0ee12ba..f65eac0 100644
+index 0ee12ba..f3e3391 100644
 --- a/src/jsc/bindings/workaround-missing-symbols.cpp
 +++ b/src/jsc/bindings/workaround-missing-symbols.cpp
-@@ -539,3 +539,76 @@ void std::__libcpp_verbose_abort(char const* format, ...) BUN_VERBOSE_ABORT_NOEX
+@@ -539,3 +539,78 @@ void std::__libcpp_verbose_abort(char const* format, ...) BUN_VERBOSE_ABORT_NOEX
  #endif
 
  extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
 +
 +#if defined(__ANDROID__)
++#ifndef _GNU_SOURCE
 +#define _GNU_SOURCE
++#endif
 +#include <signal.h>
 +#include <ucontext.h>
 +#include <unistd.h>
