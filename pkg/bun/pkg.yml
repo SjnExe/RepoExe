@@ -130,6 +130,11 @@ phases:
 
     install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
+
+    if [ -n "$STRIP_TOOL" ]; then
+      echo "Stripping installed binary ${DESTDIR}${PREFIX}/bin/bun..."
+      "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true
+    fi
   test: |
     bun --version
     bunx --version

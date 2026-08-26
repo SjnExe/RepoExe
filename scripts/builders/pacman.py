@@ -61,7 +61,8 @@ def build_pacman(
             [
                 "tar",
                 "--exclude=DEBIAN",
-                "--zstd",
+                "-I",
+                "zstd -9",
                 "-cf",
                 str(tar_path),
                 "-C",
