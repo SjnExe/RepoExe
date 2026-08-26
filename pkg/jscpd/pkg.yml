@@ -8,7 +8,7 @@ homepage: https://jscpd.dev
 maintainer: SjnExe
 auto_update: true
 update_strategy: crates
-source_url: https://static.crates.io/crates/jscpd/jscpd-{version}.crate
+source: https://static.crates.io/crates/jscpd/jscpd-{version}.crate
 build_system: cargo
 formats:
   - npm

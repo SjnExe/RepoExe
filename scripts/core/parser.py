@@ -25,7 +25,7 @@ class ChannelOverride:
     maintainer: str | None = None
     component: str | None = None
     build_system: str | None = None
-    source_url: str | None = None
+    source: str | None = None
     sha256: str | None = None
     formats: list[str] | None = None
     build_deps: list[str] | None = None
@@ -60,7 +60,7 @@ class PackageRecipe:
     maintainer: str = "SjnExe"
     component: str = "main"
     build_system: str = "custom"
-    source_url: str | None = None
+    source: str | None = None
     sha256: str | None = None
     formats: list[str] = field(default_factory=lambda: ["apt", "pacman", "apk"])
     build_deps: list[str] = field(default_factory=list)
@@ -104,11 +104,11 @@ class PackageRecipe:
             data.update(override_data)
 
         if (
-            data.get("source_url")
-            and isinstance(data["source_url"], str)
-            and "{version}" in data["source_url"]
+            data.get("source")
+            and isinstance(data["source"], str)
+            and "{version}" in data["source"]
         ):
-            data["source_url"] = data["source_url"].replace(
+            data["source"] = data["source"].replace(
                 "{version}", data.get("version", "")
             )
 
@@ -134,7 +134,7 @@ class PackageRecipe:
             "revision": self.revision,
             "arch": self.arch,
             "build_system": self.build_system,
-            "source_url": self.source_url,
+            "source": self.source,
             "sha256": self.sha256,
             "formats": sorted(self.formats),
             "deps": sorted(self.deps),

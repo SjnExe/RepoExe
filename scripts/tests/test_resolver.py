@@ -24,7 +24,7 @@ class CustomRecipeModel:
 
 @dataclass
 class MockChannelOverride:
-    source_url: str | None = None
+    source: str | None = None
     version: str | None = None
     extra_build_deps: list[str] | None = None
     phases: dict[str, str] | None = None
@@ -53,12 +53,12 @@ def test_channel_overlay_and_interpolation():
         },
         "channels": {
             "latest": {
-                "source_url": "https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-linux-{arch}.zip",
+                "source": "https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-linux-{arch}.zip",
                 "extra_build_deps": ["llvm"],
             },
             "canary": {
                 "version": "1.4.1-canary.1",
-                "source_url": "https://github.com/oven-sh/bun/releases/download/canary-{version}/bun.zip",
+                "source": "https://github.com/oven-sh/bun/releases/download/canary-{version}/bun.zip",
                 "phases": {
                     "test": "echo canary test",
                 },
@@ -68,7 +68,7 @@ def test_channel_overlay_and_interpolation():
 
     latest = resolve_channel_recipe(raw_recipe, "latest")
     assert (
-        latest["source_url"]
+        latest["source"]
         == "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip"
     )
     assert latest["build_deps"] == ["clang", "llvm"]
@@ -77,7 +77,7 @@ def test_channel_overlay_and_interpolation():
     canary = resolve_channel_recipe(raw_recipe, "canary")
     assert canary["version"] == "1.4.1-canary.1"
     assert (
-        canary["source_url"]
+        canary["source"]
         == "https://github.com/oven-sh/bun/releases/download/canary-1.4.1-canary.1/bun.zip"
     )
     assert canary["phases"]["test"] == "echo canary test"
@@ -93,13 +93,13 @@ def test_channel_overlay_object_model():
         phases={"make": "echo make"},
         channels={
             "latest": MockChannelOverride(
-                source_url="https://example.com/bun-v{version}.zip",
+                source="https://example.com/bun-v{version}.zip",
                 extra_build_deps=["llvm"],
             )
         },
     )
     apply_channel_overlay(recipe, "latest")
-    assert recipe.source_url == "https://example.com/bun-v1.4.0.zip"
+    assert recipe.source == "https://example.com/bun-v1.4.0.zip"
     assert "llvm" in recipe.build_deps
 
 
@@ -108,11 +108,11 @@ def test_channel_overlay_zero_arg_model_dump():
         name="pydantic",
         version="2.6.0",
         channels={
-            "latest": {"source_url": "https://example.com/pydantic-{version}.tar.gz"}
+            "latest": {"source": "https://example.com/pydantic-{version}.tar.gz"}
         },
     )
     apply_channel_overlay(recipe, "latest")
-    assert recipe.source_url == "https://example.com/pydantic-2.6.0.tar.gz"
+    assert recipe.source == "https://example.com/pydantic-2.6.0.tar.gz"
 
 
 def test_channel_state_hash(tmp_path: Path):
@@ -122,7 +122,7 @@ def test_channel_state_hash(tmp_path: Path):
         "revision": 0,
         "channel": "latest",
         "arch": "aarch64",
-        "source_url": "https://example.com/src.tar.gz",
+        "source": "https://example.com/src.tar.gz",
         "build_deps": ["make"],
         "deps": [],
         "phases": {"make": "make"},

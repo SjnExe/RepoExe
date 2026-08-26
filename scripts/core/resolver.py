@@ -128,7 +128,7 @@ def compute_channel_state_hash(resolved_recipe: dict[str, Any], pkg_dir: Path) -
         "revision": resolved_recipe.get("revision"),
         "channel": resolved_recipe.get("channel"),
         "arch": resolved_recipe.get("arch"),
-        "source_url": resolved_recipe.get("source_url"),
+        "source": resolved_recipe.get("source"),
         "build_deps": sorted(resolved_recipe.get("build_deps", [])),
         "deps": sorted(resolved_recipe.get("deps", [])),
         "phases": resolved_recipe.get("phases", {}),

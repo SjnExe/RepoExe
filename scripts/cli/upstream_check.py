@@ -126,7 +126,7 @@ def fetch_custom_update(recipe: Any) -> str | None:
 
 def resolve_latest_version(recipe: Any) -> str | None:
     strategy = getattr(recipe, "update_strategy", None)
-    src_url = getattr(recipe, "source_url", "") or ""
+    src_url = getattr(recipe, "source", "") or ""
 
     if not strategy or strategy == "auto":
         return None
