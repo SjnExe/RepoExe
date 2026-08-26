@@ -92,7 +92,7 @@ phases:
     export ANDROID_NDK_ROOT="${NDK:-/opt/android-ndk}"
 
     if [ -f "scripts/build.ts" ]; then
-      bun scripts/build.ts --profile=android-release --no-canary
+      bun scripts/build.ts --profile=android-release --canary=false
     elif [ -f "CMakeLists.txt" ]; then
       mkdir -p build && cd build
       cmake .. -G Ninja \
