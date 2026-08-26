@@ -7,12 +7,6 @@ homepage: https://bun.sh
 license: MIT
 maintainer: SjnExe
 build_system: custom
-build_deps:
-  - cmake
-  - ninja
-  - clang
-  - lld
-  - llvm
 auto_update: true
 update_strategy: github_release
 source: https://github.com/oven-sh/bun.git#bun-v{version}
@@ -114,12 +108,15 @@ phases:
       zig build -Doptimize=ReleaseFast
     fi
   install: |
-    mkdir -p "${DESTDIR}${PREFIX}/bin"
     BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
     if [ -z "$BUN_BIN" ]; then
       echo "::error::bun executable not found after build"
       exit 1
     fi
+
+    # Clean staging prefix to remove any stray staged dependencies
+    rm -rf "${DESTDIR}${PREFIX}"
+    mkdir -p "${DESTDIR}${PREFIX}/bin"
     chmod +x "$BUN_BIN"
 
     export PATH="/usr/lib/llvm-21/bin:/tmp/host-bun:$PATH"
