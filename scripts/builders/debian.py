@@ -75,7 +75,7 @@ def prepare_debian_dir(
 
     if pkg_src_dir and pkg_src_dir.exists():
         for item in pkg_src_dir.iterdir():
-            if item.name in ("build.yml", "pkg.yml", "build.sh", "subpackages", "__init__.py"):
+            if item.name in ("build.yml", "pkg.yml", "build.sh", "subpackages", "__init__.py", "patches") or item.name.startswith("patches@"):
                 continue
             target = stage_dir / item.name
             if item.is_dir():
