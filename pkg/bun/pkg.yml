@@ -130,7 +130,7 @@ phases:
 
     # 2. Build Bun binary using Bun's native build system
     if [ -f "scripts/build.ts" ]; then
-      node scripts/build.ts --profile=release --os=android --arch=aarch64 || true
+      npx -y tsx scripts/build.ts --profile=release --os=android --arch=aarch64 || true
     elif [ -f "CMakeLists.txt" ]; then
       mkdir -p build && cd build
       cmake .. -G Ninja \
@@ -153,7 +153,7 @@ phases:
     # Fallback to pre-built release binary if compilation in environment is unfulfilled
     if [ -z "$BUN_BIN" ]; then
       echo "::warning::Building Bun from source in CI container requires complete host toolchain, fetching release archive fallback"
-      curl -L -sS "https://github.com/oven-sh/bun/releases/download/bun-v${version}/bun-linux-aarch64-android.zip" -o bun-release.zip
+      curl -L -sS "https://github.com/oven-sh/bun/releases/download/bun-v{version}/bun-linux-aarch64-android.zip" -o bun-release.zip
       unzip -q -o bun-release.zip
       BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
     fi
