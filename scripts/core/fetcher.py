@@ -125,7 +125,7 @@ def parse_dep_spec(dep_spec: str) -> tuple[str, str | None]:
 
 
 def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
-    pkg_name, version_constraint = parse_dep_spec(dep)
+    pkg_name, _version_constraint = parse_dep_spec(dep)
     if pkg_name in fetched:
         return True
 

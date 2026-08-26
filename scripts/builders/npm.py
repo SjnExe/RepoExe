@@ -1,4 +1,3 @@
-import contextlib
 import json
 import shutil
 import tarfile

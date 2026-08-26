@@ -1,7 +1,8 @@
 import sys
 from pathlib import Path
-from packaging.version import InvalidVersion, Version
+
 import yaml
+from packaging.version import InvalidVersion, Version
 
 
 def get_major_minor(version_str: str) -> str | None:
@@ -52,10 +53,14 @@ def update_recipe(pkg: str, channel: str, new_version: str) -> None:
     d["version"] = new_version
     d["revision"] = 0
 
-    if "channels" in d and isinstance(d["channels"], dict) and channel in d["channels"]:
-        if isinstance(d["channels"][channel], dict):
-            d["channels"][channel]["version"] = new_version
-            d["channels"][channel]["revision"] = 0
+    if (
+        "channels" in d
+        and isinstance(d["channels"], dict)
+        and channel in d["channels"]
+        and isinstance(d["channels"][channel], dict)
+    ):
+        d["channels"][channel]["version"] = new_version
+        d["channels"][channel]["revision"] = 0
 
     with open(recipe_path, "w", encoding="utf-8") as f:
         yaml.dump(d, f, sort_keys=False)
