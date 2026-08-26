@@ -49,7 +49,7 @@ phases:
     unzip -q -o /tmp/host-bun/bun.zip -d /tmp/host-bun
     mv /tmp/host-bun/bun-linux-${BUN_ARCH}/bun /tmp/host-bun/bun 2>/dev/null || true
     chmod +x /tmp/host-bun/bun
-    export PATH="/tmp/host-bun:$PATH"
+    export PATH="/usr/lib/llvm-21/bin:/tmp/host-bun:$PATH"
 
     # 2. Fix NDK prebuilt directory symlinks for Bun build system & host LLVM 21 compiler-rt
     if [ -d "${NDK:-/opt/android-ndk}" ]; then
@@ -94,7 +94,7 @@ phases:
       bash scripts/sync-webkit-source || true
     fi
   make: |
-    export PATH="/tmp/host-bun:$PATH"
+    export PATH="/usr/lib/llvm-21/bin:/tmp/host-bun:$PATH"
     export ANDROID_NDK_ROOT="${NDK:-/opt/android-ndk}"
 
     if [ -f "scripts/build.ts" ]; then
@@ -122,17 +122,24 @@ phases:
     fi
     chmod +x "$BUN_BIN"
 
+    export PATH="/usr/lib/llvm-21/bin:/tmp/host-bun:$PATH"
+
     STRIP_TOOL=""
     if [ -d "${NDK:-/opt/android-ndk}" ]; then
       STRIP_TOOL=$(find "${NDK:-/opt/android-ndk}" -name "llvm-strip" 2>/dev/null | head -n 1 || true)
     fi
     if [ -z "$STRIP_TOOL" ]; then
-      STRIP_TOOL="$(command -v llvm-strip || command -v aarch64-linux-gnu-strip || command -v strip || echo "")"
+      STRIP_TOOL="$(command -v llvm-strip-21 || command -v llvm-strip || echo "")"
+    fi
+    if [ -z "$STRIP_TOOL" ] && [ -x "/usr/lib/llvm-21/bin/llvm-strip" ]; then
+      STRIP_TOOL="/usr/lib/llvm-21/bin/llvm-strip"
     fi
 
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping debug symbols from $BUN_BIN using $STRIP_TOOL..."
       "$STRIP_TOOL" --strip-all --strip-debug --discard-all --remove-section=.comment --remove-section=.note "$BUN_BIN" || "$STRIP_TOOL" --strip-all "$BUN_BIN" || "$STRIP_TOOL" "$BUN_BIN" || true
+    else
+      echo "Warning: LLVM strip tool not found, skipping stripping."
     fi
 
     install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
