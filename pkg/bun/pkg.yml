@@ -30,7 +30,14 @@ channels:
 
 phases:
   prepare: |
-    # 1. Install host Bun matching system architecture to run Bun's build system
+    # 1. Ensure host LLVM 21, nasm, and host Bun runner are installed
+    if ! command -v clang-21 >/dev/null 2>&1; then
+      sudo wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add - 2>/dev/null || true
+      echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+      sudo apt-get update -qq || true
+      sudo apt-get install -yq clang-21 lld-21 llvm-21 nasm || true
+    fi
+
     HOST_ARCH="$(uname -m)"
     if [ "$HOST_ARCH" = "aarch64" ] || [ "$HOST_ARCH" = "arm64" ]; then
       BUN_ARCH="aarch64"
@@ -44,7 +51,17 @@ phases:
     chmod +x /tmp/host-bun/bun
     export PATH="/tmp/host-bun:$PATH"
 
-    # 2. Dynamically inspect Rust toolchain required by Bun repo
+    # 2. Fix NDK prebuilt directory symlinks for Bun build system
+    if [ -d "${NDK:-/opt/android-ndk}" ]; then
+      NDK_PATH="${NDK:-/opt/android-ndk}"
+      PREBUILT_DIR=$(ls "${NDK_PATH}/toolchains/llvm/prebuilt" 2>/dev/null | head -n1 || true)
+      if [ -n "$PREBUILT_DIR" ]; then
+        sudo ln -sf "${NDK_PATH}/toolchains/llvm/prebuilt/${PREBUILT_DIR}" "${NDK_PATH}/toolchains/llvm/prebuilt/linux-x86_64" 2>/dev/null || true
+        sudo ln -sf "${NDK_PATH}/toolchains/llvm/prebuilt/${PREBUILT_DIR}" "${NDK_PATH}/toolchains/llvm/prebuilt/linux-aarch64" 2>/dev/null || true
+      fi
+    fi
+
+    # 3. Dynamically inspect Rust toolchain required by Bun repo
     if [ -f "rust-toolchain.toml" ]; then
       RUST_VER=$(grep -E '^channel\s*=' rust-toolchain.toml | cut -d'"' -f2 | cut -d"'" -f2 || true)
     elif [ -f "rust-toolchain" ]; then
@@ -57,13 +74,14 @@ phases:
       export RUSTUP_TOOLCHAIN="$RUST_VER"
     fi
 
-    # 3. Sync WebKit source dynamically
+    # 4. Sync WebKit source dynamically
     git submodule update --init --recursive || true
     if [ -f "scripts/sync-webkit-source" ]; then
       bash scripts/sync-webkit-source || true
     fi
   make: |
-    export PATH="/tmp/host-bun:/data/data/com.termux/files/usr/bin:$PATH"
+    export PATH="/tmp/host-bun:$PATH"
+    export ANDROID_NDK_ROOT="${NDK:-/opt/android-ndk}"
 
     # 1. Build Seccomp SIGSYS shim natively
     cat << 'CSHIM' > bun_shim.c
@@ -144,7 +162,7 @@ phases:
 
     # 2. Build Bun binary natively from source using Bun's build system
     if [ -f "scripts/build.ts" ]; then
-      bun scripts/build.ts --profile=release --os=android --arch=aarch64
+      bun scripts/build.ts --profile=release --os=linux --arch=aarch64 --abi=android
     elif [ -f "CMakeLists.txt" ]; then
       mkdir -p build && cd build
       cmake .. -G Ninja \
