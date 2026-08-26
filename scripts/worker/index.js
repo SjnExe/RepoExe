@@ -3,12 +3,17 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
-    const parts = pathname.split('/').filter(Boolean);
+    const decodedPath = decodeURIComponent(pathname);
+    const parts = decodedPath.split('/').filter(Boolean);
     if (parts.length === 0) {
       return new Response('RepoExe NPM Proxy', { status: 200 });
     }
 
-    const pkgName = parts[0];
+    let pkgName = parts[0];
+    if (parts[0].startsWith('@') && parts.length >= 2) {
+      pkgName = `${parts[0]}/${parts[1]}`;
+    }
+
     let targetPath = pathname;
 
     if (pathname.endsWith('.tgz')) {

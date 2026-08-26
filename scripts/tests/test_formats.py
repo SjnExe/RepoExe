@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from builders.debian import generate_control_file
 from builders.npm import generate_npm_index
 from builders.pip import generate_pip_index
 from utils.health import audit_repository_health
@@ -24,6 +25,14 @@ def test_all_package_formats_valid():
                 assert fmt in supported_formats, (
                     f"Package {recipe.name} uses unsupported format '{fmt}'."
                 )
+
+
+def test_debian_control_installed_size():
+    """Tests that generate_control_file includes Installed-Size field."""
+    recipe_file = REPO_ROOT / "pkg" / "ruff" / "pkg.yml"
+    recipe = parse_recipe(recipe_file)
+    control = generate_control_file(recipe, installed_size_kib=1024)
+    assert "Installed-Size: 1024" in control
 
 
 def test_pip_index_generation(tmp_path):
@@ -56,6 +65,34 @@ def test_npm_index_generation(tmp_path):
     manifest = (tmp_path / "npm" / "tsc" / "package.json").read_text(encoding="utf-8")
     assert '"name": "tsc"' in manifest
     assert '"latest": "7.0.2"' in manifest
+
+
+def test_scoped_npm_index_generation(tmp_path):
+    """Tests scoped NPM package registry manifest generation."""
+    import json
+    import tarfile
+
+    pkg_dir = tmp_path / "pkg"
+    pkg_dir.mkdir(parents=True, exist_ok=True)
+    (pkg_dir / "package.json").write_text(
+        json.dumps({
+            "name": "@typescript/typescript-android-arm64",
+            "version": "7.0.2",
+            "bin": {"tsc": "lib/tsc"}
+        }),
+        encoding="utf-8"
+    )
+
+    fake_tgz = tmp_path / "tsc-7.0.2.tgz"
+    with tarfile.open(fake_tgz, "w:gz") as tar:
+        tar.add(pkg_dir, arcname="package")
+
+    generate_npm_index(tmp_path)
+
+    scoped_manifest = tmp_path / "npm" / "@typescript" / "typescript-android-arm64" / "package.json"
+    assert scoped_manifest.exists()
+    content = scoped_manifest.read_text(encoding="utf-8")
+    assert '"name": "@typescript/typescript-android-arm64"' in content
 
 
 def test_repository_recipe_consistency():

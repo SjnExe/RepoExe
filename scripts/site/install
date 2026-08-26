@@ -107,20 +107,16 @@ enable_manager() {
     bun)
       mkdir -p ~/.config
       echo "# Configured by RepoExe" > ~/.bunfig.toml
+      echo "[install]" >> ~/.bunfig.toml
       echo "url = \"$WORKER_NPM_URL\"" >> ~/.bunfig.toml
-      echo "" >> ~/.bunfig.toml
-      echo "[install.scopes]" >> ~/.bunfig.toml
-      echo "\"@repoexe\" = { url = \"$WORKER_NPM_URL\" }" >> ~/.bunfig.toml
-      printf "${GREEN}✓ Enabled Bun global registry and @repoexe scope.${RESET}\n"
+      printf "${GREEN}✓ Enabled Bun global registry.${RESET}\n"
       ;;
     npm)
       touch ~/.npmrc
       sed -i '/registry=/d' ~/.npmrc 2>/dev/null || true
       echo "registry=$WORKER_NPM_URL" >> ~/.npmrc
-      echo "@repoexe:registry=$WORKER_NPM_URL" >> ~/.npmrc
       if command -v npm >/dev/null 2>&1; then
         npm config set registry "$WORKER_NPM_URL" 2>/dev/null || true
-        npm config set @repoexe:registry "$WORKER_NPM_URL" 2>/dev/null || true
       fi
       printf "${GREEN}✓ Enabled NPM registry override.${RESET}\n"
       ;;
