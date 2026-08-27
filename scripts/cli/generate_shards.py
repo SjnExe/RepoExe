@@ -168,11 +168,14 @@ def main() -> None:
     dag = DependencyGraph(pkgs_dir)
 
     if not raw_input or raw_input == "auto":
+        diff_files = get_git_diff_files(repo_root)
         changed_pkgs = list(get_changed_packages(repo_root))
         if changed_pkgs:
             target_pkgs = list(
                 parse_target_tokens(" ".join(changed_pkgs), dag, pkgs_dir)
             )
+        elif diff_files:
+            target_pkgs = []
         else:
             target_pkgs = list(dag.recipes.keys())
     else:

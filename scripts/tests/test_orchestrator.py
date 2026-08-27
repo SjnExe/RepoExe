@@ -1,5 +1,7 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+from pathlib import Path
 
+from cli.generate_shards import get_changed_packages, get_git_diff_files
 from cli.prune import identify_outdated_assets
 
 
@@ -20,3 +22,15 @@ def test_prune_assets():
 
     assert 1 in outdated_ids
     assert 2 not in outdated_ids
+
+
+def test_get_changed_packages_ignores_non_pkg_files():
+    mock_diff = {
+        "scripts/docker/Dockerfile.builder",
+        "scripts/docker/Dockerfile.tester",
+        "AGENTS.md",
+        "pkg/bun/pkg.yml",
+    }
+    with patch("cli.generate_shards.get_git_diff_files", return_value=mock_diff):
+        changed = get_changed_packages(Path("."))
+        assert changed == {"bun"}
