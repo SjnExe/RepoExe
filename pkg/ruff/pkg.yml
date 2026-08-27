@@ -1,5 +1,5 @@
 name: ruff
-version: 0.16.4
+version: 0.16.5
 revision: 0
 arch: aarch64
 description: Fast Python linter and code formatter written in Rust
@@ -13,7 +13,7 @@ channels:
     auto_update: true
     update_strategy: github_release
     source: https://github.com/astral-sh/ruff/releases/download/{version}/ruff-aarch64-unknown-linux-musl.tar.gz
-    version: 0.16.4
+    version: 0.16.5
     revision: 0
 build_system: custom
 toolchains:
