@@ -95,6 +95,51 @@ def test_scoped_npm_index_generation(tmp_path):
     assert '"name": "@typescript/typescript-android-arm64"' in content
 
 
+def test_npm_multiple_binaries(tmp_path):
+    """Tests build_npm generates wrappers and package.json bin map for multiple binaries."""
+    import json
+    import tarfile
+
+    from builders.npm import build_npm
+    from utils.parser import PackageRecipe
+
+    destdir = tmp_path / "build"
+    usr_bin = destdir / "stage" / "data" / "data" / "com.termux" / "files" / "usr" / "bin"
+    usr_bin.mkdir(parents=True, exist_ok=True)
+
+    (usr_bin / "bun").write_text("#!/bin/sh\necho bun", encoding="utf-8")
+    (usr_bin / "bunx").symlink_to("bun")
+
+    output_dir = tmp_path / "dist"
+    recipe = PackageRecipe(
+        name="bun",
+        version="1.4.0",
+        revision=0,
+        arch="aarch64",
+        description="JavaScript runtime",
+        license="MIT",
+        maintainer="SjnExe",
+        formats=["npm"],
+    )
+
+    tgz_path = build_npm(recipe, str(destdir), str(output_dir))
+    assert tgz_path.exists()
+
+    with tarfile.open(tgz_path, "r:gz") as tar:
+        pkg_json_file = tar.extractfile("package/package.json")
+        assert pkg_json_file is not None
+        meta = json.loads(pkg_json_file.read().decode("utf-8"))
+        assert meta["bin"] == {"bun": "bin/bun", "bunx": "bin/bunx"}
+
+        bun_wrapper = tar.extractfile("package/bin/bun")
+        assert bun_wrapper is not None
+        assert "usr/bin/bun" in bun_wrapper.read().decode("utf-8")
+
+        bunx_wrapper = tar.extractfile("package/bin/bunx")
+        assert bunx_wrapper is not None
+        assert "usr/bin/bunx" in bunx_wrapper.read().decode("utf-8")
+
+
 def test_repository_recipe_consistency():
     """Ensures all recipes maintain valid metadata structures and unique names."""
     pkg_dir = REPO_ROOT / "pkg"
