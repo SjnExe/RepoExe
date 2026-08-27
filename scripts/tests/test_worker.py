@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 def test_worker_script_structure():
     worker_js_path = Path("scripts/worker/index.js")
     assert worker_js_path.exists(), "scripts/worker/index.js does not exist"
