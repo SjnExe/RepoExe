@@ -1,7 +1,7 @@
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from cli.generate_shards import get_changed_packages, get_git_diff_files
+from cli.generate_shards import get_changed_packages
 from cli.prune import identify_outdated_assets
 
 
