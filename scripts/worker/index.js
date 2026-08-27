@@ -2,11 +2,37 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const pathname = url.pathname;
+    const search = url.search;
+
+    // 1. Transparently proxy non-GET/HEAD requests to registry.npmjs.org
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      const upstreamUrl = `https://registry.npmjs.org${pathname}${search}`;
+      const headers = new Headers(request.headers);
+      headers.set('Host', 'registry.npmjs.org');
+      return fetch(upstreamUrl, {
+        method: request.method,
+        headers: headers,
+        body: request.body,
+        redirect: 'follow'
+      });
+    }
 
     const decodedPath = decodeURIComponent(pathname);
     const parts = decodedPath.split('/').filter(Boolean);
     if (parts.length === 0) {
       return new Response('RepoExe NPM Proxy', { status: 200 });
+    }
+
+    // System endpoints (e.g., /-/npm/v1/..., /-/v1/search) don't exist in local store
+    if (parts[0].startsWith('-')) {
+      const upstreamUrl = `https://registry.npmjs.org${pathname}${search}`;
+      const headers = new Headers(request.headers);
+      headers.set('Host', 'registry.npmjs.org');
+      return fetch(upstreamUrl, {
+        method: request.method,
+        headers: headers,
+        redirect: 'follow'
+      });
     }
 
     let pkgName = parts[0];
@@ -15,17 +41,16 @@ export default {
     }
 
     let targetPath = pathname;
-
     if (pathname.endsWith('.tgz')) {
       targetPath = pathname.replace('/-/', '/');
     } else {
       targetPath = `/${pkgName}/package.json`;
     }
 
-    // 1. Query local RepoExe store on GitHub Pages first
+    // 2. Query local RepoExe store on GitHub Pages first for GET/HEAD requests
     const repoexeUrl = `https://sjnexe.github.io/RepoExe/npm${targetPath}`;
     const localRes = await fetch(repoexeUrl, {
-      headers: { 
+      headers: {
         'User-Agent': 'RepoExe-Proxy',
         'Accept': 'application/json'
       }
@@ -39,7 +64,7 @@ export default {
 
           // If local manifest defines a patched_version_range, rewrite latest/dist-tags to local latest patched release
           if (patchedRange) {
-            const upstreamUrl = `https://registry.npmjs.org${pathname}`;
+            const upstreamUrl = `https://registry.npmjs.org${pathname}${search}`;
             const upstreamRes = await fetch(upstreamUrl, {
               headers: {
                 'User-Agent': request.headers.get('User-Agent') || 'RepoExe-Proxy',
@@ -92,13 +117,14 @@ export default {
       });
     }
 
-    // 2. Fall back to upstream npmjs.org for unhosted public packages
-    const upstreamUrl = `https://registry.npmjs.org${pathname}`;
+    // 3. Fall back to upstream npmjs.org for unhosted public packages
+    const upstreamUrl = `https://registry.npmjs.org${pathname}${search}`;
+    const headers = new Headers(request.headers);
+    headers.set('Host', 'registry.npmjs.org');
     return fetch(upstreamUrl, {
-      headers: { 
-        'User-Agent': request.headers.get('User-Agent') || 'RepoExe-Proxy',
-        'Accept': request.headers.get('Accept') || '*/*'
-      }
+      method: request.method,
+      headers: headers,
+      redirect: 'follow'
     });
   }
 };
