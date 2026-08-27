@@ -3,17 +3,17 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
+
+import requests
+import yaml
+from packaging.version import InvalidVersion, Version
 
 _scripts_dir = str(Path(__file__).resolve().parents[1])
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 
-from typing import Any  # noqa: E402
-
-import requests  # noqa: E402
-import yaml  # noqa: E402
-from packaging.version import InvalidVersion, Version  # noqa: E402
-from utils.parser import parse_recipe  # noqa: E402
+from utils.parser import parse_recipe
 
 
 def extract_semver(tag_name: str) -> Version | None:
