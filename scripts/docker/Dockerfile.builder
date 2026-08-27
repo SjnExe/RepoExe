@@ -20,7 +20,7 @@ RUN groupadd -r systemd-journal -g 999 2>/dev/null || true \
  && apt-get update && apt-get install -yq --no-install-recommends \
     zstd locales apt-utils eatmydata sudo git aria2 \
     unzip patch xvfb xauth libgtk-3-dev libcairo2-dev libx11-dev libxext-dev libxrender-dev build-essential cmake ninja-build meson pkg-config gettext intltool itstool nodejs npm shellcheck \
-    proot dpkg-dev gcc g++ clang lld llvm clang-21 lld-21 llvm-21 nasm ruby ruby-dev bison flex gperf libicu-dev python3-pip python3-yaml python3-pydantic docker.io \
+    proot dpkg-dev gcc g++ clang lld llvm clang-21 lld-21 llvm-21 nasm ruby ruby-dev bison flex gperf guile-3.0 guile-3.0-dev libicu-dev python3-pip python3-yaml python3-pydantic docker.io \
     librsvg2-dev libxml2-dev libxml2-utils desktop-file-utils shared-mime-info appstream-util yelp-tools libssl-dev patchelf \
  && locale-gen en_US.UTF-8 \
  && update-locale LANG=en_US.UTF-8 \
