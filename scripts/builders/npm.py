@@ -24,17 +24,6 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     npm_name = recipe.vars.get("npm_name", recipe.name) if recipe.vars else recipe.name
     npm_bin_dir_name = recipe.vars.get("npm_bin_dir", "bin") if recipe.vars else "bin"
 
-    pkg_json = {
-        "name": npm_name,
-        "version": npm_version,
-        "description": recipe.description,
-        "license": recipe.license,
-        "bin": {recipe.name: f"{npm_bin_dir_name}/{recipe.name}"},
-    }
-    (npm_pkg_dir / "package.json").write_text(
-        json.dumps(pkg_json, indent=2), encoding="utf-8"
-    )
-
     bin_dir = npm_pkg_dir / npm_bin_dir_name
     bin_dir.mkdir(parents=True, exist_ok=True)
 
@@ -54,19 +43,42 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
                     item, npm_pkg_dir / "usr" / item.name, dirs_exist_ok=True
                 )
 
-    # Generate a robust bash wrapper to execute the deep-nested binary with the correct dynamic linker and library paths
-    # Using dynamic relative path to account for custom bin dir
-    wrapper_script = (
-        "#!/data/data/com.termux/files/usr/bin/bash\n"
-        "set -e\n"
-        'DIR="$(dirname "$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")")"\n'
-        'export LD_LIBRARY_PATH="${DIR}/../usr/lib:$LD_LIBRARY_PATH"\n'
-        'exec "${DIR}/../usr/bin/' + recipe.name + '" "$@"\n'
-    )
+    # Discover all executables/symlinks in usr/bin to expose them in package.json bin map and wrappers
+    bin_map = {}
+    usr_bin_dir = npm_pkg_dir / "usr" / "bin"
+    bin_names = []
+    if usr_bin_dir.exists() and usr_bin_dir.is_dir():
+        for b_file in sorted(usr_bin_dir.iterdir()):
+            if b_file.is_file() or b_file.is_symlink():
+                bin_names.append(b_file.name)
 
-    bin_target = bin_dir / recipe.name
-    bin_target.write_text(wrapper_script, encoding="utf-8")
-    bin_target.chmod(0o755)
+    if not bin_names:
+        bin_names = [recipe.name]
+
+    # Generate a robust bash wrapper to execute the deep-nested binary with the correct dynamic linker and library paths
+    for b_name in bin_names:
+        bin_map[b_name] = f"{npm_bin_dir_name}/{b_name}"
+        wrapper_script = (
+            "#!/data/data/com.termux/files/usr/bin/bash\n"
+            "set -e\n"
+            'DIR="$(dirname "$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")")"\n'
+            'export LD_LIBRARY_PATH="${DIR}/../usr/lib:$LD_LIBRARY_PATH"\n'
+            'exec "${DIR}/../usr/bin/' + b_name + '" "$@"\n'
+        )
+        bin_target = bin_dir / b_name
+        bin_target.write_text(wrapper_script, encoding="utf-8")
+        bin_target.chmod(0o755)
+
+    pkg_json = {
+        "name": npm_name,
+        "version": npm_version,
+        "description": recipe.description,
+        "license": recipe.license,
+        "bin": bin_map,
+    }
+    (npm_pkg_dir / "package.json").write_text(
+        json.dumps(pkg_json, indent=2), encoding="utf-8"
+    )
 
     tgz_path = out_path / f"{recipe.name}-{npm_version}.tgz"
 
