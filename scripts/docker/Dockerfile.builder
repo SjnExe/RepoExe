@@ -24,6 +24,7 @@ RUN groupadd -r systemd-journal -g 999 2>/dev/null || true \
     proot abigail-tools graphviz clang-21 lld-21 llvm-21 nasm ruby-dev bison flex gperf libicu-dev \
     guile-3.0-dev librsvg2-dev libxml2-utils desktop-file-utils shared-mime-info appstream-util yelp-tools qtbase5-dev libqt5svg5-dev libssl-dev patchelf \
     m4 autoconf automake libtool texinfo help2man zip xz-utils jq groff libglib2.0-dev-bin gobject-introspection libgirepository1.0-dev \
+    python3-pip python3-yaml python3-pydantic python3-requests python3-packaging \
  && locale-gen en_US.UTF-8 \
  && update-locale LANG=en_US.UTF-8 \
  && npm install -g prettier@latest \
