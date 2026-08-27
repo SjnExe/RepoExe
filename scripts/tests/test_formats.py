@@ -99,6 +99,7 @@ def test_npm_multiple_binaries(tmp_path):
     """Tests build_npm generates wrappers and package.json bin map for multiple binaries."""
     import json
     import tarfile
+
     from builders.npm import build_npm
     from utils.parser import PackageRecipe
 
