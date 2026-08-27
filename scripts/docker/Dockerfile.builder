@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     SCCACHE_DIR=/home/builder/.cache/sccache \
     REPO_ROOT=/home/builder/RepoExe
 
-# Pre-create systemd groups and install base apt build packages
+# Pre-create systemd groups and install base apt build packages in a consolidated layer
 RUN groupadd -r systemd-journal -g 999 2>/dev/null || true \
  && groupadd -r systemd-network -g 998 2>/dev/null || true \
  && useradd -r -g systemd-network -u 998 -d /run/systemd -s /bin/false systemd-network 2>/dev/null || true \
@@ -19,10 +19,10 @@ RUN groupadd -r systemd-journal -g 999 2>/dev/null || true \
  && echo "deb https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | tee /etc/apt/sources.list.d/llvm.list \
  && apt-get update && apt-get install -yq --no-install-recommends \
     zstd locales apt-utils eatmydata sudo git aria2 \
-    unzip patch xvfb xauth libgtk-3-dev libcanberra-gtk3-dev libcairo2-dev libx11-dev libxext-dev libxrender-dev \
+    unzip patch xvfb xauth libgtk-3-dev libcanberra-gtk3-dev \
     build-essential cmake ninja-build meson pkg-config gettext intltool itstool nodejs npm shellcheck \
-    proot abigail-tools graphviz dpkg-dev gcc g++ clang lld llvm clang-21 lld-21 llvm-21 nasm ruby ruby-dev bison flex gperf libicu-dev \
-    guile-3.0-dev librsvg2-dev libcanberra-dev libxml2-dev libxml2-utils desktop-file-utils shared-mime-info appstream-util yelp-tools qtbase5-dev libqt5svg5-dev libssl-dev patchelf \
+    proot abigail-tools graphviz clang-21 lld-21 llvm-21 nasm ruby-dev bison flex gperf libicu-dev \
+    guile-3.0-dev librsvg2-dev libxml2-utils desktop-file-utils shared-mime-info appstream-util yelp-tools qtbase5-dev libqt5svg5-dev libssl-dev patchelf \
     m4 autoconf automake libtool texinfo help2man zip xz-utils jq groff libglib2.0-dev-bin gobject-introspection libgirepository1.0-dev \
  && locale-gen en_US.UTF-8 \
  && update-locale LANG=en_US.UTF-8 \
