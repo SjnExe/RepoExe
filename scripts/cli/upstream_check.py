@@ -7,12 +7,13 @@ from pathlib import Path
 _scripts_dir = str(Path(__file__).resolve().parents[1])
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
-from typing import Any
 
-import requests
-import yaml
-from packaging.version import InvalidVersion, Version
-from utils.parser import parse_recipe
+from typing import Any  # noqa: E402
+
+import requests  # noqa: E402
+import yaml  # noqa: E402
+from packaging.version import InvalidVersion, Version  # noqa: E402
+from utils.parser import parse_recipe  # noqa: E402
 
 
 def extract_semver(tag_name: str) -> Version | None:
@@ -52,6 +53,33 @@ def fetch_crates_version(crate_name: str) -> str | None:
             parsed = extract_semver(raw_ver)
             if parsed:
                 return str(parsed)
+    return None
+
+
+def fetch_git_tag(src_url: str) -> str | None:
+    """Queries generic Git repository tags via git ls-remote."""
+    clean_url = src_url.split("#")[0]
+    with contextlib.suppress(subprocess.SubprocessError, OSError):
+        res = subprocess.run(
+            ["git", "ls-remote", "--tags", clean_url],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            valid_versions: list[Version] = []
+            for line in res.stdout.splitlines():
+                if "^{}" in line:
+                    continue
+                tag_name = line.split("/")[-1]
+                if re.search(r"(alpha|beta|rc|dev|test)", tag_name, re.IGNORECASE):
+                    continue
+                parsed = extract_semver(tag_name)
+                if parsed:
+                    valid_versions.append(parsed)
+            if valid_versions:
+                return str(max(valid_versions))
     return None
 
 
@@ -158,6 +186,9 @@ def resolve_latest_version(recipe: Any) -> str | None:
                 return fetch_github_release(owner, repo)
             if strategy == "github_tag":
                 return fetch_github_tag(owner, repo)
+
+    if strategy == "git_tag":
+        return fetch_git_tag(src_url)
 
     if strategy == "pypi":
         return fetch_pypi_version(recipe.name)

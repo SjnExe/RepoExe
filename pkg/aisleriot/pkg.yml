@@ -1,6 +1,8 @@
 name: aisleriot
-version: "3.22.24"
+version: "3.22.35"
 revision: 0
+auto_update: true
+update_strategy: git_tag
 arch: aarch64
 description: Solitaire card games collection compiled for Termux X11
 license: GPL-3.0-or-later
@@ -47,10 +49,14 @@ phases:
     if command -v glib-compile-resources >/dev/null 2>&1; then
       ln -sf "$(command -v glib-compile-resources)" "${PREFIX}/bin/glib-compile-resources"
     fi
+    export CFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages ${CFLAGS:-}"
+    export CXXFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages ${CXXFLAGS:-}"
     meson setup build \
       --cross-file /tmp/meson-cross.ini \
       --prefix="${PREFIX}" \
       --libdir="${PREFIX}/lib" \
+      --warninglevel 0 \
+      -Dwarning_level=0 \
       -Dguile=3.0 \
       -Dtheme_kde=false
   make: |
@@ -63,4 +69,9 @@ phases:
       termux-elf-cleaner "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true
     fi
   test: |
-    env -u LD_LIBRARY_PATH readelf -h "${PREFIX}/bin/sol" || env -u LD_LIBRARY_PATH readelf -h "$(find ${DESTDIR:-/tmp} -name sol -type f 2>/dev/null | head -n 1)" || true
+    SOL_PATH="$(find /tmp/stage "$PREFIX" -name sol -type f 2>/dev/null | head -n 1)"
+    if [ -z "$SOL_PATH" ]; then
+      echo "Error: sol executable not found" >&2
+      exit 1
+    fi
+    env -u LD_LIBRARY_PATH readelf -h "$SOL_PATH"
