@@ -26,7 +26,7 @@ phases:
   prepare: |
     # 1. Ensure host LLVM 21, nasm, and host Bun runner are installed
     if ! command -v clang-21 >/dev/null 2>&1; then
-      curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null || true
+      curl -fsSL --retry 5 https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null || true
       echo "deb https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
       sudo apt-get update -qq || true
       sudo apt-get install -yq clang-21 lld-21 llvm-21 nasm || true
