@@ -55,7 +55,6 @@ phases:
       --cross-file /tmp/meson-cross.ini \
       --prefix="${PREFIX}" \
       --libdir="${PREFIX}/lib" \
-      --warninglevel 0 \
       -Dwarning_level=0 \
       -Dguile=3.0 \
       -Dtheme_kde=false
