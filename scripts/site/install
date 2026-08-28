@@ -209,16 +209,22 @@ proxy_command() {
   case "$subcmd" in
     start)
       if is_proxy_running; then
-        [ "$quiet" -eq 0 ] && printf "${GREEN}✓ RepoExe proxy is already running on ${LOCAL_PROXY_URL}${RESET}\n"
+        if [ "$quiet" -eq 0 ]; then
+          printf "${GREEN}✓ RepoExe proxy is already running on ${LOCAL_PROXY_URL}${RESET}\n"
+        fi
         return 0
       fi
-      [ "$quiet" -eq 0 ] && printf "${CYAN}Starting RepoExe local proxy on ${LOCAL_PROXY_URL}...${RESET}\n"
+      if [ "$quiet" -eq 0 ]; then
+        printf "${CYAN}Starting RepoExe local proxy on ${LOCAL_PROXY_URL}...${RESET}\n"
+      fi
       CLI_EXEC="$0"
       if ! command -v repoexe >/dev/null 2>&1; then
         CLI_EXEC="sh $0"
       fi
       python3 -c "import subprocess, sys; subprocess.Popen('$CLI_EXEC proxy run', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)" >/dev/null 2>&1 &
-      [ "$quiet" -eq 0 ] && printf "${GREEN}✓ RepoExe proxy background daemon initialized.${RESET}\n"
+      if [ "$quiet" -eq 0 ]; then
+        printf "${GREEN}✓ RepoExe proxy background daemon initialized.${RESET}\n"
+      fi
       ;;
     stop)
       if [ -f "$PID_FILE" ]; then
@@ -229,7 +235,9 @@ proxy_command() {
         rm -f "$PID_FILE"
       fi
       pkill -f "proxy run" 2>/dev/null || true
-      [ "$quiet" -eq 0 ] && printf "${YELLOW}✓ Stopped RepoExe local proxy.${RESET}\n"
+      if [ "$quiet" -eq 0 ]; then
+        printf "${YELLOW}✓ Stopped RepoExe local proxy.${RESET}\n"
+      fi
       ;;
     status)
       if is_proxy_running; then
@@ -258,6 +266,7 @@ fi
 EOF
     chmod +x "$PREFIX/etc/profile.d/repoexe.sh" 2>/dev/null || true
   fi
+  return 0
 }
 
 check_status() {
