@@ -149,6 +149,12 @@ phases:
   test: |
     bun --version
     bunx --version
+
+    mkdir -p "${TMPDIR:-/tmp}/prettier-test" && cd "${TMPDIR:-/tmp}/prettier-test"
+    bun install prettier
+    bunx prettier --version
+    cd -
+
     bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"
     bun -e "const { spawnSync } = require('child_process'); const res = spawnSync('bun', ['--version']); if (res.status !== 0) process.exit(1);"
     bun -e "console.log('Math test:', 21 + 21)"
