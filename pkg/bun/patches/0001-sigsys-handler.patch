@@ -2,11 +2,10 @@ diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/
 index 0ee12ba..f3e3391 100644
 --- a/src/jsc/bindings/workaround-missing-symbols.cpp
 +++ b/src/jsc/bindings/workaround-missing-symbols.cpp
-@@ -539,3 +539,78 @@ void std::__libcpp_verbose_abort(char const* format, ...) BUN_VERBOSE_ABORT_NOEX
+@@ -539,3 +539,191 @@
  #endif
 
  extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
-+
 +#if defined(__ANDROID__)
 +#ifndef _GNU_SOURCE
 +#define _GNU_SOURCE
@@ -18,6 +17,9 @@ index 0ee12ba..f3e3391 100644
 +#include <stdint.h>
 +#include <dlfcn.h>
 +#include <pthread.h>
++#include <string.h>
++#include <stdlib.h>
++#include <spawn.h>
 +
 +#ifndef __NR_close_range
 +#define __NR_close_range 436
@@ -70,6 +72,117 @@ index 0ee12ba..f3e3391 100644
 +        return real_sigaction(signum, act, oldact);
 +    }
 +    return 0;
++}
++
++static const char *termux_rewrite_path(const char *filename) {
++    if (!filename) return filename;
++    static const char *prefix = "/data/data/com.termux/files/usr";
++    if (strncmp(filename, prefix, strlen(prefix)) == 0) {
++        return filename;
++    }
++    if (strcmp(filename, "/usr/bin/env") == 0) {
++        return "/data/data/com.termux/files/usr/bin/env";
++    }
++    if (strcmp(filename, "/bin/sh") == 0) {
++        return "/data/data/com.termux/files/usr/bin/sh";
++    }
++    if (strcmp(filename, "/bin/bash") == 0) {
++        return "/data/data/com.termux/files/usr/bin/bash";
++    }
++    if (strcmp(filename, "/usr/bin/node") == 0) {
++        if (access("/data/data/com.termux/files/usr/bin/node", X_OK) == 0) {
++            return "/data/data/com.termux/files/usr/bin/node";
++        }
++        return "/data/data/com.termux/files/usr/bin/bun";
++    }
++    if (strcmp(filename, "/usr/bin/python") == 0 || strcmp(filename, "/usr/bin/python3") == 0) {
++        return "/data/data/com.termux/files/usr/bin/python3";
++    }
++    if (strncmp(filename, "/usr/bin/", 9) == 0) {
++        thread_local static char buf[1024];
++        snprintf(buf, sizeof(buf), "/data/data/com.termux/files/usr/bin/%s", filename + 9);
++        if (access(buf, F_OK) == 0) return buf;
++    }
++    if (strncmp(filename, "/bin/", 5) == 0) {
++        thread_local static char buf[1024];
++        snprintf(buf, sizeof(buf), "/data/data/com.termux/files/usr/bin/%s", filename + 5);
++        if (access(buf, F_OK) == 0) return buf;
++    }
++    return filename;
++}
++
++extern "C" int execve(const char *filename, char *const argv[], char *const envp[]) {
++    typedef int (*execve_fn)(const char *, char *const [], char *const []);
++    execve_fn real_execve = (execve_fn)dlsym(RTLD_NEXT, "execve");
++    const char *new_fn = termux_rewrite_path(filename);
++    if (real_execve) {
++        return real_execve(new_fn, argv, envp);
++    }
++    return -1;
++}
++
++extern "C" int execv(const char *filename, char *const argv[]) {
++    typedef int (*execv_fn)(const char *, char *const []);
++    execv_fn real_execv = (execv_fn)dlsym(RTLD_NEXT, "execv");
++    const char *new_fn = termux_rewrite_path(filename);
++    if (real_execv) {
++        return real_execv(new_fn, argv);
++    }
++    return -1;
++}
++
++extern "C" int execvp(const char *filename, char *const argv[]) {
++    typedef int (*execvp_fn)(const char *, char *const []);
++    execvp_fn real_execvp = (execvp_fn)dlsym(RTLD_NEXT, "execvp");
++    const char *new_fn = termux_rewrite_path(filename);
++    if (real_execvp) {
++        return real_execvp(new_fn, argv);
++    }
++    return -1;
++}
++
++extern "C" int execvpe(const char *filename, char *const argv[], char *const envp[]) {
++    typedef int (*execvpe_fn)(const char *, char *const [], char *const []);
++    execvpe_fn real_execvpe = (execvpe_fn)dlsym(RTLD_NEXT, "execvpe");
++    const char *new_fn = termux_rewrite_path(filename);
++    if (real_execvpe) {
++        return real_execvpe(new_fn, argv, envp);
++    }
++    return -1;
++}
++
++extern "C" int posix_spawn(
++    pid_t *pid,
++    const char *path,
++    const posix_spawn_file_actions_t *file_actions,
++    const posix_spawnattr_t *attrp,
++    char *const argv[],
++    char *const envp[]
++) {
++    typedef int (*posix_spawn_fn)(pid_t *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const [], char *const []);
++    posix_spawn_fn real_posix_spawn = (posix_spawn_fn)dlsym(RTLD_NEXT, "posix_spawn");
++    const char *new_path = termux_rewrite_path(path);
++    if (real_posix_spawn) {
++        return real_posix_spawn(pid, new_path, file_actions, attrp, argv, envp);
++    }
++    return -1;
++}
++
++extern "C" int posix_spawnp(
++    pid_t *pid,
++    const char *file,
++    const posix_spawn_file_actions_t *file_actions,
++    const posix_spawnattr_t *attrp,
++    char *const argv[],
++    char *const envp[]
++) {
++    typedef int (*posix_spawnp_fn)(pid_t *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const [], char *const []);
++    posix_spawnp_fn real_posix_spawnp = (posix_spawnp_fn)dlsym(RTLD_NEXT, "posix_spawnp");
++    const char *new_file = termux_rewrite_path(file);
++    if (real_posix_spawnp) {
++        return real_posix_spawnp(pid, new_file, file_actions, attrp, argv, envp);
++    }
++    return -1;
 +}
 +
 +static void on_fork_child(void) {
