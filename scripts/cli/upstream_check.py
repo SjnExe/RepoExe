@@ -18,7 +18,14 @@ from utils.parser import parse_recipe
 
 def extract_semver(tag_name: str) -> Version | None:
     clean_tag = tag_name.strip()
-    match = re.search(r"v?(\d+\.\d+(?:\.\d+)?(?:-[\w.]+)?)$", clean_tag)
+    match = re.search(
+        r"^(?:[a-zA-Z0-9_.-]*[vV])?(\d+(?:\.\d+)+(?:[-.][a-zA-Z0-9.]+)?)$", clean_tag
+    )
+    if not match:
+        match = re.search(
+            r"^(?:[a-zA-Z0-9_.-]*[_-])?(\d+(?:\.\d+)+(?:[-.][a-zA-Z0-9.]+)?)$",
+            clean_tag,
+        )
     if match:
         with contextlib.suppress(InvalidVersion):
             return Version(match.group(1))
