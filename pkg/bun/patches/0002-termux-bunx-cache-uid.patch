@@ -1,5 +1,5 @@
 diff --git a/src/runtime/cli/bunx_command.rs b/src/runtime/cli/bunx_command.rs
-index f978022d..e5dc00cf 100644
+index f978022d..eaaaf832 100644
 --- a/src/runtime/cli/bunx_command.rs
 +++ b/src/runtime/cli/bunx_command.rs
 @@ -540,7 +540,7 @@ impl BunxCommand {
@@ -52,7 +52,20 @@ index f978022d..e5dc00cf 100644
      #[inline(always)]
      fn is_trusted_opened_cache_dir(
          _dir: Fd,
-@@ -972,7 +972,7 @@ impl BunxCommand {
+@@ -944,9 +944,11 @@ impl BunxCommand {
+         //     where a user can replace the directory with malicious code.
+         //
+         // If this format changes, please update cache clearing code in package_manager_command.rs
+-        #[cfg(unix)]
++        #[cfg(all(unix, not(target_os = "android")))]
+         // SAFETY: getuid() is always safe to call (no preconditions, never fails)
+         let uid = unsafe { libc::getuid() };
++        #[cfg(any(windows, target_os = "android"))]
++        let uid = 0;
+         #[cfg(windows)]
+         let uid = bun_sys::windows::user_unique_id();
+
+@@ -972,7 +974,7 @@ impl BunxCommand {
          env_loader.map.put(b"PATH", &path)?;
          // SAFETY: `Transpiler::init` always sets `fs` to the process singleton.
          let fs = unsafe { &mut *this_transpiler.fs };
@@ -60,3 +73,40 @@ index f978022d..e5dc00cf 100644
 +        let uid_digits = bun_core::fmt::digit_count(uid as u64);
          let bunx_cache_dir: &[u8] =
              &path[0..temp_dir.len() + b"/bunx--".len() + package_fmt.len() + uid_digits];
+
+@@ -1068,7 +1070,7 @@ impl BunxCommand {
+                         // current user (another local user could have pre-created the
+                         // path); fall through to a fresh install instead. See
+                         // `is_trusted_cached_binary` for the full rationale.
+-                        if !Self::is_trusted_cached_binary(destination, uid) {
++                        if !Self::is_trusted_cached_binary(destination, uid as _) {
+                             bun_output::scoped_log!(
+                                 bunx,
+                                 "refusing untrusted cached binary: {}",
+@@ -1238,7 +1240,7 @@ impl BunxCommand {
+                                     // reachable for a binary planted by another local user
+                                     // in the world-writable bunx cache.
+                                     if strings::has_prefix(out, bunx_cache_dir)
+-                                        && !Self::is_trusted_cached_binary(destination, uid)
++                                        && !Self::is_trusted_cached_binary(destination, uid as _)
+                                     {
+                                         bun_output::scoped_log!(
+                                             bunx,
+@@ -1492,7 +1494,7 @@ impl BunxCommand {
+             // current user, but the cache lives in a world-writable temp dir; an
+             // attacker can race the install and plant a uid-mismatched entry.
+             // Bail out to the generic error rather than execute it.
+-            if Self::is_trusted_cached_binary(destination, uid) {
++            if Self::is_trusted_cached_binary(destination, uid as _) {
+                 let stored = fs.dirname_store.append_slice(out)?;
+                 Run::run_binary(
+                     ctx,
+@@ -1552,7 +1554,7 @@ impl BunxCommand {
+                     ) {
+                         let out: &[u8] = destination.as_bytes();
+                         // Same TOCTOU hardening as the post-install probe above.
+-                        if Self::is_trusted_cached_binary(destination, uid) {
++                        if Self::is_trusted_cached_binary(destination, uid as _) {
+                             let stored = fs.dirname_store.append_slice(out)?;
+                             Run::run_binary(
+                                 ctx,
