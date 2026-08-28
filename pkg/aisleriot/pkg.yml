@@ -1,5 +1,5 @@
 name: aisleriot
-version: 4.0.1
+version: 3.22.35
 revision: 0
 auto_update: true
 update_strategy: git_tag

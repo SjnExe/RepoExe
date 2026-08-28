@@ -65,11 +65,16 @@ jobs:
               git commit -m "feat($PKG@$CHANNEL): update to $NEW"
 
               git push origin "$BRANCH_NAME"
-              gh pr create --title "feat($PKG@$CHANNEL): update to $NEW" --body "Automated update for channel **$CHANNEL** from $OLD to $NEW" --base main --head "$BRANCH_NAME"
-              gh pr merge "$BRANCH_NAME" --auto --squash
+              PR_URL=$(gh pr create --title "feat($PKG@$CHANNEL): update to $NEW" --body "Automated update for channel **$CHANNEL** from $OLD to $NEW" --base main --head "$BRANCH_NAME" 2>&1 || true)
+              echo "$PR_URL"
+              if ! gh pr merge "$BRANCH_NAME" --auto --squash; then
+                echo "Automated PR merge failed for $BRANCH_NAME. Triggering Jules API auto-fix..."
+                uv run python scripts/cli/jules_autofix.py "$PKG" "$CHANNEL" "$OLD" "$NEW" "$BRANCH_NAME" "Automated PR merge or build checks failed" || true
+              fi
 
               git checkout main
             fi
           done < updates_to_process.txt
         env:
           GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
