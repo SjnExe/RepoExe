@@ -1,5 +1,5 @@
-from packaging.version import Version
 from cli.upstream_check import extract_semver
+from packaging.version import Version
 
 
 def test_extract_semver_standard():

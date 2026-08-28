@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock, patch
+
 from cli.jules_autofix import trigger_jules_autofix
 
 
@@ -32,7 +33,7 @@ def test_trigger_jules_autofix(mock_get, mock_post, monkeypatch):
 
     assert res is True
     mock_post.assert_called_once()
-    args, kwargs = mock_post.call_args
+    _args, kwargs = mock_post.call_args
     assert kwargs["headers"]["X-Goog-Api-Key"] == "test-key-123"
     assert (
         kwargs["json"]["sourceContext"]["source"] == "sources/github/SjnExe/RepoExe"
