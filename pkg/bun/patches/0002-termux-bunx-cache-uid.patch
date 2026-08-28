@@ -1,5 +1,5 @@
 diff --git a/src/runtime/cli/bunx_command.rs b/src/runtime/cli/bunx_command.rs
-index f978022d..1a1a1a1a 100644
+index f978022d..22acbb4b 100644
 --- a/src/runtime/cli/bunx_command.rs
 +++ b/src/runtime/cli/bunx_command.rs
 @@ -540,7 +540,7 @@ impl BunxCommand {
@@ -52,3 +52,90 @@ index f978022d..1a1a1a1a 100644
      #[inline(always)]
      fn is_trusted_opened_cache_dir(
          _dir: Fd,
+@@ -944,11 +944,14 @@ impl BunxCommand {
+         //     where a user can replace the directory with malicious code.
+         //
+         // If this format changes, please update cache clearing code in package_manager_command.rs
+-        #[cfg(unix)]
++        #[cfg(all(unix, not(target_os = "android")))]
+         // SAFETY: getuid() is always safe to call (no preconditions, never fails)
+         let uid = unsafe { libc::getuid() };
++        #[cfg(any(not(unix), target_os = "android"))]
+         #[cfg(windows)]
+         let uid = bun_sys::windows::user_unique_id();
++        #[cfg(not(windows))]
++        let uid = 0;
+
+         path = {
+             let mut v = Vec::new();
+@@ -972,7 +975,7 @@ impl BunxCommand {
+         env_loader.map.put(b"PATH", &path)?;
+         // SAFETY: `Transpiler::init` always sets `fs` to the process singleton.
+         let fs = unsafe { &mut *this_transpiler.fs };
+-        let uid_digits = bun_core::fmt::digit_count(uid);
++        let uid_digits = bun_core::fmt::digit_count(uid as u64);
+         let bunx_cache_dir: &[u8] =
+             &path[0..temp_dir.len() + b"/bunx--".len() + package_fmt.len() + uid_digits];
+
+@@ -1068,7 +1071,7 @@ impl BunxCommand {
+                         // current user (another local user could have pre-created the
+                         // path); fall through to a fresh install instead. See
+                         // `is_trusted_cached_binary` for the full rationale.
+-                        if !Self::is_trusted_cached_binary(destination, uid) {
++                        if !Self::is_trusted_cached_binary(destination, uid as _) {
+                             bun_output::scoped_log!(
+                                 bunx,
+                                 "refusing untrusted cached binary: {}",
+@@ -1238,7 +1241,7 @@ impl BunxCommand {
+                                     // reachable for a binary planted by another local user
+                                     // in the world-writable bunx cache.
+                                     if strings::has_prefix(out, bunx_cache_dir)
+-                                        && !Self::is_trusted_cached_binary(destination, uid)
++                                        && !Self::is_trusted_cached_binary(destination, uid as _)
+                                     {
+                                         bun_output::scoped_log!(
+                                             bunx,
+@@ -1492,7 +1495,7 @@ impl BunxCommand {
+             // current user, but the cache lives in a world-writable temp dir; an
+             // attacker can race the install and plant a uid-mismatched entry.
+             // Bail out to the generic error rather than execute it.
+-            if Self::is_trusted_cached_binary(destination, uid) {
++            if Self::is_trusted_cached_binary(destination, uid as _) {
+                 let stored = fs.dirname_store.append_slice(out)?;
+                 Run::run_binary(
+                     ctx,
+@@ -1552,7 +1555,7 @@ impl BunxCommand {
+                     ) {
+                         let out: &[u8] = destination.as_bytes();
+                         // Same TOCTOU hardening as the post-install probe above.
+-                        if Self::is_trusted_cached_binary(destination, uid) {
++                        if Self::is_trusted_cached_binary(destination, uid as _) {
+                             let stored = fs.dirname_store.append_slice(out)?;
+                             Run::run_binary(
+                                 ctx,
+diff --git a/src/runtime/cli/package_manager_command.rs b/src/runtime/cli/package_manager_command.rs
+index 982e3647..d5501c5a 100644
+--- a/src/runtime/cli/package_manager_command.rs
++++ b/src/runtime/cli/package_manager_command.rs
+@@ -487,15 +487,19 @@ Learn more about these at <magenta>https://bun.com/docs/cli/pm<r>.\n";
+
+                     // This is to match 'bunx_command.BunxCommand.exec's logic
+                     let mut prefix: Vec<u8> = Vec::new();
+-                    #[cfg(unix)]
++                    #[cfg(all(unix, not(target_os = "android")))]
+                     {
+                         // SAFETY: getuid(2) is always-successful with no preconditions.
+                         write!(&mut prefix, "bunx-{}-", unsafe { libc::getuid() })
+                             .expect("unreachable");
+                     }
+-                    #[cfg(not(unix))]
++                    #[cfg(any(not(unix), target_os = "android"))]
+                     {
+-                        write!(&mut prefix, "bunx-{}-", bun_sys::windows::user_unique_id())
++                        #[cfg(windows)]
++                        write!(&mut prefix, "bunx-0-")
++                            .expect("unreachable");
++                        #[cfg(target_os = "android")]
++                        write!(&mut prefix, "bunx-0-")
+                             .expect("unreachable");
+                     }
