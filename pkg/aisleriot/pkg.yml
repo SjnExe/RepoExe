@@ -1,5 +1,5 @@
 name: aisleriot
-version: "3.22.35"
+version: 4.0.1
 revision: 0
 auto_update: true
 update_strategy: git_tag
@@ -9,68 +9,51 @@ license: GPL-3.0-or-later
 homepage: https://wiki.gnome.org/Apps/AisleRiot
 maintainer: SjnExe
 build_system: custom
-
 source: https://gitlab.gnome.org/GNOME/aisleriot.git#{version}
-
 formats:
-  - apt
-  - pacman
-  - apk
-
+- apt
+- pacman
+- apk
 build_deps:
-  - gtk3
-  - guile
-  - librsvg
-  - libcanberra
-  - libxml2
-  - desktop-file-utils
-  - shared-mime-info
-
+- gtk3
+- guile
+- librsvg
+- libcanberra
+- libxml2
+- desktop-file-utils
+- shared-mime-info
 deps:
-  - gtk3
-  - guile
-  - librsvg
-  - libcanberra
-  - libxml2
-
+- gtk3
+- guile
+- librsvg
+- libcanberra
+- libxml2
 phases:
-  configure: |
-    export SCCACHE_DISABLE=1
-    mkdir -p "${PREFIX}/bin"
-    # Bridge host guile binary so build-time scheme scripts compile into .go bytecode
-    if [ -x /usr/bin/guile-3.0 ]; then
-      ln -sf /usr/bin/guile-3.0 "${PREFIX}/bin/guile"
-      ln -sf /usr/bin/guile-3.0 "${PREFIX}/bin/guile-3.0"
-    elif [ -x /usr/bin/guile ]; then
-      ln -sf /usr/bin/guile "${PREFIX}/bin/guile"
-      ln -sf /usr/bin/guile "${PREFIX}/bin/guile-3.0"
-    fi
-    # Bridge host glib-compile-resources for building resources
-    if command -v glib-compile-resources >/dev/null 2>&1; then
-      ln -sf "$(command -v glib-compile-resources)" "${PREFIX}/bin/glib-compile-resources"
-    fi
-    export CFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages ${CFLAGS:-}"
-    export CXXFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages ${CXXFLAGS:-}"
-    meson setup build \
-      --cross-file /tmp/meson-cross.ini \
-      --prefix="${PREFIX}" \
-      --libdir="${PREFIX}/lib" \
-      -Dwarning_level=0 \
-      -Dguile=3.0 \
-      -Dtheme_kde=false
-  make: |
-    ninja -C build -j4 -k 0
-  install: |
-    DESTDIR="${DESTDIR}" ninja -C build install
-    rm -f "${DESTDIR}${PREFIX}/bin/guile" "${DESTDIR}${PREFIX}/bin/guile-3.0" "${DESTDIR}${PREFIX}/bin/glib-compile-resources"
-    if command -v termux-elf-cleaner >/dev/null 2>&1; then
-      termux-elf-cleaner "${DESTDIR}${PREFIX}/bin/sol" 2>/dev/null || true
-      termux-elf-cleaner "${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true
-    fi
-  test: |
-    SOL_PATH="$(find /tmp/stage "$PREFIX" -name sol -type f 2>/dev/null | head -n 1)"
-    if [ -z "$SOL_PATH" ]; then
-      echo "Error: sol executable not found" >&2
-      exit 1
-    fi
-    env -u LD_LIBRARY_PATH readelf -h "$SOL_PATH"
+  configure: "export SCCACHE_DISABLE=1\nmkdir -p \"${PREFIX}/bin\"\n# Bridge host\
+    \ guile binary so build-time scheme scripts compile into .go bytecode\nif [ -x\
+    \ /usr/bin/guile-3.0 ]; then\n  ln -sf /usr/bin/guile-3.0 \"${PREFIX}/bin/guile\"\
+    \n  ln -sf /usr/bin/guile-3.0 \"${PREFIX}/bin/guile-3.0\"\nelif [ -x /usr/bin/guile\
+    \ ]; then\n  ln -sf /usr/bin/guile \"${PREFIX}/bin/guile\"\n  ln -sf /usr/bin/guile\
+    \ \"${PREFIX}/bin/guile-3.0\"\nfi\n# Bridge host glib-compile-resources for building\
+    \ resources\nif command -v glib-compile-resources >/dev/null 2>&1; then\n  ln\
+    \ -sf \"$(command -v glib-compile-resources)\" \"${PREFIX}/bin/glib-compile-resources\"\
+    \nfi\nexport CFLAGS=\"-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral\
+    \ -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable\
+    \ -Wno-unused-parameter -Wno-pragma-messages ${CFLAGS:-}\"\nexport CXXFLAGS=\"\
+    -Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch\
+    \ -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages\
+    \ ${CXXFLAGS:-}\"\nmeson setup build \\\n  --cross-file /tmp/meson-cross.ini \\\
+    \n  --prefix=\"${PREFIX}\" \\\n  --libdir=\"${PREFIX}/lib\" \\\n  -Dwarning_level=0\
+    \ \\\n  -Dguile=3.0 \\\n  -Dtheme_kde=false\n"
+  make: 'ninja -C build -j4 -k 0
+
+    '
+  install: "DESTDIR=\"${DESTDIR}\" ninja -C build install\nrm -f \"${DESTDIR}${PREFIX}/bin/guile\"\
+    \ \"${DESTDIR}${PREFIX}/bin/guile-3.0\" \"${DESTDIR}${PREFIX}/bin/glib-compile-resources\"\
+    \nif command -v termux-elf-cleaner >/dev/null 2>&1; then\n  termux-elf-cleaner\
+    \ \"${DESTDIR}${PREFIX}/bin/sol\" 2>/dev/null || true\n  termux-elf-cleaner \"\
+    ${DESTDIR}${PREFIX}/lib/aisleriot/ar-cards/\"*.so 2>/dev/null || true\nfi\n"
+  test: "SOL_PATH=\"$(find /tmp/stage \"$PREFIX\" -name sol -type f 2>/dev/null |\
+    \ head -n 1)\"\nif [ -z \"$SOL_PATH\" ]; then\n  echo \"Error: sol executable\
+    \ not found\" >&2\n  exit 1\nfi\nenv -u LD_LIBRARY_PATH readelf -h \"$SOL_PATH\"\
+    \n"
