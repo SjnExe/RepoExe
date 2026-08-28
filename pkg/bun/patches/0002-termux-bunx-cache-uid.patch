@@ -1,5 +1,5 @@
 diff --git a/src/runtime/cli/bunx_command.rs b/src/runtime/cli/bunx_command.rs
-index f978022d..eaaaf832 100644
+index f978022d..3604a7d9 100644
 --- a/src/runtime/cli/bunx_command.rs
 +++ b/src/runtime/cli/bunx_command.rs
 @@ -540,7 +540,7 @@ impl BunxCommand {
@@ -60,7 +60,7 @@ index f978022d..eaaaf832 100644
 +        #[cfg(all(unix, not(target_os = "android")))]
          // SAFETY: getuid() is always safe to call (no preconditions, never fails)
          let uid = unsafe { libc::getuid() };
-+        #[cfg(any(windows, target_os = "android"))]
++        #[cfg(target_os = "android")]
 +        let uid = 0;
          #[cfg(windows)]
          let uid = bun_sys::windows::user_unique_id();
@@ -110,3 +110,30 @@ index f978022d..eaaaf832 100644
                              let stored = fs.dirname_store.append_slice(out)?;
                              Run::run_binary(
                                  ctx,
+diff --git a/src/runtime/cli/package_manager_command.rs b/src/runtime/cli/package_manager_command.rs
+index 982e3647..8ee2f916 100644
+--- a/src/runtime/cli/package_manager_command.rs
++++ b/src/runtime/cli/package_manager_command.rs
+@@ -487,16 +487,20 @@ Learn more about these at <magenta>https://bun.com/docs/cli/pm<r>.\n";
+
+                     // This is to match 'bunx_command.BunxCommand.exec's logic
+                     let mut prefix: Vec<u8> = Vec::new();
+-                    #[cfg(unix)]
++                    #[cfg(all(unix, not(target_os = "android")))]
+                     {
+                         // SAFETY: getuid(2) is always-successful with no preconditions.
+                         write!(&mut prefix, "bunx-{}-", unsafe { libc::getuid() })
+                             .expect("unreachable");
+                     }
+-                    #[cfg(not(unix))]
++                    #[cfg(any(not(unix), target_os = "android"))]
+                     {
++                        #[cfg(windows)]
+                         write!(&mut prefix, "bunx-{}-", bun_sys::windows::user_unique_id())
+                             .expect("unreachable");
++                        #[cfg(target_os = "android")]
++                        write!(&mut prefix, "bunx-0-")
++                            .expect("unreachable");
+                     }
+
+                     let mut deleted: usize = 0;
