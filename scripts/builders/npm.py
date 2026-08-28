@@ -155,7 +155,7 @@ def generate_npm_index(output_dir: str | Path, pkg_dir: str | Path | None = None
                 inner_meta["bin"] = {pkg_name: f"bin/{pkg_name}"}
 
             inner_meta["dist"] = {
-                "tarball": f"https://repoexe-npm-proxy.sjn.workers.dev/{pkg_name}/{tgz_path.name}"
+                "tarball": f"https://sjnexe.github.io/RepoExe/npm/{pkg_name}/{tgz_path.name}"
             }
 
             versions_manifest[ver] = inner_meta
