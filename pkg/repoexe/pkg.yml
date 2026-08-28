@@ -1,5 +1,5 @@
 name: repoexe
-version: "1.1.4"
+version: "1.2.0"
 revision: 0
 arch: all
 description: Central RepoExe package repository management CLI

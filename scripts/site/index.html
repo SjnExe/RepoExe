@@ -18,13 +18,27 @@
     <main class="container">
         <section class="install-box">
             <div class="install-header">
-                <h3><span class="material-icons">terminal</span> Quick Install</h3>
+                <h3><span class="material-icons">terminal</span> Quick Install & Configuration</h3>
                 <button id="copyBtn" class="copy-btn" title="Copy command">
                     <span class="material-icons">content_copy</span>
                     <span id="copyText">Copy</span>
                 </button>
             </div>
-            <code id="installCmd">curl -sL https://sjnexe.github.io/RepoExe/install | sh</code>
+
+            <div class="target-selector">
+                <span class="selector-label">Select Registries to Enable:</span>
+                <div class="checkbox-group">
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="apt" checked> APT</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="bun" checked> Bun</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="npm" checked> NPM</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="yarn"> Yarn</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="pnpm"> Pnpm</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="pip" checked> Pip</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="uv" checked> UV</label>
+                </div>
+            </div>
+
+            <code id="installCmd">curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- enable apt bun npm pip uv</code>
         </section>
 
         <section class="search-section">

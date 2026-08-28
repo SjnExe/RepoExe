@@ -20,6 +20,28 @@ if (copyBtn) {
     });
 }
 
+function updateInstallCommand() {
+    const checkboxes = document.querySelectorAll(".target-cb");
+    const selected = Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+
+    const cmdCode = document.getElementById("installCmd");
+    if (!cmdCode) return;
+
+    if (selected.length === 0) {
+        cmdCode.innerText = "curl -sL https://sjnexe.github.io/RepoExe/install | sh";
+    } else if (selected.length === checkboxes.length) {
+        cmdCode.innerText = "curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- enable all";
+    } else {
+        cmdCode.innerText = `curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- enable ${selected.join(" ")}`;
+    }
+}
+
+document.querySelectorAll(".target-cb").forEach(cb => {
+    cb.addEventListener("change", updateInstallCommand);
+});
+
 async function loadPackages() {
     try {
         const response = await fetch("packages.json");
@@ -90,4 +112,5 @@ document.querySelectorAll(".filter-btn").forEach(btn => {
     });
 });
 
+updateInstallCommand();
 loadPackages();
