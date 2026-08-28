@@ -60,11 +60,14 @@ index f978022d..22acbb4b 100644
 +        #[cfg(all(unix, not(target_os = "android")))]
          // SAFETY: getuid() is always safe to call (no preconditions, never fails)
          let uid = unsafe { libc::getuid() };
-+        #[cfg(any(not(unix), target_os = "android"))]
++        #[cfg(target_os = "android")]
++        let uid: u32 = 0;
++        #[cfg(not(unix))]
          #[cfg(windows)]
          let uid = bun_sys::windows::user_unique_id();
++        #[cfg(not(unix))]
 +        #[cfg(not(windows))]
-+        let uid = 0;
++        let uid: u32 = 0;
 
          path = {
              let mut v = Vec::new();

@@ -2,7 +2,7 @@ diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/
 index 0ee12ba..f3e3391 100644
 --- a/src/jsc/bindings/workaround-missing-symbols.cpp
 +++ b/src/jsc/bindings/workaround-missing-symbols.cpp
-@@ -539,3 +539,191 @@
+@@ -539,3 +539,268 @@
  #endif
 
  extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
@@ -20,7 +20,9 @@ index 0ee12ba..f3e3391 100644
 +#include <string.h>
 +#include <stdlib.h>
 +#include <spawn.h>
-+
++#include <fcntl.h>
++#include <stdio.h>
+
 +#ifndef __NR_close_range
 +#define __NR_close_range 436
 +#endif
@@ -30,7 +32,7 @@ index 0ee12ba..f3e3391 100644
 +#ifndef __NR_fchmodat2
 +#define __NR_fchmodat2 438
 +#endif
-+
+
 +static void sigsys_handler(int sig, siginfo_t *info, void *context) {
 +    if (sig == SIGSYS && context != NULL) {
 +        ucontext_t *ctx = (ucontext_t *)context;
@@ -38,27 +40,27 @@ index 0ee12ba..f3e3391 100644
 +        ctx->uc_mcontext.pc += 4;
 +    }
 +}
-+
+
 +static void install_sigsys_handler(void) {
 +    int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
 +        (int (*)(int, const struct sigaction *, struct sigaction *))dlsym(RTLD_NEXT, "sigaction");
-+
+
 +    struct sigaction sa;
 +    sigemptyset(&sa.sa_mask);
 +    sa.sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
 +    sa.sa_sigaction = sigsys_handler;
-+
+
 +    if (real_sigaction) {
 +        real_sigaction(SIGSYS, &sa, NULL);
 +    } else {
 +        sigaction(SIGSYS, &sa, NULL);
 +    }
 +}
-+
+
 +extern "C" int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact) {
 +    int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
 +        (int (*)(int, const struct sigaction *, struct sigaction *))dlsym(RTLD_NEXT, "sigaction");
-+
+
 +    if (signum == SIGSYS) {
 +        if (oldact != NULL) {
 +            sigemptyset(&oldact->sa_mask);
@@ -67,13 +69,13 @@ index 0ee12ba..f3e3391 100644
 +        }
 +        return 0;
 +    }
-+
+
 +    if (real_sigaction) {
 +        return real_sigaction(signum, act, oldact);
 +    }
 +    return 0;
 +}
-+
+
 +static const char *termux_rewrite_path(const char *filename) {
 +    if (!filename) return filename;
 +    static const char *prefix = "/data/data/com.termux/files/usr";
@@ -110,47 +112,92 @@ index 0ee12ba..f3e3391 100644
 +    }
 +    return filename;
 +}
+
++static int parse_shebang(const char *filename, char *interp_out, size_t interp_size, char *arg_out, size_t arg_size) {
++    int fd = open(filename, O_RDONLY);
++    if (fd < 0) return -1;
++    char line[512];
++    ssize_t n = read(fd, line, sizeof(line) - 1);
++    close(fd);
++    if (n < 3 || line[0] != '#' || line[1] != '!') return -1;
++    line[n] = '\0';
++    char *newline = strchr(line, '\n');
++    if (newline) *newline = '\0';
++    char *ptr = line + 2;
++    while (*ptr == ' ' || *ptr == '\t') ptr++;
++    if (*ptr == '\0') return -1;
 +
++    char *interp = ptr;
++    while (*ptr && *ptr != ' ' && *ptr != '\t') ptr++;
++    if (*ptr) {
++        *ptr = '\0';
++        ptr++;
++        while (*ptr == ' ' || *ptr == '\t') ptr++;
++    }
++    snprintf(interp_out, interp_size, "%s", interp);
++    if (*ptr) {
++        snprintf(arg_out, arg_size, "%s", ptr);
++    } else {
++        arg_out[0] = '\0';
++    }
++    return 0;
++}
+
 +extern "C" int execve(const char *filename, char *const argv[], char *const envp[]) {
 +    typedef int (*execve_fn)(const char *, char *const [], char *const []);
 +    execve_fn real_execve = (execve_fn)dlsym(RTLD_NEXT, "execve");
++    if (!real_execve) return -1;
 +    const char *new_fn = termux_rewrite_path(filename);
-+    if (real_execve) {
-+        return real_execve(new_fn, argv, envp);
++    int res = real_execve(new_fn, argv, envp);
++    if (res < 0 && errno == ENOENT && filename) {
++        char interp[256], shebang_arg[256];
++        if (parse_shebang(filename, interp, sizeof(interp), shebang_arg, sizeof(shebang_arg)) == 0) {
++            const char *rewritten_interp = termux_rewrite_path(interp);
++            size_t orig_argc = 0;
++            if (argv) { while (argv[orig_argc]) orig_argc++; }
++            size_t extra = (shebang_arg[0] != '\0') ? 2 : 1;
++            char **new_argv = (char **)malloc(sizeof(char *) * (orig_argc + extra + 1));
++            new_argv[0] = (char *)rewritten_interp;
++            size_t idx = 1;
++            if (shebang_arg[0] != '\0') {
++                new_argv[idx++] = shebang_arg;
++            }
++            new_argv[idx++] = (char *)filename;
++            for (size_t i = 1; i < orig_argc; i++) {
++                new_argv[idx++] = argv[i];
++            }
++            new_argv[idx] = NULL;
++            res = real_execve(rewritten_interp, new_argv, envp);
++            free(new_argv);
++        }
 +    }
-+    return -1;
++    return res;
 +}
-+
+
 +extern "C" int execv(const char *filename, char *const argv[]) {
 +    typedef int (*execv_fn)(const char *, char *const []);
 +    execv_fn real_execv = (execv_fn)dlsym(RTLD_NEXT, "execv");
++    if (!real_execv) return -1;
 +    const char *new_fn = termux_rewrite_path(filename);
-+    if (real_execv) {
-+        return real_execv(new_fn, argv);
-+    }
-+    return -1;
++    return real_execv(new_fn, argv);
 +}
-+
+
 +extern "C" int execvp(const char *filename, char *const argv[]) {
 +    typedef int (*execvp_fn)(const char *, char *const []);
 +    execvp_fn real_execvp = (execvp_fn)dlsym(RTLD_NEXT, "execvp");
++    if (!real_execvp) return -1;
 +    const char *new_fn = termux_rewrite_path(filename);
-+    if (real_execvp) {
-+        return real_execvp(new_fn, argv);
-+    }
-+    return -1;
++    return real_execvp(new_fn, argv);
 +}
-+
+
 +extern "C" int execvpe(const char *filename, char *const argv[], char *const envp[]) {
 +    typedef int (*execvpe_fn)(const char *, char *const [], char *const []);
 +    execvpe_fn real_execvpe = (execvpe_fn)dlsym(RTLD_NEXT, "execvpe");
++    if (!real_execvpe) return -1;
 +    const char *new_fn = termux_rewrite_path(filename);
-+    if (real_execvpe) {
-+        return real_execvpe(new_fn, argv, envp);
-+    }
-+    return -1;
++    return real_execvpe(new_fn, argv, envp);
 +}
-+
+
 +extern "C" int posix_spawn(
 +    pid_t *pid,
 +    const char *path,
@@ -161,13 +208,34 @@ index 0ee12ba..f3e3391 100644
 +) {
 +    typedef int (*posix_spawn_fn)(pid_t *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const [], char *const []);
 +    posix_spawn_fn real_posix_spawn = (posix_spawn_fn)dlsym(RTLD_NEXT, "posix_spawn");
++    if (!real_posix_spawn) return -1;
 +    const char *new_path = termux_rewrite_path(path);
-+    if (real_posix_spawn) {
-+        return real_posix_spawn(pid, new_path, file_actions, attrp, argv, envp);
++    int res = real_posix_spawn(pid, new_path, file_actions, attrp, argv, envp);
++    if (res == ENOENT && path) {
++        char interp[256], shebang_arg[256];
++        if (parse_shebang(path, interp, sizeof(interp), shebang_arg, sizeof(shebang_arg)) == 0) {
++            const char *rewritten_interp = termux_rewrite_path(interp);
++            size_t orig_argc = 0;
++            if (argv) { while (argv[orig_argc]) orig_argc++; }
++            size_t extra = (shebang_arg[0] != '\0') ? 2 : 1;
++            char **new_argv = (char **)malloc(sizeof(char *) * (orig_argc + extra + 1));
++            new_argv[0] = (char *)rewritten_interp;
++            size_t idx = 1;
++            if (shebang_arg[0] != '\0') {
++                new_argv[idx++] = shebang_arg;
++            }
++            new_argv[idx++] = (char *)path;
++            for (size_t i = 1; i < orig_argc; i++) {
++                new_argv[idx++] = argv[i];
++            }
++            new_argv[idx] = NULL;
++            res = real_posix_spawn(pid, rewritten_interp, file_actions, attrp, new_argv, envp);
++            free(new_argv);
++        }
 +    }
-+    return -1;
++    return res;
 +}
-+
+
 +extern "C" int posix_spawnp(
 +    pid_t *pid,
 +    const char *file,
@@ -178,17 +246,38 @@ index 0ee12ba..f3e3391 100644
 +) {
 +    typedef int (*posix_spawnp_fn)(pid_t *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const [], char *const []);
 +    posix_spawnp_fn real_posix_spawnp = (posix_spawnp_fn)dlsym(RTLD_NEXT, "posix_spawnp");
++    if (!real_posix_spawnp) return -1;
 +    const char *new_file = termux_rewrite_path(file);
-+    if (real_posix_spawnp) {
-+        return real_posix_spawnp(pid, new_file, file_actions, attrp, argv, envp);
++    int res = real_posix_spawnp(pid, new_file, file_actions, attrp, argv, envp);
++    if (res == ENOENT && file) {
++        char interp[256], shebang_arg[256];
++        if (parse_shebang(file, interp, sizeof(interp), shebang_arg, sizeof(shebang_arg)) == 0) {
++            const char *rewritten_interp = termux_rewrite_path(interp);
++            size_t orig_argc = 0;
++            if (argv) { while (argv[orig_argc]) orig_argc++; }
++            size_t extra = (shebang_arg[0] != '\0') ? 2 : 1;
++            char **new_argv = (char **)malloc(sizeof(char *) * (orig_argc + extra + 1));
++            new_argv[0] = (char *)rewritten_interp;
++            size_t idx = 1;
++            if (shebang_arg[0] != '\0') {
++                new_argv[idx++] = shebang_arg;
++            }
++            new_argv[idx++] = (char *)file;
++            for (size_t i = 1; i < orig_argc; i++) {
++                new_argv[idx++] = argv[i];
++            }
++            new_argv[idx] = NULL;
++            res = real_posix_spawnp(pid, rewritten_interp, file_actions, attrp, new_argv, envp);
++            free(new_argv);
++        }
 +    }
-+    return -1;
++    return res;
 +}
-+
+
 +static void on_fork_child(void) {
 +    install_sigsys_handler();
 +}
-+
+
 +__attribute__((constructor)) static void init_bun_sigsys(void) {
 +    install_sigsys_handler();
 +    pthread_atfork(NULL, NULL, on_fork_child);
