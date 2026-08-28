@@ -65,9 +65,45 @@ import urllib.error
 import json
 import sys
 import os
+import time
+import threading
 
 PORT = int(os.environ.get('REPOEXE_PROXY_PORT', '$PROXY_PORT'))
 REPO_URL = os.environ.get('REPOEXE_STORE_URL', '$REPO_URL')
+
+STORE_PKGS_CACHE = set()
+STORE_PKGS_LAST_FETCH = 0
+CACHE_TTL = 60  # seconds
+CACHE_LOCK = threading.Lock()
+
+def get_store_packages():
+    global STORE_PKGS_CACHE, STORE_PKGS_LAST_FETCH
+    now = time.time()
+    with CACHE_LOCK:
+        if now - STORE_PKGS_LAST_FETCH < CACHE_TTL and STORE_PKGS_CACHE:
+            return STORE_PKGS_CACHE
+
+    try:
+        url = f'{REPO_URL}/packages.json'
+        req = urllib.request.Request(url, headers={'User-Agent': 'RepoExe-Local-Proxy'})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode('utf-8'))
+                pkgs = set()
+                for item in data:
+                    name = item.get('name')
+                    formats = item.get('formats', [])
+                    if name and ('npm' in formats or 'all' in formats):
+                        pkgs.add(name)
+                with CACHE_LOCK:
+                    STORE_PKGS_CACHE = pkgs
+                    STORE_PKGS_LAST_FETCH = time.time()
+                return pkgs
+    except Exception:
+        pass
+
+    with CACHE_LOCK:
+        return STORE_PKGS_CACHE
 
 class LocalProxyHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -130,6 +166,11 @@ class LocalProxyHandler(http.server.BaseHTTPRequestHandler):
         pkg_name = parts[0]
         if parts[0].startswith('@') and len(parts) >= 2:
             pkg_name = f'{parts[0]}/{parts[1]}'
+
+        store_pkgs = get_store_packages()
+        if store_pkgs and pkg_name not in store_pkgs:
+            self.handle_passthrough(method)
+            return
 
         if pathname.endswith('.tgz'):
             target_path = pathname.replace('/-/', '/')
