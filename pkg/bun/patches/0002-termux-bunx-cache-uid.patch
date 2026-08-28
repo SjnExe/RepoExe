@@ -1,0 +1,54 @@
+diff --git a/src/runtime/cli/bunx_command.rs b/src/runtime/cli/bunx_command.rs
+index f978022d..1a1a1a1a 100644
+--- a/src/runtime/cli/bunx_command.rs
++++ b/src/runtime/cli/bunx_command.rs
+@@ -540,7 +540,7 @@ impl BunxCommand {
+     ///
+     /// On non-Unix targets there is no comparable shared world-writable temp
+     /// dir / uid model, so the check is a no-op there.
+-    #[cfg(unix)]
++    #[cfg(all(unix, not(target_os = "android")))]
+     fn is_trusted_cached_binary(destination: &ZStr, uid: libc::uid_t) -> bool {
+         let lstat_ok = |st: &bun_sys::Stat| {
+             let kind = st.st_mode & libc::S_IFMT;
+@@ -560,13 +560,13 @@ impl BunxCommand {
+         }
+     }
+
+-    #[cfg(not(unix))]
++    #[cfg(any(not(unix), target_os = "android"))]
+     #[inline(always)]
+     fn is_trusted_cached_binary(_destination: &ZStr, _uid: u32) -> bool {
+         true
+     }
+
+-    #[cfg(unix)]
++    #[cfg(all(unix, not(target_os = "android")))]
+     fn is_trusted_cache_root(cache_root: &[u8], temp_dir_len: usize, uid: libc::uid_t) -> bool {
+         let mut buf = PathBuffer::uninit();
+         if cache_root.len() >= buf.len() || temp_dir_len >= cache_root.len() {
+@@ -605,13 +605,13 @@ impl BunxCommand {
+         }
+     }
+
+-    #[cfg(not(unix))]
++    #[cfg(any(not(unix), target_os = "android"))]
+     #[inline(always)]
+     fn is_trusted_cache_root(_cache_root: &[u8], _temp_dir_len: usize, _uid: u32) -> bool {
+         true
+     }
+
+-    #[cfg(unix)]
++    #[cfg(all(unix, not(target_os = "android")))]
+     fn is_trusted_opened_cache_dir(
+         dir: Fd,
+         cache_dir: &[u8],
+@@ -652,7 +652,7 @@ impl BunxCommand {
+         }
+     }
+
+-    #[cfg(not(unix))]
++    #[cfg(any(not(unix), target_os = "android"))]
+     #[inline(always)]
+     fn is_trusted_opened_cache_dir(
+         _dir: Fd,
