@@ -266,6 +266,7 @@ jobs:
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
             --env PYTHONPATH="scripts" \
+            --env PYTHONUNBUFFERED="1" \
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
@@ -347,6 +348,7 @@ jobs:
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
             --env PYTHONPATH="scripts" \
+            --env PYTHONUNBUFFERED="1" \
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
@@ -382,6 +384,7 @@ jobs:
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
             --env PYTHONPATH="scripts" \
+            --env PYTHONUNBUFFERED="1" \
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
