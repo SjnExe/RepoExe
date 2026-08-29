@@ -1,0 +1,16 @@
+diff --git a/src/jsc/bindings/c-bindings.cpp b/src/jsc/bindings/c-bindings.cpp
+index 728ec561..0ef201c1 100644
+--- a/src/jsc/bindings/c-bindings.cpp
++++ b/src/jsc/bindings/c-bindings.cpp
+@@ -66,8 +66,12 @@ extern "C" bool is_executable_file(const char* path)
+     if (stat(path, &st) != 0)
+         return false;
+
++#if defined(__ANDROID__)
++    return S_ISREG(st.st_mode);
++#else
+     // regular file and user can execute
+     return S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR);
++#endif
+ }
+ #endif
