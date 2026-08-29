@@ -20,6 +20,8 @@ build_system: go
 
 toolchains:
   go: ">=1.22"
+patched_version_range: ">=5.0.0"
+
 vars:
   GOOS: "android"
   GOARCH: "arm64"
@@ -27,6 +29,7 @@ vars:
   GOTOOLCHAIN: "local"
   npm_name: "@typescript/typescript-android-arm64"
   npm_bin_dir: "lib"
+  patched_target: "typescript"
 
 phases:
   prepare: |

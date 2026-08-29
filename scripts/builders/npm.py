@@ -69,11 +69,16 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
         bin_target.write_text(wrapper_script, encoding="utf-8")
         bin_target.chmod(0o755)
 
+    os_list = recipe.vars.get("os", ["android", "linux"]) if recipe.vars else ["android", "linux"]
+    cpu_list = recipe.vars.get("cpu", ["arm64"]) if recipe.vars else ["arm64"]
+
     pkg_json = {
         "name": npm_name,
         "version": npm_version,
         "description": recipe.description,
         "license": recipe.license,
+        "os": os_list,
+        "cpu": cpu_list,
         "bin": bin_map,
     }
     (npm_pkg_dir / "package.json").write_text(
@@ -163,19 +168,21 @@ def generate_npm_index(
             versions_manifest[ver] = inner_meta
 
         patched_range = None
+        patched_target = None
         if pkg_dir:
-            p_recipe = Path(pkg_dir) / pkg_name / "pkg.yml"
-            if p_recipe.exists():
+            from core.parser import parse_recipe
+            for rec_file in Path(pkg_dir).rglob("pkg.yml"):
                 try:
-                    from core.parser import parse_recipe
-
-                    r_obj = parse_recipe(p_recipe)
-                    if getattr(r_obj, "patched_version_range", None):
-                        patched_range = r_obj.patched_version_range
+                    r_obj = parse_recipe(rec_file)
+                    r_npm_name = r_obj.vars.get("npm_name", r_obj.name) if r_obj.vars else r_obj.name
+                    if r_npm_name == pkg_name or rec_file.parent.name == pkg_name:
+                        if getattr(r_obj, "patched_version_range", None):
+                            patched_range = r_obj.patched_version_range
+                        if r_obj.vars and r_obj.vars.get("patched_target"):
+                            patched_target = r_obj.vars.get("patched_target")
+                        break
                 except Exception as e:
-                    print(
-                        f"Notice: failed to parse recipe for {pkg_name} in npm index gen: {e}"
-                    )
+                    print(f"Notice: failed to parse recipe {rec_file} in npm index gen: {e}")
 
         meta = {
             "name": pkg_name,
@@ -184,6 +191,8 @@ def generate_npm_index(
         }
         if patched_range:
             meta["patched_version_range"] = patched_range
+        if patched_target:
+            meta["patched_target"] = patched_target
 
         (pkg_dir_target / "package.json").write_text(
             json.dumps(meta, indent=2), encoding="utf-8"
