@@ -1,0 +1,34 @@
+name: maturin
+version: 1.15.0
+revision: 0
+arch: aarch64
+description: Build and publish crates with pyo3, rust-cpython, cffi bindings and rust binaries as python packages
+license: MIT OR Apache-2.0
+homepage: https://github.com/PyO3/maturin
+maintainer: SjnExe
+
+formats:
+  - pip
+
+channels:
+  latest:
+    auto_update: true
+    update_strategy: pypi
+    source: https://files.pythonhosted.org/packages/source/m/maturin/maturin-{version}.tar.gz
+
+build_system: custom
+toolchains:
+  python: "3.14"
+  rust: stable
+
+phases:
+  make: |
+    CARGO_BUILD_TARGET="aarch64-linux-android" cargo build --release --bin maturin
+  install: |
+    mkdir -p "${DESTDIR}${PREFIX}/bin"
+    cp target/aarch64-linux-android/release/maturin "${DESTDIR}${PREFIX}/bin/maturin"
+    chmod +x "${DESTDIR}${PREFIX}/bin/maturin"
+    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
+  test: |
+    maturin --version
+    python3 -c "import maturin; print('maturin ok')"

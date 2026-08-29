@@ -1,0 +1,25 @@
+name: typing-extensions
+version: 4.16.0
+revision: 0
+arch: aarch64
+description: Backported and experimental type hints for Python
+license: Python-2.0
+homepage: https://github.com/python/typing_extensions
+maintainer: SjnExe
+
+formats:
+  - pip
+
+channels:
+  latest:
+    auto_update: true
+    update_strategy: pypi
+    source: https://files.pythonhosted.org/packages/source/t/typing_extensions/typing_extensions-{version}.tar.gz
+
+build_system: custom
+
+phases:
+  install: |
+    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
+  test: |
+    python3 -c "import typing_extensions; print('typing_extensions ok')"
