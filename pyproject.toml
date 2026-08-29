@@ -17,6 +17,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["scripts/builders", "scripts/utils", "scripts/cli"]
 
+[tool.uv]
+link-mode = "symlink"
+
 [dependency-groups]
 dev = [
     "mypy>=1.10.0",
