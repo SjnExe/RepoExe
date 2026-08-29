@@ -1,6 +1,6 @@
 name: bun
 version: "1.4.0"
-revision: 2
+revision: 0
 arch: aarch64
 description: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
 homepage: https://bun.sh
@@ -142,6 +142,17 @@ phases:
     install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/node"
+
+    mkdir -p "${DESTDIR}${PREFIX}/etc/profile.d"
+    cat << 'EOF' > "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
+    # Bun environment configuration
+    export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
+    case ":$PATH:" in
+      *":$BUN_INSTALL/bin:"*) ;;
+      *) export PATH="$BUN_INSTALL/bin:$PATH" ;;
+    esac
+    EOF
+    chmod 755 "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
 
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping installed binary ${DESTDIR}${PREFIX}/bin/bun..."
