@@ -198,7 +198,7 @@ index 0ee12ba..f3e3391 100644
 +    char fn_buf[1024];
 +    const char *new_fn = termux_rewrite_path_r(filename, fn_buf, sizeof(fn_buf));
 +    int ret = real_execve(new_fn, argv, envp);
-+    if (ret == -1 && errno == ENOENT && new_fn && access(new_fn, F_OK) == 0) {
++    if (ret == -1 && (errno == ENOENT || errno == ENOEXEC || errno == EACCES) && new_fn && access(new_fn, F_OK) == 0) {
 +        ret = try_exec_shebang(new_fn, argv, envp, real_execve);
 +    }
 +    return ret;
@@ -224,7 +224,7 @@ index 0ee12ba..f3e3391 100644
 +    const char *new_fn = termux_rewrite_path_r(filename, fn_buf, sizeof(fn_buf));
 +    if (real_execvp) {
 +        int ret = real_execvp(new_fn, argv);
-+        if (ret == -1 && errno == ENOENT && new_fn && access(new_fn, F_OK) == 0 && real_execve) {
++        if (ret == -1 && (errno == ENOENT || errno == ENOEXEC || errno == EACCES) && new_fn && access(new_fn, F_OK) == 0 && real_execve) {
 +            ret = try_exec_shebang(new_fn, argv, environ, real_execve);
 +        }
 +        return ret;
@@ -240,7 +240,7 @@ index 0ee12ba..f3e3391 100644
 +    const char *new_fn = termux_rewrite_path_r(filename, fn_buf, sizeof(fn_buf));
 +    if (real_execvpe) {
 +        int ret = real_execvpe(new_fn, argv, envp);
-+        if (ret == -1 && errno == ENOENT && new_fn && access(new_fn, F_OK) == 0 && real_execve) {
++        if (ret == -1 && (errno == ENOENT || errno == ENOEXEC || errno == EACCES) && new_fn && access(new_fn, F_OK) == 0 && real_execve) {
 +            ret = try_exec_shebang(new_fn, argv, envp, real_execve);
 +        }
 +        return ret;
@@ -339,7 +339,7 @@ index 0ee12ba..f3e3391 100644
 +    const char *new_path = termux_rewrite_path_r(path, fn_buf, sizeof(fn_buf));
 +    if (real_posix_spawn) {
 +        int ret = real_posix_spawn(pid, new_path, file_actions, attrp, argv, envp);
-+        if ((ret == ENOEXEC || ret == ENOENT) && new_path && access(new_path, F_OK) == 0) {
++        if ((ret == ENOEXEC || ret == ENOENT || ret == EACCES) && new_path && access(new_path, F_OK) == 0) {
 +            int shebang_ret = try_posix_spawn_shebang(pid, new_path, file_actions, attrp, argv, envp);
 +            if (shebang_ret == 0) return 0;
 +        }
@@ -362,7 +362,7 @@ index 0ee12ba..f3e3391 100644
 +    const char *new_file = termux_rewrite_path_r(file, fn_buf, sizeof(fn_buf));
 +    if (real_posix_spawnp) {
 +        int ret = real_posix_spawnp(pid, new_file, file_actions, attrp, argv, envp);
-+        if ((ret == ENOEXEC || ret == ENOENT) && new_file && access(new_file, F_OK) == 0) {
++        if ((ret == ENOEXEC || ret == ENOENT || ret == EACCES) && new_file && access(new_file, F_OK) == 0) {
 +            int shebang_ret = try_posix_spawn_shebang(pid, new_file, file_actions, attrp, argv, envp);
 +            if (shebang_ret == 0) return 0;
 +        }
