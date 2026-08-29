@@ -1,0 +1,26 @@
+name: annotated-types
+version: 0.8.0
+revision: 0
+arch: aarch64
+description: Reusable constraint types to use with typing.Annotated
+license: MIT
+homepage: https://github.com/annotated-types/annotated-types
+maintainer: SjnExe
+
+formats:
+  - pip
+
+channels:
+  latest:
+    auto_update: true
+    update_strategy: pypi
+    source: https://files.pythonhosted.org/packages/source/a/annotated-types/annotated_types-{version}.tar.gz
+
+build_system: custom
+phases:
+  make: |
+    python3 -m pip install --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" . --no-deps
+  install: |
+    echo "Installed annotated-types site-packages into staging"
+  test: |
+    python3 -c "import annotated_types; print('annotated_types ok')"

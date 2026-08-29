@@ -1,0 +1,40 @@
+name: maturin
+version: 1.15.0
+revision: 0
+arch: aarch64
+description: Build and publish crates with pyo3, rust-cpython and c-ffi bindings as well as rust binaries as python packages
+license: MIT OR Apache-2.0
+homepage: https://github.com/PyO3/maturin
+maintainer: SjnExe
+
+formats:
+  - pip
+
+channels:
+  latest:
+    auto_update: true
+    update_strategy: pypi
+    source: https://files.pythonhosted.org/packages/source/m/maturin/maturin-{version}.tar.gz
+
+build_system: custom
+toolchains:
+  python: "3.14"
+  rust: stable
+
+phases:
+  prepare: |
+    python3 -m pip install --break-system-packages setuptools wheel tomly
+  make: |
+    cargo build --release --target aarch64-linux-android
+    python3 setup.py bdist_wheel --dist-dir output/
+    python3 -m pip install --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" output/*.whl --no-deps
+    mkdir -p "${DESTDIR}${PREFIX}/bin"
+    MATURIN_BIN=$(find target/aarch64-linux-android/release -maxdepth 1 -type f -name maturin | head -n 1)
+    if [ -n "$MATURIN_BIN" ]; then
+      cp "$MATURIN_BIN" "${DESTDIR}${PREFIX}/bin/maturin"
+      chmod +x "${DESTDIR}${PREFIX}/bin/maturin"
+    fi
+  install: |
+    echo "Installed maturin binary and site-packages into staging"
+  test: |
+    python3 -c "import maturin; print('maturin ok')"
