@@ -32,26 +32,6 @@ phases:
   prepare: |
     [ -f go.mod ] && sed -i 's/^go 1\.[0-9]*/go 1.22/' go.mod || true
   make: |
-    echo "Patching fanotify for Android Seccomp compatibility..."
-    python3 -c '
-    import re
-    with open("go.mod", "r") as f:
-        content = f.read()
-    content = re.sub(r"(?s)\b(tool|ignore)\s*\(.*?\)", "", content)
-    with open("go.mod", "w") as f:
-        f.write(content)
-
-    p = "internal/fswatch/fanotify_linux.go"
-    try:
-        with open(p, "r") as f:
-            code = f.read()
-        code = re.sub(r"func fanotifyAvailable\(\)\s*bool\s*\{.*?\n\}", "func fanotifyAvailable() bool {\n\treturn false\n}", code, flags=re.DOTALL)
-        with open(p, "w") as f:
-            f.write(code)
-        print("✓ Successfully patched fanotifyAvailable in " + p)
-    except Exception as e:
-        print("Notice: " + str(e))
-    '
     go mod tidy || true
     go build -buildvcs=false -ldflags="-s -w" -o tsc ./cmd/tsgo
   install: |

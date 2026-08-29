@@ -73,23 +73,6 @@ def prepare_debian_dir(
     control_file.write_text(control_content, encoding="utf-8")
     control_file.chmod(0o644)
 
-    if pkg_src_dir and pkg_src_dir.exists():
-        for item in pkg_src_dir.iterdir():
-            if item.name in (
-                "build.yml",
-                "pkg.yml",
-                "build.sh",
-                "subpackages",
-                "__init__.py",
-                "patches",
-            ) or item.name.startswith("patches@"):
-                continue
-            target = stage_dir / item.name
-            if item.is_dir():
-                shutil.copytree(item, target, dirs_exist_ok=True)
-            else:
-                shutil.copy2(item, target)
-
     return stage_dir
 
 
