@@ -131,7 +131,9 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
 
     # Filter out static/doc/man subpackages from dynamic runtime dependencies
     if pkg_name.endswith(("-static", "-doc", "-man")):
-        print(f"Notice: Skipping static/doc subpackage fetch for '{pkg_name}' as dynamic runtime dependency.")
+        print(
+            f"Notice: Skipping static/doc subpackage fetch for '{pkg_name}' as dynamic runtime dependency."
+        )
         fetched.add(pkg_name)
         return True
 
@@ -147,7 +149,9 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
         else []
     ) + (list(output_dir.glob(f"{pkg_name}*.deb")) if output_dir.exists() else [])
     if local_arts:
-        print(f"✓ Found local artifact for dependency '{pkg_name}': {local_arts[0].name}")
+        print(
+            f"✓ Found local artifact for dependency '{pkg_name}': {local_arts[0].name}"
+        )
         subprocess.run(
             ["dpkg-deb", "-x", str(local_arts[0]), str(stage_dir)], check=True
         )
@@ -203,7 +207,9 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
     # 3. Official Termux Upstream Mirrors
     index = _load_termux_index()
     pkg_info = (
-        index.get(pkg_name) or index.get(f"lib{pkg_name}") or index.get(pkg_name.removeprefix("lib"))
+        index.get(pkg_name)
+        or index.get(f"lib{pkg_name}")
+        or index.get(pkg_name.removeprefix("lib"))
     )
     if pkg_info:
         base_url = pkg_info["BaseUrl"]

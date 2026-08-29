@@ -1,6 +1,6 @@
 name: bun
 version: "1.4.0"
-revision: 0
+revision: 1
 arch: aarch64
 description: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
 homepage: https://bun.sh

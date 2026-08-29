@@ -35,6 +35,4 @@ def test_trigger_jules_autofix(mock_get, mock_post, monkeypatch):
     mock_post.assert_called_once()
     _args, kwargs = mock_post.call_args
     assert kwargs["headers"]["X-Goog-Api-Key"] == "test-key-123"
-    assert (
-        kwargs["json"]["sourceContext"]["source"] == "sources/github/SjnExe/RepoExe"
-    )
+    assert kwargs["json"]["sourceContext"]["source"] == "sources/github/SjnExe/RepoExe"

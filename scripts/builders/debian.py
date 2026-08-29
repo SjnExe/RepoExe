@@ -75,7 +75,14 @@ def prepare_debian_dir(
 
     if pkg_src_dir and pkg_src_dir.exists():
         for item in pkg_src_dir.iterdir():
-            if item.name in ("build.yml", "pkg.yml", "build.sh", "subpackages", "__init__.py", "patches") or item.name.startswith("patches@"):
+            if item.name in (
+                "build.yml",
+                "pkg.yml",
+                "build.sh",
+                "subpackages",
+                "__init__.py",
+                "patches",
+            ) or item.name.startswith("patches@"):
                 continue
             target = stage_dir / item.name
             if item.is_dir():
@@ -232,7 +239,11 @@ def generate_release_file(
     gpg_private_key = os.environ.get("GPG_PRIVATE_KEY")
     if gpg_private_key:
         subprocess.run(
-            ["gpg", "--import"], input=gpg_private_key, text=True, capture_output=True, check=False
+            ["gpg", "--import"],
+            input=gpg_private_key,
+            text=True,
+            capture_output=True,
+            check=False,
         )
     else:
         key_path = Path("scripts/repoexe.gpg")

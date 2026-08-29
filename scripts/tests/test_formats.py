@@ -75,12 +75,14 @@ def test_scoped_npm_index_generation(tmp_path):
     pkg_dir = tmp_path / "pkg"
     pkg_dir.mkdir(parents=True, exist_ok=True)
     (pkg_dir / "package.json").write_text(
-        json.dumps({
-            "name": "@typescript/typescript-android-arm64",
-            "version": "7.0.2",
-            "bin": {"tsc": "lib/tsc"}
-        }),
-        encoding="utf-8"
+        json.dumps(
+            {
+                "name": "@typescript/typescript-android-arm64",
+                "version": "7.0.2",
+                "bin": {"tsc": "lib/tsc"},
+            }
+        ),
+        encoding="utf-8",
     )
 
     fake_tgz = tmp_path / "tsc-7.0.2.tgz"
@@ -89,7 +91,9 @@ def test_scoped_npm_index_generation(tmp_path):
 
     generate_npm_index(tmp_path)
 
-    scoped_manifest = tmp_path / "npm" / "@typescript" / "typescript-android-arm64" / "package.json"
+    scoped_manifest = (
+        tmp_path / "npm" / "@typescript" / "typescript-android-arm64" / "package.json"
+    )
     assert scoped_manifest.exists()
     content = scoped_manifest.read_text(encoding="utf-8")
     assert '"name": "@typescript/typescript-android-arm64"' in content
@@ -104,7 +108,9 @@ def test_npm_multiple_binaries(tmp_path):
     from utils.parser import PackageRecipe
 
     destdir = tmp_path / "build"
-    usr_bin = destdir / "stage" / "data" / "data" / "com.termux" / "files" / "usr" / "bin"
+    usr_bin = (
+        destdir / "stage" / "data" / "data" / "com.termux" / "files" / "usr" / "bin"
+    )
     usr_bin.mkdir(parents=True, exist_ok=True)
 
     (usr_bin / "bun").write_text("#!/bin/sh\necho bun", encoding="utf-8")

@@ -93,7 +93,9 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     return tgz_path
 
 
-def generate_npm_index(output_dir: str | Path, pkg_dir: str | Path | None = None) -> None:
+def generate_npm_index(
+    output_dir: str | Path, pkg_dir: str | Path | None = None
+) -> None:
     """Generates standard NPM registry package manifests containing complete bin mappings."""
     base_dir = Path(output_dir)
     npm_dir = base_dir / "npm"
@@ -166,11 +168,14 @@ def generate_npm_index(output_dir: str | Path, pkg_dir: str | Path | None = None
             if p_recipe.exists():
                 try:
                     from core.parser import parse_recipe
+
                     r_obj = parse_recipe(p_recipe)
                     if getattr(r_obj, "patched_version_range", None):
                         patched_range = r_obj.patched_version_range
                 except Exception as e:
-                    print(f"Notice: failed to parse recipe for {pkg_name} in npm index gen: {e}")
+                    print(
+                        f"Notice: failed to parse recipe for {pkg_name} in npm index gen: {e}"
+                    )
 
         meta = {
             "name": pkg_name,

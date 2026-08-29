@@ -34,7 +34,12 @@ def update_recipe(pkg: str, channel: str, new_version: str) -> None:
         new_mm = get_major_minor(new_version)
 
         # Check if package targets npm or pip ecosystem and minor/major changed
-        if (any(fmt in formats for fmt in ("npm", "pip")) or "channels" in d) and old_mm and new_mm and old_mm != new_mm:
+        if (
+            (any(fmt in formats for fmt in ("npm", "pip")) or "channels" in d)
+            and old_mm
+            and new_mm
+            and old_mm != new_mm
+        ):
             if "channels" not in d or not isinstance(d["channels"], dict):
                 d["channels"] = {}
 
@@ -48,7 +53,9 @@ def update_recipe(pkg: str, channel: str, new_version: str) -> None:
                 if "source" in d:
                     old_channel_data["source"] = d["source"]
                 d["channels"][old_mm] = old_channel_data
-                print(f"⚡ Automated channel created: {pkg}@{old_mm} (pinned to {old_version})")
+                print(
+                    f"⚡ Automated channel created: {pkg}@{old_mm} (pinned to {old_version})"
+                )
 
     d["version"] = new_version
     d["revision"] = 0
