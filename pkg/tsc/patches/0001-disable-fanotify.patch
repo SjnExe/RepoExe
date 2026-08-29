@@ -1,0 +1,16 @@
+--- a/internal/fswatch/fanotify_linux.go
++++ b/internal/fswatch/fanotify_linux.go
+@@ -187,12 +187,7 @@
+ // fanotifyAvailable probes whether fanotify_init succeeds with the flags
+ // this backend needs.
+ func fanotifyAvailable() bool {
+-	fd, err := unix.FanotifyInit(fanotifyInitFlags, unix.O_RDONLY|unix.O_CLOEXEC)
+-	if err != nil {
+-		return false
+-	}
+-	_ = unix.Close(fd)
+-	return true
++	return false
+ }
+
+ // newFanotifyBackend creates a fanotify backend. If noRename is true, the

@@ -1,0 +1,2 @@
+link-mode = "symlink"
+extra-index-url = ["https://sjnexe.github.io/RepoExe/pip/"]
