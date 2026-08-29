@@ -1,6 +1,6 @@
 --- a/go.mod
 +++ b/go.mod
-@@ -23,16 +23,3 @@
+@@ -23,16 +23,3 @@ require (
 	golang.org/x/tools v0.47.0 // indirect
  )
 
@@ -8,7 +8,7 @@
 -	github.com/matryer/moq
 -	golang.org/x/tools/cmd/stringer
 -)
-
+-
 -ignore (
 -	./_extension
 -	./_packages

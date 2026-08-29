@@ -21,11 +21,55 @@ channels:
 build_system: custom
 toolchains:
   python: "3.14"
+  rust: stable
 
 phases:
   prepare: |
-    python3 -m pip install --break-system-packages hatchling hatch-fancy-pypi-readme hatch-vcs
+    python3 -m pip install --break-system-packages hatchling hatch-fancy-pypi-readme hatch-vcs typing-extensions annotated-types typing-inspection
   make: |
+    SRC_DIR="$(pwd)"
+    rm -rf /tmp/pylib /tmp/pyo3_config.ini /tmp/pydantic_core_dl
+    mkdir -p /tmp/pylib /tmp/pydantic_core_dl
+
+    CLANG_BIN="${CC:-clang}"
+    if [ -z "$CLANG_BIN" ] || ! command -v "$CLANG_BIN" >/dev/null 2>&1; then
+      CLANG_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "aarch64-linux-android*-clang" 2>/dev/null | head -n 1)
+    fi
+    if [ -z "$CLANG_BIN" ]; then
+      CLANG_BIN="clang"
+    fi
+
+    printf "void* _Py_NoneStruct = 0;\n" | "$CLANG_BIN" -shared -Wl,-soname,libpython3.14.so -o /tmp/pylib/libpython3.14.so -x c -
+    cp /tmp/pylib/libpython3.14.so /tmp/pylib/libpython3.so 2>/dev/null || true
+
+    printf "implementation=CPython\nversion=3.14\nshared=true\nabi3=false\nlib_name=python3.14\nlib_dir=/tmp/pylib\npointer_width=64\nbuild_flags=\nsuppress_build_script_link_lines=false\n" > /tmp/pyo3_config.ini
+
+    python3 -c "
+    import urllib.request, tarfile, json
+    req = urllib.request.urlopen('https://pypi.org/pypi/pydantic_core/2.46.3/json')
+    data = json.loads(req.read().decode('utf-8'))
+    sdist = [u for u in data['urls'] if u['packagetype'] == 'sdist'][0]
+    urllib.request.urlretrieve(sdist['url'], '/tmp/pydantic_core_dl/sdist.tar.gz')
+    with tarfile.open('/tmp/pydantic_core_dl/sdist.tar.gz') as tar:
+        tar.extractall('/tmp/pydantic_core_dl')
+    "
+    CORE_DIR=$(find /tmp/pydantic_core_dl -mindepth 1 -maxdepth 1 -type d | head -n 1)
+    cd "$CORE_DIR"
+
+    PYO3_CONFIG_FILE=/tmp/pyo3_config.ini \
+    RUSTFLAGS="${RUSTFLAGS:-} -L /tmp/pylib -C link-arg=-Wl,-rpath-link,/tmp/pylib" \
+    LIBRARY_PATH="/tmp/pylib:${LIBRARY_PATH:-}" \
+    cargo build --release --target aarch64-linux-android --features pyo3/extension-module
+
+    mkdir -p "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core"
+    [ -d python/pydantic_core ] && cp -r python/pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" || cp -r pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" 2>/dev/null || true
+    SO_FILE=$(find target/aarch64-linux-android/release -maxdepth 1 \( -name "*pydantic_core*.so" -o -name "lib_pydantic_core.so" \) | head -n 1)
+    if [ -n "$SO_FILE" ]; then
+      cp "$SO_FILE" "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/_pydantic_core.so"
+    fi
+    cd "$SRC_DIR"
+
+    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" typing-extensions annotated-types
     python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
     echo "Installed pydantic site-packages into staging"
