@@ -46,7 +46,7 @@ phases:
 
     python3 -c "
     import urllib.request, tarfile, json
-    req = urllib.request.urlopen('https://pypi.org/pypi/pydantic_core/2.46.3/json')
+    req = urllib.request.urlopen('https://pypi.org/pypi/pydantic_core/2.46.5/json')
     data = json.loads(req.read().decode('utf-8'))
     sdist = [u for u in data['urls'] if u['packagetype'] == 'sdist'][0]
     urllib.request.urlretrieve(sdist['url'], '/tmp/pydantic_core_dl/sdist.tar.gz')
