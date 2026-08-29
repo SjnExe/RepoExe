@@ -60,4 +60,5 @@ phases:
   install: |
     echo "Installed pydantic-core site-packages into staging"
   test: |
+    python3 -m pip install --break-system-packages typing-extensions annotated-types >/dev/null 2>&1 || true
     python3 -c "import pydantic_core; print('pydantic_core ok')"

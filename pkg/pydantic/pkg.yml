@@ -7,11 +7,6 @@ license: MIT
 homepage: https://github.com/pydantic/pydantic
 maintainer: SjnExe
 
-deps:
-  - pydantic-core
-  - typing-extensions
-  - annotated-types
-
 formats:
   - pip
 

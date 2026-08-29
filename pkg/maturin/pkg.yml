@@ -23,7 +23,7 @@ toolchains:
 
 phases:
   prepare: |
-    python3 -m pip install --break-system-packages setuptools wheel tomly
+    python3 -m pip install --break-system-packages setuptools setuptools-rust wheel tomli
   make: |
     cargo build --release --target aarch64-linux-android
     python3 setup.py bdist_wheel --dist-dir output/
