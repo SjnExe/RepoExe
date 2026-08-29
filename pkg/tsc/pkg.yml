@@ -32,14 +32,6 @@ phases:
   prepare: |
     [ -f go.mod ] && sed -i 's/^go 1\.[0-9]*/go 1.22/' go.mod || true
   make: |
-    python3 -c '
-    import re
-    with open("go.mod", "r") as f:
-        content = f.read()
-    content = re.sub(r"(?s)\b(tool|ignore)\s*\(.*?\)", "", content)
-    with open("go.mod", "w") as f:
-        f.write(content)
-    ' || true
     go mod tidy || true
     go build -buildvcs=false -ldflags="-s -w" -o tsc ./cmd/tsgo
   install: |

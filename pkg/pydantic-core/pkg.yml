@@ -55,7 +55,7 @@ phases:
       echo "::error:: _pydantic_core.so not found after cargo build!"
       exit 1
     fi
-    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" . 2>/dev/null || true
+    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" typing-extensions
   install: |
     echo "Installed pydantic-core site-packages into staging"
   test: |

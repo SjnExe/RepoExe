@@ -45,9 +45,9 @@ phases:
     LIBRARY_PATH="/tmp/pylib:${LIBRARY_PATH:-}" \
     cargo build --release --target aarch64-linux-android --bin maturin
 
-    mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/lib/python3/dist-packages"
+    mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/lib/python3/dist-packages/maturin"
     cp target/aarch64-linux-android/release/maturin "${DESTDIR}${PREFIX}/bin/maturin"
-    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
+    [ -d maturin ] && cp -r maturin/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/maturin/" 2>/dev/null || true
   install: |
     echo "Installed maturin binary and site-packages into staging"
   test: |

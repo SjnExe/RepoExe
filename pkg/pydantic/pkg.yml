@@ -10,11 +10,6 @@ maintainer: SjnExe
 formats:
   - pip
 
-deps:
-  - pydantic-core
-  - typing-extensions
-  - annotated-types
-
 channels:
   latest:
     auto_update: true
