@@ -69,7 +69,7 @@ phases:
     fi
     cd "$SRC_DIR"
 
-    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" typing-extensions annotated-types
+    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" typing-extensions annotated-types typing-inspection
     python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
   install: |
     echo "Installed pydantic site-packages into staging"
