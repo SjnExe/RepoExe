@@ -1,0 +1,674 @@
+#!/usr/bin/env sh
+set -e
+
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+TMPDIR="${TMPDIR:-/tmp}"
+REPO_URL="https://sjnexe.github.io/RepoExe"
+PROXY_PORT="${REPOEXE_PROXY_PORT:-8787}"
+LOCAL_PROXY_URL="http://127.0.0.1:${PROXY_PORT}"
+PID_FILE="${TMPDIR}/repoexe-proxy.pid"
+
+# Terminal Colors
+if [ -t 1 ]; then
+  BOLD='\033[1m'
+  GREEN='\033[0;32m'
+  RED='\033[0;31m'
+  YELLOW='\033[0;33m'
+  CYAN='\033[0;36m'
+  RESET='\033[0m'
+else
+  BOLD=''
+  GREEN=''
+  RED=''
+  YELLOW=''
+  CYAN=''
+  RESET=''
+fi
+
+show_help() {
+  printf "${BOLD}RepoExe Repository Management CLI v1.2.0${RESET}\n\n"
+  printf "${BOLD}USAGE:${RESET}\n"
+  printf "  repoexe <command> [target1 target2 ...]\n\n"
+  printf "${BOLD}COMMANDS:${RESET}\n"
+  printf "  ${CYAN}status, -s${RESET}                  Check system repository integrations status\n"
+  printf "  ${CYAN}sync, -y${RESET}                    Re-sync all manager integrations from upstream\n"
+  printf "  ${CYAN}list, ls, -l${RESET}                List all available packages in RepoExe store\n"
+  printf "  ${CYAN}doctor${RESET}                      Run diagnostic health checks on repository setup\n"
+  printf "  ${CYAN}enable, -e <target...>${RESET}       Enable manager(s) (${BOLD}apt|pacman|apk|bun|npm|yarn|pnpm|pip|uv|all${RESET})\n"
+  printf "  ${CYAN}disable, -d <target...>${RESET}      Disable manager(s) (${BOLD}apt|pacman|apk|bun|npm|yarn|pnpm|pip|uv|all${RESET})\n"
+  printf "  ${CYAN}proxy <start|stop|status>${RESET}   Manage local NPM/Bun/Yarn/Pnpm proxy daemon\n"
+  printf "  ${CYAN}version, -v${RESET}                 Print CLI version\n"
+  printf "  ${CYAN}help, -h${RESET}                    Show this help menu\n"
+}
+
+is_proxy_running() {
+  if [ -f "$PID_FILE" ]; then
+    PID=$(cat "$PID_FILE" 2>/dev/null || echo "")
+    if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+      return 0
+    fi
+  fi
+  if command -v curl >/dev/null 2>&1; then
+    if curl -s -m 1 "$LOCAL_PROXY_URL" >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+run_proxy_server() {
+  exec python3 -c "
+import http.server
+import urllib.request
+import urllib.parse
+import urllib.error
+import json
+import sys
+import os
+import time
+import threading
+
+PORT = int(os.environ.get('REPOEXE_PROXY_PORT', '$PROXY_PORT'))
+REPO_URL = os.environ.get('REPOEXE_STORE_URL', '$REPO_URL')
+
+STORE_PKGS_CACHE = set()
+STORE_PKGS_LAST_FETCH = 0
+CACHE_TTL = 60  # seconds
+CACHE_LOCK = threading.Lock()
+
+def get_store_packages():
+    global STORE_PKGS_CACHE, STORE_PKGS_LAST_FETCH
+    now = time.time()
+    with CACHE_LOCK:
+        if now - STORE_PKGS_LAST_FETCH < CACHE_TTL and STORE_PKGS_CACHE:
+            return STORE_PKGS_CACHE
+
+    try:
+        url = f'{REPO_URL}/packages.json'
+        req = urllib.request.Request(url, headers={'User-Agent': 'RepoExe-Local-Proxy'})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode('utf-8'))
+                pkgs = set()
+                for item in data:
+                    name = item.get('name')
+                    formats = item.get('formats', [])
+                    if name and ('npm' in formats or 'all' in formats):
+                        pkgs.add(name)
+                with CACHE_LOCK:
+                    STORE_PKGS_CACHE = pkgs
+                    STORE_PKGS_LAST_FETCH = time.time()
+                return pkgs
+    except Exception:
+        pass
+
+    with CACHE_LOCK:
+        return STORE_PKGS_CACHE
+
+class LocalProxyHandler(http.server.BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
+    def do_GET(self):
+        self.handle_proxy('GET')
+
+    def do_HEAD(self):
+        self.handle_proxy('HEAD')
+
+    def do_POST(self):
+        self.handle_passthrough('POST')
+
+    def do_PUT(self):
+        self.handle_passthrough('PUT')
+
+    def do_DELETE(self):
+        self.handle_passthrough('DELETE')
+
+    def handle_passthrough(self, method):
+        upstream_url = f'https://registry.npmjs.org{self.path}'
+        headers = {k: v for k, v in self.headers.items() if k.lower() not in ('host', 'accept-encoding')}
+        headers['Host'] = 'registry.npmjs.org'
+        body = None
+        content_len = int(self.headers.get('Content-Length', 0))
+        if content_len > 0:
+            body = self.rfile.read(content_len)
+        req = urllib.request.Request(upstream_url, data=body, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(req) as resp:
+                self.send_response(resp.status)
+                for k, v in resp.headers.items():
+                    if k.lower() not in ['transfer-encoding', 'content-length', 'content-encoding']:
+                        self.send_header(k, v)
+                resp_body = resp.read()
+                self.send_header('Content-Length', str(len(resp_body)))
+                self.end_headers()
+                if method != 'HEAD':
+                    self.wfile.write(resp_body)
+        except urllib.error.HTTPError as e:
+            self.send_response(e.code)
+            self.end_headers()
+
+    def handle_proxy(self, method):
+        parsed = urllib.parse.urlparse(self.path)
+        pathname = parsed.path
+        parts = [p for p in pathname.split('/') if p]
+
+        if not parts:
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b'RepoExe Local Proxy')
+            return
+
+        if parts[0].startswith('-'):
+            self.handle_passthrough(method)
+            return
+
+        pkg_name = parts[0]
+        if parts[0].startswith('@') and len(parts) >= 2:
+            pkg_name = f'{parts[0]}/{parts[1]}'
+
+        store_pkgs = get_store_packages()
+        if store_pkgs and pkg_name not in store_pkgs:
+            self.handle_passthrough(method)
+            return
+
+        if pathname.endswith('.tgz'):
+            target_path = pathname.replace('/-/', '/')
+        else:
+            target_path = f'/{pkg_name}/package.json'
+
+        repoexe_url = f'{REPO_URL}/npm{target_path}'
+        req = urllib.request.Request(repoexe_url, headers={'User-Agent': 'RepoExe-Local-Proxy'})
+
+        try:
+            with urllib.request.urlopen(req) as resp:
+                if resp.status == 200:
+                    data = resp.read()
+                    if not pathname.endswith('.tgz') and target_path.endswith('package.json'):
+                        try:
+                            local_manifest = json.loads(data.decode('utf-8'))
+                            patched_range = local_manifest.get('patched_version_range')
+                            if patched_range:
+                                upstream_url = f'https://registry.npmjs.org{self.path}'
+                                ureq = urllib.request.Request(upstream_url, headers={'User-Agent': 'RepoExe-Local-Proxy'})
+                                try:
+                                    with urllib.request.urlopen(ureq) as uresp:
+                                        if uresp.status == 200:
+                                            upstream_manifest = json.loads(uresp.read().decode('utf-8'))
+                                            merged_versions = {**upstream_manifest.get('versions', {}), **local_manifest.get('versions', {})}
+                                            latest_local = local_manifest.get('dist-tags', {}).get('latest')
+                                            merged_tags = {**upstream_manifest.get('dist-tags', {})}
+                                            if latest_local:
+                                                merged_tags['latest'] = latest_local
+                                            merged_manifest = {**upstream_manifest, 'dist-tags': merged_tags, 'versions': merged_versions}
+                                            out = json.dumps(merged_manifest).encode('utf-8')
+                                            self.send_response(200)
+                                            self.send_header('Content-Type', 'application/json')
+                                            self.send_header('Access-Control-Allow-Origin', '*')
+                                            self.send_header('Content-Length', str(len(out)))
+                                            self.end_headers()
+                                            if method != 'HEAD':
+                                                self.wfile.write(out)
+                                            return
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+
+                    content_type = 'application/gzip' if pathname.endswith('.tgz') else 'application/json'
+                    self.send_response(200)
+                    self.send_header('Content-Type', content_type)
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Content-Length', str(len(data)))
+                    self.end_headers()
+                    if method != 'HEAD':
+                        self.wfile.write(data)
+                    return
+        except Exception:
+            pass
+
+        self.handle_passthrough(method)
+
+class ThreadedHTTPServer(http.server.ThreadingHTTPServer):
+    daemon_threads = True
+
+server = ThreadedHTTPServer(('127.0.0.1', PORT), LocalProxyHandler)
+server.serve_forever()
+"
+}
+
+proxy_command() {
+  subcmd="$1"
+  shift || true
+  quiet=0
+  for arg in "$@"; do
+    if [ "$arg" = "--quiet" ] || [ "$arg" = "-q" ]; then
+      quiet=1
+    fi
+  done
+
+  case "$subcmd" in
+    start)
+      if is_proxy_running; then
+        if [ "$quiet" -eq 0 ]; then
+          printf "${GREEN}✓ RepoExe proxy is already running on ${LOCAL_PROXY_URL}${RESET}\n"
+        fi
+        return 0
+      fi
+      if [ "$quiet" -eq 0 ]; then
+        printf "${CYAN}Starting RepoExe local proxy on ${LOCAL_PROXY_URL}...${RESET}\n"
+      fi
+      CLI_EXEC="$0"
+      if ! command -v repoexe >/dev/null 2>&1; then
+        CLI_EXEC="sh $0"
+      fi
+      python3 -c "import subprocess, sys; subprocess.Popen('$CLI_EXEC proxy run', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)" >/dev/null 2>&1 &
+      if [ "$quiet" -eq 0 ]; then
+        printf "${GREEN}✓ RepoExe proxy background daemon initialized.${RESET}\n"
+      fi
+      ;;
+    stop)
+      if [ -f "$PID_FILE" ]; then
+        PID=$(cat "$PID_FILE" 2>/dev/null || echo "")
+        if [ -n "$PID" ]; then
+          kill "$PID" 2>/dev/null || true
+        fi
+        rm -f "$PID_FILE"
+      fi
+      pkill -f "proxy run" 2>/dev/null || true
+      if [ "$quiet" -eq 0 ]; then
+        printf "${YELLOW}✓ Stopped RepoExe local proxy.${RESET}\n"
+      fi
+      ;;
+    status)
+      if is_proxy_running; then
+        printf "  RepoExe Local Proxy: [${GREEN}RUNNING${RESET}] (${LOCAL_PROXY_URL})\n"
+      else
+        printf "  RepoExe Local Proxy: [${RED}STOPPED${RESET}]\n"
+      fi
+      ;;
+    run)
+      run_proxy_server
+      ;;
+    *)
+      printf "${RED}Usage: repoexe proxy <start|stop|status>${RESET}\n"
+      exit 1
+      ;;
+  esac
+}
+
+ensure_autostart_script() {
+  if [ -d "$PREFIX/etc/profile.d" ]; then
+    cat << 'EOF' > "$PREFIX/etc/profile.d/repoexe.sh"
+# Auto-start RepoExe local proxy daemon if installed
+if command -v repoexe >/dev/null 2>&1; then
+  repoexe proxy start --quiet >/dev/null 2>&1 &
+fi
+EOF
+    chmod +x "$PREFIX/etc/profile.d/repoexe.sh" 2>/dev/null || true
+  fi
+  return 0
+}
+
+check_status() {
+  printf "${BOLD}=== RepoExe System Status ===${RESET}\n"
+
+  if [ -f "$PREFIX/etc/apt/sources.list.d/repoexe.list" ]; then
+    printf "  APT Repository:      [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  APT Repository:      [${RED}DISABLED${RESET}]\n"
+  fi
+
+  if [ -f /etc/pacman.conf ] && grep -q "\[repoexe\]" /etc/pacman.conf 2>/dev/null; then
+    printf "  Pacman Repository:   [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  Pacman Repository:   [${RED}DISABLED${RESET}]\n"
+  fi
+
+  if [ -f /etc/apk/repositories ] && grep -q "RepoExe" /etc/apk/repositories 2>/dev/null; then
+    printf "  APK Repository:      [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  APK Repository:      [${RED}DISABLED${RESET}]\n"
+  fi
+
+  if [ -f ~/.npmrc ] && grep -qE "(127\.0\.0\.1:8787|repoexe)" ~/.npmrc 2>/dev/null; then
+    printf "  NPM Registry:        [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  NPM Registry:        [${RED}DISABLED${RESET}]\n"
+  fi
+
+  if [ -f ~/.bunfig.toml ] && grep -qE "(127\.0\.0\.1:8787|repoexe)" ~/.bunfig.toml 2>/dev/null; then
+    printf "  Bun Registry:        [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  Bun Registry:        [${RED}DISABLED${RESET}]\n"
+  fi
+
+  if { [ -f ~/.yarnrc ] && grep -qE "(127\.0\.0\.1:8787|repoexe)" ~/.yarnrc 2>/dev/null; } || { [ -f ~/.yarnrc.yml ] && grep -qE "(127\.0\.0\.1:8787|repoexe)" ~/.yarnrc.yml 2>/dev/null; }; then
+    printf "  Yarn Registry:       [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  Yarn Registry:       [${RED}DISABLED${RESET}]\n"
+  fi
+
+  if [ -f ~/.pnpmrc ] && grep -qE "(127\.0\.0\.1:8787|repoexe)" ~/.pnpmrc 2>/dev/null; then
+    printf "  Pnpm Registry:       [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  Pnpm Registry:       [${RED}DISABLED${RESET}]\n"
+  fi
+
+  if [ -f ~/.config/pip/pip.conf ] && grep -qE "(sjnexe\.github\.io|repoexe)" ~/.config/pip/pip.conf 2>/dev/null; then
+    printf "  Pip Index:           [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  Pip Index:           [${RED}DISABLED${RESET}]\n"
+  fi
+
+  if [ -f ~/.config/uv/uv.toml ] && grep -qE "(sjnexe\.github\.io|repoexe)" ~/.config/uv/uv.toml 2>/dev/null; then
+    printf "  UV Index:            [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  UV Index:            [${RED}DISABLED${RESET}]\n"
+  fi
+
+  proxy_command status
+}
+
+list_packages() {
+  printf "${BOLD}Fetching available packages from RepoExe...${RESET}\n\n"
+  if command -v curl >/dev/null 2>&1; then
+    curl -sL "$REPO_URL/packages.json" | grep -E '"name"|"version"|"description"' | sed 's/[",]//g' | paste - - - 2>/dev/null || true
+  else
+    printf "${RED}curl is required to list remote packages.${RESET}\n"
+  fi
+}
+
+run_doctor() {
+  printf "${BOLD}=== RepoExe Health Doctor ===${RESET}\n"
+
+  if curl -sI "$REPO_URL/packages.json" | grep -q "200 OK"; then
+    printf "  Network Reachability: [${GREEN}OK${RESET}]\n"
+  else
+    printf "  Network Reachability: [${RED}FAILED${RESET}]\n"
+  fi
+
+  if [ -f "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc" ] || [ -f "$PREFIX/etc/apt/sources.list.d/repoexe.list" ]; then
+    printf "  APT Source Config:    [${GREEN}OK${RESET}]\n"
+  else
+    printf "  APT Source Config:    [${RED}MISSING${RESET}]\n"
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    printf "  Python3 Engine:       [${GREEN}OK${RESET}]\n"
+  else
+    printf "  Python3 Engine:       [${RED}MISSING (required for proxy)${RESET}]\n"
+  fi
+
+  if is_proxy_running; then
+    printf "  Local Proxy Status:   [${GREEN}OK${RESET}]\n"
+  else
+    printf "  Local Proxy Status:   [${YELLOW}NOT RUNNING${RESET}]\n"
+  fi
+}
+
+enable_single_manager() {
+  case "$1" in
+    apt)
+      mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
+      echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+      curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc" 2>/dev/null || true
+      printf "${GREEN}✓ Enabled APT repository.${RESET}\n"
+      ;;
+    pacman)
+      if [ -f /etc/pacman.conf ]; then
+        if ! grep -q "\[repoexe\]" /etc/pacman.conf 2>/dev/null; then
+          printf "\n[repoexe]\nSigLevel = Optional TrustAll\nServer = %s/pacman/\$arch\n" "$REPO_URL" >> /etc/pacman.conf
+        fi
+        curl -sL "$REPO_URL/repoexe.rsa.pub" -o /etc/pacman.d/repoexe.rsa.pub 2>/dev/null || true
+        printf "${GREEN}✓ Enabled Pacman repository.${RESET}\n"
+      else
+        printf "${YELLOW}! Pacman configuration /etc/pacman.conf not found.${RESET}\n"
+      fi
+      ;;
+    apk)
+      if [ -d /etc/apk ]; then
+        mkdir -p /etc/apk/keys
+        curl -sL "$REPO_URL/repoexe.rsa.pub" -o /etc/apk/keys/repoexe.rsa.pub 2>/dev/null || true
+        if ! grep -q "$REPO_URL/apk" /etc/apk/repositories 2>/dev/null; then
+          echo "$REPO_URL/apk/main" >> /etc/apk/repositories
+        fi
+        printf "${GREEN}✓ Enabled APK repository.${RESET}\n"
+      else
+        printf "${YELLOW}! APK configuration /etc/apk not found.${RESET}\n"
+      fi
+      ;;
+    bun)
+      mkdir -p ~/.config
+      echo "# Configured by RepoExe" > ~/.bunfig.toml
+      echo "[install]" >> ~/.bunfig.toml
+      echo "url = \"$LOCAL_PROXY_URL\"" >> ~/.bunfig.toml
+      ensure_autostart_script
+      proxy_command start --quiet
+      printf "${GREEN}✓ Enabled Bun global registry via local proxy.${RESET}\n"
+      ;;
+    npm)
+      touch ~/.npmrc
+      sed -i '/registry=/d' ~/.npmrc 2>/dev/null || true
+      echo "registry=$LOCAL_PROXY_URL" >> ~/.npmrc
+      if command -v npm >/dev/null 2>&1; then
+        npm config set registry "$LOCAL_PROXY_URL" 2>/dev/null || true
+      fi
+      ensure_autostart_script
+      proxy_command start --quiet
+      printf "${GREEN}✓ Enabled NPM registry via local proxy.${RESET}\n"
+      ;;
+    yarn)
+      touch ~/.yarnrc
+      sed -i '/registry /d' ~/.yarnrc 2>/dev/null || true
+      echo "registry \"$LOCAL_PROXY_URL\"" >> ~/.yarnrc
+      mkdir -p ~/.config/yarn
+      echo "npmRegistryServer: \"$LOCAL_PROXY_URL\"" > ~/.yarnrc.yml 2>/dev/null || true
+      if command -v yarn >/dev/null 2>&1; then
+        yarn config set registry "$LOCAL_PROXY_URL" 2>/dev/null || true
+      fi
+      ensure_autostart_script
+      proxy_command start --quiet
+      printf "${GREEN}✓ Enabled Yarn registry via local proxy.${RESET}\n"
+      ;;
+    pnpm)
+      touch ~/.pnpmrc
+      sed -i '/registry=/d' ~/.pnpmrc 2>/dev/null || true
+      echo "registry=$LOCAL_PROXY_URL" >> ~/.pnpmrc
+      if command -v pnpm >/dev/null 2>&1; then
+        pnpm config set registry "$LOCAL_PROXY_URL" 2>/dev/null || true
+      fi
+      ensure_autostart_script
+      proxy_command start --quiet
+      printf "${GREEN}✓ Enabled Pnpm registry via local proxy.${RESET}\n"
+      ;;
+    pip)
+      mkdir -p ~/.config/pip
+      if ! grep -q "sjnexe.github.io" ~/.config/pip/pip.conf 2>/dev/null; then
+        echo "[global]" >> ~/.config/pip/pip.conf
+        echo "extra-index-url = $REPO_URL/pip/" >> ~/.config/pip/pip.conf
+      fi
+      printf "${GREEN}✓ Enabled Pip extra index.${RESET}\n"
+      ;;
+    uv)
+      mkdir -p ~/.config/uv
+      if ! grep -q "sjnexe.github.io" ~/.config/uv/uv.toml 2>/dev/null; then
+        echo "extra-index-url = [\"$REPO_URL/pip/\"]" >> ~/.config/uv/uv.toml
+      fi
+      printf "${GREEN}✓ Enabled UV extra index.${RESET}\n"
+      ;;
+    all)
+      enable_single_manager apt
+      if [ -f /etc/pacman.conf ]; then enable_single_manager pacman; fi
+      if [ -d /etc/apk ]; then enable_single_manager apk; fi
+      enable_single_manager bun
+      enable_single_manager npm
+      enable_single_manager yarn
+      enable_single_manager pnpm
+      enable_single_manager pip
+      enable_single_manager uv
+      ;;
+    *)
+      printf "${RED}Error: Unknown target '$1'. Options: apt, pacman, apk, bun, npm, yarn, pnpm, pip, uv, all${RESET}\n"
+      return 1
+      ;;
+  esac
+}
+
+disable_single_manager() {
+  case "$1" in
+    apt)
+      rm -f "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+      printf "${YELLOW}✓ Disabled APT repository.${RESET}\n"
+      ;;
+    pacman)
+      if [ -f /etc/pacman.conf ]; then
+        sed -i '/\[repoexe\]/,+2d' /etc/pacman.conf 2>/dev/null || true
+      fi
+      printf "${YELLOW}✓ Disabled Pacman repository.${RESET}\n"
+      ;;
+    apk)
+      if [ -f /etc/apk/repositories ]; then
+        sed -i '/RepoExe/d' /etc/apk/repositories 2>/dev/null || true
+      fi
+      printf "${YELLOW}✓ Disabled APK repository.${RESET}\n"
+      ;;
+    bun)
+      rm -f ~/.bunfig.toml
+      printf "${YELLOW}✓ Disabled Bun registry override.${RESET}\n"
+      ;;
+    npm)
+      if [ -f ~/.npmrc ]; then
+        sed -i '/registry=/d' ~/.npmrc 2>/dev/null || true
+      fi
+      if command -v npm >/dev/null 2>&1; then
+        npm config delete registry 2>/dev/null || true
+      fi
+      printf "${YELLOW}✓ Disabled NPM registry override.${RESET}\n"
+      ;;
+    yarn)
+      if [ -f ~/.yarnrc ]; then
+        sed -i '/registry /d' ~/.yarnrc 2>/dev/null || true
+      fi
+      rm -f ~/.yarnrc.yml
+      if command -v yarn >/dev/null 2>&1; then
+        yarn config delete registry 2>/dev/null || true
+      fi
+      printf "${YELLOW}✓ Disabled Yarn registry override.${RESET}\n"
+      ;;
+    pnpm)
+      if [ -f ~/.pnpmrc ]; then
+        sed -i '/registry=/d' ~/.pnpmrc 2>/dev/null || true
+      fi
+      if command -v pnpm >/dev/null 2>&1; then
+        pnpm config delete registry 2>/dev/null || true
+      fi
+      printf "${YELLOW}✓ Disabled Pnpm registry override.${RESET}\n"
+      ;;
+    pip)
+      if [ -f ~/.config/pip/pip.conf ]; then
+        sed -i '/sjnexe.github.io/d' ~/.config/pip/pip.conf 2>/dev/null || true
+      fi
+      printf "${YELLOW}✓ Disabled Pip extra index.${RESET}\n"
+      ;;
+    uv)
+      if [ -f ~/.config/uv/uv.toml ]; then
+        sed -i '/sjnexe.github.io/d' ~/.config/uv/uv.toml 2>/dev/null || true
+      fi
+      printf "${YELLOW}✓ Disabled UV extra index.${RESET}\n"
+      ;;
+    all)
+      disable_single_manager apt
+      disable_single_manager pacman
+      disable_single_manager apk
+      disable_single_manager bun
+      disable_single_manager npm
+      disable_single_manager yarn
+      disable_single_manager pnpm
+      disable_single_manager pip
+      disable_single_manager uv
+      proxy_command stop --quiet
+      ;;
+    *)
+      printf "${RED}Error: Unknown target '$1'. Options: apt, pacman, apk, bun, npm, yarn, pnpm, pip, uv, all${RESET}\n"
+      return 1
+      ;;
+  esac
+}
+
+enable_manager() {
+  for target in "$@"; do
+    enable_single_manager "$target"
+  done
+}
+
+disable_manager() {
+  for target in "$@"; do
+    disable_single_manager "$target"
+  done
+}
+
+# Main CLI dispatch
+case "$1" in
+  status|-s)
+    check_status
+    ;;
+  sync|-y)
+    printf "${CYAN}Syncing RepoExe environment settings...${RESET}\n"
+    enable_manager all
+    ;;
+  list|ls|-l)
+    list_packages
+    ;;
+  doctor)
+    run_doctor
+    ;;
+  proxy)
+    shift
+    proxy_command "$@"
+    ;;
+  enable|-e)
+    shift
+    if [ $# -eq 0 ]; then
+      printf "${RED}Usage: repoexe enable <apt|pacman|apk|bun|npm|yarn|pnpm|pip|uv|all...>${RESET}\n"
+      exit 1
+    fi
+    enable_manager "$@"
+    ;;
+  disable|-d)
+    shift
+    if [ $# -eq 0 ]; then
+      printf "${RED}Usage: repoexe disable <apt|pacman|apk|bun|npm|yarn|pnpm|pip|uv|all...>${RESET}\n"
+      exit 1
+    fi
+    disable_manager "$@"
+    ;;
+  version|-v|--version)
+    printf "repoexe v1.2.0\n"
+    ;;
+  help|-h|--help|"")
+    show_help
+    ;;
+  *)
+    # If run as install script bootstrap (e.g. sh -s -- enable bun pip)
+    if [ "$1" = "--npm" ]; then
+      enable_manager npm
+    elif [ "$1" = "--pip" ]; then
+      enable_manager pip
+    elif [ "$1" = "--bun" ]; then
+      enable_manager bun
+    elif [ "$1" = "--all" ]; then
+      enable_manager all
+    else
+      # Default bootstrap installation setup if called via curl | sh
+      if command -v apt >/dev/null 2>&1; then
+        enable_single_manager apt
+      elif command -v pacman >/dev/null 2>&1; then
+        enable_single_manager pacman
+      elif command -v apk >/dev/null 2>&1; then
+        enable_single_manager apk
+      fi
+    fi
+    ;;
+esac

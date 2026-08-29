@@ -2,7 +2,7 @@ diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/
 index 0ee12ba..f3e3391 100644
 --- a/src/jsc/bindings/workaround-missing-symbols.cpp
 +++ b/src/jsc/bindings/workaround-missing-symbols.cpp
-@@ -539,3 +539,290 @@
+@@ -539,3 +539,377 @@
  #endif
 
  extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
@@ -248,6 +248,83 @@ index 0ee12ba..f3e3391 100644
 +    return -1;
 +}
 +
++static int try_posix_spawn_shebang(
++    pid_t *pid,
++    const char *filename,
++    const posix_spawn_file_actions_t *file_actions,
++    const posix_spawnattr_t *attrp,
++    char *const argv[],
++    char *const envp[]
++) {
++    if (!filename || access(filename, F_OK) != 0) return -1;
++
++    int fd = open(filename, O_RDONLY);
++    if (fd < 0) return -1;
++
++    char header[512];
++    ssize_t n = read(fd, header, sizeof(header) - 1);
++    close(fd);
++
++    if (n < 3 || header[0] != '#' || header[1] != '!') return -1;
++
++    header[n] = '\0';
++    char *newline = strchr(header, '\n');
++    if (newline) *newline = '\0';
++
++    char *cr = strchr(header, '\r');
++    if (cr) *cr = '\0';
++
++    char *line = header + 2;
++    while (*line == ' ' || *line == '\t') line++;
++    if (*line == '\0') return -1;
++
++    char *interp = line;
++    char *arg = NULL;
++    char *space = strpbrk(line, " \t");
++    if (space) {
++        *space = '\0';
++        arg = space + 1;
++        while (*arg == ' ' || *arg == '\t') arg++;
++        if (*arg == '\0') arg = NULL;
++    }
++
++    char interp_buf[1024];
++    const char *rw_interp = termux_rewrite_path_r(interp, interp_buf, sizeof(interp_buf));
++
++    int orig_argc = 0;
++    if (argv) {
++        while (argv[orig_argc]) orig_argc++;
++    }
++
++    int extra = 2 + (arg ? 1 : 0);
++    int new_argc = (orig_argc > 0 ? orig_argc - 1 : 0) + extra;
++
++    char **new_argv = (char **)malloc(sizeof(char *) * (new_argc + 1));
++    if (!new_argv) return -1;
++
++    int idx = 0;
++    new_argv[idx++] = (char *)rw_interp;
++    if (arg) {
++        new_argv[idx++] = arg;
++    }
++    new_argv[idx++] = (char *)filename;
++
++    for (int i = 1; i < orig_argc; i++) {
++        new_argv[idx++] = argv[i];
++    }
++    new_argv[idx] = NULL;
++
++    typedef int (*posix_spawn_fn)(pid_t *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const [], char *const []);
++    posix_spawn_fn real_posix_spawn = (posix_spawn_fn)dlsym(RTLD_NEXT, "posix_spawn");
++
++    int ret = -1;
++    if (real_posix_spawn) {
++        ret = real_posix_spawn(pid, rw_interp, file_actions, attrp, new_argv, envp);
++    }
++    free(new_argv);
++    return ret;
++}
++
 +extern "C" int posix_spawn(
 +    pid_t *pid,
 +    const char *path,
@@ -261,7 +338,12 @@ index 0ee12ba..f3e3391 100644
 +    char fn_buf[1024];
 +    const char *new_path = termux_rewrite_path_r(path, fn_buf, sizeof(fn_buf));
 +    if (real_posix_spawn) {
-+        return real_posix_spawn(pid, new_path, file_actions, attrp, argv, envp);
++        int ret = real_posix_spawn(pid, new_path, file_actions, attrp, argv, envp);
++        if ((ret == ENOEXEC || ret == ENOENT) && new_path && access(new_path, F_OK) == 0) {
++            int shebang_ret = try_posix_spawn_shebang(pid, new_path, file_actions, attrp, argv, envp);
++            if (shebang_ret == 0) return 0;
++        }
++        return ret;
 +    }
 +    return -1;
 +}
@@ -279,7 +361,12 @@ index 0ee12ba..f3e3391 100644
 +    char fn_buf[1024];
 +    const char *new_file = termux_rewrite_path_r(file, fn_buf, sizeof(fn_buf));
 +    if (real_posix_spawnp) {
-+        return real_posix_spawnp(pid, new_file, file_actions, attrp, argv, envp);
++        int ret = real_posix_spawnp(pid, new_file, file_actions, attrp, argv, envp);
++        if ((ret == ENOEXEC || ret == ENOENT) && new_file && access(new_file, F_OK) == 0) {
++            int shebang_ret = try_posix_spawn_shebang(pid, new_file, file_actions, attrp, argv, envp);
++            if (shebang_ret == 0) return 0;
++        }
++        return ret;
 +    }
 +    return -1;
 +}
