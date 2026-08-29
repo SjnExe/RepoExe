@@ -1,97 +1,74 @@
 name: pydantic
-version: "2.13.4"
+version: 2.13.5
 revision: 0
 arch: aarch64
 description: Data validation using Python type hints
 license: MIT
 homepage: https://github.com/pydantic/pydantic
 maintainer: SjnExe
-
 formats:
-  - pip
-
+- pip
 channels:
   latest:
     auto_update: true
     update_strategy: pypi
     source: https://files.pythonhosted.org/packages/source/p/pydantic/pydantic-{version}.tar.gz
-
+    version: 2.13.5
+    revision: 0
 build_system: custom
-
 toolchains:
-  python: "3.14"
-  rust: "stable"
-
+  python: '3.14'
+  rust: stable
 phases:
-  prepare: |
-    python3 -m pip install --break-system-packages hatchling hatch-fancy-pypi-readme hatch-vcs typing-extensions annotated-types typing-inspection
-  make: |
-    SRC_DIR="$(pwd)"
-    rm -rf /tmp/pydantic_core_* /tmp/pydantic_dist /tmp/pylib /tmp/pyo3_config.ini
-    mkdir -p /tmp/pydantic_core_dl /tmp/pydantic_dist /tmp/pylib
+  prepare: 'python3 -m pip install --break-system-packages hatchling hatch-fancy-pypi-readme
+    hatch-vcs typing-extensions annotated-types typing-inspection
 
-    CLANG_BIN="${CC}"
-    if [ -z "$CLANG_BIN" ] || ! command -v "$CLANG_BIN" >/dev/null 2>&1; then
-      CLANG_BIN=$(find "${NDK:-/opt/android-ndk}" -type f -name "aarch64-linux-android*-clang" 2>/dev/null | head -n 1)
-    fi
-    if [ -z "$CLANG_BIN" ]; then
-      CLANG_BIN="clang"
-    fi
+    '
+  make: "SRC_DIR=\"$(pwd)\"\nrm -rf /tmp/pydantic_core_* /tmp/pydantic_dist /tmp/pylib\
+    \ /tmp/pyo3_config.ini\nmkdir -p /tmp/pydantic_core_dl /tmp/pydantic_dist /tmp/pylib\n\
+    \nCLANG_BIN=\"${CC}\"\nif [ -z \"$CLANG_BIN\" ] || ! command -v \"$CLANG_BIN\"\
+    \ >/dev/null 2>&1; then\n  CLANG_BIN=$(find \"${NDK:-/opt/android-ndk}\" -type\
+    \ f -name \"aarch64-linux-android*-clang\" 2>/dev/null | head -n 1)\nfi\nif [\
+    \ -z \"$CLANG_BIN\" ]; then\n  CLANG_BIN=\"clang\"\nfi\n\nprintf \"void* _Py_NoneStruct\
+    \ = 0;\\n\" | \"$CLANG_BIN\" -shared -Wl,-soname,libpython3.14.so -o /tmp/pylib/libpython3.14.so\
+    \ -x c -\ncp /tmp/pylib/libpython3.14.so /tmp/pylib/libpython3.so 2>/dev/null\
+    \ || true\n\nprintf \"implementation=CPython\\nversion=3.14\\nshared=true\\nabi3=false\\\
+    nlib_name=python3.14\\nlib_dir=/tmp/pylib\\npointer_width=64\\nbuild_flags=\\\
+    nsuppress_build_script_link_lines=false\\n\" > /tmp/pyo3_config.ini\n\npython3\
+    \ -c \"\nimport re, json, urllib.request, tarfile, pathlib\np_text = pathlib.Path('pyproject.toml').read_text()\
+    \ if pathlib.Path('pyproject.toml').exists() else ''\nm = re.search(r'pydantic-core\\\
+    s*(?:==|>=|~=)\\s*([0-9\\.]+)', p_text) or re.search(r'pydantic_core\\s*(?:==|>=|~=)\\\
+    s*([0-9\\.]+)', p_text)\nif m:\n    core_ver = m.group(1)\nelse:\n    req = urllib.request.urlopen('https://pypi.org/pypi/pydantic/json')\n\
+    \    p_data = json.loads(req.read().decode('utf-8'))\n    core_ver = None\n  \
+    \  for req_str in p_data.get('info', {}).get('requires_dist', []) or []:\n   \
+    \     if 'pydantic-core' in req_str or 'pydantic_core' in req_str:\n         \
+    \   cm = re.search(r'(?:==|>=|~=)\\s*([0-9\\.]+)', req_str)\n            if cm:\n\
+    \                core_ver = cm.group(1)\n                break\n    if not core_ver:\n\
+    \        core_ver = '2.46.4'\nprint(f'\u26A1 Dynamically resolved pydantic-core\
+    \ requirement: {core_ver}')\nreq = urllib.request.urlopen(f'https://pypi.org/pypi/pydantic_core/{core_ver}/json')\n\
+    data = json.loads(req.read().decode('utf-8'))\nsdist = [u for u in data['urls']\
+    \ if u['packagetype'] == 'sdist'][0]\nprint(f'Fetching pydantic-core {core_ver}\
+    \ sdist: {sdist[\\\"url\\\"]}')\nurllib.request.urlretrieve(sdist['url'], '/tmp/pydantic_core_dl/sdist.tar.gz')\n\
+    with tarfile.open('/tmp/pydantic_core_dl/sdist.tar.gz') as tar:\n    tar.extractall('/tmp/pydantic_core_dl')\n\
+    \"\nCORE_DIR=$(find /tmp/pydantic_core_dl -mindepth 1 -maxdepth 1 -type d | head\
+    \ -n 1)\ncd \"$CORE_DIR\"\n\nPYO3_CONFIG_FILE=/tmp/pyo3_config.ini \\\nRUSTFLAGS=\"\
+    ${RUSTFLAGS:-} -L /tmp/pylib -C link-arg=-Wl,-rpath-link,/tmp/pylib\" \\\nLIBRARY_PATH=\"\
+    /tmp/pylib:${LIBRARY_PATH:-}\" \\\ncargo build --release --target aarch64-linux-android\
+    \ --features pyo3/extension-module\n\nmkdir -p \"${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core\"\
+    \n[ -d python/pydantic_core ] && cp -r python/pydantic_core/* \"${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/\"\
+    \ || cp -r pydantic_core/* \"${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/\"\
+    \ 2>/dev/null || true\nSO_FILE=$(find target/aarch64-linux-android/release -maxdepth\
+    \ 1 \\( -name \"*pydantic_core*.so\" -o -name \"lib_pydantic_core.so\" \\) | head\
+    \ -n 1)\nif [ -n \"$SO_FILE\" ]; then\n  cp \"$SO_FILE\" \"${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/_pydantic_core.so\"\
+    \n  echo \"\u2713 Staged pydantic-core binary extension: $SO_FILE\"\nelse\n  echo\
+    \ \"::error:: _pydantic_core.so not found after cargo build!\"\n  exit 1\nfi\n\
+    cd \"$SRC_DIR\"\npython3 -m pip install --break-system-packages --no-deps --target=\"\
+    ${DESTDIR}${PREFIX}/lib/python3/dist-packages\" typing-extensions annotated-types\
+    \ typing-inspection\npython3 -m pip install --break-system-packages --no-deps\
+    \ --target=\"${DESTDIR}${PREFIX}/lib/python3/dist-packages\" .\n"
+  install: 'echo "Installed pydantic site-packages into staging"
 
-    printf "void* _Py_NoneStruct = 0;\n" | "$CLANG_BIN" -shared -Wl,-soname,libpython3.14.so -o /tmp/pylib/libpython3.14.so -x c -
-    cp /tmp/pylib/libpython3.14.so /tmp/pylib/libpython3.so 2>/dev/null || true
+    '
+  test: 'python3 -c "import pydantic; print(''pydantic ok'')"
 
-    printf "implementation=CPython\nversion=3.14\nshared=true\nabi3=false\nlib_name=python3.14\nlib_dir=/tmp/pylib\npointer_width=64\nbuild_flags=\nsuppress_build_script_link_lines=false\n" > /tmp/pyo3_config.ini
-
-    python3 -c "
-    import re, json, urllib.request, tarfile, pathlib
-    p_text = pathlib.Path('pyproject.toml').read_text() if pathlib.Path('pyproject.toml').exists() else ''
-    m = re.search(r'pydantic-core\s*(?:==|>=|~=)\s*([0-9\.]+)', p_text) or re.search(r'pydantic_core\s*(?:==|>=|~=)\s*([0-9\.]+)', p_text)
-    if m:
-        core_ver = m.group(1)
-    else:
-        req = urllib.request.urlopen('https://pypi.org/pypi/pydantic/json')
-        p_data = json.loads(req.read().decode('utf-8'))
-        core_ver = None
-        for req_str in p_data.get('info', {}).get('requires_dist', []) or []:
-            if 'pydantic-core' in req_str or 'pydantic_core' in req_str:
-                cm = re.search(r'(?:==|>=|~=)\s*([0-9\.]+)', req_str)
-                if cm:
-                    core_ver = cm.group(1)
-                    break
-        if not core_ver:
-            core_ver = '2.46.4'
-    print(f'⚡ Dynamically resolved pydantic-core requirement: {core_ver}')
-    req = urllib.request.urlopen(f'https://pypi.org/pypi/pydantic_core/{core_ver}/json')
-    data = json.loads(req.read().decode('utf-8'))
-    sdist = [u for u in data['urls'] if u['packagetype'] == 'sdist'][0]
-    print(f'Fetching pydantic-core {core_ver} sdist: {sdist[\"url\"]}')
-    urllib.request.urlretrieve(sdist['url'], '/tmp/pydantic_core_dl/sdist.tar.gz')
-    with tarfile.open('/tmp/pydantic_core_dl/sdist.tar.gz') as tar:
-        tar.extractall('/tmp/pydantic_core_dl')
-    "
-    CORE_DIR=$(find /tmp/pydantic_core_dl -mindepth 1 -maxdepth 1 -type d | head -n 1)
-    cd "$CORE_DIR"
-
-    PYO3_CONFIG_FILE=/tmp/pyo3_config.ini \
-    RUSTFLAGS="${RUSTFLAGS:-} -L /tmp/pylib -C link-arg=-Wl,-rpath-link,/tmp/pylib" \
-    LIBRARY_PATH="/tmp/pylib:${LIBRARY_PATH:-}" \
-    cargo build --release --target aarch64-linux-android --features pyo3/extension-module
-
-    mkdir -p "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core"
-    [ -d python/pydantic_core ] && cp -r python/pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" || cp -r pydantic_core/* "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/" 2>/dev/null || true
-    SO_FILE=$(find target/aarch64-linux-android/release -maxdepth 1 \( -name "*pydantic_core*.so" -o -name "lib_pydantic_core.so" \) | head -n 1)
-    if [ -n "$SO_FILE" ]; then
-      cp "$SO_FILE" "${DESTDIR}${PREFIX}/lib/python3/dist-packages/pydantic_core/_pydantic_core.so"
-      echo "✓ Staged pydantic-core binary extension: $SO_FILE"
-    else
-      echo "::error:: _pydantic_core.so not found after cargo build!"
-      exit 1
-    fi
-    cd "$SRC_DIR"
-    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" typing-extensions annotated-types typing-inspection
-    python3 -m pip install --break-system-packages --no-deps --target="${DESTDIR}${PREFIX}/lib/python3/dist-packages" .
-  install: |
-    echo "Installed pydantic site-packages into staging"
-  test: |
-    python3 -c "import pydantic; print('pydantic ok')"
+    '
