@@ -48,13 +48,13 @@ def update_recipe(pkg: str, channel: str, new_version: str) -> None:
                 old_channel_data = {
                     "version": old_version,
                     "revision": 0,
-                    "auto_update": False,
+                    "auto_update": True,
                 }
                 if "source" in d:
                     old_channel_data["source"] = d["source"]
                 d["channels"][old_mm] = old_channel_data
                 print(
-                    f"⚡ Automated channel created: {pkg}@{old_mm} (pinned to {old_version})"
+                    f"⚡ Automated channel created: {pkg}@{old_mm} (auto-update enabled for series {old_mm}, initial {old_version})"
                 )
 
     d["version"] = new_version

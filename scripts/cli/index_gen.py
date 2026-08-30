@@ -1,6 +1,7 @@
 import json
 import shutil
 import subprocess
+import urllib.request
 from pathlib import Path
 
 from builders.debian import generate_apt_metadata, generate_release_file
@@ -19,10 +20,8 @@ def get_exact_package_artifacts(art_path: Path, pkg_name: str) -> list[Path]:
             continue
         name = f.name
 
-        # 1. Metadata file
         if (
-            name == f"{pkg_name}_metadata.json"
-            or name.startswith(f"{pkg_name}_")
+            name.startswith(f"{pkg_name}_")
             and name.endswith(".deb")
             or name.startswith(f"{pkg_name}-")
             and (".pkg.tar.zst" in name or ".pkg.tar.gz" in name)
@@ -36,6 +35,61 @@ def get_exact_package_artifacts(art_path: Path, pkg_name: str) -> list[Path]:
             matching.append(f)
 
     return sorted(set(matching))
+
+
+def fetch_existing_release_assets_to_artifacts(art_path: Path) -> None:
+    """Fetches existing release assets from GitHub Releases if gh CLI is available to prevent wiping unbuilt packages in matrix runs."""
+    if not shutil.which("gh"):
+        return
+
+    art_path.mkdir(parents=True, exist_ok=True)
+
+    repo_res = subprocess.run(
+        ["gh", "repo", "view", "--json", "name,owner"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if repo_res.returncode != 0:
+        return
+
+    try:
+        repo_info = json.loads(repo_res.stdout)
+        owner = repo_info["owner"]["login"]
+        repo_name = repo_info["name"]
+    except Exception:
+        return
+
+    releases_res = subprocess.run(
+        ["gh", "api", f"repos/{owner}/{repo_name}/releases?per_page=100"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if releases_res.returncode != 0:
+        return
+
+    try:
+        releases = json.loads(releases_res.stdout)
+    except Exception:
+        return
+
+    for release in releases:
+        tag = release.get("tag_name", "")
+        if "@" not in tag:
+            continue
+
+        for asset in release.get("assets", []):
+            name = asset.get("name", "")
+            download_url = asset.get("browser_download_url")
+            if not name or not download_url:
+                continue
+
+            target_file = art_path / name
+            if not target_file.exists():
+                print(f"⚡ Downloading existing published asset for index accumulation: {name}...")
+                with urllib.request.urlopen(download_url) as resp, open(target_file, "wb") as out_f:
+                    shutil.copyfileobj(resp, out_f)
 
 
 def prepare_site(
@@ -54,7 +108,70 @@ def prepare_site(
     npm_staging = Path("npm_staging")
     npm_staging.mkdir(parents=True, exist_ok=True)
 
-    # 1. Copy downloaded artifacts to respective format directories
+    # 1. First upload newly built artifacts to GitHub Releases
+    if art_path.exists() and shutil.which("gh"):
+        print("⚡ Publishing release artifacts to GitHub Releases...")
+        for pkg_meta_file in art_path.rglob("*_metadata.json"):
+            try:
+                meta = json.loads(pkg_meta_file.read_text(encoding="utf-8"))
+                pkg_name = meta.get("name")
+                channel = meta.get("channel", "latest")
+                tag = f"{pkg_name}@{channel}"
+
+                matching_files = get_exact_package_artifacts(art_path, pkg_name)
+                if not matching_files:
+                    print(f"Notice: No artifact files matched for tag {tag}")
+                    continue
+
+                upload_args = [str(f) for f in matching_files]
+                notes_body = json.dumps(meta, indent=2)
+
+                subprocess.run(
+                    ["gh", "release", "view", tag], capture_output=True, check=False
+                )
+                res = subprocess.run(
+                    ["gh", "release", "create", tag]
+                    + upload_args
+                    + [
+                        "--title",
+                        tag,
+                        "--notes",
+                        notes_body,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if res.returncode == 0:
+                    print(f"✓ Successfully published GitHub release tag: {tag}")
+                else:
+                    res_up = subprocess.run(
+                        ["gh", "release", "upload", tag] + upload_args + ["--clobber"],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    subprocess.run(
+                        ["gh", "release", "edit", tag, "--notes", notes_body],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    if res_up.returncode == 0:
+                        print(f"✓ Uploaded release assets to existing tag: {tag}")
+                    else:
+                        print(
+                            f"::warning:: Failed to upload release assets for {tag}: {res_up.stderr.strip()}"
+                        )
+            except Exception as e:
+                print(
+                    f"::warning:: Failed publishing release tag for {pkg_meta_file.name}: {e}"
+                )
+
+    # 2. Fetch existing release assets to ensure matrix/partial builds do not erase existing packages from repository site index
+    fetch_existing_release_assets_to_artifacts(art_path)
+
+    # 3. Copy accumulated artifacts to respective format directories
     if art_path.exists():
         for f in art_path.rglob("*"):
             if not f.is_file():
@@ -125,58 +242,6 @@ def prepare_site(
         if src.exists():
             shutil.copy2(src, s_path / src.name)
 
-    # 5. Create / Update GitHub Release tags for built package artifacts with exact matching
-    if art_path.exists() and shutil.which("gh"):
-        print("⚡ Publishing release artifacts to GitHub Releases...")
-        for pkg_meta_file in art_path.rglob("*_metadata.json"):
-            try:
-                meta = json.loads(pkg_meta_file.read_text(encoding="utf-8"))
-                pkg_name = meta.get("name")
-                channel = meta.get("channel", "latest")
-                tag = f"{pkg_name}@{channel}"
-
-                matching_files = get_exact_package_artifacts(art_path, pkg_name)
-                if not matching_files:
-                    print(f"Notice: No artifact files matched for tag {tag}")
-                    continue
-
-                upload_args = [str(f) for f in matching_files]
-
-                subprocess.run(
-                    ["gh", "release", "view", tag], capture_output=True, check=False
-                )
-                res = subprocess.run(
-                    ["gh", "release", "create", tag]
-                    + upload_args
-                    + [
-                        "--title",
-                        tag,
-                        "--notes",
-                        f"Automated release for {tag}",
-                    ],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                if res.returncode == 0:
-                    print(f"✓ Successfully published GitHub release tag: {tag}")
-                else:
-                    res_up = subprocess.run(
-                        ["gh", "release", "upload", tag] + upload_args + ["--clobber"],
-                        capture_output=True,
-                        text=True,
-                        check=False,
-                    )
-                    if res_up.returncode == 0:
-                        print(f"✓ Uploaded release assets to existing tag: {tag}")
-                    else:
-                        print(
-                            f"::warning:: Failed to upload release assets for {tag}: {res_up.stderr.strip()}"
-                        )
-            except Exception as e:
-                print(
-                    f"::warning:: Failed publishing release tag for {pkg_meta_file.name}: {e}"
-                )
 
     (s_path / ".nojekyll").touch()
     print(f"✓ Complete RepoExe site environment successfully generated at {s_path}")
