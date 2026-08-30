@@ -2,7 +2,7 @@ diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/
 index 0ee12ba..f3e3391 100644
 --- a/src/jsc/bindings/workaround-missing-symbols.cpp
 +++ b/src/jsc/bindings/workaround-missing-symbols.cpp
-@@ -539,3 +539,401 @@
+@@ -539,3 +539,412 @@
  #endif
 
  extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
@@ -353,7 +353,7 @@ index 0ee12ba..f3e3391 100644
 +    return ret;
 +}
 +
-+extern "C" int posix_spawn(
+++extern "C" int posix_spawn(
 +    pid_t *pid,
 +    const char *path,
 +    const posix_spawn_file_actions_t *file_actions,
@@ -370,6 +370,13 @@ index 0ee12ba..f3e3391 100644
 +        if ((ret == ENOEXEC || ret == ENOENT || ret == EACCES) && new_path && access(new_path, F_OK) == 0) {
 +            int shebang_ret = try_posix_spawn_shebang(pid, new_path, file_actions, attrp, argv, envp);
 +            if (shebang_ret == 0) return 0;
++        }
++        if ((ret != 0) && path && strchr(path, '/') == NULL) {
++            typedef int (*posix_spawnp_fn)(pid_t *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const [], char *const []);
++            posix_spawnp_fn real_posix_spawnp = (posix_spawnp_fn)dlsym(RTLD_NEXT, "posix_spawnp");
++            if (real_posix_spawnp) {
++                return real_posix_spawnp(pid, path, file_actions, attrp, argv, envp);
++            }
 +        }
 +        return ret;
 +    }
@@ -407,4 +414,5 @@ index 0ee12ba..f3e3391 100644
 +    install_sigsys_handler();
 +    pthread_atfork(NULL, NULL, on_fork_child);
 +}
++#endif
 +#endif
