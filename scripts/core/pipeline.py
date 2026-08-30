@@ -345,11 +345,21 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         if p_folder.exists() and p_folder.is_dir():
             for patch_file in sorted(p_folder.glob("*.patch")):
                 print(f"⚡ Applying patch: {patch_file.name}...")
-                subprocess.run(
+                res = subprocess.run(
                     ["patch", "-p1", "-i", str(patch_file)],
                     cwd=work_dir,
-                    check=True,
+                    capture_output=True,
+                    text=True,
                 )
+                if res.stdout:
+                    print(res.stdout.strip())
+                if res.returncode != 0:
+                    err_msg = (
+                        f"❌ [{recipe.name}] Failed to apply patch '{patch_file.name}':\n"
+                        f"{res.stderr.strip() or res.stdout.strip() or 'Unknown patch error'}"
+                    )
+                    print(err_msg)
+                    raise RuntimeError(err_msg)
 
     env["PKG_CONFIG_DIR"] = ""
     env["PKG_CONFIG_LIBDIR"] = (

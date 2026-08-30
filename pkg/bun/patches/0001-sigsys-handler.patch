@@ -353,7 +353,7 @@ index 0ee12ba..f3e3391 100644
 +    return ret;
 +}
 +
-++extern "C" int posix_spawn(
++extern "C" int posix_spawn(
 +    pid_t *pid,
 +    const char *path,
 +    const posix_spawn_file_actions_t *file_actions,

@@ -45,8 +45,15 @@ def check_existing_release_hash(pkg_name: str, channel: str, target_hash: str) -
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
 
+        body = data.get("body", "").strip()
+        if body:
+            with contextlib.suppress(json.JSONDecodeError):
+                remote_meta = json.loads(body)
+                if isinstance(remote_meta, dict):
+                    return remote_meta.get("state_hash") == target_hash
+
         for asset in data.get("assets", []):
-            if asset.get("name") == "metadata.json":
+            if asset.get("name") in ("metadata.json", f"{pkg_name}_metadata.json"):
                 meta_raw = (
                     urllib.request.urlopen(asset["browser_download_url"])
                     .read()

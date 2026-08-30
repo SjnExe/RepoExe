@@ -128,8 +128,25 @@ def fetch_pypi_version(package_name: str) -> str | None:
     return None
 
 
-def fetch_npm_version(package_name: str) -> str | None:
-    """Queries NPM registry for the latest published package version."""
+def fetch_npm_version(package_name: str, target_series: str | None = None) -> str | None:
+    """Queries NPM registry for the latest published package version matching optional series (e.g. 5.0)."""
+    if target_series:
+        url = f"https://registry.npmjs.org/{package_name}"
+        with contextlib.suppress(
+            requests.RequestException, ValueError, KeyError, TypeError
+        ):
+            res = requests.get(url, timeout=10)
+            if res.status_code == 200:
+                versions_dict = res.json().get("versions", {})
+                matching: list[Version] = []
+                for v_str in versions_dict.keys():
+                    parsed = extract_semver(v_str)
+                    if parsed and f"{parsed.major}.{parsed.minor}" == target_series:
+                        matching.append(parsed)
+                if matching:
+                    return str(max(matching))
+        return None
+
     url = f"https://registry.npmjs.org/{package_name}/latest"
     with contextlib.suppress(
         requests.RequestException, ValueError, KeyError, TypeError
@@ -178,38 +195,46 @@ def fetch_custom_update(recipe: Any) -> str | None:
 def resolve_latest_version(recipe: Any) -> str | None:
     strategy = getattr(recipe, "update_strategy", None)
     src_url = getattr(recipe, "source", "") or ""
+    active_channel = getattr(recipe, "active_channel", "latest")
+
+    target_series = active_channel if active_channel and active_channel != "latest" else None
 
     if not strategy or strategy == "auto":
         return None
 
+    res = None
     if strategy in ("github_release", "github_tag"):
-        if "github.com" not in src_url:
+        if "github.com" in src_url:
+            parts = src_url.split("/")
+            idx = parts.index("github.com")
+            if len(parts) > idx + 2:
+                owner, repo = parts[idx + 1], parts[idx + 2]
+                if strategy == "github_release":
+                    res = fetch_github_release(owner, repo)
+                elif strategy == "github_tag":
+                    res = fetch_github_tag(owner, repo)
+
+    elif strategy == "git_tag":
+        res = fetch_git_tag(src_url)
+
+    elif strategy == "pypi":
+        res = fetch_pypi_version(recipe.name)
+
+    elif strategy == "npm":
+        res = fetch_npm_version(recipe.name, target_series=target_series)
+
+    elif strategy == "crates":
+        res = fetch_crates_version(recipe.name)
+
+    elif strategy == "custom":
+        res = fetch_custom_update(recipe)
+
+    if res and target_series:
+        parsed_res = extract_semver(res)
+        if parsed_res and f"{parsed_res.major}.{parsed_res.minor}" != target_series:
             return None
-        parts = src_url.split("/")
-        idx = parts.index("github.com")
-        if len(parts) > idx + 2:
-            owner, repo = parts[idx + 1], parts[idx + 2]
-            if strategy == "github_release":
-                return fetch_github_release(owner, repo)
-            if strategy == "github_tag":
-                return fetch_github_tag(owner, repo)
 
-    if strategy == "git_tag":
-        return fetch_git_tag(src_url)
-
-    if strategy == "pypi":
-        return fetch_pypi_version(recipe.name)
-
-    if strategy == "npm":
-        return fetch_npm_version(recipe.name)
-
-    if strategy == "crates":
-        return fetch_crates_version(recipe.name)
-
-    if strategy == "custom":
-        return fetch_custom_update(recipe)
-
-    return None
+    return res
 
 
 def check_package_channel_updates(pkg_dir: Path) -> None:
