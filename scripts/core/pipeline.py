@@ -350,6 +350,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
                     cwd=work_dir,
                     capture_output=True,
                     text=True,
+                    check=False,
                 )
                 if res.stdout:
                     print(res.stdout.strip())

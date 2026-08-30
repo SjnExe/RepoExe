@@ -139,7 +139,7 @@ def fetch_npm_version(package_name: str, target_series: str | None = None) -> st
             if res.status_code == 200:
                 versions_dict = res.json().get("versions", {})
                 matching: list[Version] = []
-                for v_str in versions_dict.keys():
+                for v_str in versions_dict:
                     parsed = extract_semver(v_str)
                     if parsed and f"{parsed.major}.{parsed.minor}" == target_series:
                         matching.append(parsed)
