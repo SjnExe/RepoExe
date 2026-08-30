@@ -92,7 +92,7 @@ phases:
     export ANDROID_NDK_ROOT="${NDK:-/opt/android-ndk}"
 
     if [ -f "scripts/build.ts" ]; then
-      bun scripts/build.ts --profile=android-release --canary=false --lto=on
+      bun scripts/build.ts --profile=android-release --canary=false
     elif [ -f "CMakeLists.txt" ]; then
       mkdir -p build && cd build
       cmake .. -G Ninja \
@@ -140,7 +140,7 @@ phases:
 
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping debug symbols from $BUN_BIN using $STRIP_TOOL..."
-      "$STRIP_TOOL" --strip-all --strip-debug --discard-all -R .eh_frame -R .eh_frame_hdr -R .gcc_except_table -R .comment -R .note "$BUN_BIN" || "$STRIP_TOOL" --strip-all "$BUN_BIN" || "$STRIP_TOOL" "$BUN_BIN" || true
+      "$STRIP_TOOL" --strip-all --strip-debug --discard-all --remove-section=.comment --remove-section=.note "$BUN_BIN" || "$STRIP_TOOL" --strip-all "$BUN_BIN" || "$STRIP_TOOL" "$BUN_BIN" || true
     else
       echo "Warning: LLVM strip tool not found, skipping stripping."
     fi
@@ -163,7 +163,7 @@ phases:
 
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping installed binary ${DESTDIR}${PREFIX}/bin/bun..."
-      "$STRIP_TOOL" --strip-all --strip-debug --discard-all -R .eh_frame -R .eh_frame_hdr -R .gcc_except_table -R .comment -R .note "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true
+      "$STRIP_TOOL" --strip-all --strip-debug --discard-all --remove-section=.comment --remove-section=.note "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true
     fi
   test: |
     bun --version
