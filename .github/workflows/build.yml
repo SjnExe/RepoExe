@@ -526,5 +526,6 @@ jobs:
       - name: Prune Outdated Release Assets & Tags
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: scripts
         run: |
           python scripts/cli/prune.py

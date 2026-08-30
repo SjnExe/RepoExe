@@ -1,8 +1,13 @@
 import concurrent.futures
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
+
+_scripts_dir = str(Path(__file__).resolve().parents[1])
+if _scripts_dir not in sys.path:
+    sys.path.insert(0, _scripts_dir)
 
 from utils.parser import PackageRecipe, parse_recipe
 
