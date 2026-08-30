@@ -92,7 +92,7 @@ phases:
     export ANDROID_NDK_ROOT="${NDK:-/opt/android-ndk}"
 
     if [ -f "scripts/build.ts" ]; then
-      bun scripts/build.ts --profile=android-release --canary=false
+      bun scripts/build.ts --profile=android-release --canary=false --lto=on
     elif [ -f "CMakeLists.txt" ]; then
       mkdir -p build && cd build
       cmake .. -G Ninja \
@@ -108,7 +108,13 @@ phases:
       zig build -Doptimize=ReleaseFast
     fi
   install: |
-    BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
+    BUN_BIN=""
+    if [ -f "./build/release/bun" ]; then
+      BUN_BIN="./build/release/bun"
+    else
+      BUN_BIN=$(find . -name bun -type f -perm -111 -not -path "*/node_modules/*" -not -path "*/scripts/*" | head -n 1)
+    fi
+
     if [ -z "$BUN_BIN" ]; then
       echo "::error::bun executable not found after build"
       exit 1
@@ -172,7 +178,8 @@ phases:
     bun -e "const { spawnSync } = require('child_process'); const res = spawnSync('bun', ['--version']); if (res.status !== 0) process.exit(1);"
     bun -e "console.log('Math test:', 21 + 21)"
     bun -e "
-      const path = '/tmp/bun_test_file.txt';
+      const tmpDir = process.env.TMPDIR || '/tmp';
+      const path = \`\${tmpDir}/bun_test_file.txt\`;
       await Bun.write(path, 'Hello Termux!');
       const content = await Bun.file(path).text();
       if (content !== 'Hello Termux!') process.exit(1);
