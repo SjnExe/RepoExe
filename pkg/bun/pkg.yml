@@ -147,6 +147,7 @@ phases:
     cat << 'EOF' > "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
     # Bun environment configuration
     export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
+    export TMPDIR="${TMPDIR:-/data/data/com.termux/files/usr/tmp}"
     case ":$PATH:" in
       *":$BUN_INSTALL/bin:"*) ;;
       *) export PATH="$BUN_INSTALL/bin:$PATH" ;;

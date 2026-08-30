@@ -169,14 +169,27 @@ class LocalProxyHandler(http.server.BaseHTTPRequestHandler):
             pkg_name = f'{parts[0]}/{parts[1]}'
 
         store_pkgs = get_store_packages()
+
+        target_subpkg = None
         if store_pkgs and pkg_name not in store_pkgs:
-            self.handle_passthrough(method)
-            return
+            # Dynamically check if store packages contain a subpackage targeting this package (via scope or prefix)
+            matching_subpkg = None
+            for s_pkg in store_pkgs:
+                if s_pkg.startswith(f'@{pkg_name}/') or s_pkg.startswith(f'{pkg_name}-'):
+                    matching_subpkg = s_pkg
+                    break
+            if matching_subpkg:
+                target_subpkg = matching_subpkg
+            else:
+                self.handle_passthrough(method)
+                return
+
+        check_name = target_subpkg if target_subpkg else pkg_name
 
         if pathname.endswith('.tgz'):
             target_path = pathname.replace('/-/', '/')
         else:
-            target_path = f'/{pkg_name}/package.json'
+            target_path = f'/{check_name}/package.json'
 
         repoexe_url = f'{REPO_URL}/npm{target_path}'
         req = urllib.request.Request(repoexe_url, headers={'User-Agent': 'RepoExe-Local-Proxy'})
@@ -189,17 +202,32 @@ class LocalProxyHandler(http.server.BaseHTTPRequestHandler):
                         try:
                             local_manifest = json.loads(data.decode('utf-8'))
                             patched_range = local_manifest.get('patched_version_range')
-                            if patched_range:
+                            patched_target = local_manifest.get('patched_target')
+                            if patched_range or patched_target == pkg_name:
                                 upstream_url = f'https://registry.npmjs.org{self.path}'
                                 ureq = urllib.request.Request(upstream_url, headers={'User-Agent': 'RepoExe-Local-Proxy'})
                                 try:
                                     with urllib.request.urlopen(ureq) as uresp:
                                         if uresp.status == 200:
                                             upstream_manifest = json.loads(uresp.read().decode('utf-8'))
-                                            merged_versions = {**upstream_manifest.get('versions', {}), **local_manifest.get('versions', {})}
+                                            merged_versions = {**upstream_manifest.get('versions', {})}
+
+                                            if patched_target == pkg_name or target_subpkg:
+                                                # Inject optionalDependencies for the native subpackage into upstream typescript versions
+                                                subpkg_latest = local_manifest.get('dist-tags', {}).get('latest', '7.0.2')
+                                                subpkg_versions = local_manifest.get('versions', {})
+                                                for v_key, v_val in merged_versions.items():
+                                                    op_deps = v_val.get('optionalDependencies', {})
+                                                    # Link subpackage version corresponding to upstream or latest
+                                                    match_ver = v_key if v_key in subpkg_versions else subpkg_latest
+                                                    op_deps[check_name] = match_ver
+                                                    v_val['optionalDependencies'] = op_deps
+                                            else:
+                                                merged_versions.update(local_manifest.get('versions', {}))
+
                                             latest_local = local_manifest.get('dist-tags', {}).get('latest')
                                             merged_tags = {**upstream_manifest.get('dist-tags', {})}
-                                            if latest_local:
+                                            if latest_local and not target_subpkg:
                                                 merged_tags['latest'] = latest_local
                                             merged_manifest = {**upstream_manifest, 'dist-tags': merged_tags, 'versions': merged_versions}
                                             out = json.dumps(merged_manifest).encode('utf-8')
@@ -211,7 +239,7 @@ class LocalProxyHandler(http.server.BaseHTTPRequestHandler):
                                             if method != 'HEAD':
                                                 self.wfile.write(out)
                                             return
-                                except Exception:
+                                except Exception as e:
                                     pass
                         except Exception:
                             pass
