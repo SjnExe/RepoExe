@@ -2,7 +2,7 @@ diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/
 index 0ee12ba..f3e3391 100644
 --- a/src/jsc/bindings/workaround-missing-symbols.cpp
 +++ b/src/jsc/bindings/workaround-missing-symbols.cpp
-@@ -539,3 +539,381 @@
+@@ -539,3 +540,401 @@
  #endif
 
  extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
@@ -204,6 +204,30 @@ index 0ee12ba..f3e3391 100644
 +    int ret = real_execve(new_fn, argv, envp);
 +    if (ret == -1 && (errno == ENOENT || errno == ENOEXEC || errno == EACCES) && new_fn && access(new_fn, F_OK) == 0) {
 +        ret = try_exec_shebang(new_fn, argv, envp, real_execve);
++    }
++    if (ret == -1 && errno == ENOENT && filename && strchr(filename, '/') == NULL) {
++        typedef int (*execvpe_fn)(const char *, char *const [], char *const []);
++        execvpe_fn real_execvpe = (execvpe_fn)dlsym(RTLD_NEXT, "execvpe");
++        if (real_execvpe) {
++            ret = real_execvpe(filename, argv, envp);
++            if (ret == -1 && (errno == ENOENT || errno == ENOEXEC || errno == EACCES)) {
++                char path_env[2048];
++                const char *path = getenv("PATH");
++                if (path && path[0]) {
++                    snprintf(path_env, sizeof(path_env), "%s", path);
++                    char *dir = strtok(path_env, ":");
++                    while (dir) {
++                        char full_path[1024];
++                        snprintf(full_path, sizeof(full_path), "%s/%s", dir, filename);
++                        if (access(full_path, F_OK) == 0) {
++                            ret = try_exec_shebang(full_path, argv, envp, real_execve);
++                            if (ret == 0) break;
++                        }
++                        dir = strtok(NULL, ":");
++                    }
++                }
++            }
++        }
 +    }
 +    return ret;
 +}
