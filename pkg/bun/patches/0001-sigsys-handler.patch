@@ -371,7 +371,7 @@ index 0ee12ba..f3e3391 100644
 +            int shebang_ret = try_posix_spawn_shebang(pid, new_path, file_actions, attrp, argv, envp);
 +            if (shebang_ret == 0) return 0;
 +        }
-+        if ((ret != 0) && path && strchr(path, "/") == NULL) {
++        if ((ret != 0) && path && strchr(path, '/') == NULL) {
 +            typedef int (*posix_spawnp_fn)(pid_t *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const [], char *const []);
 +            posix_spawnp_fn real_posix_spawnp = (posix_spawnp_fn)dlsym(RTLD_NEXT, "posix_spawnp");
 +            if (real_posix_spawnp) {
@@ -414,4 +414,5 @@ index 0ee12ba..f3e3391 100644
 +    install_sigsys_handler();
 +    pthread_atfork(NULL, NULL, on_fork_child);
 +}
++#endif
 +#endif
