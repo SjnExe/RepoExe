@@ -2,7 +2,7 @@ diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/
 index 0ee12ba..f3e3391 100644
 --- a/src/jsc/bindings/workaround-missing-symbols.cpp
 +++ b/src/jsc/bindings/workaround-missing-symbols.cpp
-@@ -539,3 +539,418 @@
+@@ -539,3 +539,431 @@
  #endif
 
  extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
@@ -24,7 +24,7 @@ index 0ee12ba..f3e3391 100644
 +#include <fcntl.h>
 +#include <sys/stat.h>
 +#include <sys/types.h>
-+
+
 +#ifndef __NR_close_range
 +#define __NR_close_range 436
 +#endif
@@ -34,7 +34,7 @@ index 0ee12ba..f3e3391 100644
 +#ifndef __NR_fchmodat2
 +#define __NR_fchmodat2 438
 +#endif
-+
+
 +static void sigsys_handler(int sig, siginfo_t *info, void *context) {
 +    if (sig == SIGSYS && context != NULL) {
 +        ucontext_t *ctx = (ucontext_t *)context;
@@ -42,27 +42,27 @@ index 0ee12ba..f3e3391 100644
 +        ctx->uc_mcontext.pc += 4;
 +    }
 +}
-+
+
 +static void install_sigsys_handler(void) {
 +    int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
 +        (int (*)(int, const struct sigaction *, struct sigaction *))dlsym(RTLD_NEXT, "sigaction");
-+
+
 +    struct sigaction sa;
 +    sigemptyset(&sa.sa_mask);
 +    sa.sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
 +    sa.sa_sigaction = sigsys_handler;
-+
+
 +    if (real_sigaction) {
 +        real_sigaction(SIGSYS, &sa, NULL);
 +    } else {
 +        sigaction(SIGSYS, &sa, NULL);
 +    }
 +}
-+
+
 +extern "C" int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact) {
 +    int (*real_sigaction)(int, const struct sigaction *, struct sigaction *) =
 +        (int (*)(int, const struct sigaction *, struct sigaction *))dlsym(RTLD_NEXT, "sigaction");
-+
+
 +    if (signum == SIGSYS) {
 +        if (oldact != NULL) {
 +            sigemptyset(&oldact->sa_mask);
@@ -71,13 +71,13 @@ index 0ee12ba..f3e3391 100644
 +        }
 +        return 0;
 +    }
-+
+
 +    if (real_sigaction) {
 +        return real_sigaction(signum, act, oldact);
 +    }
 +    return 0;
 +}
-+
+
 +static const char *get_termux_prefix(void) {
 +    const char *p = getenv("PREFIX");
 +    if (p && p[0]) return p;
@@ -85,13 +85,31 @@ index 0ee12ba..f3e3391 100644
 +    if (p && p[0]) return p;
 +    return "/data/data/com.termux/files/usr";
 +}
-+
+
++static const char *get_termux_home(void) {
++    const char *h = getenv("HOME");
++    if (h && h[0]) return h;
++    return "/data/data/com.termux/files/home";
++}
+
 +static const char *termux_rewrite_path_r(const char *filename, char *buf, size_t bufsize) {
 +    if (!filename) return filename;
 +    const char *prefix = get_termux_prefix();
-+    if (strncmp(filename, prefix, strlen(prefix)) == 0) {
++    const char *home = get_termux_home();
+
++    size_t prefix_len = strlen(prefix);
++    size_t home_len = strlen(home);
+
++    if (strncmp(filename, prefix, prefix_len) == 0) {
 +        return filename;
 +    }
++    if (strncmp(filename, home, home_len) == 0) {
++        return filename;
++    }
++    if (strncmp(filename, "/tmp/stage", 10) == 0) {
++        return filename;
++    }
+
 +    if (strcmp(filename, "/usr/bin/env") == 0) {
 +        snprintf(buf, bufsize, "%s/bin/env", prefix);
 +        return buf;
@@ -104,65 +122,119 @@ index 0ee12ba..f3e3391 100644
 +        snprintf(buf, bufsize, "%s/bin/bash", prefix);
 +        return buf;
 +    }
-+    if (strncmp(filename, "/tmp/stage", 10) == 0) {
-+        return filename;
-+    }
-+    if (strcmp(filename, "/tmp") == 0 || strncmp(filename, "/tmp/", 5) == 0) {
-+        if (access(filename, F_OK) != 0) {
-+            snprintf(buf, bufsize, "%s/tmp%s", prefix, filename + 4);
-+            if (access(buf, F_OK) == 0) return buf;
-+        }
-+        return filename;
-+    }
 +    if (strcmp(filename, "/usr/bin/node") == 0) {
 +        snprintf(buf, bufsize, "%s/bin/node", prefix);
-+        if (access(buf, X_OK) == 0) {
-+            return buf;
-+        }
-+        snprintf(buf, bufsize, "%s/bin/bun", prefix);
 +        return buf;
 +    }
 +    if (strcmp(filename, "/usr/bin/python") == 0 || strcmp(filename, "/usr/bin/python3") == 0) {
 +        snprintf(buf, bufsize, "%s/bin/python3", prefix);
 +        return buf;
 +    }
+
 +    if (strncmp(filename, "/usr/bin/", 9) == 0) {
 +        snprintf(buf, bufsize, "%s/bin/%s", prefix, filename + 9);
-+        if (access(buf, F_OK) == 0) return buf;
++        return buf;
++    }
++    if (strcmp(filename, "/usr/bin") == 0) {
++        snprintf(buf, bufsize, "%s/bin", prefix);
++        return buf;
 +    }
 +    if (strncmp(filename, "/bin/", 5) == 0) {
 +        snprintf(buf, bufsize, "%s/bin/%s", prefix, filename + 5);
-+        if (access(buf, F_OK) == 0) return buf;
++        return buf;
 +    }
++    if (strcmp(filename, "/bin") == 0) {
++        snprintf(buf, bufsize, "%s/bin", prefix);
++        return buf;
++    }
++    if (strncmp(filename, "/usr/share/", 11) == 0) {
++        snprintf(buf, bufsize, "%s/share/%s", prefix, filename + 11);
++        return buf;
++    }
++    if (strcmp(filename, "/usr/share") == 0) {
++        snprintf(buf, bufsize, "%s/share", prefix);
++        return buf;
++    }
++    if (strncmp(filename, "/etc/", 5) == 0) {
++        snprintf(buf, bufsize, "%s/etc/%s", prefix, filename + 5);
++        return buf;
++    }
++    if (strcmp(filename, "/etc") == 0) {
++        snprintf(buf, bufsize, "%s/etc", prefix);
++        return buf;
++    }
++    if (strncmp(filename, "/var/", 5) == 0) {
++        snprintf(buf, bufsize, "%s/var/%s", prefix, filename + 5);
++        return buf;
++    }
++    if (strcmp(filename, "/var") == 0) {
++        snprintf(buf, bufsize, "%s/var", prefix);
++        return buf;
++    }
++    if (strcmp(filename, "/tmp") == 0) {
++        snprintf(buf, bufsize, "%s/tmp", prefix);
++        return buf;
++    }
++    if (strncmp(filename, "/tmp/", 5) == 0) {
++        snprintf(buf, bufsize, "%s/tmp/%s", prefix, filename + 5);
++        return buf;
++    }
+
++    if (strcmp(filename, "~") == 0) {
++        snprintf(buf, bufsize, "%s", home);
++        return buf;
++    }
++    if (strncmp(filename, "~/", 2) == 0) {
++        snprintf(buf, bufsize, "%s/%s", home, filename + 2);
++        return buf;
++    }
++    if (strcmp(filename, "/root") == 0 || strcmp(filename, "/home") == 0) {
++        snprintf(buf, bufsize, "%s", home);
++        return buf;
++    }
++    if (strncmp(filename, "/root/", 6) == 0) {
++        snprintf(buf, bufsize, "%s/%s", home, filename + 6);
++        return buf;
++    }
++    if (strncmp(filename, "/home/", 6) == 0) {
++        const char *slash = strchr(filename + 6, '/');
++        if (slash) {
++            snprintf(buf, bufsize, "%s/%s", home, slash + 1);
++        } else {
++            snprintf(buf, bufsize, "%s", home);
++        }
++        return buf;
++    }
+
 +    return filename;
 +}
-+
+
 +typedef int (*execve_fn)(const char *, char *const [], char *const []);
 +extern "C" char **environ;
-+
+
 +static int try_exec_shebang(const char *filename, char *const argv[], char *const envp[], execve_fn real_execve) {
 +    if (!filename || access(filename, F_OK) != 0) return -1;
-+
+
 +    int fd = open(filename, O_RDONLY);
 +    if (fd < 0) return -1;
-+
+
 +    char header[512];
 +    ssize_t n = read(fd, header, sizeof(header) - 1);
 +    close(fd);
-+
+
 +    if (n < 3 || header[0] != '#' || header[1] != '!') return -1;
-+
+
 +    header[n] = '\0';
 +    char *newline = strchr(header, '\n');
 +    if (newline) *newline = '\0';
-+
+
 +    char *cr = strchr(header, '\r');
 +    if (cr) *cr = '\0';
-+
+
 +    char *line = header + 2;
 +    while (*line == ' ' || *line == '\t') line++;
 +    if (*line == '\0') return -1;
-+
+
 +    char *interp = line;
 +    char *arg = NULL;
 +    char *space = strpbrk(line, " \t");
@@ -172,38 +244,38 @@ index 0ee12ba..f3e3391 100644
 +        while (*arg == ' ' || *arg == '\t') arg++;
 +        if (*arg == '\0') arg = NULL;
 +    }
-+
+
 +    char interp_buf[1024];
 +    const char *rw_interp = termux_rewrite_path_r(interp, interp_buf, sizeof(interp_buf));
-+
+
 +    int orig_argc = 0;
 +    if (argv) {
 +        while (argv[orig_argc]) orig_argc++;
 +    }
-+
+
 +    int extra = 2 + (arg ? 1 : 0);
 +    int new_argc = (orig_argc > 0 ? orig_argc - 1 : 0) + extra;
-+
+
 +    char **new_argv = (char **)malloc(sizeof(char *) * (new_argc + 1));
 +    if (!new_argv) return -1;
-+
+
 +    int idx = 0;
 +    new_argv[idx++] = (char *)rw_interp;
 +    if (arg) {
 +        new_argv[idx++] = arg;
 +    }
 +    new_argv[idx++] = (char *)filename;
-+
+
 +    for (int i = 1; i < orig_argc; i++) {
 +        new_argv[idx++] = argv[i];
 +    }
 +    new_argv[idx] = NULL;
-+
+
 +    int ret = real_execve(rw_interp, new_argv, envp);
 +    free(new_argv);
 +    return ret;
 +}
-+
+
 +static int execve_with_shebang_fallback(const char *filename, char *const argv[], char *const envp[], execve_fn real_execve) {
 +    char fn_buf[1024];
 +    const char *new_fn = termux_rewrite_path_r(filename, fn_buf, sizeof(fn_buf));
@@ -237,19 +309,19 @@ index 0ee12ba..f3e3391 100644
 +    }
 +    return ret;
 +}
-+
+
 +extern "C" int execve(const char *filename, char *const argv[], char *const envp[]) {
 +    execve_fn real_execve = (execve_fn)dlsym(RTLD_NEXT, "execve");
 +    if (!real_execve) return -1;
 +    return execve_with_shebang_fallback(filename, argv, envp, real_execve);
 +}
-+
+
 +extern "C" int execv(const char *filename, char *const argv[]) {
 +    execve_fn real_execve = (execve_fn)dlsym(RTLD_NEXT, "execve");
 +    if (!real_execve) return -1;
 +    return execve_with_shebang_fallback(filename, argv, environ, real_execve);
 +}
-+
+
 +extern "C" int execvp(const char *filename, char *const argv[]) {
 +    typedef int (*execvp_fn)(const char *, char *const []);
 +    execvp_fn real_execvp = (execvp_fn)dlsym(RTLD_NEXT, "execvp");
@@ -265,7 +337,7 @@ index 0ee12ba..f3e3391 100644
 +    }
 +    return -1;
 +}
-+
+
 +extern "C" int execvpe(const char *filename, char *const argv[], char *const envp[]) {
 +    typedef int (*execvpe_fn)(const char *, char *const [], char *const []);
 +    execvpe_fn real_execvpe = (execvpe_fn)dlsym(RTLD_NEXT, "execvpe");
@@ -281,7 +353,7 @@ index 0ee12ba..f3e3391 100644
 +    }
 +    return -1;
 +}
-+
+
 +static int try_posix_spawn_shebang(
 +    pid_t *pid,
 +    const char *filename,
@@ -291,27 +363,27 @@ index 0ee12ba..f3e3391 100644
 +    char *const envp[]
 +) {
 +    if (!filename || access(filename, F_OK) != 0) return -1;
-+
+
 +    int fd = open(filename, O_RDONLY);
 +    if (fd < 0) return -1;
-+
+
 +    char header[512];
 +    ssize_t n = read(fd, header, sizeof(header) - 1);
 +    close(fd);
-+
+
 +    if (n < 3 || header[0] != '#' || header[1] != '!') return -1;
-+
+
 +    header[n] = '\0';
 +    char *newline = strchr(header, '\n');
 +    if (newline) *newline = '\0';
-+
+
 +    char *cr = strchr(header, '\r');
 +    if (cr) *cr = '\0';
-+
+
 +    char *line = header + 2;
 +    while (*line == ' ' || *line == '\t') line++;
 +    if (*line == '\0') return -1;
-+
+
 +    char *interp = line;
 +    char *arg = NULL;
 +    char *space = strpbrk(line, " \t");
@@ -321,36 +393,36 @@ index 0ee12ba..f3e3391 100644
 +        while (*arg == ' ' || *arg == '\t') arg++;
 +        if (*arg == '\0') arg = NULL;
 +    }
-+
+
 +    char interp_buf[1024];
 +    const char *rw_interp = termux_rewrite_path_r(interp, interp_buf, sizeof(interp_buf));
-+
+
 +    int orig_argc = 0;
 +    if (argv) {
 +        while (argv[orig_argc]) orig_argc++;
 +    }
-+
+
 +    int extra = 2 + (arg ? 1 : 0);
 +    int new_argc = (orig_argc > 0 ? orig_argc - 1 : 0) + extra;
-+
+
 +    char **new_argv = (char **)malloc(sizeof(char *) * (new_argc + 1));
 +    if (!new_argv) return -1;
-+
+
 +    int idx = 0;
 +    new_argv[idx++] = (char *)rw_interp;
 +    if (arg) {
 +        new_argv[idx++] = arg;
 +    }
 +    new_argv[idx++] = (char *)filename;
-+
+
 +    for (int i = 1; i < orig_argc; i++) {
 +        new_argv[idx++] = argv[i];
 +    }
 +    new_argv[idx] = NULL;
-+
+
 +    typedef int (*posix_spawn_fn)(pid_t *, const char *, const posix_spawn_file_actions_t *, const posix_spawnattr_t *, char *const [], char *const []);
 +    posix_spawn_fn real_posix_spawn = (posix_spawn_fn)dlsym(RTLD_NEXT, "posix_spawn");
-+
+
 +    int ret = -1;
 +    if (real_posix_spawn) {
 +        ret = real_posix_spawn(pid, rw_interp, file_actions, attrp, new_argv, envp);
@@ -358,7 +430,7 @@ index 0ee12ba..f3e3391 100644
 +    free(new_argv);
 +    return ret;
 +}
-+
+
 +extern "C" int posix_spawn(
 +    pid_t *pid,
 +    const char *path,
@@ -388,7 +460,7 @@ index 0ee12ba..f3e3391 100644
 +    }
 +    return -1;
 +}
-+
+
 +extern "C" int posix_spawnp(
 +    pid_t *pid,
 +    const char *file,
@@ -411,11 +483,11 @@ index 0ee12ba..f3e3391 100644
 +    }
 +    return -1;
 +}
-+
+
 +static void on_fork_child(void) {
 +    install_sigsys_handler();
 +}
-+
+
 +__attribute__((constructor)) static void init_bun_sigsys(void) {
 +    install_sigsys_handler();
 +    pthread_atfork(NULL, NULL, on_fork_child);
