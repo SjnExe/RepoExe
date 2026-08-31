@@ -91,22 +91,7 @@ phases:
     export PATH="/usr/lib/llvm-21/bin:/tmp/host-bun:$PATH"
     export ANDROID_NDK_ROOT="${NDK:-/opt/android-ndk}"
 
-    if [ -f "scripts/build.ts" ]; then
-      bun scripts/build.ts --profile=android-release --canary=false --lto=on
-    elif [ -f "CMakeLists.txt" ]; then
-      mkdir -p build && cd build
-      cmake .. -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_SYSTEM_NAME=Android \
-        -DCMAKE_SYSTEM_VERSION=24 \
-        -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
-        -DCMAKE_C_COMPILER="${CC:-clang}" \
-        -DCMAKE_CXX_COMPILER="${CXX:-clang++}"
-      ninja || make -j$(nproc)
-      cd ..
-    elif [ -x "$(command -v zig)" ]; then
-      zig build -Doptimize=ReleaseFast
-    fi
+    bun run build:release --abi=android --arch=aarch64 --android-ndk="${NDK:-/opt/android-ndk}" --canary=false --lto=on
   install: |
     BUN_BIN=""
     if [ -f "./build/release/bun" ]; then
@@ -140,14 +125,13 @@ phases:
 
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping debug symbols from $BUN_BIN using $STRIP_TOOL..."
-      "$STRIP_TOOL" --strip-all --strip-debug --discard-all --remove-section=.comment --remove-section=.note "$BUN_BIN" || "$STRIP_TOOL" --strip-all "$BUN_BIN" || "$STRIP_TOOL" "$BUN_BIN" || true
+      "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note "$BUN_BIN" || "$STRIP_TOOL" --strip-all "$BUN_BIN" || "$STRIP_TOOL" "$BUN_BIN" || true
     else
       echo "Warning: LLVM strip tool not found, skipping stripping."
     fi
 
     install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
-    ln -sf bun "${DESTDIR}${PREFIX}/bin/node"
 
     mkdir -p "${DESTDIR}${PREFIX}/etc/profile.d"
     cat << 'EOF' > "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
@@ -163,7 +147,7 @@ phases:
 
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping installed binary ${DESTDIR}${PREFIX}/bin/bun..."
-      "$STRIP_TOOL" --strip-all --strip-debug --discard-all --remove-section=.comment --remove-section=.note "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true
+      "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true
     fi
   test: |
     bun --version
@@ -171,7 +155,7 @@ phases:
 
     mkdir -p "${TMPDIR:-/tmp}/prettier-test" && cd "${TMPDIR:-/tmp}/prettier-test"
     bun install prettier
-    bunx prettier --version
+    bunx --bun prettier --version
     cd -
 
     bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"

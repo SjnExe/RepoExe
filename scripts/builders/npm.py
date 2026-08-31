@@ -28,9 +28,10 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
     bin_dir.mkdir(parents=True, exist_ok=True)
 
     # Copy the entire Termux structure into the NPM package to preserve shared libraries and resources
+    # Ensure symlinks=True so symlinks (e.g. bunx -> bun) are preserved as symlinks rather than copied as duplicate files
     usr_stage_dir = stage_dir / "data" / "data" / "com.termux" / "files" / "usr"
     if usr_stage_dir.exists():
-        shutil.copytree(usr_stage_dir, npm_pkg_dir / "usr", dirs_exist_ok=True)
+        shutil.copytree(usr_stage_dir, npm_pkg_dir / "usr", dirs_exist_ok=True, symlinks=True)
     else:
         # Fallback if it's a flat build structure without full Termux prefix
         for item in stage_dir.iterdir():
@@ -40,7 +41,7 @@ def build_npm(recipe: PackageRecipe, destdir: str, output_dir: str) -> Path:
                 "wheel_build",
             ):
                 shutil.copytree(
-                    item, npm_pkg_dir / "usr" / item.name, dirs_exist_ok=True
+                    item, npm_pkg_dir / "usr" / item.name, dirs_exist_ok=True, symlinks=True
                 )
 
     # Discover all executables/symlinks in usr/bin to expose them in package.json bin map and wrappers

@@ -98,6 +98,27 @@ def test_check_existing_release_hash_http_error_handling():
         assert check_existing_release_hash("tsc", "latest", "hash") is False
 
 
+def test_parse_target_tokens_channels():
+    from cli.generate_shards import parse_target_tokens
+    from utils.dag import DependencyGraph
+
+    dag = DependencyGraph(Path("pkg"))
+
+    # Test explicit channel specifier e.g. jscpd@5.0
+    pairs = parse_target_tokens("jscpd@5.0", dag, Path("pkg"))
+    assert ("jscpd", "5.0") in pairs
+
+    # Test channel wildcard for package e.g. jscpd@all
+    pairs_all = parse_target_tokens("jscpd@all", dag, Path("pkg"))
+    assert ("jscpd", "latest") in pairs_all
+    assert ("jscpd", "5.0") in pairs_all
+
+    # Test all@all
+    pairs_all_all = set(parse_target_tokens("all@all", dag, Path("pkg")))
+    assert ("jscpd", "latest") in pairs_all_all
+    assert ("jscpd", "5.0") in pairs_all_all
+
+
 def test_build_cli_pack_runs_when_stage_exists(tmp_path):
     pkg_dir = tmp_path / "pkg" / "dummy"
     pkg_dir.mkdir(parents=True)

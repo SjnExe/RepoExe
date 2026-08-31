@@ -84,77 +84,106 @@ def get_changed_packages(repo_root: Path, dag: DependencyGraph | None = None) ->
     return changed
 
 
+def get_available_channels(pkg: str, dag: DependencyGraph) -> set[str]:
+    recipe = dag.recipes.get(pkg)
+    if not recipe:
+        return {"latest"}
+    ch_set = {"latest"}
+    if hasattr(recipe, "channels") and recipe.channels:
+        ch_set.update(recipe.channels.keys())
+    return ch_set
+
+
 def parse_target_tokens(
     raw_input: str, dag: DependencyGraph, pkgs_dir: Path
-) -> list[str]:
+) -> list[tuple[str, str]]:
     all_pkgs = set(dag.recipes.keys())
     tokens = raw_input.split()
 
-    selected = set()
-    excluded = set()
+    selected_pairs: set[tuple[str, str]] = set()
+    excluded_pairs: set[tuple[str, str]] = set()
+    excluded_pkgs: set[str] = set()
+
+    has_positive_selection = False
 
     for token in tokens:
-        if token.startswith("!"):
-            ex_name = token[1:].split("@")[0]
-            if ex_name.startswith(("type:", "format:")):
-                target_fmt = ex_name.split(":", 1)[1]
-                for p, r in dag.recipes.items():
-                    if target_fmt in getattr(r, "formats", []):
-                        excluded.add(p)
-            elif ex_name == "all":
-                excluded.update(all_pkgs)
-            elif ex_name in all_pkgs:
-                excluded.add(ex_name)
+        is_exclude = token.startswith("!")
+        if is_exclude:
+            token = token[1:]
+
+        if "@" in token:
+            target_part, channel_part = token.split("@", 1)
         else:
-            inc_name = token.split("@")[0]
-            if inc_name.startswith(("type:", "format:")):
-                target_fmt = inc_name.split(":", 1)[1]
-                for p, r in dag.recipes.items():
-                    if target_fmt in getattr(r, "formats", []):
-                        selected.add(p)
-            elif inc_name == "all":
-                selected.update(all_pkgs)
-            elif inc_name in all_pkgs:
-                selected.add(inc_name)
+            target_part = token
+            channel_part = "latest"
 
-    if not selected:
-        selected = all_pkgs
+        matched_pkgs: set[str] = set()
+        if target_part.startswith(("type:", "format:")):
+            target_fmt = target_part.split(":", 1)[1]
+            for p, r in dag.recipes.items():
+                if target_fmt in getattr(r, "formats", []):
+                    matched_pkgs.add(p)
+        elif target_part == "all":
+            matched_pkgs.update(all_pkgs)
+        elif target_part in all_pkgs:
+            matched_pkgs.add(target_part)
 
-    final_requested = selected - excluded
+        pairs: set[tuple[str, str]] = set()
+        for p in matched_pkgs:
+            avail = get_available_channels(p, dag)
+            if channel_part == "all":
+                for ch in avail:
+                    pairs.add((p, ch))
+            else:
+                pairs.add((p, channel_part))
 
-    for pkg in list(final_requested):
+        if is_exclude:
+            excluded_pairs.update(pairs)
+            if channel_part == "all":
+                excluded_pkgs.update(matched_pkgs)
+        else:
+            has_positive_selection = True
+            selected_pairs.update(pairs)
+
+    if not has_positive_selection:
+        for p in all_pkgs:
+            selected_pairs.add((p, "latest"))
+
+    final_requested = selected_pairs - excluded_pairs
+
+    for pkg, ch in list(final_requested):
         recipe = dag.recipes.get(pkg)
         if recipe:
             deps = set((recipe.deps or []) + (recipe.build_deps or []))
             for dep in deps:
-                if dep in excluded and not check_remote_release_exists(dep):
+                if (dep in excluded_pkgs or (dep, "latest") in excluded_pairs) and not check_remote_release_exists(dep, "latest"):
                     print(
-                        f"::error:: Target '{pkg}' requires '{dep}', but '{dep}' was explicitly excluded (!{dep}) and no remote release exists."
+                        f"::error:: Target '{pkg}@{ch}' requires '{dep}', but '{dep}' was explicitly excluded and no remote release exists."
                     )
                     sys.exit(1)
 
-    expanded_targets = set(final_requested)
-    for pkg in list(final_requested):
+    expanded_pairs = set(final_requested)
+    for pkg, ch in list(final_requested):
         recipe = dag.recipes.get(pkg)
         if recipe:
             deps = set((recipe.deps or []) + (recipe.build_deps or []))
             for dep in deps:
-                if dep in all_pkgs:
-                    expanded_targets.add(dep)
+                if dep in all_pkgs and not any(p == dep for p, _ in expanded_pairs):
+                    expanded_pairs.add((dep, "latest"))
 
-    return list(expanded_targets)
+    return list(expanded_pairs)
 
 
 def build_matrix_layer(
-    pkgs_list: list[str], pkgs_dir: Path, dag: DependencyGraph
+    pkgs_list: list[tuple[str, str]], pkgs_dir: Path, dag: DependencyGraph
 ) -> list[dict]:
     matrix = []
-    for p in sorted(pkgs_list):
+    for p, ch in sorted(pkgs_list):
         recipe_path = pkgs_dir / p / "pkg.yml"
         if not recipe_path.exists():
             continue
         try:
-            r = parse_recipe(recipe_path, channel="latest")
+            r = parse_recipe(recipe_path, channel=ch)
 
             max_zram = getattr(r.resources, "zram", 0)
             max_swap = getattr(r.resources, "swap", 0)
@@ -173,7 +202,7 @@ def build_matrix_layer(
             matrix.append(
                 {
                     "package": p,
-                    "channel": "latest",
+                    "channel": ch,
                     "heavy": r.heavy_build or (max_swap > 0 or max_zram > 0),
                     "build_system": r.build_system,
                     "zram": max_zram,
@@ -198,13 +227,11 @@ def main() -> None:
         diff_files = get_git_diff_files(repo_root)
         changed_pkgs = list(get_changed_packages(repo_root, dag=dag))
         if changed_pkgs:
-            target_pkgs = list(
-                parse_target_tokens(" ".join(changed_pkgs), dag, pkgs_dir)
-            )
+            target_pkgs = parse_target_tokens(" ".join(changed_pkgs), dag, pkgs_dir)
         elif diff_files:
             target_pkgs = []
         else:
-            target_pkgs = list(dag.recipes.keys())
+            target_pkgs = parse_target_tokens("all@latest", dag, pkgs_dir)
     else:
         target_pkgs = parse_target_tokens(raw_input, dag, pkgs_dir)
 
