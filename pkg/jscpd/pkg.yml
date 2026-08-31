@@ -1,5 +1,5 @@
 name: jscpd
-version: 5.1.0
+version: 5.1.1
 revision: 0
 arch: aarch64
 description: Copy/paste code detector compiled natively in Rust for Termux
