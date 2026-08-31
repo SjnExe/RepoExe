@@ -43,26 +43,66 @@ def main() -> None:
         p_dir = pkg_path if pkg_path.is_dir() else pkg_path.parent
         recipe = parse_recipe(pkg_path, channel=args.channel)
 
-        if not args.force and check_existing_release_hash(
-            recipe.name, args.channel, getattr(recipe, "state_hash", "")
-        ):
-            print(f"⏭️ Skipping {recipe.name}@{args.channel}: state_hash unchanged.")
-            return
-
-        if args.dry_run:
-            print(f"✓ Dry-run complete for {recipe.name} ({args.command}).")
-            return
-
         destdir = (Path.cwd() / "build" / f"build_{recipe.name}").resolve()
         output_dir = (Path.cwd() / "output").resolve()
+        stage_dir = destdir / "stage"
 
         if args.command == "compile":
+            if not args.force and check_existing_release_hash(
+                recipe.name, args.channel, getattr(recipe, "state_hash", "")
+            ):
+                print(f"⏭️ Skipping {recipe.name}@{args.channel}: state_hash unchanged.")
+                return
+
+            if args.dry_run:
+                print(f"✓ Dry-run complete for {recipe.name} ({args.command}).")
+                return
+
             execute_compile(recipe, p_dir, destdir)
+
         elif args.command == "pack":
+            if not stage_dir.exists():
+                if not args.force and check_existing_release_hash(
+                    recipe.name, args.channel, getattr(recipe, "state_hash", "")
+                ):
+                    print(f"⏭️ Skipping {recipe.name}@{args.channel}: state_hash unchanged.")
+                    return
+                print(f"::warning:: stage_dir {stage_dir} does not exist for pack.")
+                return
+
+            if args.dry_run:
+                print(f"✓ Dry-run complete for {recipe.name} ({args.command}).")
+                return
+
             execute_pack(recipe, p_dir, destdir, output_dir)
+
         elif args.command == "test":
+            if not stage_dir.exists():
+                if not args.force and check_existing_release_hash(
+                    recipe.name, args.channel, getattr(recipe, "state_hash", "")
+                ):
+                    print(f"⏭️ Skipping {recipe.name}@{args.channel}: state_hash unchanged.")
+                    return
+                print(f"Notice: stage_dir {stage_dir} does not exist for test.")
+                return
+
+            if args.dry_run:
+                print(f"✓ Dry-run complete for {recipe.name} ({args.command}).")
+                return
+
             execute_test(recipe, destdir)
+
         elif args.command == "build":
+            if not args.force and check_existing_release_hash(
+                recipe.name, args.channel, getattr(recipe, "state_hash", "")
+            ):
+                print(f"⏭️ Skipping {recipe.name}@{args.channel}: state_hash unchanged.")
+                return
+
+            if args.dry_run:
+                print(f"✓ Dry-run complete for {recipe.name} ({args.command}).")
+                return
+
             execute_compile(recipe, p_dir, destdir)
             execute_pack(recipe, p_dir, destdir, output_dir)
             execute_test(recipe, destdir)

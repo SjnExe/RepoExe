@@ -1,9 +1,11 @@
 import contextlib
 import gzip
 import json
+import os
 import shutil
 import subprocess
 import sys
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -27,9 +29,19 @@ USER_AGENT = "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like G
 _PKG_INDEX: dict[str, dict] = {}
 
 
+def _get_auth_headers(headers: dict[str, str] | None = None) -> dict[str, str]:
+    res = {"User-Agent": USER_AGENT}
+    if headers:
+        res.update(headers)
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if token and "Authorization" not in res:
+        res["Authorization"] = f"Bearer {token}"
+    return res
+
+
 def _download_file(url: str, dest_path: Path) -> None:
     """Streams remote files to disk with standard User-Agent headers to bypass CDN bot protection."""
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    req = urllib.request.Request(url, headers=_get_auth_headers())
     with (
         urllib.request.urlopen(req, timeout=30) as resp,
         open(dest_path, "wb") as out_f,
@@ -39,9 +51,14 @@ def _download_file(url: str, dest_path: Path) -> None:
 
 def check_existing_release_hash(pkg_name: str, channel: str, target_hash: str) -> bool:
     tag = f"{pkg_name}@{channel}"
-    api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
+    repo_slug = (
+        os.environ.get("GITHUB_REPOSITORY")
+        or f"{os.environ.get('REPO_OWNER', 'SjnExe')}/RepoExe"
+    )
+    api_url = f"https://api.github.com/repos/{repo_slug}/releases/tags/{tag}"
     try:
-        req = urllib.request.Request(api_url, headers={"User-Agent": USER_AGENT})
+        headers = _get_auth_headers()
+        req = urllib.request.Request(api_url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
 
@@ -54,14 +71,19 @@ def check_existing_release_hash(pkg_name: str, channel: str, target_hash: str) -
 
         for asset in data.get("assets", []):
             if asset.get("name") in ("metadata.json", f"{pkg_name}_metadata.json"):
-                meta_raw = (
-                    urllib.request.urlopen(asset["browser_download_url"])
-                    .read()
-                    .decode("utf-8")
+                asset_req = urllib.request.Request(
+                    asset["browser_download_url"], headers=headers
                 )
+                with urllib.request.urlopen(asset_req, timeout=10) as asset_resp:
+                    meta_raw = asset_resp.read().decode("utf-8")
                 remote_meta = json.loads(meta_raw)
                 return remote_meta.get("state_hash") == target_hash
-    except Exception:
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            print(f"Notice: check_existing_release_hash HTTP error for {tag}: {e.code} {e.reason}")
+        return False
+    except Exception as e:
+        print(f"Notice: check_existing_release_hash error for {tag}: {e}")
         return False
     return False
 
@@ -176,9 +198,14 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
 
     # 2. RepoExe releases
     tag = f"{pkg_name}@latest"
-    api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
+    repo_slug = (
+        os.environ.get("GITHUB_REPOSITORY")
+        or f"{os.environ.get('REPO_OWNER', 'SjnExe')}/RepoExe"
+    )
+    api_url = f"https://api.github.com/repos/{repo_slug}/releases/tags/{tag}"
     try:
-        req = urllib.request.Request(api_url, headers={"User-Agent": USER_AGENT})
+        headers = _get_auth_headers()
+        req = urllib.request.Request(api_url, headers=headers)
         with urllib.request.urlopen(req, timeout=5) as resp:
             rel_data = json.loads(resp.read().decode("utf-8"))
 
