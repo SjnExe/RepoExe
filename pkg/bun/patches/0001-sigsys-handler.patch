@@ -2,7 +2,7 @@ diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/
 index 0ee12ba..f3e3391 100644
 --- a/src/jsc/bindings/workaround-missing-symbols.cpp
 +++ b/src/jsc/bindings/workaround-missing-symbols.cpp
-@@ -539,3 +539,418 @@
+@@ -539,3 +539,468 @@
  #endif
 
  extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
@@ -86,10 +86,20 @@ index 0ee12ba..f3e3391 100644
 +    return "/data/data/com.termux/files/usr";
 +}
 +
++static const char *get_termux_home(void) {
++    const char *h = getenv("HOME");
++    if (h && h[0]) return h;
++    return "/data/data/com.termux/files/home";
++}
++
 +static const char *termux_rewrite_path_r(const char *filename, char *buf, size_t bufsize) {
 +    if (!filename) return filename;
 +    const char *prefix = get_termux_prefix();
++    const char *home = get_termux_home();
 +    if (strncmp(filename, prefix, strlen(prefix)) == 0) {
++        return filename;
++    }
++    if (strncmp(filename, home, strlen(home)) == 0) {
 +        return filename;
 +    }
 +    if (strcmp(filename, "/usr/bin/env") == 0) {
@@ -104,22 +114,8 @@ index 0ee12ba..f3e3391 100644
 +        snprintf(buf, bufsize, "%s/bin/bash", prefix);
 +        return buf;
 +    }
-+    if (strncmp(filename, "/tmp/stage", 10) == 0) {
-+        return filename;
-+    }
-+    if (strcmp(filename, "/tmp") == 0 || strncmp(filename, "/tmp/", 5) == 0) {
-+        if (access(filename, F_OK) != 0) {
-+            snprintf(buf, bufsize, "%s/tmp%s", prefix, filename + 4);
-+            if (access(buf, F_OK) == 0) return buf;
-+        }
-+        return filename;
-+    }
 +    if (strcmp(filename, "/usr/bin/node") == 0) {
 +        snprintf(buf, bufsize, "%s/bin/node", prefix);
-+        if (access(buf, X_OK) == 0) {
-+            return buf;
-+        }
-+        snprintf(buf, bufsize, "%s/bin/bun", prefix);
 +        return buf;
 +    }
 +    if (strcmp(filename, "/usr/bin/python") == 0 || strcmp(filename, "/usr/bin/python3") == 0) {
@@ -128,11 +124,67 @@ index 0ee12ba..f3e3391 100644
 +    }
 +    if (strncmp(filename, "/usr/bin/", 9) == 0) {
 +        snprintf(buf, bufsize, "%s/bin/%s", prefix, filename + 9);
-+        if (access(buf, F_OK) == 0) return buf;
++        return buf;
 +    }
 +    if (strncmp(filename, "/bin/", 5) == 0) {
 +        snprintf(buf, bufsize, "%s/bin/%s", prefix, filename + 5);
-+        if (access(buf, F_OK) == 0) return buf;
++        return buf;
++    }
++    if (strcmp(filename, "/etc") == 0) {
++        snprintf(buf, bufsize, "%s/etc", prefix);
++        return buf;
++    }
++    if (strncmp(filename, "/etc/", 5) == 0) {
++        snprintf(buf, bufsize, "%s/etc/%s", prefix, filename + 5);
++        return buf;
++    }
++    if (strcmp(filename, "/usr/share") == 0) {
++        snprintf(buf, bufsize, "%s/share", prefix);
++        return buf;
++    }
++    if (strncmp(filename, "/usr/share/", 11) == 0) {
++        snprintf(buf, bufsize, "%s/share/%s", prefix, filename + 11);
++        return buf;
++    }
++    if (strcmp(filename, "/var") == 0) {
++        snprintf(buf, bufsize, "%s/var", prefix);
++        return buf;
++    }
++    if (strncmp(filename, "/var/", 5) == 0) {
++        snprintf(buf, bufsize, "%s/var/%s", prefix, filename + 5);
++        return buf;
++    }
++    if (strncmp(filename, "/tmp/stage", 10) == 0) {
++        return filename;
++    }
++    if (strcmp(filename, "/tmp") == 0) {
++        snprintf(buf, bufsize, "%s/tmp", prefix);
++        return buf;
++    }
++    if (strncmp(filename, "/tmp/", 5) == 0) {
++        snprintf(buf, bufsize, "%s/tmp/%s", prefix, filename + 5);
++        return buf;
++    }
++    if (strcmp(filename, "~") == 0) {
++        snprintf(buf, bufsize, "%s", home);
++        return buf;
++    }
++    if (strncmp(filename, "~/", 2) == 0) {
++        snprintf(buf, bufsize, "%s/%s", home, filename + 2);
++        return buf;
++    }
++    if (strcmp(filename, "/home") == 0) {
++        snprintf(buf, bufsize, "%s", home);
++        return buf;
++    }
++    if (strncmp(filename, "/home/", 6) == 0) {
++        const char *slash = strchr(filename + 6, '/');
++        if (slash) {
++            snprintf(buf, bufsize, "%s%s", home, slash);
++        } else {
++            snprintf(buf, bufsize, "%s", home);
++        }
++        return buf;
 +    }
 +    return filename;
 +}
