@@ -11,11 +11,17 @@ from utils.parser import parse_recipe
 
 def check_remote_release_exists(pkg_name: str, channel: str = "latest") -> bool:
     tag = f"{pkg_name}@{channel}"
-    api_url = f"https://api.github.com/repos/SjnExe/RepoExe/releases/tags/{tag}"
+    repo_slug = (
+        os.environ.get("GITHUB_REPOSITORY")
+        or f"{os.environ.get('REPO_OWNER', 'SjnExe')}/RepoExe"
+    )
+    api_url = f"https://api.github.com/repos/{repo_slug}/releases/tags/{tag}"
     try:
-        req = urllib.request.Request(
-            api_url, headers={"User-Agent": "RepoExe-Orchestrator"}
-        )
+        token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+        headers = {"User-Agent": "RepoExe-Orchestrator"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        req = urllib.request.Request(api_url, headers=headers)
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status == 200
     except Exception:
