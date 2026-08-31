@@ -48,13 +48,34 @@ def get_git_diff_files(repo_root: Path) -> set[str]:
     return set()
 
 
-def get_changed_packages(repo_root: Path) -> set[str]:
+def get_changed_packages(repo_root: Path, dag: DependencyGraph | None = None) -> set[str]:
     files = get_git_diff_files(repo_root)
-    return {
+    changed = {
         Path(f.strip()).parts[1]
         for f in files
         if len(Path(f.strip()).parts) >= 2 and Path(f.strip()).parts[0] == "pkg"
     }
+
+    if dag:
+        builder_format_map = {
+            "debian.py": "apt",
+            "pacman.py": "pacman",
+            "alpine.py": "apk",
+            "npm.py": "npm",
+            "pip.py": "pip",
+        }
+        for f in files:
+            p_parts = Path(f.strip()).parts
+            if len(p_parts) >= 3 and p_parts[0] == "scripts" and p_parts[1] == "builders":
+                builder_filename = p_parts[2]
+                target_fmt = builder_format_map.get(builder_filename)
+                if target_fmt:
+                    for pkg_name, recipe in dag.recipes.items():
+                        fmts = getattr(recipe, "formats", ["apt", "pacman", "apk"])
+                        if target_fmt in fmts:
+                            changed.add(pkg_name)
+
+    return changed
 
 
 def parse_target_tokens(
@@ -169,7 +190,7 @@ def main() -> None:
 
     if not raw_input or raw_input == "auto":
         diff_files = get_git_diff_files(repo_root)
-        changed_pkgs = list(get_changed_packages(repo_root))
+        changed_pkgs = list(get_changed_packages(repo_root, dag=dag))
         if changed_pkgs:
             target_pkgs = list(
                 parse_target_tokens(" ".join(changed_pkgs), dag, pkgs_dir)
