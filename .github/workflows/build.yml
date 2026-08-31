@@ -24,6 +24,11 @@ on:
         required: false
         type: boolean
         default: false
+      force:
+        description: 'Force rebuild even if state_hash is unchanged'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -279,7 +284,7 @@ jobs:
             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" 2>&1 | tee -a "${LOG_FILE}"
+            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Profile Build Memory Peak
         if: always()
