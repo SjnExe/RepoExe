@@ -168,9 +168,8 @@ def parse_target_tokens(
         if recipe:
             deps = set((recipe.deps or []) + (recipe.build_deps or []))
             for dep in deps:
-                if dep in all_pkgs:
-                    if not any(p == dep for p, _ in expanded_pairs):
-                        expanded_pairs.add((dep, "latest"))
+                if dep in all_pkgs and not any(p == dep for p, _ in expanded_pairs):
+                    expanded_pairs.add((dep, "latest"))
 
     return list(expanded_pairs)
 
@@ -228,9 +227,7 @@ def main() -> None:
         diff_files = get_git_diff_files(repo_root)
         changed_pkgs = list(get_changed_packages(repo_root, dag=dag))
         if changed_pkgs:
-            target_pkgs = list(
-                parse_target_tokens(" ".join(changed_pkgs), dag, pkgs_dir)
-            )
+            target_pkgs = parse_target_tokens(" ".join(changed_pkgs), dag, pkgs_dir)
         elif diff_files:
             target_pkgs = []
         else:
