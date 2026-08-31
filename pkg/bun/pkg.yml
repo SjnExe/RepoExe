@@ -155,7 +155,7 @@ phases:
 
     mkdir -p "${TMPDIR:-/tmp}/prettier-test" && cd "${TMPDIR:-/tmp}/prettier-test"
     bun install prettier
-    bunx prettier --version
+    bunx --bun prettier --version
     cd -
 
     bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"

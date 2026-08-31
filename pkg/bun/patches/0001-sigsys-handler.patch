@@ -2,7 +2,7 @@ diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/
 index 0ee12ba..f3e3391 100644
 --- a/src/jsc/bindings/workaround-missing-symbols.cpp
 +++ b/src/jsc/bindings/workaround-missing-symbols.cpp
-@@ -539,3 +539,418 @@
+@@ -539,3 +539,376 @@
  #endif
 
  extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
@@ -51,7 +51,7 @@ index 0ee12ba..f3e3391 100644
 +    sigemptyset(&sa.sa_mask);
 +    sa.sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
 +    sa.sa_sigaction = sigsys_handler;
-+
+
 +    if (real_sigaction) {
 +        real_sigaction(SIGSYS, &sa, NULL);
 +    } else {
@@ -116,10 +116,6 @@ index 0ee12ba..f3e3391 100644
 +    }
 +    if (strcmp(filename, "/usr/bin/node") == 0) {
 +        snprintf(buf, bufsize, "%s/bin/node", prefix);
-+        if (access(buf, X_OK) == 0) {
-+            return buf;
-+        }
-+        snprintf(buf, bufsize, "%s/bin/bun", prefix);
 +        return buf;
 +    }
 +    if (strcmp(filename, "/usr/bin/python") == 0 || strcmp(filename, "/usr/bin/python3") == 0) {
@@ -267,7 +263,7 @@ index 0ee12ba..f3e3391 100644
 +}
 +
 +extern "C" int execvpe(const char *filename, char *const argv[], char *const envp[]) {
-+    typedef int (*execvpe_fn)(const char *, char *const [], char *const []);
+    typedef int (*execvpe_fn)(const char *, char *const [], char *const []);
 +    execvpe_fn real_execvpe = (execvpe_fn)dlsym(RTLD_NEXT, "execvpe");
 +    execve_fn real_execve = (execve_fn)dlsym(RTLD_NEXT, "execve");
 +    char fn_buf[1024];
@@ -335,14 +331,14 @@ index 0ee12ba..f3e3391 100644
 +
 +    char **new_argv = (char **)malloc(sizeof(char *) * (new_argc + 1));
 +    if (!new_argv) return -1;
-+
+
 +    int idx = 0;
 +    new_argv[idx++] = (char *)rw_interp;
 +    if (arg) {
 +        new_argv[idx++] = arg;
 +    }
 +    new_argv[idx++] = (char *)filename;
-+
+
 +    for (int i = 1; i < orig_argc; i++) {
 +        new_argv[idx++] = argv[i];
 +    }
