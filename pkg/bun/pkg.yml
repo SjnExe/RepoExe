@@ -145,6 +145,11 @@ phases:
     EOF
     chmod 755 "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
 
+    cat << 'EOF' > "${DESTDIR}${PREFIX}/etc/bunfig.toml"
+    [run]
+    bun = true
+    EOF
+
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping installed binary ${DESTDIR}${PREFIX}/bin/bun..."
       "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true

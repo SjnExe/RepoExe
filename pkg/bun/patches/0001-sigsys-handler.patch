@@ -2,7 +2,7 @@ diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/
 index 0ee12ba..f3e3391 100644
 --- a/src/jsc/bindings/workaround-missing-symbols.cpp
 +++ b/src/jsc/bindings/workaround-missing-symbols.cpp
-@@ -539,3 +539,460 @@
+@@ -539,3 +539,457 @@
  #endif
 
  extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
@@ -132,13 +132,10 @@ index 0ee12ba..f3e3391 100644
 +        return get_termux_tmp_r(buf, bufsize);
 +    }
 +    if (strncmp(filename, "/tmp/", 5) == 0) {
-+        if (access(filename, F_OK) != 0) {
-+            char tmp_dir[1024];
-+            get_termux_tmp_r(tmp_dir, sizeof(tmp_dir));
-+            snprintf(buf, bufsize, "%s%s", tmp_dir, filename + 4);
-+            if (access(buf, F_OK) == 0) return buf;
-+        }
-+        return filename;
++        char tmp_dir[1024];
++        get_termux_tmp_r(tmp_dir, sizeof(tmp_dir));
++        snprintf(buf, bufsize, "%s%s", tmp_dir, filename + 4);
++        return buf;
 +    }
 +    if (strcmp(filename, "/usr/bin/node") == 0) {
 +        snprintf(buf, bufsize, "%s/bin/node", prefix);
