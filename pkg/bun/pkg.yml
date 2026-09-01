@@ -150,10 +150,11 @@ phases:
       "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true
     fi
   test: |
+    export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
     bun --version
     bunx --version
 
-    mkdir -p "${TMPDIR:-/tmp}/prettier-test" && cd "${TMPDIR:-/tmp}/prettier-test"
+    mkdir -p "${TMPDIR}/prettier-test" && cd "${TMPDIR}/prettier-test"
     bun install prettier
     bunx --bun prettier --version
     cd -
