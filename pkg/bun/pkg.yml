@@ -172,14 +172,7 @@ phases:
 
     # 1. Test bunx without --bun in environment WITHOUT Node.js
     OLD_PATH="$PATH"
-    NODE_BIN_PATH=$(command -v node 2>/dev/null || true)
-    CLEAN_PATH=""
-    if [ -n "$NODE_BIN_PATH" ]; then
-      NODE_DIR=$(dirname "$NODE_BIN_PATH")
-      CLEAN_PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -F "$NODE_DIR" | tr '\n' ':' | sed 's/:$//')
-    else
-      CLEAN_PATH="$PATH"
-    fi
+    CLEAN_PATH=$(echo "$PATH" | tr ':' '\n' | while read -r dir; do if [ -n "$dir" ] && [ ! -x "$dir/node" ]; then echo "$dir"; fi; done | tr '\n' ':' | sed 's/:$//')
 
     echo "Testing bunx without --bun in environment WITHOUT Node.js..."
     if PATH="$CLEAN_PATH" bunx prettier --version >/dev/null 2>&1; then
