@@ -7,7 +7,9 @@ from pathlib import Path
 from builders.debian import generate_apt_metadata, generate_release_file
 from builders.npm import generate_npm_index
 from builders.pip import generate_pip_index
+from cli.prune import get_expected_asset_filenames
 from utils.metadata import generate_packages_json
+from utils.parser import parse_recipe
 
 
 def get_exact_package_artifacts(art_path: Path, pkg_name: str) -> list[Path]:
@@ -43,6 +45,7 @@ def fetch_existing_release_assets_to_artifacts(art_path: Path) -> None:
         return
 
     art_path.mkdir(parents=True, exist_ok=True)
+    pkgs_dir = Path(__file__).resolve().parents[2] / "pkg"
 
     repo_res = subprocess.run(
         ["gh", "repo", "view", "--json", "name,owner"],
@@ -79,10 +82,25 @@ def fetch_existing_release_assets_to_artifacts(art_path: Path) -> None:
         if "@" not in tag:
             continue
 
+        pkg, channel = tag.split("@", 1)
+        recipe_path = pkgs_dir / pkg / "pkg.yml"
+        expected_files: set[str] = set()
+
+        if recipe_path.exists():
+            try:
+                recipe = parse_recipe(recipe_path, channel=channel)
+                expected_files = get_expected_asset_filenames(recipe)
+            except Exception as e:
+                print(f"Notice: Could not parse recipe for {tag}: {e}")
+
         for asset in release.get("assets", []):
             name = asset.get("name", "")
             download_url = asset.get("browser_download_url")
             if not name or not download_url:
+                continue
+
+            if expected_files and name not in expected_files:
+                print(f"Skipping outdated published asset for index accumulation: {name} (not in expected files for {tag})")
                 continue
 
             target_file = art_path / name
