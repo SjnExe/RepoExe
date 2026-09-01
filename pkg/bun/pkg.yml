@@ -171,11 +171,23 @@ phases:
     bun install prettier
 
     # 1. Test bunx without --bun in environment WITHOUT Node.js
-    OLD_PATH="$PATH"
-    CLEAN_PATH=$(echo "$PATH" | tr ':' '\n' | while read -r dir; do if [ -n "$dir" ] && [ ! -x "$dir/node" ]; then echo "$dir"; fi; done | tr '\n' ':' | sed 's/:$//')
+    NO_NODE_DIR="${TMPDIR}/no-node-path"
+    rm -rf "$NO_NODE_DIR" && mkdir -p "$NO_NODE_DIR"
+    for d in $(echo "$PATH" | tr ':' ' '); do
+      if [ -d "$d" ]; then
+        for f in "$d"/*; do
+          if [ -x "$f" ] || [ -L "$f" ]; then
+            b=$(basename "$f")
+            if [ "$b" != "node" ] && [ "$b" != "nodejs" ]; then
+              ln -sf "$f" "$NO_NODE_DIR/$b" 2>/dev/null || true
+            fi
+          fi
+        done
+      fi
+    done
 
     echo "Testing bunx without --bun in environment WITHOUT Node.js..."
-    if PATH="$CLEAN_PATH" bunx prettier --version >/dev/null 2>&1; then
+    if PATH="$NO_NODE_DIR" bunx prettier --version >/dev/null 2>&1; then
       echo "::error::bunx without --bun succeeded when node was missing! Expected failure."
       exit 1
     else
@@ -184,7 +196,7 @@ phases:
 
     # 2. Test bunx WITH --bun in environment WITHOUT Node.js
     echo "Testing bunx with --bun..."
-    if ! PATH="$CLEAN_PATH" bunx --bun prettier --version; then
+    if ! PATH="$NO_NODE_DIR" bunx --bun prettier --version; then
       echo "::error::bunx --bun failed when running prettier!"
       exit 1
     else
