@@ -116,11 +116,11 @@ phases:
     if [ -d "${NDK:-/opt/android-ndk}" ]; then
       STRIP_TOOL=$(find "${NDK:-/opt/android-ndk}" -name "llvm-strip" 2>/dev/null | head -n 1 || true)
     fi
-    if [ -z "$STRIP_TOOL" ]; then
-      STRIP_TOOL="$(command -v llvm-strip-21 || command -v llvm-strip || echo "")"
-    fi
     if [ -z "$STRIP_TOOL" ] && [ -x "/usr/lib/llvm-21/bin/llvm-strip" ]; then
       STRIP_TOOL="/usr/lib/llvm-21/bin/llvm-strip"
+    fi
+    if [ -z "$STRIP_TOOL" ]; then
+      STRIP_TOOL="$(command -v llvm-strip-21 || command -v llvm-strip || command -v aarch64-linux-gnu-strip || command -v strip || echo "")"
     fi
 
     if [ -n "$STRIP_TOOL" ]; then
@@ -149,6 +149,14 @@ phases:
       echo "Stripping installed binary ${DESTDIR}${PREFIX}/bin/bun..."
       "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true
     fi
+
+    BUN_SIZE=$(stat -c%s "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || stat -f%z "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || echo "0")
+    BUN_SIZE_MB=$((BUN_SIZE / 1024 / 1024))
+    echo "Final installed bun binary size: ${BUN_SIZE_MB} MB (${BUN_SIZE} bytes)"
+    if [ "$BUN_SIZE_MB" -gt 90 ]; then
+      echo "::error::Installed bun binary size (${BUN_SIZE_MB} MB) exceeds 90 MB limit!"
+      exit 1
+    fi
   test: |
     export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
     bun --version
@@ -157,6 +165,14 @@ phases:
     mkdir -p "${TMPDIR}/prettier-test" && cd "${TMPDIR}/prettier-test"
     bun install prettier
     bunx --bun prettier --version
+
+    # Test that bunx without --bun fails when node is absent (and no bunfig.toml [run] bun = true)
+    if bunx prettier --version >/dev/null 2>&1; then
+      echo "::error::bunx without --bun succeeded when node is absent! Expected failure."
+      exit 1
+    else
+      echo "bunx without --bun correctly failed when node is absent."
+    fi
     cd -
 
     bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"
