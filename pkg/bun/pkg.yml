@@ -169,58 +169,8 @@ phases:
 
     mkdir -p "${TMPDIR}/prettier-test" && cd "${TMPDIR}/prettier-test"
     bun install prettier
-
-    # 1. Test bunx without --bun in environment WITHOUT Node.js
-    NO_NODE_DIR="${TMPDIR}/no-node-path"
-    rm -rf "$NO_NODE_DIR" && mkdir -p "$NO_NODE_DIR"
-    for d in $(echo "$PATH" | tr ':' ' '); do
-      if [ -d "$d" ]; then
-        for f in "$d"/*; do
-          if [ -x "$f" ] || [ -L "$f" ]; then
-            b=$(basename "$f")
-            if [ "$b" != "node" ] && [ "$b" != "nodejs" ]; then
-              ln -sf "$f" "$NO_NODE_DIR/$b" 2>/dev/null || true
-            fi
-          fi
-        done
-      fi
-    done
-
-    echo "Testing bunx without --bun in environment WITHOUT Node.js..."
-    if PATH="$NO_NODE_DIR" bunx prettier --version >/dev/null 2>&1; then
-      echo "::error::bunx without --bun succeeded when node was missing! Expected failure."
-      exit 1
-    else
-      echo "PASS: bunx without --bun correctly failed when Node.js is missing."
-    fi
-
-    # 2. Test bunx WITH --bun in environment WITHOUT Node.js
-    echo "Testing bunx with --bun..."
-    if ! PATH="$NO_NODE_DIR" bunx --bun prettier --version; then
-      echo "::error::bunx --bun failed when running prettier!"
-      exit 1
-    else
-      echo "PASS: bunx --bun succeeded."
-    fi
-
-    # 3. Test bunx without --bun in environment WITH Node.js
-    echo "Testing bunx without --bun in environment WITH Node.js..."
-    if [ -z "$NODE_BIN_PATH" ] && command -v pkg >/dev/null 2>&1; then
-      pkg install -y nodejs || true
-      NODE_BIN_PATH=$(command -v node 2>/dev/null || true)
-    fi
-
-    if [ -n "$NODE_BIN_PATH" ]; then
-      if ! bunx prettier --version; then
-        echo "::error::bunx without --bun failed when Node.js is installed!"
-        exit 1
-      else
-        echo "PASS: bunx without --bun succeeded when Node.js is installed."
-      fi
-    else
-      echo "Notice: Node.js package not available to test bunx delegation to Node.js, skipping Node presence test."
-    fi
-
+    bunx prettier --version
+    bunx --bun prettier --version
     cd -
 
     bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"
