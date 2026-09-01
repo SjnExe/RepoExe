@@ -2,7 +2,7 @@ diff --git a/src/jsc/bindings/workaround-missing-symbols.cpp b/src/jsc/bindings/
 index 0ee12ba..f3e3391 100644
 --- a/src/jsc/bindings/workaround-missing-symbols.cpp
 +++ b/src/jsc/bindings/workaround-missing-symbols.cpp
-@@ -539,3 +539,418 @@
+@@ -539,3 +539,458 @@
  #endif
 
  extern "C" __attribute__((weak)) void mi_thread_set_in_threadpool() {}
@@ -86,53 +86,93 @@ index 0ee12ba..f3e3391 100644
 +    return "/data/data/com.termux/files/usr";
 +}
 +
++static const char *get_termux_home(void) {
++    const char *h = getenv("HOME");
++    if (h && h[0]) return h;
++    return "/data/data/com.termux/files/home";
++}
++
++static const char *get_termux_tmp_r(char *buf, size_t bufsize) {
++    const char *t = getenv("TMPDIR");
++    if (t && t[0]) {
++        snprintf(buf, bufsize, "%s", t);
++        return buf;
++    }
++    const char *prefix = get_termux_prefix();
++    snprintf(buf, bufsize, "%s/tmp", prefix);
++    return buf;
++}
++
 +static const char *termux_rewrite_path_r(const char *filename, char *buf, size_t bufsize) {
 +    if (!filename) return filename;
 +    const char *prefix = get_termux_prefix();
 +    if (strncmp(filename, prefix, strlen(prefix)) == 0) {
 +        return filename;
 +    }
++    const char *home = get_termux_home();
++    if (strncmp(filename, home, strlen(home)) == 0) {
++        return filename;
++    }
 +    if (strcmp(filename, "/usr/bin/env") == 0) {
 +        snprintf(buf, bufsize, "%s/bin/env", prefix);
-+        return buf;
-+    }
-+    if (strcmp(filename, "/bin/sh") == 0) {
-+        snprintf(buf, bufsize, "%s/bin/sh", prefix);
-+        return buf;
-+    }
-+    if (strcmp(filename, "/bin/bash") == 0) {
-+        snprintf(buf, bufsize, "%s/bin/bash", prefix);
 +        return buf;
 +    }
 +    if (strncmp(filename, "/tmp/stage", 10) == 0) {
 +        return filename;
 +    }
-+    if (strcmp(filename, "/tmp") == 0 || strncmp(filename, "/tmp/", 5) == 0) {
-+        if (access(filename, F_OK) != 0) {
-+            snprintf(buf, bufsize, "%s/tmp%s", prefix, filename + 4);
-+            if (access(buf, F_OK) == 0) return buf;
-+        }
-+        return filename;
++    if (strcmp(filename, "/tmp") == 0) {
++        return get_termux_tmp_r(buf, bufsize);
++    }
++    if (strncmp(filename, "/tmp/", 5) == 0) {
++        char tmp_dir[1024];
++        get_termux_tmp_r(tmp_dir, sizeof(tmp_dir));
++        snprintf(buf, bufsize, "%s%s", tmp_dir, filename + 4);
++        return buf;
++    }
++    if (strncmp(filename, "/data/local/tmp/", 16) == 0) {
++        char tmp_dir[1024];
++        get_termux_tmp_r(tmp_dir, sizeof(tmp_dir));
++        snprintf(buf, bufsize, "%s/%s", tmp_dir, filename + 16);
++        return buf;
++    }
++    if (strcmp(filename, "/data/local/tmp") == 0) {
++        return get_termux_tmp_r(buf, bufsize);
 +    }
 +    if (strcmp(filename, "/usr/bin/node") == 0) {
 +        snprintf(buf, bufsize, "%s/bin/node", prefix);
-+        if (access(buf, X_OK) == 0) {
-+            return buf;
-+        }
-+        snprintf(buf, bufsize, "%s/bin/bun", prefix);
 +        return buf;
 +    }
 +    if (strcmp(filename, "/usr/bin/python") == 0 || strcmp(filename, "/usr/bin/python3") == 0) {
 +        snprintf(buf, bufsize, "%s/bin/python3", prefix);
 +        return buf;
 +    }
++    if (strcmp(filename, "/usr/share") == 0 || strncmp(filename, "/usr/share/", 11) == 0) {
++        snprintf(buf, bufsize, "%s/share%s", prefix, filename + 10);
++        return buf;
++    }
++    if (strcmp(filename, "/etc") == 0 || strncmp(filename, "/etc/", 5) == 0) {
++        snprintf(buf, bufsize, "%s/etc%s", prefix, filename + 4);
++        return buf;
++    }
++    if (strcmp(filename, "/root") == 0) {
++        return home;
++    }
++    if (strncmp(filename, "/root/", 6) == 0) {
++        snprintf(buf, bufsize, "%s%s", home, filename + 5);
++        return buf;
++    }
++    if (strncmp(filename, "/home/", 6) == 0) {
++        const char *sub = strchr(filename + 6, '/');
++        snprintf(buf, bufsize, "%s%s", home, sub ? sub : "");
++        return buf;
++    }
 +    if (strncmp(filename, "/usr/bin/", 9) == 0) {
 +        snprintf(buf, bufsize, "%s/bin/%s", prefix, filename + 9);
-+        if (access(buf, F_OK) == 0) return buf;
++        return buf;
 +    }
 +    if (strncmp(filename, "/bin/", 5) == 0) {
 +        snprintf(buf, bufsize, "%s/bin/%s", prefix, filename + 5);
-+        if (access(buf, F_OK) == 0) return buf;
++        return buf;
 +    }
 +    return filename;
 +}
@@ -420,5 +460,4 @@ index 0ee12ba..f3e3391 100644
 +    install_sigsys_handler();
 +    pthread_atfork(NULL, NULL, on_fork_child);
 +}
-+#endif
 +#endif

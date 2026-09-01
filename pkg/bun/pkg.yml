@@ -1,6 +1,6 @@
 name: bun
 version: "1.4.0"
-revision: 0
+revision: 1
 arch: aarch64
 description: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
 homepage: https://bun.sh
@@ -136,8 +136,8 @@ phases:
     mkdir -p "${DESTDIR}${PREFIX}/etc/profile.d"
     cat << 'EOF' > "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
     # Bun environment configuration
-    export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
-    export TMPDIR="${TMPDIR:-/data/data/com.termux/files/usr/tmp}"
+    export BUN_INSTALL="${BUN_INSTALL:-${HOME:-/data/data/com.termux/files/home}/.bun}"
+    export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
     case ":$PATH:" in
       *":$BUN_INSTALL/bin:"*) ;;
       *) export PATH="$BUN_INSTALL/bin:$PATH" ;;
@@ -150,10 +150,11 @@ phases:
       "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true
     fi
   test: |
+    export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
     bun --version
     bunx --version
 
-    mkdir -p "${TMPDIR:-/tmp}/prettier-test" && cd "${TMPDIR:-/tmp}/prettier-test"
+    mkdir -p "${TMPDIR}/prettier-test" && cd "${TMPDIR}/prettier-test"
     bun install prettier
     bunx --bun prettier --version
     cd -
