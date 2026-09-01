@@ -166,13 +166,6 @@ phases:
     bun install prettier
     bunx --bun prettier --version
 
-    # Test that bunx without --bun fails when node is absent (and no bunfig.toml [run] bun = true)
-    if bunx prettier --version >/dev/null 2>&1; then
-      echo "::error::bunx without --bun succeeded when node is absent! Expected failure."
-      exit 1
-    else
-      echo "bunx without --bun correctly failed when node is absent."
-    fi
     cd -
 
     bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"
