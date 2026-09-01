@@ -125,7 +125,7 @@ phases:
 
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping debug symbols from $BUN_BIN using $STRIP_TOOL..."
-      "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note "$BUN_BIN" || "$STRIP_TOOL" --strip-all "$BUN_BIN" || "$STRIP_TOOL" "$BUN_BIN" || true
+      "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note --remove-section=.debug_info "$BUN_BIN" || "$STRIP_TOOL" --strip-all "$BUN_BIN" || "$STRIP_TOOL" "$BUN_BIN" || true
     else
       echo "Warning: LLVM strip tool not found, skipping stripping."
     fi
@@ -147,7 +147,20 @@ phases:
 
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping installed binary ${DESTDIR}${PREFIX}/bin/bun..."
-      "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true
+      "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note --remove-section=.debug_info "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true
+    fi
+
+    BUN_SIZE=$(stat -c %s "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || stat -f %z "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || echo "0")
+    BUN_SIZE_MB=$((BUN_SIZE / 1024 / 1024))
+    echo "Installed bun binary size: ${BUN_SIZE_MB} MB (${BUN_SIZE} bytes)"
+    if [ "$BUN_SIZE" -gt 94371840 ]; then
+      echo "::error::Installed bun binary size (${BUN_SIZE_MB} MB) exceeds maximum allowed target of 90 MB!"
+      exit 1
+    fi
+
+    if [ ! -L "${DESTDIR}${PREFIX}/bin/bunx" ]; then
+      echo "::error::${DESTDIR}${PREFIX}/bin/bunx is not a symlink!"
+      exit 1
     fi
   test: |
     export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
@@ -156,7 +169,53 @@ phases:
 
     mkdir -p "${TMPDIR}/prettier-test" && cd "${TMPDIR}/prettier-test"
     bun install prettier
-    bunx --bun prettier --version
+
+    # 1. Test bunx without --bun in environment WITHOUT Node.js
+    OLD_PATH="$PATH"
+    NODE_BIN_PATH=$(command -v node 2>/dev/null || true)
+    CLEAN_PATH=""
+    if [ -n "$NODE_BIN_PATH" ]; then
+      NODE_DIR=$(dirname "$NODE_BIN_PATH")
+      CLEAN_PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -F "$NODE_DIR" | tr '\n' ':' | sed 's/:$//')
+    else
+      CLEAN_PATH="$PATH"
+    fi
+
+    echo "Testing bunx without --bun in environment WITHOUT Node.js..."
+    if PATH="$CLEAN_PATH" bunx prettier --version >/dev/null 2>&1; then
+      echo "::error::bunx without --bun succeeded when node was missing! Expected failure."
+      exit 1
+    else
+      echo "PASS: bunx without --bun correctly failed when Node.js is missing."
+    fi
+
+    # 2. Test bunx WITH --bun in environment WITHOUT Node.js
+    echo "Testing bunx with --bun..."
+    if ! PATH="$CLEAN_PATH" bunx --bun prettier --version; then
+      echo "::error::bunx --bun failed when running prettier!"
+      exit 1
+    else
+      echo "PASS: bunx --bun succeeded."
+    fi
+
+    # 3. Test bunx without --bun in environment WITH Node.js
+    echo "Testing bunx without --bun in environment WITH Node.js..."
+    if [ -z "$NODE_BIN_PATH" ] && command -v pkg >/dev/null 2>&1; then
+      pkg install -y nodejs || true
+      NODE_BIN_PATH=$(command -v node 2>/dev/null || true)
+    fi
+
+    if [ -n "$NODE_BIN_PATH" ]; then
+      if ! bunx prettier --version; then
+        echo "::error::bunx without --bun failed when Node.js is installed!"
+        exit 1
+      else
+        echo "PASS: bunx without --bun succeeded when Node.js is installed."
+      fi
+    else
+      echo "Notice: Node.js package not available to test bunx delegation to Node.js, skipping Node presence test."
+    fi
+
     cd -
 
     bun -e "console.log('Arch:', process.arch, 'Platform:', process.platform)"
