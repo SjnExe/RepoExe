@@ -145,6 +145,15 @@ diff --git a/src/install/lib.rs b/src/install/lib.rs
 index 619e07f..0a76f2f 100644
 --- a/src/install/lib.rs
 +++ b/src/install/lib.rs
+@@ -423,7 +423,7 @@ impl RunCommand {
+         const TMP: &str = if cfg!(target_os = "macos") {
+             "/private/tmp"
+         } else if cfg!(target_os = "android") {
+-            "/data/local/tmp"
++            "/data/data/com.termux/files/usr/tmp"
+         } else {
+             "/tmp"
+         };
 @@ -601,7 +601,7 @@ impl RunCommand {
                      Ok(st)
                          if bun_sys::kind_from_mode(st.st_mode as bun_sys::Mode)
