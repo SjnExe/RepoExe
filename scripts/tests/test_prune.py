@@ -1,5 +1,7 @@
-from unittest.mock import MagicMock
+import json
+from unittest.mock import MagicMock, patch
 
+from cli.index_gen import fetch_existing_release_assets_to_artifacts
 from cli.prune import get_expected_asset_filenames, identify_outdated_assets
 
 
@@ -41,10 +43,6 @@ def test_identify_outdated_assets():
 
 
 def test_fetch_existing_release_assets_filters_outdated(tmp_path):
-    import json
-    from unittest.mock import MagicMock, patch
-    from cli.index_gen import fetch_existing_release_assets_to_artifacts
-
     art_dir = tmp_path / "artifacts"
 
     mock_releases = [
