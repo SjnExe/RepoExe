@@ -30,7 +30,7 @@ def generate_packages_json(
         for p_dir in sorted(pkgs_path.iterdir()):
             recipe_file = p_dir / "pkg.yml"
             if p_dir.is_dir() and recipe_file.exists():
-                with contextlib.suppress(Exception):
+                with contextlib.suppress(ValueError, KeyError, TypeError, AttributeError, OSError):
                     recipe = parse_recipe(recipe_file)
                     formats = getattr(recipe, "formats", ["apt", "pacman", "apk"])
 
@@ -42,7 +42,7 @@ def generate_packages_json(
                         ch_names.insert(0, "latest")
 
                     for ch in ch_names:
-                        with contextlib.suppress(Exception):
+                        with contextlib.suppress(ValueError, KeyError, TypeError, AttributeError, OSError):
                             ch_recipe = recipe.get_channel_recipe(ch)
                             channels_list.append(
                                 {
@@ -61,9 +61,11 @@ def generate_packages_json(
                             }
                         )
 
+                    npm_name = recipe.vars.get("npm_name") if recipe.vars else None
                     items.append(
                         {
                             "name": recipe.name,
+                            "npm_name": npm_name,
                             "description": recipe.description
                             or f"{recipe.name} binary package",
                             "arch": recipe.arch or "aarch64",

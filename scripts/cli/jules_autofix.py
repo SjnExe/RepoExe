@@ -54,7 +54,7 @@ def trigger_jules_autofix(
                 if s.get("id") == f"github/{owner}/{repo}":
                     source_name = s.get("name")
                     break
-    except Exception as e:
+    except requests.RequestException as e:
         print(f"[Jules Auto-Fix] Error querying sources: {e}")
 
     if not source_name:
@@ -93,7 +93,7 @@ def trigger_jules_autofix(
                 f"[Jules Auto-Fix] Failed to create session. HTTP {res.status_code}: {res.text}"
             )
             return False
-    except Exception as e:
+    except requests.RequestException as e:
         print(f"[Jules Auto-Fix] Exception triggering Jules session: {e}")
         return False
 

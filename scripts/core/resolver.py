@@ -142,4 +142,11 @@ def compute_channel_state_hash(resolved_recipe: dict[str, Any], pkg_dir: Path) -
         if patch_path.exists():
             hasher.update(patch_path.read_bytes())
 
+    if pkg_dir and pkg_dir.exists() and pkg_dir.is_dir():
+        for item in sorted(pkg_dir.rglob("*")):
+            if item.is_file() and item.name != "pkg.yml":
+                rel_path = item.relative_to(pkg_dir).as_posix()
+                hasher.update(rel_path.encode("utf-8"))
+                hasher.update(item.read_bytes())
+
     return hasher.hexdigest()[:16]

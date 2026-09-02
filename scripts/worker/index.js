@@ -48,22 +48,65 @@ export default {
     }
 
     // 2. Query local RepoExe store on GitHub Pages first for GET/HEAD requests
-    const repoexeUrl = `https://sjnexe.github.io/RepoExe/npm${targetPath}`;
-    const localRes = await fetch(repoexeUrl, {
+    let targetSubpkg = null;
+    let checkName = pkgName;
+
+    let repoexeUrl = `https://sjnexe.github.io/RepoExe/npm${targetPath}`;
+    let localRes = await fetch(repoexeUrl, {
       headers: {
         'User-Agent': 'RepoExe-Proxy',
         'Accept': 'application/json'
       }
     });
 
+    if (localRes.status !== 200 && !pathname.endsWith('.tgz')) {
+      try {
+        const pkgsRes = await fetch('https://sjnexe.github.io/RepoExe/packages.json', {
+          headers: { 'User-Agent': 'RepoExe-Proxy' }
+        });
+        if (pkgsRes.status === 200) {
+          const storeData = await pkgsRes.json();
+          const storePkgs = new Set();
+          for (const item of storeData) {
+            const formats = item.formats || [];
+            if (formats.includes('npm') || formats.includes('all')) {
+              if (item.name) storePkgs.add(item.name);
+              if (item.npm_name) storePkgs.add(item.npm_name);
+            }
+          }
+          if (!storePkgs.has(pkgName)) {
+            for (const sPkg of storePkgs) {
+              if (sPkg.startsWith(`@${pkgName}/`) || sPkg.startsWith(`${pkgName}-`)) {
+                targetSubpkg = sPkg;
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Fallback on fetch error
+      }
+
+      if (targetSubpkg) {
+        checkName = targetSubpkg;
+        repoexeUrl = `https://sjnexe.github.io/RepoExe/npm/${checkName}/package.json`;
+        localRes = await fetch(repoexeUrl, {
+          headers: {
+            'User-Agent': 'RepoExe-Proxy',
+            'Accept': 'application/json'
+          }
+        });
+      }
+    }
+
     if (localRes.status === 200) {
-      if (!pathname.endsWith('.tgz') && targetPath.endsWith('package.json')) {
+      if (!pathname.endsWith('.tgz') && (targetPath.endsWith('package.json') || targetSubpkg)) {
         try {
           const localData = await localRes.json();
           const patchedRange = localData.patched_version_range;
+          const patchedTarget = localData.patched_target;
 
-          // If local manifest defines a patched_version_range, rewrite latest/dist-tags to local latest patched release
-          if (patchedRange) {
+          if (patchedRange || patchedTarget === pkgName || targetSubpkg) {
             const upstreamUrl = `https://registry.npmjs.org${pathname}${search}`;
             const upstreamRes = await fetch(upstreamUrl, {
               headers: {
@@ -74,14 +117,50 @@ export default {
 
             if (upstreamRes.status === 200) {
               const upstreamData = await upstreamRes.json();
-              const mergedVersions = { ...upstreamData.versions, ...localData.versions };
-              const latestLocalVer = localData['dist-tags'] ? localData['dist-tags'].latest : null;
+              const mergedVersions = { ...upstreamData.versions };
 
+              function versionSatisfiesPatchedRange(vStr, pRange) {
+                if (!pRange || !vStr) return false;
+                const mV = String(vStr).match(/^(\d+)/);
+                const mR = String(pRange).match(/(\d+)/);
+                if (mV && mR) {
+                  return parseInt(mV[1], 10) >= parseInt(mR[1], 10);
+                }
+                return false;
+              }
+
+              if (patchedTarget === pkgName || targetSubpkg) {
+                const subpkgLatest = localData['dist-tags']?.latest || '7.0.2';
+                const subpkgVersions = localData.versions || {};
+                for (const [vKey, vVal] of Object.entries(mergedVersions)) {
+                  const opDeps = vVal.optionalDependencies || {};
+                  const matchVer = subpkgVersions[vKey] ? vKey : subpkgLatest;
+                  opDeps[checkName] = matchVer;
+                  vVal.optionalDependencies = opDeps;
+                }
+              } else {
+                Object.assign(mergedVersions, localData.versions || {});
+                const latestLocalVer = localData['dist-tags']?.latest;
+                if (latestLocalVer && localData.versions?.[latestLocalVer]) {
+                  const localLatestObj = localData.versions[latestLocalVer];
+                  for (const [vKey, vVal] of Object.entries(mergedVersions)) {
+                    if (patchedRange && versionSatisfiesPatchedRange(vKey, patchedRange)) {
+                      for (const kOver of ['dist', 'bin', 'os', 'cpu']) {
+                        if (kOver in localLatestObj) {
+                          vVal[kOver] = localLatestObj[kOver];
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+              const latestLocalVer = localData['dist-tags']?.latest;
               const mergedManifest = {
                 ...upstreamData,
                 'dist-tags': {
                   ...upstreamData['dist-tags'],
-                  latest: latestLocalVer || upstreamData['dist-tags']?.latest
+                  ...(latestLocalVer && !targetSubpkg ? { latest: latestLocalVer } : {})
                 },
                 versions: mergedVersions
               };

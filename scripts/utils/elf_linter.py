@@ -126,6 +126,6 @@ def audit_directory_elfs(target_dir: Path) -> list[str]:
                         errs = lint_elf_file(file_path)
                         if errs:
                             all_errors.append(f"{file_path.name}: " + ", ".join(errs))
-                except Exception:
+                except (OSError, ValueError):
                     pass
     return all_errors
