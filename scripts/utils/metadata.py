@@ -61,9 +61,11 @@ def generate_packages_json(
                             }
                         )
 
+                    npm_name = recipe.vars.get("npm_name") if recipe.vars else None
                     items.append(
                         {
                             "name": recipe.name,
+                            "npm_name": npm_name,
                             "description": recipe.description
                             or f"{recipe.name} binary package",
                             "arch": recipe.arch or "aarch64",

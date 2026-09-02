@@ -67,6 +67,43 @@ def test_npm_index_generation(tmp_path):
     assert '"latest": "7.0.2"' in manifest
 
 
+def test_packages_json_includes_npm_name(tmp_path):
+    """Tests that generate_packages_json embeds npm_name from recipe vars."""
+    import json
+    from utils.metadata import generate_packages_json
+
+    pkg_dir = tmp_path / "pkg"
+    pkg_dir.mkdir(parents=True, exist_ok=True)
+    tsc_dir = pkg_dir / "tsc"
+    tsc_dir.mkdir(parents=True, exist_ok=True)
+
+    (tsc_dir / "pkg.yml").write_text(
+        "name: tsc\n"
+        "version: '7.0.2'\n"
+        "revision: 0\n"
+        "arch: aarch64\n"
+        "description: Fast TypeScript compiler\n"
+        "license: Apache-2.0\n"
+        "homepage: https://github.com/SjnExe/RepoExe\n"
+        "maintainer: SjnExe\n"
+        "formats:\n"
+        "  - npm\n"
+        "vars:\n"
+        "  npm_name: '@typescript/typescript-android-arm64'\n"
+        "  patched_target: 'typescript'\n",
+        encoding="utf-8",
+    )
+
+    out_json = tmp_path / "site" / "packages.json"
+    generate_packages_json(pkg_dir=pkg_dir, output_file=out_json)
+
+    assert out_json.exists()
+    items = json.loads(out_json.read_text(encoding="utf-8"))
+    assert len(items) == 1
+    assert items[0]["name"] == "tsc"
+    assert items[0]["npm_name"] == "@typescript/typescript-android-arm64"
+
+
 def test_scoped_npm_index_generation(tmp_path):
     """Tests scoped NPM package registry manifest generation."""
     import json
