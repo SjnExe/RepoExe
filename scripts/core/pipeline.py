@@ -70,7 +70,7 @@ def auto_patch_bionic_sources(src_dir: Path) -> None:
                     )
                 if new_code != code_txt:
                     p.write_text(new_code, encoding="utf-8")
-            except Exception:
+            except (OSError, UnicodeDecodeError):
                 pass
 
         if p.is_file() and (p.name == "OptionsJSCOnly.cmake" or p.suffix == ".cmake"):
@@ -95,7 +95,7 @@ def auto_patch_bionic_sources(src_dir: Path) -> None:
                     )
                     if new_c != c_txt:
                         p.write_text(new_c, encoding="utf-8")
-            except Exception:
+            except (OSError, UnicodeDecodeError):
                 pass
 
 
@@ -199,7 +199,7 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
     if build_sys:
         try:
             env.update(setup_build_environment(build_sys, recipe.arch))
-        except Exception:
+        except (KeyError, ValueError, OSError):
             pass
 
     print(f"[COMPILING] Package: {recipe.name} (Channel: {recipe.active_channel})")

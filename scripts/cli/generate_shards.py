@@ -24,7 +24,7 @@ def check_remote_release_exists(pkg_name: str, channel: str = "latest") -> bool:
         req = urllib.request.Request(api_url, headers=headers)
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status == 200
-    except Exception:
+    except (urllib.error.URLError, TimeoutError, OSError):
         return False
 
 
@@ -49,7 +49,7 @@ def get_git_diff_files(repo_root: Path) -> set[str]:
             )
         if res.returncode == 0 and res.stdout.strip():
             return set(res.stdout.splitlines())
-    except Exception:
+    except (subprocess.SubprocessError, OSError):
         pass
     return set()
 
@@ -211,8 +211,8 @@ def build_matrix_layer(
                     "tmpfs": getattr(r.resources, "tmpfs", 12),
                 }
             )
-        except Exception:
-            pass
+        except (ValueError, KeyError, RuntimeError, OSError) as e:
+            print(f"Notice: Failed to build matrix layer for {p}@{ch}: {e}")
     return matrix
 
 

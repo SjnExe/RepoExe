@@ -13,7 +13,7 @@ _scripts_dir = str(Path(__file__).resolve().parents[1])
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 
-from utils.parser import parse_recipe
+from utils.parser import parse_recipe  # noqa: E402
 
 
 def extract_semver(tag_name: str) -> Version | None:
@@ -243,7 +243,7 @@ def check_package_channel_updates(pkg_dir: Path) -> None:
         if not (p_dir.is_dir() and recipe_file.exists()):
             continue
 
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(ValueError, TypeError, yaml.YAMLError, OSError):
             raw = yaml.safe_load(recipe_file.read_text(encoding="utf-8"))
             channels = raw.get("channels", {})
             channel_names = list(channels.keys()) if channels else ["latest"]

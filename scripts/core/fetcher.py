@@ -82,7 +82,7 @@ def check_existing_release_hash(pkg_name: str, channel: str, target_hash: str) -
         if e.code != 404:
             print(f"Notice: check_existing_release_hash HTTP error for {tag}: {e.code} {e.reason}")
         return False
-    except Exception as e:
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError, OSError) as e:
         print(f"Notice: check_existing_release_hash error for {tag}: {e}")
         return False
     return False
@@ -235,7 +235,7 @@ def _fetch_single_dep(dep: str, destdir: Path, fetched: set[str]) -> bool:
             )
             fetched.add(pkg_name)
             return True
-    except Exception:
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError, OSError):
         pass
 
     # 3. Official Termux Upstream Mirrors
