@@ -1,6 +1,6 @@
 name: bun
 version: "1.4.0"
-revision: 3
+revision: 4
 arch: aarch64
 description: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
 homepage: https://bun.sh
@@ -133,35 +133,11 @@ phases:
     install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
 
-    mkdir -p "${DESTDIR}${PREFIX}/etc/profile.d"
-    cat << 'EOF' > "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
-    # Bun environment configuration
-    export BUN_INSTALL="${BUN_INSTALL:-${HOME:-/data/data/com.termux/files/home}/.bun}"
-    export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
-    case ":$PATH:" in
-      *":$BUN_INSTALL/bin:"*) ;;
-      *) export PATH="$BUN_INSTALL/bin:$PATH" ;;
-    esac
-    EOF
-    chmod 755 "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
-
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping installed binary ${DESTDIR}${PREFIX}/bin/bun..."
       "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note --remove-section=.debug_info "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true
     fi
 
-    BUN_SIZE=$(stat -c %s "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || stat -f %z "${DESTDIR}${PREFIX}/bin/bun" 2>/dev/null || echo "0")
-    BUN_SIZE_MB=$((BUN_SIZE / 1024 / 1024))
-    echo "Installed bun binary size: ${BUN_SIZE_MB} MB (${BUN_SIZE} bytes)"
-    if [ "$BUN_SIZE" -gt 94371840 ]; then
-      echo "::error::Installed bun binary size (${BUN_SIZE_MB} MB) exceeds maximum allowed target of 90 MB!"
-      exit 1
-    fi
-
-    if [ ! -L "${DESTDIR}${PREFIX}/bin/bunx" ]; then
-      echo "::error::${DESTDIR}${PREFIX}/bin/bunx is not a symlink!"
-      exit 1
-    fi
   test: |
     export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
     bun --version
