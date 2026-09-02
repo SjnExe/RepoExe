@@ -94,11 +94,11 @@ def build_deb(
             ["termux-elf-cleaner", str(stage_dir)], check=False, capture_output=True
         )
 
-    # Calculate Installed-Size in KiB (Debian standard)
+    # Calculate Installed-Size in KiB (Debian standard, excluding symlinks)
     total_bytes = 0
     for file in stage_dir.rglob("*"):
-        if file.is_file() and "DEBIAN" not in file.parts:
-            total_bytes += file.stat().st_size
+        if file.is_file() and not file.is_symlink() and "DEBIAN" not in file.parts:
+            total_bytes += file.stat(follow_symlinks=False).st_size
     installed_size_kib = (total_bytes + 1023) // 1024
 
     control_content = generate_control_file(
