@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from builders.debian import generate_control_file
@@ -69,7 +70,6 @@ def test_npm_index_generation(tmp_path):
 
 def test_packages_json_includes_npm_name(tmp_path):
     """Tests that generate_packages_json embeds npm_name from recipe vars."""
-    import json
     from utils.metadata import generate_packages_json
 
     pkg_dir = tmp_path / "pkg"
