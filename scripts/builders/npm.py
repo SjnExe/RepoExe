@@ -118,7 +118,7 @@ def generate_npm_index(
                 f = tar.extractfile(member)
                 if f:
                     inner_meta = json.loads(f.read().decode("utf-8"))
-        except Exception:
+        except (tarfile.TarError, json.JSONDecodeError, KeyError, OSError):
             pass
 
         # Fallback to filename parsing if inner_meta fails
@@ -182,7 +182,7 @@ def generate_npm_index(
                         if r_obj.vars and r_obj.vars.get("patched_target"):
                             patched_target = r_obj.vars.get("patched_target")
                         break
-                except Exception as e:
+                except (ValueError, KeyError, RuntimeError, OSError) as e:
                     print(f"Notice: failed to parse recipe {rec_file} in npm index gen: {e}")
 
         meta = {

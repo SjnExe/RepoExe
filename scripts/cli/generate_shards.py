@@ -5,6 +5,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
+from core.fetcher import check_existing_release_hash
 from utils.dag import DependencyGraph
 from utils.parser import parse_recipe
 
@@ -24,7 +25,7 @@ def check_remote_release_exists(pkg_name: str, channel: str = "latest") -> bool:
         req = urllib.request.Request(api_url, headers=headers)
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status == 200
-    except Exception:
+    except (urllib.error.URLError, TimeoutError, OSError):
         return False
 
 
@@ -49,7 +50,7 @@ def get_git_diff_files(repo_root: Path) -> set[str]:
             )
         if res.returncode == 0 and res.stdout.strip():
             return set(res.stdout.splitlines())
-    except Exception:
+    except (subprocess.SubprocessError, OSError):
         pass
     return set()
 
@@ -158,7 +159,8 @@ def parse_target_tokens(
             for dep in deps:
                 if (dep in excluded_pkgs or (dep, "latest") in excluded_pairs) and not check_remote_release_exists(dep, "latest"):
                     print(
-                        f"::error:: Target '{pkg}@{ch}' requires '{dep}', but '{dep}' was explicitly excluded and no remote release exists."
+                        f"::error:: Target '{pkg}@{ch}' requires '{dep}', but '{dep}' was explicitly excluded and no remote release exists.",
+                        file=sys.stderr,
                     )
                     sys.exit(1)
 
@@ -178,12 +180,19 @@ def build_matrix_layer(
     pkgs_list: list[tuple[str, str]], pkgs_dir: Path, dag: DependencyGraph
 ) -> list[dict]:
     matrix = []
+    force_rebuild = os.environ.get("FORCE_REBUILD", "").lower() in ("true", "1")
+
     for p, ch in sorted(pkgs_list):
         recipe_path = pkgs_dir / p / "pkg.yml"
         if not recipe_path.exists():
             continue
         try:
             r = parse_recipe(recipe_path, channel=ch)
+            state_hash = getattr(r, "state_hash", "")
+
+            if not force_rebuild and state_hash and check_existing_release_hash(p, ch, state_hash):
+                print(f"Notice: Skipping matrix shard for {p}@{ch} (state_hash unchanged).", file=sys.stderr)
+                continue
 
             max_zram = getattr(r.resources, "zram", 0)
             max_swap = getattr(r.resources, "swap", 0)
@@ -211,8 +220,8 @@ def build_matrix_layer(
                     "tmpfs": getattr(r.resources, "tmpfs", 12),
                 }
             )
-        except Exception:
-            pass
+        except (ValueError, KeyError, RuntimeError, OSError) as e:
+            print(f"Notice: Failed to build matrix layer for {p}@{ch}: {e}", file=sys.stderr)
     return matrix
 
 

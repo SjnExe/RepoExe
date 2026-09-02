@@ -93,6 +93,7 @@ jobs:
         id: matrix
         env:
           TARGET_INPUT: ${{ inputs.packages || 'auto' }}
+          FORCE_REBUILD: ${{ inputs.force }}
           PYTHONPATH: scripts
           GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |

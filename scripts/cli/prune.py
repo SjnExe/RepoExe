@@ -9,7 +9,7 @@ _scripts_dir = str(Path(__file__).resolve().parents[1])
 if _scripts_dir not in sys.path:
     sys.path.insert(0, _scripts_dir)
 
-from utils.parser import PackageRecipe, parse_recipe
+from utils.parser import PackageRecipe, parse_recipe  # noqa: E402
 
 
 def get_expected_asset_filenames(recipe: PackageRecipe) -> set[str]:
@@ -96,7 +96,7 @@ def prune_release_tags() -> None:
         repo_info = json.loads(repo_res.stdout)
         owner = repo_info["owner"]["login"]
         repo_name = repo_info["name"]
-    except Exception as e:
+    except (json.JSONDecodeError, KeyError) as e:
         print(f"Failed to parse repo info: {e}")
         return
 
@@ -112,7 +112,7 @@ def prune_release_tags() -> None:
 
     try:
         releases = json.loads(releases_res.stdout)
-    except Exception as e:
+    except json.JSONDecodeError as e:
         print(f"Failed to parse releases JSON: {e}")
         return
 
@@ -140,7 +140,7 @@ def prune_release_tags() -> None:
                         deletion_tasks.append(
                             (tag, asset_name, asset_id, owner, repo_name)
                         )
-            except Exception as e:
+            except (ValueError, KeyError, RuntimeError, OSError) as e:
                 print(f"Could not parse recipe for {pkg}: {e}")
         else:
             # Package recipe folder no longer exists in pkg/ -> mark entire release and tag for deletion

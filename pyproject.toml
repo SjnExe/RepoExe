@@ -27,7 +27,7 @@ dev = [
 ]
 
 [tool.ruff.lint]
-ignore = ["BLE001", "S110", "E402"]
+extend-select = ["E402", "BLE001", "S110"]
 
 [tool.pytest.ini_options]
 pythonpath = ["scripts"]
