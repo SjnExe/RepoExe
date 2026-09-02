@@ -133,18 +133,6 @@ phases:
     install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
 
-    mkdir -p "${DESTDIR}${PREFIX}/etc/profile.d"
-    cat << 'EOF' > "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
-    # Bun environment configuration
-    export BUN_INSTALL="${BUN_INSTALL:-${HOME:-/data/data/com.termux/files/home}/.bun}"
-    export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
-    case ":$PATH:" in
-      *":$BUN_INSTALL/bin:"*) ;;
-      *) export PATH="$BUN_INSTALL/bin:$PATH" ;;
-    esac
-    EOF
-    chmod 755 "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
-
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping installed binary ${DESTDIR}${PREFIX}/bin/bun..."
       "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note --remove-section=.debug_info "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true

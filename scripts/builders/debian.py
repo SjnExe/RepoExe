@@ -115,7 +115,7 @@ def build_deb(
     deb_filename = f"{recipe.name}_{version_str}_{arch}.deb"
     deb_path = out_path / deb_filename
 
-    cmd = ["dpkg-deb", "--build", "-Zzstd", "-z9", str(stage_dir), str(deb_path)]
+    cmd = ["dpkg-deb", "--build", "-Zxz", "-z9", str(stage_dir), str(deb_path)]
     res = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if res.returncode != 0:
         cmd = ["dpkg-deb", "--build", str(stage_dir), str(deb_path)]
