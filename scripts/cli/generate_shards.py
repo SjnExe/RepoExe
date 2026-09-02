@@ -5,6 +5,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
+from core.fetcher import check_existing_release_hash
 from utils.dag import DependencyGraph
 from utils.parser import parse_recipe
 
@@ -178,12 +179,19 @@ def build_matrix_layer(
     pkgs_list: list[tuple[str, str]], pkgs_dir: Path, dag: DependencyGraph
 ) -> list[dict]:
     matrix = []
+    force_rebuild = os.environ.get("FORCE_REBUILD", "").lower() in ("true", "1")
+
     for p, ch in sorted(pkgs_list):
         recipe_path = pkgs_dir / p / "pkg.yml"
         if not recipe_path.exists():
             continue
         try:
             r = parse_recipe(recipe_path, channel=ch)
+            state_hash = getattr(r, "state_hash", "")
+
+            if not force_rebuild and state_hash and check_existing_release_hash(p, ch, state_hash):
+                print(f"Notice: Skipping matrix shard for {p}@{ch} (state_hash unchanged).")
+                continue
 
             max_zram = getattr(r.resources, "zram", 0)
             max_swap = getattr(r.resources, "swap", 0)
