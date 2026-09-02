@@ -5,9 +5,9 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from core.fetcher import check_existing_release_hash  # noqa: E402
-from utils.dag import DependencyGraph  # noqa: E402
-from utils.parser import parse_recipe  # noqa: E402
+from core.fetcher import check_existing_release_hash
+from utils.dag import DependencyGraph
+from utils.parser import parse_recipe
 
 
 def check_remote_release_exists(pkg_name: str, channel: str = "latest") -> bool:
