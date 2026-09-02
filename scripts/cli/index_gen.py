@@ -60,7 +60,8 @@ def fetch_existing_release_assets_to_artifacts(art_path: Path) -> None:
         repo_info = json.loads(repo_res.stdout)
         owner = repo_info["owner"]["login"]
         repo_name = repo_info["name"]
-    except Exception:
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Notice: Failed to parse repo info in index_gen: {e}")
         return
 
     releases_res = subprocess.run(
@@ -74,7 +75,8 @@ def fetch_existing_release_assets_to_artifacts(art_path: Path) -> None:
 
     try:
         releases = json.loads(releases_res.stdout)
-    except Exception:
+    except json.JSONDecodeError as e:
+        print(f"Notice: Failed to parse releases in index_gen: {e}")
         return
 
     for release in releases:
@@ -90,7 +92,7 @@ def fetch_existing_release_assets_to_artifacts(art_path: Path) -> None:
             try:
                 recipe = parse_recipe(recipe_path, channel=channel)
                 expected_files = get_expected_asset_filenames(recipe)
-            except Exception as e:
+            except (ValueError, KeyError, RuntimeError, OSError) as e:
                 print(f"Notice: Could not parse recipe for {tag}: {e}")
 
         for asset in release.get("assets", []):
@@ -181,7 +183,7 @@ def prepare_site(
                         print(
                             f"::warning:: Failed to upload release assets for {tag}: {res_up.stderr.strip()}"
                         )
-            except Exception as e:
+            except (json.JSONDecodeError, KeyError, ValueError, RuntimeError, OSError) as e:
                 print(
                     f"::warning:: Failed publishing release tag for {pkg_meta_file.name}: {e}"
                 )
