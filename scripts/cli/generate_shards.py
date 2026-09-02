@@ -159,7 +159,8 @@ def parse_target_tokens(
             for dep in deps:
                 if (dep in excluded_pkgs or (dep, "latest") in excluded_pairs) and not check_remote_release_exists(dep, "latest"):
                     print(
-                        f"::error:: Target '{pkg}@{ch}' requires '{dep}', but '{dep}' was explicitly excluded and no remote release exists."
+                        f"::error:: Target '{pkg}@{ch}' requires '{dep}', but '{dep}' was explicitly excluded and no remote release exists.",
+                        file=sys.stderr,
                     )
                     sys.exit(1)
 
@@ -190,7 +191,7 @@ def build_matrix_layer(
             state_hash = getattr(r, "state_hash", "")
 
             if not force_rebuild and state_hash and check_existing_release_hash(p, ch, state_hash):
-                print(f"Notice: Skipping matrix shard for {p}@{ch} (state_hash unchanged).")
+                print(f"Notice: Skipping matrix shard for {p}@{ch} (state_hash unchanged).", file=sys.stderr)
                 continue
 
             max_zram = getattr(r.resources, "zram", 0)
@@ -220,7 +221,7 @@ def build_matrix_layer(
                 }
             )
         except (ValueError, KeyError, RuntimeError, OSError) as e:
-            print(f"Notice: Failed to build matrix layer for {p}@{ch}: {e}")
+            print(f"Notice: Failed to build matrix layer for {p}@{ch}: {e}", file=sys.stderr)
     return matrix
 
 
