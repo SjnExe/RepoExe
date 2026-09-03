@@ -338,11 +338,15 @@ proxy_command() {
         printf "  RepoExe Local Proxy: [${RED}STOPPED${RESET}]\n"
       fi
       ;;
+    restart)
+      proxy_command stop "$@"
+      proxy_command start "$@"
+      ;;
     run)
       run_proxy_server
       ;;
     *)
-      printf "${RED}Usage: repoexe proxy <start|stop|status>${RESET}\n"
+      printf "${RED}Usage: repoexe proxy <start|stop|restart|status>${RESET}\n"
       exit 1
       ;;
   esac
@@ -666,6 +670,7 @@ case "$1" in
     ;;
   sync|-y)
     printf "${CYAN}Syncing RepoExe environment settings...${RESET}\n"
+    proxy_command stop --quiet
     enable_manager all
     ;;
   list|ls|-l)
