@@ -17,12 +17,24 @@ ARCH_MAP = {
 }
 
 
+def format_debian_version(recipe: PackageRecipe) -> str:
+    ver_body = f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
+    if recipe.epoch > 0:
+        return f"{recipe.epoch}:{ver_body}"
+    return ver_body
+
+
+def format_debian_filename_version(recipe: PackageRecipe) -> str:
+    ver_body = f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
+    if recipe.epoch > 0:
+        return f"{recipe.epoch}_{ver_body}"
+    return ver_body
+
+
 def generate_control_file(
     recipe: PackageRecipe, installed_size_kib: int | None = None
 ) -> str:
-    version_str = (
-        f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
-    )
+    version_str = format_debian_version(recipe)
     deb_arch = ARCH_MAP.get(recipe.arch, recipe.arch)
 
     control_lines = [
@@ -107,12 +119,10 @@ def build_deb(
     control_file = stage_dir / "DEBIAN" / "control"
     control_file.write_text(control_content, encoding="utf-8")
 
-    version_str = (
-        f"{recipe.version}-{recipe.revision}" if recipe.revision > 0 else recipe.version
-    )
+    filename_ver = format_debian_filename_version(recipe)
     raw_arch = recipe.arch or target_arch
     arch = ARCH_MAP.get(raw_arch, raw_arch)
-    deb_filename = f"{recipe.name}_{version_str}_{arch}.deb"
+    deb_filename = f"{recipe.name}_{filename_ver}_{arch}.deb"
     deb_path = out_path / deb_filename
 
     cmd = ["dpkg-deb", "--build", "-Zxz", "-z9", str(stage_dir), str(deb_path)]

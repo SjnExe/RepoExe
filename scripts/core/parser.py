@@ -16,6 +16,7 @@ class ResourceConfig:
 
 @dataclass
 class ChannelOverride:
+    epoch: int | None = None
     version: str | None = None
     revision: int | None = None
     arch: str | None = None
@@ -46,6 +47,7 @@ class ChannelOverride:
     ldflags: str | None = None
     phases: dict[str, str] | None = None
     vars: dict[str, str] | None = None
+    env: dict[str, str] | None = None
     toolchains: dict[str, str] | None = None
 
 
@@ -53,6 +55,7 @@ class ChannelOverride:
 class PackageRecipe:
     name: str
     version: str
+    epoch: int = 0
     revision: int = 0
     arch: str = "aarch64"
     description: str = ""
@@ -83,6 +86,7 @@ class PackageRecipe:
     ldflags: str | None = None
     phases: dict[str, str] = field(default_factory=dict)
     vars: dict[str, str] = field(default_factory=dict)
+    env: dict[str, str] = field(default_factory=dict)
     toolchains: dict[str, str] = field(default_factory=dict)
     channels: dict[str, ChannelOverride] = field(default_factory=dict)
     active_channel: str = "latest"
@@ -105,14 +109,24 @@ class PackageRecipe:
             )
             data.update(override_data)
 
-        if (
-            data.get("source")
-            and isinstance(data["source"], str)
-            and "{version}" in data["source"]
-        ):
-            data["source"] = data["source"].replace(
-                "{version}", data.get("version", "")
+        ver_str = str(data.get("version", ""))
+        epoch_str = str(data.get("epoch", 0))
+
+        if data.get("source") and isinstance(data["source"], str):
+            data["source"] = (
+                data["source"]
+                .replace("{version}", ver_str)
+                .replace("{epoch}", epoch_str)
             )
+
+        if data.get("vars") and isinstance(data["vars"], dict):
+            new_vars = {}
+            for k, v in data["vars"].items():
+                if isinstance(v, str):
+                    new_vars[k] = v.replace("{version}", ver_str).replace("{epoch}", epoch_str)
+                else:
+                    new_vars[k] = v
+            data["vars"] = new_vars
 
         data["active_channel"] = channel_name
         if isinstance(data.get("resources"), dict):
@@ -133,6 +147,7 @@ class PackageRecipe:
         payload = {
             "name": self.name,
             "version": self.version,
+            "epoch": self.epoch,
             "revision": self.revision,
             "arch": self.arch,
             "build_system": self.build_system,
@@ -151,6 +166,7 @@ class PackageRecipe:
             "ldflags": self.ldflags,
             "phases": self.phases,
             "vars": self.vars,
+            "env": self.env,
             "channel": self.active_channel,
             "toolchains": self.toolchains,
         }

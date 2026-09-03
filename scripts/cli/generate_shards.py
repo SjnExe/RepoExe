@@ -234,7 +234,8 @@ def main() -> None:
         diff_files = get_git_diff_files(repo_root)
         changed_pkgs = list(get_changed_packages(repo_root, dag=dag))
         if changed_pkgs:
-            target_pkgs = parse_target_tokens(" ".join(changed_pkgs), dag, pkgs_dir)
+            tokens = [f"{p}@all" for p in changed_pkgs]
+            target_pkgs = parse_target_tokens(" ".join(tokens), dag, pkgs_dir)
         elif diff_files:
             target_pkgs = []
         else:

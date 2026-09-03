@@ -188,8 +188,11 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         env["LDFLAGS"] = f"{env.get('LDFLAGS', '')} {recipe.ldflags}".strip()
     if getattr(recipe, "vars", None):
         env.update(recipe.vars)
+    if getattr(recipe, "env", None) and isinstance(recipe.env, dict):
+        env.update(recipe.env)
 
     env["RECIPE_VERSION"] = getattr(recipe, "version", "")
+    env["RECIPE_EPOCH"] = str(getattr(recipe, "epoch", 0))
     env["RECIPE_PATCHED_RANGE"] = getattr(recipe, "patched_version_range", "") or ""
     env["ACTIVE_CHANNEL"] = getattr(recipe, "active_channel", "latest") or "latest"
 
