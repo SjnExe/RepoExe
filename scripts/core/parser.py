@@ -129,7 +129,7 @@ class PackageRecipe:
         resolved.state_hash = resolved.compute_state_hash()
         return resolved
 
-    def compute_state_hash(self) -> str:
+    def compute_state_hash(self, pkg_dir: Path | None = None) -> str:
         payload = {
             "name": self.name,
             "version": self.version,
@@ -154,8 +154,17 @@ class PackageRecipe:
             "channel": self.active_channel,
             "toolchains": self.toolchains,
         }
-        raw_json = json.dumps(payload, sort_keys=True)
-        return hashlib.sha256(raw_json.encode("utf-8")).hexdigest()[:16]
+        hasher = hashlib.sha256()
+        hasher.update(json.dumps(payload, sort_keys=True).encode("utf-8"))
+
+        if pkg_dir and pkg_dir.exists() and pkg_dir.is_dir():
+            for item in sorted(pkg_dir.rglob("*")):
+                if item.is_file() and item.name != "pkg.yml":
+                    rel_path = item.relative_to(pkg_dir).as_posix()
+                    hasher.update(rel_path.encode("utf-8"))
+                    hasher.update(item.read_bytes())
+
+        return hasher.hexdigest()[:16]
 
 
 def parse_recipe(recipe_path: Path | str, channel: str = "latest") -> PackageRecipe:
@@ -168,6 +177,7 @@ def parse_recipe(recipe_path: Path | str, channel: str = "latest") -> PackageRec
     if not p.exists():
         raise FileNotFoundError(f"Recipe file not found: {p}")
 
+    pkg_dir = p.parent
     raw_data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
     if "resources" in raw_data and isinstance(raw_data["resources"], dict):
         res_data = dict(raw_data["resources"])
@@ -186,4 +196,6 @@ def parse_recipe(recipe_path: Path | str, channel: str = "latest") -> PackageRec
     valid_fields = {f.name for f in fields(PackageRecipe)}
     filtered_data = {k: v for k, v in raw_data.items() if k in valid_fields}
     base_recipe = PackageRecipe(**filtered_data)
-    return base_recipe.get_channel_recipe(channel)
+    resolved = base_recipe.get_channel_recipe(channel)
+    resolved.state_hash = resolved.compute_state_hash(pkg_dir=pkg_dir)
+    return resolved
