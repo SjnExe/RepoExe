@@ -1,7 +1,10 @@
-#!/usr/bin/env sh
+#!/bin/sh
 set -e
 
-PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+if [ -z "$PREFIX" ] && [ -d "/data/data/com.termux/files/usr" ]; then
+  PREFIX="/data/data/com.termux/files/usr"
+fi
+PREFIX="${PREFIX:-/usr/local}"
 REPO_URL="https://sjnexe.github.io/RepoExe"
 
 # Terminal Colors
