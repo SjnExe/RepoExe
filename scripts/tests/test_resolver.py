@@ -136,3 +136,32 @@ def test_channel_state_hash(tmp_path: Path):
     resolved_canary["channel"] = "canary"
     hash2 = compute_channel_state_hash(resolved_canary, tmp_path)
     assert hash1 != hash2
+
+
+def test_channel_state_hash_file_content_change(tmp_path: Path):
+    resolved = {
+        "name": "repoexe",
+        "version": "1.2.0",
+        "revision": 0,
+        "channel": "latest",
+        "arch": "aarch64",
+        "source": "local",
+        "build_deps": [],
+        "deps": [],
+        "phases": {},
+        "env": {},
+        "patches": [],
+    }
+
+    pkg_dir = tmp_path / "repoexe"
+    pkg_dir.mkdir()
+    install_file = pkg_dir / "install"
+    install_file.write_text("# initial content\n", encoding="utf-8")
+
+    hash1 = compute_channel_state_hash(resolved, pkg_dir)
+
+    # Modify non-recipe file install
+    install_file.write_text("# updated content\n", encoding="utf-8")
+    hash2 = compute_channel_state_hash(resolved, pkg_dir)
+
+    assert hash1 != hash2

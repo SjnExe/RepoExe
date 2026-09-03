@@ -92,9 +92,13 @@ def get_store_packages():
                 pkgs = set()
                 for item in data:
                     name = item.get('name')
+                    npm_name = item.get('npm_name')
                     formats = item.get('formats', [])
-                    if name and ('npm' in formats or 'all' in formats):
-                        pkgs.add(name)
+                    if 'npm' in formats or 'all' in formats:
+                        if name:
+                            pkgs.add(name)
+                        if npm_name:
+                            pkgs.add(npm_name)
                 with CACHE_LOCK:
                     STORE_PKGS_CACHE = pkgs
                     STORE_PKGS_LAST_FETCH = time.time()
@@ -212,6 +216,16 @@ class LocalProxyHandler(http.server.BaseHTTPRequestHandler):
                                             upstream_manifest = json.loads(uresp.read().decode('utf-8'))
                                             merged_versions = {**upstream_manifest.get('versions', {})}
 
+                                            def version_satisfies_patched_range(v_str, p_range):
+                                                if not p_range or not v_str:
+                                                    return False
+                                                import re
+                                                m_v = re.search(r'^(\d+)', str(v_str))
+                                                m_r = re.search(r'(\d+)', str(p_range))
+                                                if m_v and m_r:
+                                                    return int(m_v.group(1)) >= int(m_r.group(1))
+                                                return False
+
                                             if patched_target == pkg_name or target_subpkg:
                                                 # Inject optionalDependencies for the native subpackage into upstream typescript versions
                                                 subpkg_latest = local_manifest.get('dist-tags', {}).get('latest', '7.0.2')
@@ -224,6 +238,14 @@ class LocalProxyHandler(http.server.BaseHTTPRequestHandler):
                                                     v_val['optionalDependencies'] = op_deps
                                             else:
                                                 merged_versions.update(local_manifest.get('versions', {}))
+                                                latest_local = local_manifest.get('dist-tags', {}).get('latest')
+                                                if latest_local and local_manifest.get('versions', {}).get(latest_local):
+                                                    local_latest_obj = local_manifest['versions'][latest_local]
+                                                    for v_key, v_val in merged_versions.items():
+                                                        if patched_range and version_satisfies_patched_range(v_key, patched_range):
+                                                            for k_over in ('dist', 'bin', 'os', 'cpu'):
+                                                                if k_over in local_latest_obj:
+                                                                    v_val[k_over] = local_latest_obj[k_over]
 
                                             latest_local = local_manifest.get('dist-tags', {}).get('latest')
                                             merged_tags = {**upstream_manifest.get('dist-tags', {})}
@@ -316,11 +338,15 @@ proxy_command() {
         printf "  RepoExe Local Proxy: [${RED}STOPPED${RESET}]\n"
       fi
       ;;
+    restart)
+      proxy_command stop "$@"
+      proxy_command start "$@"
+      ;;
     run)
       run_proxy_server
       ;;
     *)
-      printf "${RED}Usage: repoexe proxy <start|stop|status>${RESET}\n"
+      printf "${RED}Usage: repoexe proxy <start|stop|restart|status>${RESET}\n"
       exit 1
       ;;
   esac
@@ -644,6 +670,7 @@ case "$1" in
     ;;
   sync|-y)
     printf "${CYAN}Syncing RepoExe environment settings...${RESET}\n"
+    proxy_command stop --quiet
     enable_manager all
     ;;
   list|ls|-l)
