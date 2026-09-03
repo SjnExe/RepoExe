@@ -1,6 +1,6 @@
 name: ruff
 type: pip
-version: 0.16.5
+version: 0.16.6
 revision: 0
 arch: aarch64
 description: Fast Python linter and code formatter written in Rust
@@ -8,35 +8,25 @@ license: MIT
 homepage: https://github.com/astral-sh/ruff
 maintainer: SjnExe
 formats:
-  - apt
-  - pacman
-  - apk
+- apt
+- pacman
+- apk
 channels:
   latest:
     auto_update: true
     update_strategy: github_release
     source: https://github.com/astral-sh/ruff/releases/download/{version}/ruff-aarch64-unknown-linux-musl.tar.gz
-    version: 0.16.5
+    version: 0.16.6
     revision: 0
 build_system: custom
 toolchains:
   rust: stable
 phases:
-  install: |
-    mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/share/repoexe/manifests"
-    BINARY_NAME="ruff"
-    if [ "${ACTIVE_CHANNEL:-latest}" != "latest" ]; then
-      BINARY_NAME="ruff-${ACTIVE_CHANNEL}"
-    fi
-    install -Dm755 ruff "${DESTDIR}${PREFIX}/bin/${BINARY_NAME}"
-    if [ "${ACTIVE_CHANNEL:-latest}" != "latest" ]; then
-      ln -sf "${BINARY_NAME}" "${DESTDIR}${PREFIX}/bin/ruff" 2>/dev/null || true
-    fi
-    cat << EOF > "${DESTDIR}${PREFIX}/share/repoexe/manifests/${BINARY_NAME}.json"
-    {
-      "name": "${BINARY_NAME}",
-      "version": "${RECIPE_VERSION:-0.16.5}",
-      "patched_version_range": "${RECIPE_PATCHED_RANGE:->=0.1.0}",
-      "channel": "${ACTIVE_CHANNEL:-latest}"
-    }
-    EOF
+  install: "mkdir -p \"${DESTDIR}${PREFIX}/bin\" \"${DESTDIR}${PREFIX}/share/repoexe/manifests\"\
+    \nBINARY_NAME=\"ruff\"\nif [ \"${ACTIVE_CHANNEL:-latest}\" != \"latest\" ]; then\n\
+    \  BINARY_NAME=\"ruff-${ACTIVE_CHANNEL}\"\nfi\ninstall -Dm755 ruff \"${DESTDIR}${PREFIX}/bin/${BINARY_NAME}\"\
+    \nif [ \"${ACTIVE_CHANNEL:-latest}\" != \"latest\" ]; then\n  ln -sf \"${BINARY_NAME}\"\
+    \ \"${DESTDIR}${PREFIX}/bin/ruff\" 2>/dev/null || true\nfi\ncat << EOF > \"${DESTDIR}${PREFIX}/share/repoexe/manifests/${BINARY_NAME}.json\"\
+    \n{\n  \"name\": \"${BINARY_NAME}\",\n  \"version\": \"${RECIPE_VERSION:-0.16.5}\"\
+    ,\n  \"patched_version_range\": \"${RECIPE_PATCHED_RANGE:->=0.1.0}\",\n  \"channel\"\
+    : \"${ACTIVE_CHANNEL:-latest}\"\n}\nEOF\n"
