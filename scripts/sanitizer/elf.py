@@ -54,7 +54,7 @@ def strip_verneed_from_elf(elf_path: Path) -> None:
                     struct.pack_into("<q", data, entry_offset, 0)
 
             elf_path.write_bytes(data)
-    except Exception:
+    except (struct.error, OSError, ValueError):
         pass
 
 
@@ -103,7 +103,7 @@ def sanitize_elf_binary(
         strip_verneed_from_elf(elf_path)
     except RuntimeError:
         raise
-    except Exception:
+    except (subprocess.SubprocessError, OSError, ValueError):
         pass
 
 

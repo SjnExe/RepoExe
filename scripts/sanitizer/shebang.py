@@ -34,5 +34,5 @@ def sanitize_shebangs(stage_dir: Path) -> None:
                             f.write(new_content)
                         os.chmod(fpath, 0o755)
                         break
-            except Exception:
+            except (OSError, UnicodeDecodeError):
                 pass

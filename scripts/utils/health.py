@@ -44,7 +44,7 @@ def audit_repository_health(packages_dir: Path) -> dict[str, Any]:
                 build_systems[recipe.build_system] = (
                     build_systems.get(recipe.build_system, 0) + 1
                 )
-            except Exception as e:
+            except (ValueError, KeyError, RuntimeError, TypeError, OSError) as e:
                 invalid_packages.append({"package": pkg_dir.name, "error": str(e)})
 
     if invalid_packages:
