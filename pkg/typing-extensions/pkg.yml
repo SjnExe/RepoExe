@@ -1,4 +1,5 @@
 name: typing-extensions
+type: pip
 version: 4.16.0
 revision: 0
 arch: aarch64
@@ -8,7 +9,9 @@ homepage: https://github.com/python/typing_extensions
 maintainer: SjnExe
 
 formats:
-  - pip
+  - apt
+  - pacman
+  - apk
 
 channels:
   latest:

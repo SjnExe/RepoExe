@@ -1,4 +1,5 @@
 name: tsc
+type: npm
 version: "7.0.2"
 revision: 0
 arch: aarch64
@@ -8,7 +9,9 @@ homepage: https://github.com/SjnExe/RepoExe
 maintainer: SjnExe
 
 formats:
-  - npm
+  - apt
+  - pacman
+  - apk
 
 channels:
   latest:
@@ -27,9 +30,6 @@ vars:
   GOARCH: "arm64"
   CGO_ENABLED: "0"
   GOTOOLCHAIN: "local"
-  npm_name: "@typescript/typescript-android-arm64"
-  npm_bin_dir: "lib"
-  patched_target: "typescript"
 
 phases:
   prepare: |
@@ -38,4 +38,20 @@ phases:
     go mod tidy || true
     go build -buildvcs=false -ldflags="-s -w" -o tsc ./cmd/tsgo
   install: |
-    install -Dm755 tsc "${DESTDIR}${PREFIX}/bin/tsc"
+    mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/share/repoexe/manifests"
+    BINARY_NAME="tsc"
+    if [ "${ACTIVE_CHANNEL:-latest}" != "latest" ]; then
+      BINARY_NAME="tsc-${ACTIVE_CHANNEL}"
+    fi
+    install -Dm755 tsc "${DESTDIR}${PREFIX}/bin/${BINARY_NAME}"
+    if [ "${ACTIVE_CHANNEL:-latest}" != "latest" ]; then
+      ln -sf "${BINARY_NAME}" "${DESTDIR}${PREFIX}/bin/tsc" 2>/dev/null || true
+    fi
+    cat << EOF > "${DESTDIR}${PREFIX}/share/repoexe/manifests/${BINARY_NAME}.json"
+    {
+      "name": "${BINARY_NAME}",
+      "version": "${RECIPE_VERSION:-7.0.2}",
+      "patched_version_range": "${RECIPE_PATCHED_RANGE:->=5.0.0}",
+      "channel": "${ACTIVE_CHANNEL:-latest}"
+    }
+    EOF

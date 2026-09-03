@@ -5,8 +5,6 @@ import urllib.request
 from pathlib import Path
 
 from builders.debian import generate_apt_metadata, generate_release_file
-from builders.npm import generate_npm_index
-from builders.pip import generate_pip_index
 from cli.prune import get_expected_asset_filenames
 from utils.metadata import generate_packages_json
 from utils.parser import parse_recipe
@@ -15,7 +13,6 @@ from utils.parser import parse_recipe
 def get_exact_package_artifacts(art_path: Path, pkg_name: str) -> list[Path]:
     """Finds exact artifact files belonging strictly to pkg_name to prevent cross-package asset leakage."""
     matching = []
-    clean_pkg = pkg_name.replace("-", "_")
 
     for f in art_path.rglob("*"):
         if not f.is_file():
@@ -29,10 +26,6 @@ def get_exact_package_artifacts(art_path: Path, pkg_name: str) -> list[Path]:
             and (".pkg.tar.zst" in name or ".pkg.tar.gz" in name)
             or name.startswith(f"{pkg_name}-")
             and name.endswith(".apk")
-            or name.startswith(f"{pkg_name}-")
-            and name.endswith(".tgz")
-            or name.startswith(f"{clean_pkg}-")
-            and name.endswith(".whl")
         ):
             matching.append(f)
 
@@ -119,14 +112,11 @@ def prepare_site(
     s_path = Path(site_dir)
     art_path = Path(artifacts_dir)
 
-    for sub in ["apt", "pacman", "alpine", "pip", "npm"]:
+    for sub in ["apt", "pacman", "alpine"]:
         (s_path / sub).mkdir(parents=True, exist_ok=True)
 
     apt_staging = Path("apt_staging")
     apt_staging.mkdir(parents=True, exist_ok=True)
-
-    npm_staging = Path("npm_staging")
-    npm_staging.mkdir(parents=True, exist_ok=True)
 
     # 1. First upload newly built artifacts to GitHub Releases
     if art_path.exists() and shutil.which("gh"):
@@ -203,12 +193,8 @@ def prepare_site(
                 shutil.copy2(f, s_path / "pacman" / f.name)
             elif f.name.endswith(".apk"):
                 shutil.copy2(f, s_path / "alpine" / f.name)
-            elif f.name.endswith(".whl"):
-                shutil.copy2(f, s_path / "pip" / f.name)
-            elif f.name.endswith(".tgz"):
-                shutil.copy2(f, npm_staging / f.name)
 
-    # 2. Generate APT Metadata and Release File
+    # 4. Generate APT Metadata and Release File
     deb_files = list(apt_staging.glob("*.deb"))
     arches = set()
     for f in deb_files:
@@ -233,23 +219,14 @@ def prepare_site(
             apt_staging / "dists", s_path / "apt" / "dists", dirs_exist_ok=True
         )
 
-    # 3. Generate Pip, NPM, & packages.json Store Manifests
-    generate_pip_index(s_path)
-
-    if npm_staging.exists():
-        pkg_recipes_dir = Path(__file__).resolve().parents[2] / "pkg"
-        generate_npm_index(str(npm_staging), pkg_dir=pkg_recipes_dir)
-        if (npm_staging / "npm").exists():
-            shutil.copytree(npm_staging / "npm", s_path / "npm", dirs_exist_ok=True)
-        shutil.rmtree(npm_staging, ignore_errors=True)
-
+    # 5. Generate packages.json Store Manifest
     generate_packages_json(
         Path(__file__).resolve().parents[2] / "pkg",
         s_path / "packages.json",
         artifacts_dir=art_path,
     )
 
-    # 4. Copy Frontend Source & Security Keyrings to site/ root
+    # 6. Copy Frontend Source & Security Keyrings to site/ root
     root_dir = Path(__file__).resolve().parents[2]
 
     # Copy frontend static files
@@ -261,7 +238,6 @@ def prepare_site(
         src = root_dir / key
         if src.exists():
             shutil.copy2(src, s_path / src.name)
-
 
     (s_path / ".nojekyll").touch()
     print(f"✓ Complete RepoExe site environment successfully generated at {s_path}")

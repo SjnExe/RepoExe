@@ -1,4 +1,5 @@
 name: packaging
+type: pip
 version: "26.3"
 revision: 0
 arch: aarch64
@@ -8,7 +9,9 @@ homepage: https://github.com/pypa/packaging
 maintainer: SjnExe
 
 formats:
-  - pip
+  - apt
+  - pacman
+  - apk
 
 channels:
   latest:
