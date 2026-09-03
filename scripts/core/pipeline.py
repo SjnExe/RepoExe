@@ -7,9 +7,7 @@ from pathlib import Path
 
 from builders.alpine import build_alpine
 from builders.debian import build_deb
-from builders.npm import build_npm
 from builders.pacman import build_pacman
-from builders.pip import build_pip
 from core.compat import setup_bionic_compat
 from core.fetcher import resolve_and_fetch_build_dependencies
 from core.resolver import apply_channel_overlay
@@ -117,10 +115,6 @@ def verify_format_archives(output_dir: Path, pkg_name: str) -> None:
             or f.name.endswith(".apk")
         ):
             subprocess.run(["tar", "-tf", str(f)], check=True, capture_output=True)
-        elif f.name.endswith(".whl"):
-            subprocess.run(["unzip", "-t", str(f)], check=True, capture_output=True)
-        elif f.name.endswith(".tgz"):
-            subprocess.run(["tar", "-tf", str(f)], check=True, capture_output=True)
 
 
 def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
@@ -194,6 +188,10 @@ def execute_compile(recipe, pkg_dir: Path, destdir: Path) -> Path:
         env["LDFLAGS"] = f"{env.get('LDFLAGS', '')} {recipe.ldflags}".strip()
     if getattr(recipe, "vars", None):
         env.update(recipe.vars)
+
+    env["RECIPE_VERSION"] = getattr(recipe, "version", "")
+    env["RECIPE_PATCHED_RANGE"] = getattr(recipe, "patched_version_range", "") or ""
+    env["ACTIVE_CHANNEL"] = getattr(recipe, "active_channel", "latest") or "latest"
 
     build_sys = getattr(recipe, "build_system", None)
     if build_sys:
@@ -439,10 +437,6 @@ def execute_pack(recipe, pkg_dir: Path, destdir: Path, output_dir: Path) -> None
             build_pacman(rec, str(d_dir), str(output_dir), target_arch=rec.arch)
         if "apk" in fmts:
             build_alpine(rec, str(d_dir), str(output_dir), target_arch=rec.arch)
-        if "pip" in fmts:
-            build_pip(rec, str(d_dir), str(output_dir))
-        if "npm" in fmts:
-            build_npm(rec, str(d_dir), str(output_dir))
 
         verify_format_archives(output_dir, rec.name)
 

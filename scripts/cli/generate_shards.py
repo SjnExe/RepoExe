@@ -68,8 +68,6 @@ def get_changed_packages(repo_root: Path, dag: DependencyGraph | None = None) ->
             "debian.py": "apt",
             "pacman.py": "pacman",
             "alpine.py": "apk",
-            "npm.py": "npm",
-            "pip.py": "pip",
         }
         for f in files:
             p_parts = Path(f.strip()).parts

@@ -1,4 +1,5 @@
 name: ruff
+type: pip
 version: 0.16.5
 revision: 0
 arch: aarch64
@@ -7,7 +8,9 @@ license: MIT
 homepage: https://github.com/astral-sh/ruff
 maintainer: SjnExe
 formats:
-- pip
+  - apt
+  - pacman
+  - apk
 channels:
   latest:
     auto_update: true
@@ -19,6 +22,21 @@ build_system: custom
 toolchains:
   rust: stable
 phases:
-  install: 'install -Dm755 ruff "${DESTDIR}${PREFIX}/bin/ruff"
-
-    '
+  install: |
+    mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/share/repoexe/manifests"
+    BINARY_NAME="ruff"
+    if [ "${ACTIVE_CHANNEL:-latest}" != "latest" ]; then
+      BINARY_NAME="ruff-${ACTIVE_CHANNEL}"
+    fi
+    install -Dm755 ruff "${DESTDIR}${PREFIX}/bin/${BINARY_NAME}"
+    if [ "${ACTIVE_CHANNEL:-latest}" != "latest" ]; then
+      ln -sf "${BINARY_NAME}" "${DESTDIR}${PREFIX}/bin/ruff" 2>/dev/null || true
+    fi
+    cat << EOF > "${DESTDIR}${PREFIX}/share/repoexe/manifests/${BINARY_NAME}.json"
+    {
+      "name": "${BINARY_NAME}",
+      "version": "${RECIPE_VERSION:-0.16.5}",
+      "patched_version_range": "${RECIPE_PATCHED_RANGE:->=0.1.0}",
+      "channel": "${ACTIVE_CHANNEL:-latest}"
+    }
+    EOF
