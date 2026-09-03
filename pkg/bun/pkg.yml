@@ -1,5 +1,6 @@
 name: bun
-version: "1:1.4.0"
+version: 1.4.0
+epoch: 1
 revision: 0
 arch: aarch64
 description: Incredibly fast JavaScript runtime, bundler, test runner, and package manager
@@ -17,10 +18,7 @@ formats:
   - apk
 
 channels:
-  latest:
-    auto_update: true
-    update_strategy: github_release
-    source: https://github.com/oven-sh/bun.git#bun-v{version}
+  latest: {}
 
 phases:
   prepare: |

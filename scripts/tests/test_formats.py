@@ -33,6 +33,30 @@ def test_debian_control_installed_size():
     assert "Installed-Size: 1024" in control
 
 
+def test_epoch_and_revision_formatting():
+    """Tests epoch and revision formatting across builders."""
+    from builders.debian import format_debian_version
+    from utils.parser import PackageRecipe
+
+    rec = PackageRecipe(
+        name="testpkg",
+        version="1.2.3",
+        epoch=2,
+        revision=0,
+        arch="aarch64",
+    )
+    assert format_debian_version(rec) == "2:1.2.3"
+
+    rec_rev = PackageRecipe(
+        name="testpkg",
+        version="1.2.3",
+        epoch=2,
+        revision=1,
+        arch="aarch64",
+    )
+    assert format_debian_version(rec_rev) == "2:1.2.3-1"
+
+
 def test_repository_recipe_consistency():
     """Ensures all recipes maintain valid metadata structures and unique names."""
     pkg_dir = REPO_ROOT / "pkg"

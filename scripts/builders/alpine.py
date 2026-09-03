@@ -16,15 +16,12 @@ def build_alpine(
 
     arch_map = {"aarch64": "aarch64", "x86_64": "x86_64", "arm": "armhf"}
     pkg_arch = arch_map.get(recipe.arch or target_arch, "aarch64")
-    version_str = (
-        f"{recipe.version}-r{recipe.revision}"
-        if recipe.revision > 0
-        else f"{recipe.version}-r0"
-    )
+    ver_body = f"{recipe.version}-r{recipe.revision}" if recipe.revision > 0 else f"{recipe.version}-r0"
+    pkgver = f"{recipe.version}_p{recipe.epoch}-r{recipe.revision}" if recipe.epoch > 0 else ver_body
 
     pkginfo_lines = [
         f"pkgname = {recipe.name}",
-        f"pkgver = {version_str}",
+        f"pkgver = {pkgver}",
         f"pkgdesc = {recipe.description or 'RepoExe package'}",
         f"url = {recipe.homepage or 'https://github.com/SjnExe/RepoExe'}",
         f"arch = {pkg_arch}",
@@ -37,7 +34,7 @@ def build_alpine(
         "\n".join(pkginfo_lines) + "\n", encoding="utf-8"
     )
 
-    filename = f"{recipe.name}-{version_str}.apk"
+    filename = f"{recipe.name}-{pkgver}.apk"
     apk_path = out_path / filename
 
     subprocess.run(
