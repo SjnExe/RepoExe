@@ -1,6 +1,6 @@
 name: jscpd
 type: npm
-version: 5.1.1
+version: 5.1.2
 revision: 0
 arch: aarch64
 description: Copy/paste code detector compiled natively in Rust for Termux
@@ -13,36 +13,25 @@ patched_version_range: '>=5.0.0'
 source: https://static.crates.io/crates/jscpd/jscpd-{version}.crate
 build_system: cargo
 formats:
-  - apt
-  - pacman
-  - apk
+- apt
+- pacman
+- apk
 phases:
-  install: |
-    mkdir -p "${DESTDIR}${PREFIX}/bin" "${DESTDIR}${PREFIX}/share/repoexe/manifests"
-    cargo build --release
-    BIN_PATH=$(find target -type f -name jscpd | grep release | head -n 1)
-    if [ -z "$BIN_PATH" ]; then
-      BIN_PATH=$(find target -type f -name cpd | grep release | head -n 1)
-    fi
-    BINARY_NAME="jscpd"
-    if [ "${ACTIVE_CHANNEL:-latest}" != "latest" ]; then
-      BINARY_NAME="jscpd-${ACTIVE_CHANNEL}"
-    fi
-    cp "$BIN_PATH" "${DESTDIR}${PREFIX}/bin/${BINARY_NAME}"
-    chmod +x "${DESTDIR}${PREFIX}/bin/${BINARY_NAME}"
-    if [ "${ACTIVE_CHANNEL:-latest}" != "latest" ]; then
-      ln -sf "${BINARY_NAME}" "${DESTDIR}${PREFIX}/bin/jscpd" 2>/dev/null || true
-    fi
-    cat << EOF > "${DESTDIR}${PREFIX}/share/repoexe/manifests/${BINARY_NAME}.json"
-    {
-      "name": "${BINARY_NAME}",
-      "version": "${RECIPE_VERSION:-5.1.1}",
-      "patched_version_range": "${RECIPE_PATCHED_RANGE:->=5.0.0}",
-      "channel": "${ACTIVE_CHANNEL:-latest}"
-    }
-    EOF
-  test: |
-    jscpd --version
+  install: "mkdir -p \"${DESTDIR}${PREFIX}/bin\" \"${DESTDIR}${PREFIX}/share/repoexe/manifests\"\
+    \ncargo build --release\nBIN_PATH=$(find target -type f -name jscpd | grep release\
+    \ | head -n 1)\nif [ -z \"$BIN_PATH\" ]; then\n  BIN_PATH=$(find target -type\
+    \ f -name cpd | grep release | head -n 1)\nfi\nBINARY_NAME=\"jscpd\"\nif [ \"\
+    ${ACTIVE_CHANNEL:-latest}\" != \"latest\" ]; then\n  BINARY_NAME=\"jscpd-${ACTIVE_CHANNEL}\"\
+    \nfi\ncp \"$BIN_PATH\" \"${DESTDIR}${PREFIX}/bin/${BINARY_NAME}\"\nchmod +x \"\
+    ${DESTDIR}${PREFIX}/bin/${BINARY_NAME}\"\nif [ \"${ACTIVE_CHANNEL:-latest}\" !=\
+    \ \"latest\" ]; then\n  ln -sf \"${BINARY_NAME}\" \"${DESTDIR}${PREFIX}/bin/jscpd\"\
+    \ 2>/dev/null || true\nfi\ncat << EOF > \"${DESTDIR}${PREFIX}/share/repoexe/manifests/${BINARY_NAME}.json\"\
+    \n{\n  \"name\": \"${BINARY_NAME}\",\n  \"version\": \"${RECIPE_VERSION:-5.1.1}\"\
+    ,\n  \"patched_version_range\": \"${RECIPE_PATCHED_RANGE:->=5.0.0}\",\n  \"channel\"\
+    : \"${ACTIVE_CHANNEL:-latest}\"\n}\nEOF\n"
+  test: 'jscpd --version
+
+    '
 channels:
   '5.0':
     version: 5.0.16
