@@ -154,7 +154,7 @@ The `package.json` must strictly enforce immutability in CI and leverage native 
 ```yaml
 # === CURRENT YAML RECIPE (pkg/bun/pkg.yml) ===
 name: bun
-version: 1.4.0
+version: 1.4.1
 epoch: 1
 revision: 0
 arch: aarch64
@@ -182,7 +182,7 @@ import { PackageRecipe } from "@core/types";
 
 const recipe: PackageRecipe = {
   name: "bun",
-  version: "1.4.0",
+  version: "1.4.1",
   epoch: 1,
   revision: 0,
   arch: "aarch64",

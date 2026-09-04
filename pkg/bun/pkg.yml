@@ -1,5 +1,5 @@
 name: bun
-version: 1.4.0
+version: 1.4.1
 epoch: 1
 revision: 0
 arch: aarch64
@@ -37,7 +37,7 @@ phases:
       BUN_ARCH="x64"
     fi
     mkdir -p /tmp/host-bun
-    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-${BUN_ARCH}.zip" -o /tmp/host-bun/bun.zip
+    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v1.4.1/bun-linux-${BUN_ARCH}.zip" -o /tmp/host-bun/bun.zip
     unzip -q -o /tmp/host-bun/bun.zip -d /tmp/host-bun
     mv /tmp/host-bun/bun-linux-${BUN_ARCH}/bun /tmp/host-bun/bun 2>/dev/null || true
     chmod +x /tmp/host-bun/bun
@@ -130,6 +130,11 @@ phases:
 
     install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
+
+    # Install profile.d script to export BUN_OPTIONS in Termux interactive sessions
+    mkdir -p "${DESTDIR}${PREFIX}/etc/profile.d"
+    printf '# Enable Android OS target options for Bun in Termux\nexport BUN_OPTIONS="${BUN_OPTIONS:---os=android}"\n' > "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
+    chmod 644 "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
 
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping installed binary ${DESTDIR}${PREFIX}/bin/bun..."
