@@ -21,3 +21,5 @@ site/
 *.pkg.tar.zst
 *.whl
 *.tgz
+node_modules/
+.prettiercache
