@@ -39,5 +39,5 @@ uv sync
 
 ## 🚀 Workflows & Runners
 
-*   The `build.yml` matrix jobs (building cross-compiled packages) and the `publish-site` job (E2E deployments) use the native `ubuntu-24.04-arm` runner.
+*   The `build.yml` matrix jobs (building cross-compiled packages) and the `publish-site` job (site deployment) use the native `ubuntu-24.04-arm` runner.
 *   Emulation (QEMU) is heavily discouraged unless explicitly needed for legacy AMD64 fallback testing.
