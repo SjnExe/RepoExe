@@ -186,13 +186,17 @@ disable_single_manager() {
 
 enable_manager() {
   for target in "$@"; do
-    enable_single_manager "$target"
+    if ! enable_single_manager "$target"; then
+      exit 1
+    fi
   done
 }
 
 disable_manager() {
   for target in "$@"; do
-    disable_single_manager "$target"
+    if ! disable_single_manager "$target"; then
+      exit 1
+    fi
   done
 }
 
@@ -230,20 +234,24 @@ case "$1" in
   version|-v|--version)
     printf "repoexe v2.0.0\n"
     ;;
-  help|-h|--help|"")
+  help|-h|--help)
     show_help
+    ;;
+  "")
+    if command -v apt >/dev/null 2>&1; then
+      enable_single_manager apt
+    elif command -v pacman >/dev/null 2>&1; then
+      enable_single_manager pacman
+    elif command -v apk >/dev/null 2>&1; then
+      enable_single_manager apk
+    fi
     ;;
   *)
     if [ "$1" = "--all" ]; then
       enable_manager all
     else
-      if command -v apt >/dev/null 2>&1; then
-        enable_single_manager apt
-      elif command -v pacman >/dev/null 2>&1; then
-        enable_single_manager pacman
-      elif command -v apk >/dev/null 2>&1; then
-        enable_single_manager apk
-      fi
+      printf "${RED}Error: Unknown command or target '$1'. Run 'repoexe help' for usage.${RESET}\n"
+      exit 1
     fi
     ;;
 esac
