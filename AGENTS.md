@@ -1,43 +1,57 @@
-# RepoExe Agent Guidelines
+# Agent Instructions for RepoExe Development
 
-## 🛠️ Environment Setup
+Welcome, AI Assistant (Jules)! This document provides specific guidelines and tips for working effectively on the RepoExe codebase. Please adhere to these instructions in addition to your general knowledge and the user's direct requests.
 
-To properly interact with and test the `RepoExe` repository, execute the following setup commands to install required dependencies.
+## 1. Core Objective
+
+Your primary goal is to assist in maintaining, refactoring, and enhancing the RepoExe multi-format package orchestrator, specifically facilitating its migration from Python to a natively executed TypeScript (Bun) architecture.
+
+## 2. Environment Setup
+
+If you need to initialize or reset the environment (especially on Termux or CI), use the following commands. These handle dependencies, system tools, and repository state.
 
 ```bash
-# Update and install system utilities
-sudo apt-get update
-sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
+# Ensure Bun is installed (using our own package if on Termux)
+if ! command -v bun >/dev/null 2>&1; then
+    curl -fsSL https://bun.sh/install | bash
+    export PATH="$HOME/.bun/bin:$PATH"
+fi
 
-# Install 'uv' for fast Python dependency management
-curl -LsSf https://astral.sh/uv/install.sh | bash
-source $HOME/.cargo/env
-
-# Install actionlint for GitHub Actions validation
-bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-sudo mv actionlint /usr/local/bin/
-
-# Sync dependencies
-uv sync
+# Install dependencies
+bun install --frozen-lockfile --no-progress --no-summary
 ```
 
-## 🧪 Testing Commands
+## 3. Understanding the Codebase (Migration Context)
 
-*   **Format & Lint (Ruff):** `uv run ruff check --fix scripts/`
-    *   *Warning:* Do not use `--unsafe-fixes` on `scripts/`, as it destroys dynamic imports (like `sys.path.insert`) required by the orchestrator.
-*   **Unit Tests (Pytest):** `uv run pytest scripts/tests/`
-*   **Health Checks:** `uv run scripts/cli/build.py check`
-*   **Actionlint:** `actionlint .github/workflows/*.yml`
+Before implementing changes, understand that the codebase is currently migrating from Python to TypeScript (Bun).
+- **Master Plan**: Refer to `plan.md` in the repository root for the migration roadmap, checklists, and handover context.
+- **Project Structure**:
+    - `pkg/`: Contains declarative YAML (`pkg.yml`) recipes and patches for building packages. **(Do not modify the format of these files unless explicitly instructed; backward compatibility is paramount).**
+    - `scripts/`: (Legacy) Contains the old Python orchestrator (`build.py`, `core/`, `builders/`).
+    - `src/`: (New) Will contain the TypeScript/Bun orchestrator.
+- **Core Architecture**: The orchestrator spawns heavy OS-level processes (`git`, `tar`, compilers) to build native Android/Termux binaries.
 
-## 🏗️ Architectural Constraints
+## 4. Workflow and Task Management
 
-1.  **Site Directory:** The root `site/` folder is strictly for generated build artifacts (like `packages.json` and registry index HTML files) and is ignored in `.gitignore`. **All source files for the frontend (HTML/JS/CSS) and installation scripts must go in `scripts/site/`.** `index_gen.py` copies them over during CI.
-2.  **Staging Directories:** Any temporary directories created during generation (like `apt_staging` or `npm_staging`) must be added to `.gitignore`.
-3.  **Docker Builders:** All Docker configurations (e.g., `Dockerfile`, `runner.py`) must remain in `scripts/docker/` and are triggered by `docker.yml`. Tester image exclusively targets Bionic libc (`x11-repo`, `root-repo`) without `glibc-repo` or `glibc-runner`. Modifying `scripts/docker/` files returns an empty package matrix `[]` in `generate_shards.py` so package rebuilds are not falsely triggered.
-4.  **No `__init__.py` in Deb Roots:** When building `.deb` packages via `scripts/builders/debian.py`, ensure source recipe metadata (`pkg.yml`, `__init__.py`) are excluded from the archive root to prevent `dpkg` read-only errors on Termux.
-5.  **GitHub Releases:** When using `gh release create` programmatically, do not pass `--clobber`. It is invalid for creation operations and causes silent failures.
+- **Chat-First Workflow**: The primary mode of operation is through the chat session. Tasks, plans, and execution happen dynamically here.
+- **Multiple Sessions**: Large migrations will span multiple sessions. Always update the `Handover Context` section in `plan.md` at the end of your session to ensure the next AI agent knows exactly where to pick up.
 
-## 🚀 Workflows & Runners
+## 5. Code Style, Quality & Constraints
 
-*   The `build.yml` matrix jobs (building cross-compiled packages) and the `publish-site` job (site deployment) use the native `ubuntu-24.04-arm` runner.
-*   Emulation (QEMU) is heavily discouraged unless explicitly needed for legacy AMD64 fallback testing.
+- **Strict Backward Compatibility**: The existing `pkg.yml` specification, package definitions, and current CLI flags/arguments must remain 100% intact.
+- **Language**: TypeScript via Bun.
+- **Linting & Formatting**: We use ESLint and Prettier (over Biome) to ensure 100% compatibility running natively on Termux (Android).
+- **Synchronous Execution**: When porting Python code (which is blocking), use `Bun.spawnSync()` or `fs.readFileSync` to map behavior perfectly and avoid race conditions during heavy disk I/O, unless parallel execution is explicitly designed.
+- **Truthiness**: Be careful with Python vs JS truthiness. `[]` and `{}` evaluate to `true` in TS. Explicitly check `.length === 0`.
+- **Termux Paths**: Hardcoded Termux paths (e.g., `/data/data/com.termux/files/usr`) are intentional and required for native execution on Android. Do not genericize them to `/usr/local` unless dynamically resolving `$PREFIX`.
+
+## 6. Planning and Communication
+
+- **Use `set_plan()`**: Always articulate your plan using the `set_plan` tool before starting significant code changes. Check off items in `plan.md` as you progress.
+- **Be Clear**: Make your plan steps clear and actionable.
+- **Ask Questions**: If the user's request is ambiguous or if you encounter significant issues, use `request_user_input`.
+
+## 7. Testing
+
+- Run tests using `bun test`.
+- Ensure tests validate that the TypeScript parser generates the exact same output as the legacy Python parser.
