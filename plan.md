@@ -7,15 +7,15 @@ Migrate the RepoExe orchestrator from Python (`scripts/`) to a natively executed
 
 ## 🤝 Session Handover Context
 *   **Current State**: The repository is currently in Python. No implementation code in `src/` has been created yet.
-*   **Next Immediate Action**: Initialize the Node/Bun project (`package.json`, `tsconfig.json`), write `bunfig.toml`, update `AGENTS.md` with the mandated Bun setup script, and implement the recipe parsing schema in `src/core/parser.ts`.
+*   **Next Immediate Action**: Initialize the Node/Bun project (`package.json`, `tsconfig.json` with path aliases), write `bunfig.toml`, update `AGENTS.md` with the mandated Bun setup script, and implement the recipe parsing schema in `src/core/parser.ts`.
 
 ---
 
 ## 🔁 1:1 Functional Parity & Subcommand Mapping
 
-To maintain strict 1:1 backward compatibility, every Python script and module in `scripts/` will map directly to its corresponding TypeScript module in `src/`:
+> **Note on Naming & Structure**: 1:1 refactoring strictly guarantees 1:1 functional behavior, CLI subcommands/arguments, build pipeline stages, and package output formats. File names, internal code structure, and module organization can evolve to leverage modern TypeScript paradigms, clean module boundaries, and path aliases (`@core/*`, `@cli/*`, etc.).
 
-| Existing Python Module / Script (`scripts/`) | Refactored TypeScript Module (`src/`) | Domain Responsibility & Parity Scope |
+| Existing Python Module / Script (`scripts/`) | Refactored TypeScript Module Target (`src/`) | Domain Responsibility & Parity Scope |
 | :--- | :--- | :--- |
 | `cli/build.py` | `src/cli/build.ts` | Main orchestration entrypoint (`compile`, `pack`, `test`, `check`, `all`). Preserves staging checks and skip-rebuild hashes. |
 | `cli/generate_shards.py` | `src/cli/generateShards.ts` | CI matrix shard generator with `@channel` support, diff-based DAG filtering, and state hash validation. |
@@ -78,8 +78,8 @@ To maintain strict 1:1 backward compatibility, every Python script and module in
 ### 1. `AGENTS.md` Target Setup
 When the environment is ready for Bun, `AGENTS.md` must be updated to use this exact setup script for the environment:
 ```bash
-sudo curl -fsSL https://bun.sh/install | sudo BUN_INSTALL=/usr/local/bun bash
-sudo ln -sf /usr/local/bun/bin/bun /usr/local/bin/bun
+sudo curl -fsSL https://bun.sh/install | sudo BUN_INSTALL=/usr/local bash
+sudo ln -sf /usr/local/bin/bun /usr/bin/bun
 bun install --frozen-lockfile --no-progress --no-summary
 ```
 
@@ -107,18 +107,46 @@ noOrphans = true
 linker = "isolated"
 ```
 
-### 3. Gitignore and Lockfiles
+### 3. `tsconfig.json` & Import Path Aliases
+`tsconfig.json` must configure path aliases (`@core/*`, `@cli/*`, `@builders/*`, `@utils/*`, `@sanitizer/*`, `@docker/*`, `@toolchains/*`) to eliminate relative path clutter (`../../..`):
+```json
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@cli/*": ["src/cli/*"],
+      "@core/*": ["src/core/*"],
+      "@builders/*": ["src/builders/*"],
+      "@execution/*": ["src/execution/*"],
+      "@sanitizer/*": ["src/sanitizer/*"],
+      "@docker/*": ["src/docker/*"],
+      "@toolchains/*": ["src/toolchains/*"],
+      "@utils/*": ["src/utils/*"]
+    }
+  },
+  "include": ["src/**/*"]
+}
+```
+
+### 4. Gitignore and Lockfiles
 *   **`.gitignore`**: Must include `node_modules` and `.prettiercache` to prevent committing build artifacts and caches.
 *   **Version Control**: The `bun.lock` file **must** be explicitly added and committed to version control to guarantee deterministic builds.
 
-### 4. `package.json` Specification
+### 5. `package.json` Specification
 The `package.json` must strictly enforce immutability in CI and leverage native tools:
 - **Scripts**: Include `lint` (`oxlint`), `format` (`prettier`), `test` (`bun test`), and `build` (`bun build ./src/cli/index.ts --compile --outfile repoexe`).
 - **Hooks**: Use a `prepare` or `postinstall` script to ensure Husky/git-hooks are configured if needed.
 - **Dependency Management**: Use **only Bun** (`bun install`, `bun add`, etc.) – do not use npm.
 - **Dependency Versions**: Use the **latest** version tag for *every* dependency specified in `package.json` (e.g., `"oxlint": "latest"`). CI workflows must use `bun install --frozen-lockfile` to guarantee deterministic builds based on the committed `bun.lock`.
 
-### 5. File Formats & Linting
+### 6. File Formats & Linting
 *   **Linter**: Use **Oxlint** (maintained natively by Termux repositories) for ultra-fast linting, falling back to ESLint only if necessary. Use **Prettier** for formatting.
 *   **Recipe Format**: Transition from `pkg.yml` to **`pkg.ts`** *only* if the TS format looks good and is easy for maintaining. Otherwise, retain the YAML format (`pkg.yml`).
 
@@ -150,7 +178,7 @@ channels:
 
 ```typescript
 // === REFACTORED TYPESCRIPT RECIPE (pkg/bun/pkg.ts) ===
-import { PackageRecipe } from "../../src/core/types";
+import { PackageRecipe } from "@core/types";
 
 const recipe: PackageRecipe = {
   name: "bun",
@@ -219,7 +247,7 @@ The matrix generator (`src/cli/generateShards.ts`) constructs a Directed Acyclic
 - [ ] Ensure `.gitignore` explicitly ignores `node_modules` and `.prettiercache`.
 - [ ] Ensure `bun.lock` is tracked and committed to version control.
 - [ ] Create `bunfig.toml` using the specification above.
-- [ ] Add `tsconfig.json` (`"target": "esnext"`, `"moduleResolution": "bundler"`).
+- [ ] Add `tsconfig.json` (`"target": "esnext"`, `"moduleResolution": "bundler"`) with `@core/*`, `@cli/*`, etc. import path aliases.
 - [ ] Install `oxlint` and `prettier` using **only Bun** (no npm).
 - [ ] Update `AGENTS.md` with the new Bun setup script.
 - [ ] Create `src/cli/index.ts` with CLI argument parsing (`util.parseArgs`).
