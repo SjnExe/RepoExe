@@ -37,7 +37,7 @@ phases:
       BUN_ARCH="x64"
     fi
     mkdir -p /tmp/host-bun
-    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v1.4.1/bun-linux-${BUN_ARCH}.zip" -o /tmp/host-bun/bun.zip
+    curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${RECIPE_VERSION:-1.4.1}/bun-linux-${BUN_ARCH}.zip" -o /tmp/host-bun/bun.zip
     unzip -q -o /tmp/host-bun/bun.zip -d /tmp/host-bun
     mv /tmp/host-bun/bun-linux-${BUN_ARCH}/bun /tmp/host-bun/bun 2>/dev/null || true
     chmod +x /tmp/host-bun/bun
