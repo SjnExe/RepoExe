@@ -294,3 +294,8 @@ RepoExe builds native Termux binaries via GitHub Actions using Docker. We must s
 - [ ] Port auxiliary scripts: `generate_shards.py` (integrate the DAG), `update_recipe.py`.
 - [ ] Remove all `.py` files and `pyproject.toml`.
 - [ ] Generate the final standalone binary: `bun build ./src/cli/index.ts --compile --outfile repoexe`.
+
+### Phase 5: Refactoring Installation & Indexing
+- [ ] **Fix Site UI**: Update `scripts/site/index.html` to remove deprecated manager checkboxes (npm, pip, yarn, pnpm, uv) and update the `curl` install command snippet to only use active managers (e.g., `enable apt pacman apk all`).
+- [ ] **Fix Install Script Error Hiding**: Refactor the `pkg/repoexe/install` script so that invalid arguments (e.g. `repoexe enable invalid_manager`) explicitly throw an error. The current catch-all wildcard (`*)`) silently ignores bad inputs and tries to automatically enable apt/pacman, making it look like it succeeded without actually enabling the requested target.
+- [ ] **Optimize Index Generation**: Rewrite the index generator (`scripts/cli/index_gen.py` -> `src/cli/indexGen.ts`) to build the repository index (`Packages`, `packages.json`) by reading metadata embedded directly in the GitHub tag release notes (body JSON), rather than performing slow/costly downloads of every release asset binary.
