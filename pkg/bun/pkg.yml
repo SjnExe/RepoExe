@@ -131,11 +131,6 @@ phases:
     install -Dm755 "$BUN_BIN" "${DESTDIR}${PREFIX}/bin/bun"
     ln -sf bun "${DESTDIR}${PREFIX}/bin/bunx"
 
-    # Install profile.d script to export BUN_OPTIONS in Termux interactive sessions
-    mkdir -p "${DESTDIR}${PREFIX}/etc/profile.d"
-    printf '# Enable Android OS target options for Bun in Termux\nexport BUN_OPTIONS="${BUN_OPTIONS:---os=android}"\n' > "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
-    chmod 644 "${DESTDIR}${PREFIX}/etc/profile.d/bun.sh"
-
     if [ -n "$STRIP_TOOL" ]; then
       echo "Stripping installed binary ${DESTDIR}${PREFIX}/bin/bun..."
       "$STRIP_TOOL" --strip-all --strip-unneeded --strip-debug --discard-all --remove-section=.comment --remove-section=.note --remove-section=.debug_info "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" --strip-all "${DESTDIR}${PREFIX}/bin/bun" || "$STRIP_TOOL" "${DESTDIR}${PREFIX}/bin/bun" || true

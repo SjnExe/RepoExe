@@ -28,17 +28,13 @@
             <div class="target-selector">
                 <span class="selector-label">Select Registries to Enable:</span>
                 <div class="checkbox-group">
-                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="apt" checked> APT</label>
-                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="bun" checked> Bun</label>
-                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="npm" checked> NPM</label>
-                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="yarn"> Yarn</label>
-                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="pnpm"> Pnpm</label>
-                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="pip" checked> Pip</label>
-                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="uv" checked> UV</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="apt" checked> APT (.deb)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="pacman" checked> Pacman (.pkg)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="apk" checked> Alpine (.apk)</label>
                 </div>
             </div>
 
-            <code id="installCmd">curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- enable apt bun npm pip uv</code>
+            <code id="installCmd">curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- enable all</code>
         </section>
 
         <section class="search-section">
@@ -51,8 +47,6 @@
                 <button class="filter-btn" data-format="apt">APT (.deb)</button>
                 <button class="filter-btn" data-format="pacman">Pacman (.pkg)</button>
                 <button class="filter-btn" data-format="apk">Alpine (.apk)</button>
-                <button class="filter-btn" data-format="pip">PIP (PyPI)</button>
-                <button class="filter-btn" data-format="npm">NPM</button>
             </div>
         </section>
 
