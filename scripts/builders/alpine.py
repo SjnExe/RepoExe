@@ -1,0 +1,56 @@
+import subprocess
+from pathlib import Path
+
+from utils.parser import PackageRecipe
+
+
+def build_alpine(
+    recipe: PackageRecipe,
+    destdir: str,
+    output_dir: str,
+    target_arch: str = "aarch64",
+) -> Path:
+    stage_dir = Path(destdir) / "stage"
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    arch_map = {"aarch64": "aarch64", "x86_64": "x86_64", "arm": "armhf"}
+    pkg_arch = arch_map.get(recipe.arch or target_arch, "aarch64")
+    ver_body = f"{recipe.version}-r{recipe.revision}" if recipe.revision > 0 else f"{recipe.version}-r0"
+    pkgver = f"{recipe.version}_p{recipe.epoch}-r{recipe.revision}" if recipe.epoch > 0 else ver_body
+
+    pkginfo_lines = [
+        f"pkgname = {recipe.name}",
+        f"pkgver = {pkgver}",
+        f"pkgdesc = {recipe.description or 'RepoExe package'}",
+        f"url = {recipe.homepage or 'https://github.com/SjnExe/RepoExe'}",
+        f"arch = {pkg_arch}",
+        f"license = {recipe.license or 'MIT'}",
+    ]
+    if recipe.deps:
+        pkginfo_lines.append(f"depend = {' '.join(recipe.deps)}")
+
+    (stage_dir / ".PKGINFO").write_text(
+        "\n".join(pkginfo_lines) + "\n", encoding="utf-8"
+    )
+
+    filename = f"{recipe.name}-{pkgver}.apk"
+    apk_path = out_path / filename
+
+    subprocess.run(
+        [
+            "tar",
+            "--exclude=DEBIAN",
+            "-I",
+            "gzip -9",
+            "-cf",
+            str(apk_path),
+            "-C",
+            str(stage_dir),
+            ".",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return apk_path
