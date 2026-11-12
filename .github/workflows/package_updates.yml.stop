@@ -1,0 +1,80 @@
+name: Package Updates
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+        with:
+          enable-cache: true
+
+      - name: Run upstream_check.py
+        id: check
+        env:
+          PYTHONPATH: scripts
+        run: |
+          uv run python scripts/cli/upstream_check.py > update_log.txt 2>&1 || true
+          cat update_log.txt
+
+          grep "Update available for" update_log.txt > updates_to_process.txt || true
+
+          if [ -s updates_to_process.txt ]; then
+            echo "updates_found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "updates_found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Process Updates
+        if: steps.check.outputs.updates_found == 'true'
+        run: |
+          while read -r line; do
+            if [[ "$line" =~ Update\ available\ for\ ([^@]+)@([^:]+):\ ([^\ ]+)\ -\>\ (.+) ]]; then
+              PKG="${BASH_REMATCH[1]}"
+              CHANNEL="${BASH_REMATCH[2]}"
+              OLD="${BASH_REMATCH[3]}"
+              NEW="${BASH_REMATCH[4]}"
+
+              BRANCH_NAME="update/${PKG}@${CHANNEL}/${NEW}"
+
+              if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+                echo "Branch $BRANCH_NAME already exists, skipping."
+                continue
+              fi
+
+              echo "Processing update for $PKG@$CHANNEL to $NEW"
+              git checkout -b "$BRANCH_NAME"
+
+              python3 scripts/cli/update_recipe.py "$PKG" "$CHANNEL" "$NEW"
+
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add "pkg/$PKG/pkg.yml"
+              git commit -m "feat($PKG@$CHANNEL): update to $NEW"
+
+              git push origin "$BRANCH_NAME"
+              PR_URL=$(gh pr create --title "feat($PKG@$CHANNEL): update to $NEW" --body "Automated update for channel **$CHANNEL** from $OLD to $NEW" --base main --head "$BRANCH_NAME" 2>&1 || true)
+              echo "$PR_URL"
+              if ! gh pr merge "$BRANCH_NAME" --auto --squash; then
+                echo "Automated PR merge failed for $BRANCH_NAME. Triggering Jules API auto-fix..."
+                uv run python scripts/cli/jules_autofix.py "$PKG" "$CHANNEL" "$OLD" "$NEW" "$BRANCH_NAME" "Automated PR merge or build checks failed" || true
+              fi
+
+              git checkout main
+            fi
+          done < updates_to_process.txt
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}

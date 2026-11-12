@@ -1,0 +1,53 @@
+name: Build Docker Images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'scripts/docker/**'
+      - 'docker-bake.hcl'
+      - '.github/workflows/docker.yml'
+  pull_request:
+    paths:
+      - 'scripts/docker/**'
+      - 'docker-bake.hcl'
+      - '.github/workflows/docker.yml'
+  workflow_dispatch:
+
+jobs:
+  build-docker:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set lower case owner name
+        run: echo "OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Images via Bake
+        uses: docker/bake-action@v7
+        with:
+          files: docker-bake.hcl
+          push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+          set: |
+            *.platform=linux/arm64
+            builder.tags=ghcr.io/${{ env.OWNER }}/repoexe-builder:latest
+            builder.tags=ghcr.io/${{ env.OWNER }}/repoexe-builder:${{ github.sha }}
+            tester.tags=ghcr.io/${{ env.OWNER }}/repoexe-tester:latest
+            tester.tags=ghcr.io/${{ env.OWNER }}/repoexe-tester:${{ github.sha }}

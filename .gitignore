@@ -15,7 +15,7 @@ output/
 artifacts/
 apt_staging/
 npm_staging/
-site/
+/site/
 node_modules/
 *.deb
 *.apk

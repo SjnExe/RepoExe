@@ -1,0 +1,495 @@
+name: "Build & Deploy Pipeline"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Target specs (e.g. "aisleriot bun", "all@all", "type:npm !tsc")'
+        required: false
+        type: string
+        default: 'all@all'
+      publish:
+        description: 'Publish release assets & update GitHub Pages site'
+        required: false
+        type: boolean
+        default: true
+      skip_build:
+        description: 'Skip compilation step and re-index existing releases'
+        required: false
+        type: boolean
+        default: false
+      force:
+        description: 'Force rebuild even if state_hash is unchanged'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  generate-matrix:
+    name: Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      should_publish: ${{ steps.decision.outputs.should_publish }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Purge Merged PR Caches
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🧹 Cleaning up merged PR action caches..."
+          gh api "repos/${{ github.repository }}/actions/caches?per_page=100" --jq '.actions_caches[] | select(.ref | startswith("refs/pull/")) | .id' | while read -r cache_id; do
+            if [ -n "$cache_id" ]; then
+              echo "Deleting PR cache ID: $cache_id"
+              gh api --method DELETE "repos/${{ github.repository }}/actions/caches/$cache_id" || true
+            fi
+          done
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile --silent || bun install --silent
+
+      - name: Determine Publish Decision
+        id: decision
+        run: |
+          if { [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; } && [ "${{ inputs.publish }}" != "false" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate Matrix Shards
+        id: matrix
+        env:
+          TARGET_INPUT: ${{ inputs.packages || 'auto' }}
+          FORCE_REBUILD: ${{ inputs.force }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+        run: |
+          JSON_OUT="$(bun run scripts/cli/generate_shards.ts)"
+          MATRIX="$(echo "$JSON_OUT" | jq -c '.matrix')"
+          echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
+
+  lint-audit:
+    name: Lint & Code Quality Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile --silent || bun install --silent
+
+      - name: Code Quality & Health Audit
+        run: bun run check
+
+      - name: Cache Actionlint Binary
+        uses: actions/cache@v6
+        with:
+          path: ~/.local/bin/actionlint
+          key: actionlint-v1.7.12
+
+      - name: Actionlint Workflows
+        run: |
+          if [ ! -f ~/.local/bin/actionlint ]; then
+            mkdir -p ~/.local/bin
+            curl -sL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s -- 1.7.12 ~/.local/bin
+          fi
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          ~/.local/bin/actionlint
+
+  test-suite:
+    name: Bun Unit Test Suite
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile --silent || bun install --silent
+
+      - name: Execute Test Suite
+        run: bun test
+
+  build:
+    name: "${{ matrix.package }}@${{ matrix.channel }}"
+    needs: [generate-matrix, lint-audit, test-suite]
+    if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Prepare Workspace Permissions
+        run: |
+          mkdir -p build output build_logs .sccache .gocache .gomodcache .cargoregistry .cargogit .cache
+          sudo chmod -R 777 .
+
+      - name: Verify Docker Image Freshness
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          BASE_REF="${GITHUB_BASE_REF:-main}"
+          REF_NAME="${GITHUB_REF_NAME:-}"
+          if [ "${REF_NAME%%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^.github/workflows/docker.yml'; then
+            echo "::error::Docker environment files modified in branch."
+          fi
+
+      - name: Free Disk Space
+        if: matrix.free_space
+        uses: ./.github/actions/free-space
+
+      - name: Setup Memory & Swap
+        if: matrix.zram > 0 || matrix.swap > 0
+        uses: ./.github/actions/setup-memory
+        with:
+          zram: ${{ matrix.zram }}
+          swap: ${{ matrix.swap }}
+
+      - name: Restore Toolchain & Build Caches
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            .sccache
+            .gocache
+            .gomodcache
+            .cargoregistry
+            .cargogit
+            .cache
+          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
+          restore-keys: |
+            build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-
+            build-cache-${{ matrix.build_system }}-${{ matrix.package }}-
+
+      - name: Fix Cache Permissions
+        run: |
+          mkdir -p .sccache .gocache .gomodcache .cargoregistry .cargogit .cache
+          # Prune temporary compiler object caches before committing to Actions cache
+          rm -rf .cache/zig/z /tmp/* 2>/dev/null || true
+          find .cache -name "*.tar.gz" -delete 2>/dev/null || true
+          sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit .cache 2>/dev/null || true
+
+      - name: Optimize Docker Daemon Concurrency
+        run: |
+          sudo mkdir -p /etc/docker
+          echo '{"max-concurrent-downloads": 10, "max-concurrent-uploads": 10, "features": {"buildkit": true}}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker || true
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pre-fetch Tester Container in Background
+        run: |
+          docker pull ghcr.io/sjnexe/repoexe-tester:latest >/dev/null 2>&1 &
+
+      - name: Compile Package Payload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          set -o pipefail
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
+          mkdir -p build_logs
+          echo "=== STAGE: COMPILE ===" >> "${LOG_FILE}"
+
+          docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env PYTHONUNBUFFERED="1" \
+            --env REPO_OWNER="${OWNER}" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env SCCACHE_CACHE_SIZE="1G" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+
+      - name: Profile Build Memory Peak
+        if: always()
+        run: |
+          RAM_STR="N/A"
+          SWAP_STR="N/A"
+          RSS_STR="N/A"
+          CACHE_STR="N/A"
+          CG_DIR="/sys/fs/cgroup$(awk -F: '$2=="" || $2=="{systemd}" {print $3}' /proc/self/cgroup 2>/dev/null)"
+          [ -d "$CG_DIR" ] || CG_DIR="/sys/fs/cgroup"
+          TOTAL_RAM_BYTES="$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2 * 1024}' || echo 17179869184)"
+
+          if [ -f "$CG_DIR/memory.peak" ]; then
+            BYTES="$(cat "$CG_DIR/memory.peak" 2>/dev/null || echo 0)"
+            if [ "$BYTES" -gt 0 ] 2>/dev/null; then
+              RAM_STR="$(awk -v b="$BYTES" -v t="$TOTAL_RAM_BYTES" 'BEGIN {printf "%.2f GB (%.1f%% of host)", b/1073741824, (b/t)*100}')"
+            fi
+          elif [ -f "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" ]; then
+            BYTES="$(cat "/sys/fs/cgroup/memory/memory.max_usage_in_bytes" 2>/dev/null || echo 0)"
+            if [ "$BYTES" -gt 0 ] 2>/dev/null; then
+              RAM_STR="$(awk -v b="$BYTES" -v t="$TOTAL_RAM_BYTES" 'BEGIN {printf "%.2f GB (%.1f%% of host)", b/1073741824, (b/t)*100}')"
+            fi
+          fi
+
+          if [ -f "$CG_DIR/memory.swap.peak" ]; then
+            SBYTES="$(cat "$CG_DIR/memory.swap.peak" 2>/dev/null || echo 0)"
+            if [ "$SBYTES" -gt 0 ] 2>/dev/null; then
+              SWAP_STR="$(awk -v b="$SBYTES" 'BEGIN {printf "%.2f GB (%d bytes)", b/1073741824, b}')"
+            else
+              SWAP_STR="0.00 GB (0 bytes)"
+            fi
+          fi
+
+          if [ -f "$CG_DIR/memory.stat" ]; then
+            ANON="$(grep -E '^anon ' "$CG_DIR/memory.stat" | awk '{print $2}' || echo 0)"
+            FILE_CACHE="$(grep -E '^file ' "$CG_DIR/memory.stat" | awk '{print $2}' || echo 0)"
+            [ "$ANON" -gt 0 ] 2>/dev/null && RSS_STR="$(awk -v b="$ANON" 'BEGIN {printf "%.2f GB", b/1073741824}')"
+            [ "$FILE_CACHE" -gt 0 ] 2>/dev/null && CACHE_STR="$(awk -v b="$FILE_CACHE" 'BEGIN {printf "%.2f GB", b/1073741824}')"
+          fi
+
+          {
+            echo "### 📊 Memory & Resource Telemetry (${{ matrix.package }})"
+            echo "| Metric | Consumption | Target Limit |"
+            echo "| :--- | :--- | :--- |"
+            echo "| **Peak RAM Usage** | \`${RAM_STR}\` | 16.00 GB Physical |"
+            echo "| **Peak Swap / ZRAM** | \`${SWAP_STR}\` | ${{ matrix.swap }}GB Swap / ${{ matrix.zram }}GB ZRAM |"
+            echo "| **Anonymous RSS** | \`${RSS_STR}\` | Working Set |"
+            echo "| **Page Cache / tmpfs** | \`${CACHE_STR}\` | ${{ matrix.tmpfs }}GB tmpfs Max |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Assemble Package Archives
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          set -o pipefail
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
+          echo "=== STAGE: PACK ===" >> "${LOG_FILE}"
+
+          docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env PYTHONUNBUFFERED="1" \
+            --env REPO_OWNER="${OWNER}" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env SCCACHE_CACHE_SIZE="1G" \
+            --env GOCACHE="/home/builder/.cache/go-build" \
+            --env GOMODCACHE="/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+
+      - name: Termux Docker Smoke Test
+        id: test_step
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_NAME: ${{ matrix.package }}
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          set -o pipefail
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          LOG_FILE="build_logs/${PKG_NAME}_${CHANNEL}.log"
+          echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
+
+          sudo chmod 666 /var/run/docker.sock 2>/dev/null || true
+
+          docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
+            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+            --workdir /home/builder/RepoExe \
+            --env GH_TOKEN="${GH_TOKEN}" \
+            --env PYTHONPATH="scripts" \
+            --env PYTHONUNBUFFERED="1" \
+            --env REPO_OWNER="${OWNER}" \
+            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+            --env SCCACHE_CACHE_SIZE="1G" \
+            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+            "ghcr.io/${OWNER}/repoexe-builder:latest" \
+            python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+
+      - name: Fix Cache Permissions Before Save
+        if: always()
+        run: |
+          # Prune temporary compiler object caches before committing to Actions cache
+          rm -rf .cache/zig/z /tmp/* 2>/dev/null || true
+          find .cache -name "*.tar.gz" -delete 2>/dev/null || true
+          sudo chmod -R 777 .sccache .gocache .gomodcache .cargoregistry .cargogit .cache 2>/dev/null || true
+
+      - name: Save Toolchain & Build Caches
+        uses: actions/cache/save@v6
+        if: always() && !cancelled()
+        with:
+          path: |
+            .sccache
+            .gocache
+            .gomodcache
+            .cargoregistry
+            .cargogit
+            .cache
+          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.channel }}-${{ github.sha }}
+
+      - name: Save Package Build Artifact
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: "package-artifact-${{ matrix.package }}"
+          path: output/
+          retention-days: 1
+
+      - name: Save Build Log Artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: "build-log-${{ matrix.package }}-${{ matrix.channel }}"
+          path: build_logs/
+          retention-days: 1
+
+  build-status:
+    name: Build Status & Log Aggregator
+    needs: [generate-matrix, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Download All Target Build Logs
+        uses: actions/download-artifact@v8
+        with:
+          pattern: build-log-*
+          path: all_logs
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Aggregate All Logs
+        run: |
+          mkdir -p summary
+          if [ -d "all_logs" ]; then
+            python3 scripts/utils/log_aggregator.py all_logs summary/all_build_logs.txt
+          else
+            echo "No build logs collected." > summary/all_build_logs.txt
+          fi
+
+      - name: Upload Aggregated Log Summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: aggregated-build-logs
+          path: summary/all_build_logs.txt
+          retention-days: 7
+
+  publish-site:
+    name: Deploy
+    needs: [generate-matrix, build]
+    if: always() && needs.generate-matrix.outputs.should_publish == 'true' && !cancelled()
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Download Available Build Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: package-artifact-*
+          path: artifacts
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Build Tools & GPG
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
+          bun install --frozen-lockfile --silent || bun install --silent
+
+      - name: Build Full Site & Repository Indexes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          bun run scripts/cli/index_gen.ts
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: 'site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+      - name: Prune Outdated Release Assets & Tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bun run scripts/cli/prune.ts

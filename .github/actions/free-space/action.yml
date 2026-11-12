@@ -1,0 +1,22 @@
+name: 'Free Disk Space'
+description: 'Removes unused runner SDKs and caches in parallel to free up ~25GB of disk space fast'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Purge Unused Runner Assets
+      shell: bash
+      run: |
+        echo "🧹 Freeing disk space on runner..."
+        echo "Disk space BEFORE:"
+        df -h /
+
+        sudo rm -rf /usr/share/dotnet &
+        sudo rm -rf /usr/local/lib/android &
+        sudo rm -rf /opt/ghc &
+        sudo rm -rf /opt/hostedtoolcache/CodeQL &
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY" &
+        wait
+
+        echo "Disk space AFTER:"
+        df -h /
