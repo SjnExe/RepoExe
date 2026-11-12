@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.ts text diff=typescript
+*.json text
+*.md text
+*.yml text
+*.yaml text
+*.hcl text
+bun.lock text eol=lf linguist-generated=true
