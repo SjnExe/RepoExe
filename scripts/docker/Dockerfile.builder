@@ -28,22 +28,22 @@ RUN groupadd -r systemd-journal -g 999 2>/dev/null || true \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# Install sccache for ARM64
-RUN curl -L -sS "https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/sccache-${SCCACHE_VERSION}-aarch64-unknown-linux-musl.tar.gz" | tar xz -C /tmp \
- && mv /tmp/sccache-${SCCACHE_VERSION}-aarch64-unknown-linux-musl/sccache /usr/local/bin/ \
+# Install sccache for x86_64
+RUN curl -L -sS "https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" | tar xz -C /tmp \
+ && mv /tmp/sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl/sccache /usr/local/bin/ \
  && chmod +x /usr/local/bin/sccache \
  && rm -rf /tmp/sccache*
 
-# Install HomuHomu833 Android NDK r29
+# Install Official Google Android NDK r29
 RUN mkdir -p /opt \
- && curl -L -sS -o /tmp/ndk.tar.xz "https://github.com/HomuHomu833/android-ndk-custom/releases/download/r29/android-ndk-r29-aarch64-linux-gnu.tar.xz" \
- && tar -xf /tmp/ndk.tar.xz -C /opt \
+ && curl -L -sS -o /tmp/ndk.zip "https://dl.google.com/android/repository/android-ndk-r29-linux.zip" \
+ && unzip -q /tmp/ndk.zip -d /opt \
  && mv /opt/android-ndk-r29 ${NDK} \
- && rm -f /tmp/ndk.tar.xz
+ && rm -f /tmp/ndk.zip
 
 # Install Official Go Toolchain
 RUN GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -n1) \
- && curl -fsSL "https://go.dev/dl/${GO_VERSION}.linux-arm64.tar.gz" | tar -C /usr/local -xz
+ && curl -fsSL "https://go.dev/dl/${GO_VERSION}.linux-amd64.tar.gz" | tar -C /usr/local -xz
 ENV PATH="/usr/local/go/bin:${PATH}"
 
 # Setup non-root builder user
@@ -67,13 +67,17 @@ ENV PATH="/home/builder/.local/bin:${PATH}"
 
 WORKDIR /home/builder/RepoExe
 
-# Install Rust Toolchain & targets
+# Install Rust Toolchain & cross targets
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \
- && /home/builder/.cargo/bin/rustup target add aarch64-linux-android aarch64-unknown-linux-musl aarch64-unknown-linux-gnu
+ && /home/builder/.cargo/bin/rustup target add \
+      aarch64-linux-android \
+      armv7-linux-androideabi \
+      i686-linux-android \
+      x86_64-linux-android
 ENV PATH="/home/builder/.cargo/bin:${PATH}"
 
 # Install cargo-binstall and use it to install prebuilt cargo-audit binary
-RUN curl -L -sS "https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-aarch64-unknown-linux-musl.tgz" | tar xz -C /home/builder/.cargo/bin \
+RUN curl -L -sS "https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz" | tar xz -C /home/builder/.cargo/bin \
  && chmod +x /home/builder/.cargo/bin/cargo-binstall \
  && /home/builder/.cargo/bin/cargo-binstall -y cargo-audit
 

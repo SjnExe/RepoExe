@@ -38,6 +38,6 @@ bun install --silent
 
 ## 🚀 Workflows & Runners
 
-*   All general orchestration and audit jobs (`generate-matrix`, `lint-audit`, `test-suite`, `publish-site`, `build-status`) execute on standard x86_64 runners via `ubuntu-latest`.
-*   ARM native packaging jobs in `build.yml` and Docker builder compilation in `docker.yml` run on `ubuntu-26.04-arm`.
-*   Emulation (QEMU) is heavily discouraged unless explicitly needed for legacy AMD64 fallback testing.
+*   All orchestration, compilation, and audit jobs (`generate-matrix`, `lint-audit`, `test-suite`, `build`, `publish-site`, `build-status`) execute strictly on standard x86_64 runners via `ubuntu-latest`.
+*   Builder and tester containers are compiled for `linux/amd64` using the official Google Android NDK cross-toolchain.
+*   Cross-architecture verification and smoke tests utilize QEMU user emulation (`docker/setup-qemu-action@v3`) seamlessly on the x86_64 host.

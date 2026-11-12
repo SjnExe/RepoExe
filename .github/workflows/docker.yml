@@ -18,7 +18,7 @@ on:
 jobs:
   build-docker:
     name: Build & Push Docker Images
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -46,7 +46,7 @@ jobs:
           files: docker-bake.hcl
           push: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
           set: |
-            *.platform=linux/arm64
+            *.platform=linux/amd64
             builder.tags=ghcr.io/${{ env.OWNER }}/repoexe-builder:latest
             builder.tags=ghcr.io/${{ env.OWNER }}/repoexe-builder:${{ github.sha }}
             tester.tags=ghcr.io/${{ env.OWNER }}/repoexe-tester:latest
