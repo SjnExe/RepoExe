@@ -38,5 +38,6 @@ bun install --silent
 
 ## 🚀 Workflows & Runners
 
-*   The `build.yml` matrix jobs (building cross-compiled packages) and the `publish-site` job (site deployment) use the native `ubuntu-24.04-arm` runner.
+*   All general orchestration and audit jobs (`generate-matrix`, `lint-audit`, `test-suite`, `publish-site`, `build-status`) execute on standard x86_64 runners via `ubuntu-latest`.
+*   ARM native packaging jobs in `build.yml` and Docker builder compilation in `docker.yml` run on `ubuntu-26.04-arm`.
 *   Emulation (QEMU) is heavily discouraged unless explicitly needed for legacy AMD64 fallback testing.

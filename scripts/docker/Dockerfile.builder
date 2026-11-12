@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 ARG TERMUX_NDK_VERSION=29
 ARG SCCACHE_VERSION=v0.17.0
@@ -16,7 +16,7 @@ RUN groupadd -r systemd-journal -g 999 2>/dev/null || true \
  && useradd -r -g systemd-network -u 998 -d /run/systemd -s /bin/false systemd-network 2>/dev/null || true \
  && apt-get update && apt-get install -yq --no-install-recommends ca-certificates curl gnupg \
  && (curl -fsSL --retry 5 https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null || true) \
- && echo "deb https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | tee /etc/apt/sources.list.d/llvm.list \
+ && echo "deb https://apt.llvm.org/resolute/ llvm-toolchain-resolute-21 main" | tee /etc/apt/sources.list.d/llvm.list \
  && apt-get update && apt-get install -yq --no-install-recommends \
     zstd locales apt-utils eatmydata sudo git aria2 \
     unzip patch xvfb xauth libgtk-3-dev libcairo2-dev libx11-dev libxext-dev libxrender-dev build-essential cmake ninja-build meson pkg-config gettext intltool itstool shellcheck \

@@ -128,7 +128,7 @@ jobs:
 
   test-suite:
     name: Bun Unit Test Suite
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -148,7 +148,7 @@ jobs:
     name: "${{ matrix.package }}@${{ matrix.channel }}"
     needs: [generate-matrix, lint-audit, test-suite]
     if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     strategy:
       fail-fast: false
       matrix:
@@ -445,7 +445,7 @@ jobs:
     name: Deploy
     needs: [generate-matrix, build]
     if: always() && needs.generate-matrix.outputs.should_publish == 'true' && !cancelled()
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
