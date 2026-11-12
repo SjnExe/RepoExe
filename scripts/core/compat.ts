@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 export function resolveNdkTool(toolName: string): string {
@@ -88,16 +89,17 @@ export function setupBionicCompat(): void {
     console.log("✓ Bionic compat library built and cached.");
   }
 
-  mkdirSync("/tmp", { recursive: true });
-  copyFileSync(cachedObj, "/tmp/bionic_compat.o");
-  copyFileSync(cachedLib, "/tmp/libcompat.a");
-  copyFileSync(cachedLib, "/tmp/libbionic_compat.a");
-  copyFileSync(stubSrc, "/tmp/bionic_stub.h");
-  writeFileSync("/tmp/spawn.h", '#pragma once\n#include "/tmp/bionic_stub.h"\n', "utf-8");
-  writeFileSync("/tmp/android_lf.h", "#pragma once\n#include <sys/types.h>\n", "utf-8");
+  const tempDir = process.env.TMPDIR || tmpdir();
+  mkdirSync(tempDir, { recursive: true });
+  copyFileSync(cachedObj, join(tempDir, "bionic_compat.o"));
+  copyFileSync(cachedLib, join(tempDir, "libcompat.a"));
+  copyFileSync(cachedLib, join(tempDir, "libbionic_compat.a"));
+  copyFileSync(stubSrc, join(tempDir, "bionic_stub.h"));
+  writeFileSync(join(tempDir, "spawn.h"), `#pragma once\n#include "${join(tempDir, "bionic_stub.h")}"\n`, "utf-8");
+  writeFileSync(join(tempDir, "android_lf.h"), "#pragma once\n#include <sys/types.h>\n", "utf-8");
 
-  mkdirSync("/tmp/icu-include", { recursive: true });
-  writeFileSync("/tmp/icu-include/android_lf.h", "#pragma once\n#include <sys/types.h>\n", "utf-8");
+  mkdirSync(join(tempDir, "icu-include"), { recursive: true });
+  writeFileSync(join(tempDir, "icu-include", "android_lf.h"), "#pragma once\n#include <sys/types.h>\n", "utf-8");
 
   let ndkClangxx = resolveNdkTool("aarch64-linux-android24-clang++");
   if (!ndkClangxx || !existsSync(ndkClangxx)) {
@@ -108,6 +110,7 @@ export function setupBionicCompat(): void {
     ndkStrip = resolveNdkTool("strip");
   }
 
+  const stubH = join(tempDir, "bionic_stub.h");
   const mesonCross = `[binaries]
 c = '${ndkClang}'
 cpp = '${ndkClangxx}'
@@ -116,10 +119,10 @@ strip = '${ndkStrip}'
 pkg-config = 'pkg-config'
 
 [built-in options]
-c_args = ['-I/data/data/com.termux/files/usr/include', '-I/tmp', '-include', '/tmp/bionic_stub.h', '-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1', '-fPIC']
-cpp_args = ['-I/data/data/com.termux/files/usr/include', '-I/tmp', '-include', '/tmp/bionic_stub.h', '-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1', '-fPIC']
-c_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L/tmp', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
-cpp_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L/tmp', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
+c_args = ['-I/data/data/com.termux/files/usr/include', '-I${tempDir}', '-include', '${stubH}', '-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1', '-fPIC']
+cpp_args = ['-I/data/data/com.termux/files/usr/include', '-I${tempDir}', '-include', '${stubH}', '-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1', '-fPIC']
+c_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L${tempDir}', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
+cpp_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L${tempDir}', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
 
 [properties]
 needs_exe_wrapper = true
@@ -132,5 +135,5 @@ cpu_family = 'aarch64'
 cpu = 'aarch64'
 endian = 'little'
 `;
-  writeFileSync("/tmp/meson-cross.ini", mesonCross, "utf-8");
+  writeFileSync(join(tempDir, "meson-cross.ini"), mesonCross, "utf-8");
 }
