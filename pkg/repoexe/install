@@ -1,0 +1,232 @@
+#!/bin/sh
+set -e
+
+if [ -z "$PREFIX" ] && [ -d "/data/data/com.termux/files/usr" ]; then
+  PREFIX="/data/data/com.termux/files/usr"
+fi
+PREFIX="${PREFIX:-/usr/local}"
+REPO_URL="https://sjnexe.github.io/RepoExe"
+
+# Terminal Colors
+if [ -t 1 ]; then
+  BOLD='\033[1m'
+  GREEN='\033[0;32m'
+  RED='\033[0;31m'
+  YELLOW='\033[0;33m'
+  CYAN='\033[0;36m'
+  RESET='\033[0m'
+else
+  BOLD=''
+  GREEN=''
+  RED=''
+  YELLOW=''
+  CYAN=''
+  RESET=''
+fi
+
+show_help() {
+  printf "${BOLD}RepoExe Repository Management CLI v2.0.0${RESET}\n\n"
+  printf "${BOLD}USAGE:${RESET}\n"
+  printf "  repoexe <command> [target1 target2 ...]\n\n"
+  printf "${BOLD}COMMANDS:${RESET}\n"
+  printf "  ${CYAN}status, -s${RESET}                  Check system repository integrations status\n"
+  printf "  ${CYAN}sync, -y${RESET}                    Re-sync all manager integrations from upstream\n"
+  printf "  ${CYAN}list, ls, -l${RESET}                List all available packages in RepoExe store\n"
+  printf "  ${CYAN}doctor${RESET}                      Run diagnostic health checks on repository setup\n"
+  printf "  ${CYAN}enable, -e <target...>${RESET}       Enable manager(s) (${BOLD}apt|pacman|apk|all${RESET})\n"
+  printf "  ${CYAN}disable, -d <target...>${RESET}      Disable manager(s) (${BOLD}apt|pacman|apk|all${RESET})\n"
+  printf "  ${CYAN}version, -v${RESET}                 Print CLI version\n"
+  printf "  ${CYAN}help, -h${RESET}                    Show this help menu\n"
+}
+
+check_status() {
+  printf "${BOLD}=== RepoExe System Status ===${RESET}\n"
+
+  if [ -f "$PREFIX/etc/apt/sources.list.d/repoexe.list" ]; then
+    printf "  APT Repository:      [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  APT Repository:      [${RED}DISABLED${RESET}]\n"
+  fi
+
+  if [ -f /etc/pacman.conf ] && grep -q "\[repoexe\]" /etc/pacman.conf 2>/dev/null; then
+    printf "  Pacman Repository:   [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  Pacman Repository:   [${RED}DISABLED${RESET}]\n"
+  fi
+
+  if [ -f /etc/apk/repositories ] && grep -q "RepoExe" /etc/apk/repositories 2>/dev/null; then
+    printf "  APK Repository:      [${GREEN}ENABLED${RESET}]\n"
+  else
+    printf "  APK Repository:      [${RED}DISABLED${RESET}]\n"
+  fi
+}
+
+list_packages() {
+  printf "${BOLD}Fetching available packages from RepoExe...${RESET}\n\n"
+  if command -v curl >/dev/null 2>&1; then
+    curl -sL "$REPO_URL/packages.json" | grep -E '"name"|"version"|"description"' | sed 's/[",]//g' | paste - - - 2>/dev/null || true
+  else
+    printf "${RED}curl is required to list remote packages.${RESET}\n"
+  fi
+}
+
+run_doctor() {
+  printf "${BOLD}=== RepoExe Health Doctor ===${RESET}\n"
+
+  if curl -sI "$REPO_URL/packages.json" | grep -q "200 OK"; then
+    printf "  Network Reachability: [${GREEN}OK${RESET}]\n"
+  else
+    printf "  Network Reachability: [${RED}FAILED${RESET}]\n"
+  fi
+
+  if [ -f "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc" ] || [ -f "$PREFIX/etc/apt/sources.list.d/repoexe.list" ]; then
+    printf "  APT Source Config:    [${GREEN}OK${RESET}]\n"
+  else
+    printf "  APT Source Config:    [${RED}MISSING${RESET}]\n"
+  fi
+}
+
+enable_single_manager() {
+  case "$1" in
+    apt)
+      mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
+      echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+      curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc" 2>/dev/null || true
+      printf "${GREEN}✓ Enabled APT repository.${RESET}\n"
+      ;;
+    pacman)
+      if [ -f /etc/pacman.conf ]; then
+        if ! grep -q "\[repoexe\]" /etc/pacman.conf 2>/dev/null; then
+          printf "\n[repoexe]\nSigLevel = Optional TrustAll\nServer = %s/pacman/\$arch\n" "$REPO_URL" >> /etc/pacman.conf
+        fi
+        curl -sL "$REPO_URL/repoexe.rsa.pub" -o /etc/pacman.d/repoexe.rsa.pub 2>/dev/null || true
+        printf "${GREEN}✓ Enabled Pacman repository.${RESET}\n"
+      else
+        printf "${YELLOW}! Pacman configuration /etc/pacman.conf not found.${RESET}\n"
+      fi
+      ;;
+    apk)
+      if [ -d /etc/apk ]; then
+        mkdir -p /etc/apk/keys
+        curl -sL "$REPO_URL/repoexe.rsa.pub" -o /etc/apk/keys/repoexe.rsa.pub 2>/dev/null || true
+        if ! grep -q "$REPO_URL/apk" /etc/apk/repositories 2>/dev/null; then
+          echo "$REPO_URL/apk/main" >> /etc/apk/repositories
+        fi
+        printf "${GREEN}✓ Enabled APK repository.${RESET}\n"
+      else
+        printf "${YELLOW}! APK configuration /etc/apk not found.${RESET}\n"
+      fi
+      ;;
+    all)
+      enable_single_manager apt
+      if [ -f /etc/pacman.conf ]; then enable_single_manager pacman; fi
+      if [ -d /etc/apk ]; then enable_single_manager apk; fi
+      ;;
+    *)
+      printf "${RED}Error: Unknown target '$1'. Options: apt, pacman, apk, all${RESET}\n"
+      return 1
+      ;;
+  esac
+}
+
+disable_single_manager() {
+  case "$1" in
+    apt)
+      rm -f "$PREFIX/etc/apt/sources.list.d/repoexe.list"
+      printf "${YELLOW}✓ Disabled APT repository.${RESET}\n"
+      ;;
+    pacman)
+      if [ -f /etc/pacman.conf ]; then
+        sed -i '/\[repoexe\]/,+2d' /etc/pacman.conf 2>/dev/null || true
+      fi
+      printf "${YELLOW}✓ Disabled Pacman repository.${RESET}\n"
+      ;;
+    apk)
+      if [ -f /etc/apk/repositories ]; then
+        sed -i '/RepoExe/d' /etc/apk/repositories 2>/dev/null || true
+      fi
+      printf "${YELLOW}✓ Disabled APK repository.${RESET}\n"
+      ;;
+    all)
+      disable_single_manager apt
+      disable_single_manager pacman
+      disable_single_manager apk
+      ;;
+    *)
+      printf "${RED}Error: Unknown target '$1'. Options: apt, pacman, apk, all${RESET}\n"
+      return 1
+      ;;
+  esac
+}
+
+enable_manager() {
+  for target in "$@"; do
+    if ! enable_single_manager "$target"; then
+      exit 1
+    fi
+  done
+}
+
+disable_manager() {
+  for target in "$@"; do
+    if ! disable_single_manager "$target"; then
+      exit 1
+    fi
+  done
+}
+
+# Main CLI dispatch
+case "$1" in
+  status|-s)
+    check_status
+    ;;
+  sync|-y)
+    printf "${CYAN}Syncing RepoExe environment settings...${RESET}\n"
+    enable_manager all
+    ;;
+  list|ls|-l)
+    list_packages
+    ;;
+  doctor)
+    run_doctor
+    ;;
+  enable|-e)
+    shift
+    if [ $# -eq 0 ]; then
+      printf "${RED}Usage: repoexe enable <apt|pacman|apk|all...>${RESET}\n"
+      exit 1
+    fi
+    enable_manager "$@"
+    ;;
+  disable|-d)
+    shift
+    if [ $# -eq 0 ]; then
+      printf "${RED}Usage: repoexe disable <apt|pacman|apk|all...>${RESET}\n"
+      exit 1
+    fi
+    disable_manager "$@"
+    ;;
+  version|-v|--version)
+    printf "repoexe v2.0.0\n"
+    ;;
+  help|-h|--help)
+    show_help
+    ;;
+  "")
+    if command -v apt >/dev/null 2>&1; then
+      enable_single_manager apt
+    elif command -v pacman >/dev/null 2>&1; then
+      enable_single_manager pacman
+    elif command -v apk >/dev/null 2>&1; then
+      enable_single_manager apk
+    fi
+    ;;
+  *)
+    if [ "$1" = "--all" ]; then
+      enable_manager all
+    else
+      printf "${RED}Error: Unknown command or target '$1'. Run 'repoexe help' for usage.${RESET}\n"
+      exit 1
+    fi
+    ;;
+esac
