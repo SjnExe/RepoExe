@@ -27,7 +27,7 @@ export function classifyLog(content: string): [string, string, boolean] {
     return ["❌ STATUS: TEST FAILURE", detail, true];
   }
 
-  if (hasSubcommandFailed || (!hasPackStage && hasException)) {
+  if (hasSubcommandFailed || hasException) {
     const errorSnippets: string[] = [];
     const errorKeywords = ["error:", "fatal error:", "panic:", "FAILED:", "undefined reference to"];
 

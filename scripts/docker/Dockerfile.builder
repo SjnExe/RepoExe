@@ -58,8 +58,8 @@ RUN userdel -r ubuntu || true \
 USER root
 RUN curl -fsSL https://bun.sh/install | bash \
  && mv /root/.bun/bin/bun /usr/local/bin/bun \
- && mv /root/.bun/bin/bunx /usr/local/bin/bunx \
- && chmod +x /usr/local/bin/bun /usr/local/bin/bunx
+ && ln -sf /usr/local/bin/bun /usr/local/bin/bunx \
+ && chmod +x /usr/local/bin/bun
 
 USER builder:builder
 WORKDIR /home/builder

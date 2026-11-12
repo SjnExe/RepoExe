@@ -38,9 +38,6 @@ export function getChangedPackages(repoRoot: string, dag?: DependencyGraph): Set
       "debian.ts": "apt",
       "pacman.ts": "pacman",
       "alpine.ts": "apk",
-      "debian.py": "apt",
-      "pacman.py": "pacman",
-      "alpine.py": "apk",
     };
 
     for (const f of files) {

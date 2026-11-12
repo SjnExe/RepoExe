@@ -71,7 +71,7 @@ jobs:
           bun-version: latest
 
       - name: Install Dependencies
-        run: bun install --frozen-lockfile --silent || bun install --silent
+        run: bun install --frozen-lockfile --silent
 
       - name: Determine Publish Decision
         id: decision
@@ -106,7 +106,7 @@ jobs:
           bun-version: latest
 
       - name: Install Dependencies
-        run: bun install --frozen-lockfile --silent || bun install --silent
+        run: bun install --frozen-lockfile --silent
 
       - name: Code Quality & Health Audit
         run: bun run check
@@ -139,7 +139,7 @@ jobs:
           bun-version: latest
 
       - name: Install Dependencies
-        run: bun install --frozen-lockfile --silent || bun install --silent
+        run: bun install --frozen-lockfile --silent
 
       - name: Execute Test Suite
         run: bun test
@@ -163,15 +163,6 @@ jobs:
         run: |
           mkdir -p build output build_logs .sccache .gocache .gomodcache .cargoregistry .cargogit .cache
           sudo chmod -R 777 .
-
-      - name: Verify Docker Image Freshness
-        if: github.event_name != 'workflow_dispatch'
-        run: |
-          BASE_REF="${GITHUB_BASE_REF:-main}"
-          REF_NAME="${GITHUB_REF_NAME:-}"
-          if [ "${REF_NAME%%/*}" != "refactor" ] && git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|^.github/workflows/docker.yml'; then
-            echo "::error::Docker environment files modified in branch."
-          fi
 
       - name: Free Disk Space
         if: matrix.free_space
@@ -216,6 +207,9 @@ jobs:
       - name: Set up QEMU User Emulation
         uses: docker/setup-qemu-action@v3
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4.6.0
         with:
@@ -223,9 +217,30 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pre-fetch Tester Container in Background
+      - name: Ensure Builder & Tester Images
         run: |
-          docker pull ghcr.io/sjnexe/repoexe-tester:latest >/dev/null 2>&1 &
+          set -o pipefail
+          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          BUILDER_IMAGE="ghcr.io/${OWNER}/repoexe-builder:latest"
+          TESTER_IMAGE="ghcr.io/${OWNER}/repoexe-tester:latest"
+          BASE_REF="${GITHUB_BASE_REF:-main}"
+
+          DOCKER_CHANGED=false
+          if git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|docker-bake\.hcl|\.github/workflows/docker\.yml'; then
+            DOCKER_CHANGED=true
+          fi
+
+          if [ "$DOCKER_CHANGED" = "true" ] || ! docker pull "$BUILDER_IMAGE"; then
+            echo "🔨 Building builder image locally with buildx bake..."
+            REPO_OWNER="${OWNER}" docker buildx bake --load builder
+            docker tag "ghcr.io/sjnexe/repoexe-builder:latest" "$BUILDER_IMAGE" 2>/dev/null || true
+          fi
+
+          if [ "$DOCKER_CHANGED" = "true" ] || ! docker pull "$TESTER_IMAGE"; then
+            echo "🔨 Building tester image locally with buildx bake..."
+            REPO_OWNER="${OWNER}" docker buildx bake --load tester
+            docker tag "ghcr.io/sjnexe/repoexe-tester:latest" "$TESTER_IMAGE" 2>/dev/null || true
+          fi
 
       - name: Compile Package Payload
         env:
@@ -469,7 +484,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
-          bun install --frozen-lockfile --silent || bun install --silent
+          bun install --frozen-lockfile --silent
 
       - name: Build Full Site & Repository Indexes
         env:
