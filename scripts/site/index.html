@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RepoExe Package Store</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <h1><span class="material-icons">local_shipping</span> RepoExe Store</h1>
+            <p>Custom Android & Termux Binary Repository</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="install-box">
+            <div class="install-header">
+                <h3><span class="material-icons">terminal</span> Quick Install & Configuration</h3>
+                <button id="copyBtn" class="copy-btn" title="Copy command">
+                    <span class="material-icons">content_copy</span>
+                    <span id="copyText">Copy</span>
+                </button>
+            </div>
+
+            <div class="target-selector">
+                <span class="selector-label">Select Registries to Enable:</span>
+                <div class="checkbox-group">
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="apt" checked> APT (.deb)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="pacman" checked> Pacman (.pkg)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="apk" checked> Alpine (.apk)</label>
+                </div>
+            </div>
+
+            <code id="installCmd">curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- enable all</code>
+        </section>
+
+        <section class="search-section">
+            <div class="search-bar">
+                <span class="material-icons">search</span>
+                <input type="text" id="searchInput" placeholder="Search packages (e.g. tsc, ruff, pydantic)...">
+            </div>
+            <div class="filters">
+                <button class="filter-btn active" data-format="all">All</button>
+                <button class="filter-btn" data-format="apt">APT (.deb)</button>
+                <button class="filter-btn" data-format="pacman">Pacman (.pkg)</button>
+                <button class="filter-btn" data-format="apk">Alpine (.apk)</button>
+            </div>
+        </section>
+
+        <section id="packageGrid" class="package-grid">
+            <p class="loading">Loading packages...</p>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

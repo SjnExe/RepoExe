@@ -1,0 +1,45 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0d1117; color: #c9d1d9; line-height: 1.5; padding-bottom: 2rem; }
+.container { max-width: 1000px; margin: 0 auto; padding: 0 1rem; }
+header { background: #161b22; border-bottom: 1px solid #30363d; padding: 1.5rem 0; margin-bottom: 2rem; text-align: center; }
+header h1 { color: #58a6ff; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 1.8rem; }
+header p { color: #8b949e; font-size: 0.95rem; margin-top: 0.25rem; }
+
+.install-box { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 2rem; }
+.install-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+.install-header h3 { font-size: 1rem; color: #f0f6fc; display: flex; align-items: center; gap: 0.4rem; }
+
+.target-selector { margin-bottom: 0.75rem; padding: 0.5rem 0; border-top: 1px solid #21262d; border-bottom: 1px solid #21262d; }
+.selector-label { font-size: 0.85rem; color: #8b949e; display: block; margin-bottom: 0.4rem; }
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.checkbox-label { font-size: 0.85rem; color: #c9d1d9; display: flex; align-items: center; gap: 0.35rem; cursor: pointer; user-select: none; }
+.checkbox-label input[type="checkbox"] { accent-color: #1f6feb; cursor: pointer; }
+
+.copy-btn { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 0.3rem 0.7rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; transition: all 0.2s ease; }
+.copy-btn:hover { background: #30363d; color: #f0f6fc; }
+.copy-btn.copied { background: #238636; color: #ffffff; border-color: #238636; }
+.copy-btn .material-icons { font-size: 1rem; }
+
+code { background: #0d1117; color: #7ee787; padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid #30363d; display: block; font-family: monospace; word-break: break-all; margin-top: 0.5rem; }
+
+.search-section { margin-bottom: 1.5rem; }
+.search-bar { display: flex; align-items: center; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 0.6rem 1rem; gap: 0.5rem; margin-bottom: 1rem; }
+.search-bar input { background: transparent; border: none; outline: none; color: #f0f6fc; width: 100%; font-size: 1rem; }
+.filters { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.filter-btn { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 0.4rem 0.8rem; border-radius: 20px; cursor: pointer; font-size: 0.85rem; }
+.filter-btn.active, .filter-btn:hover { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+
+.package-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; }
+.card-header { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.5rem; }
+.card-title { font-size: 1.15rem; color: #58a6ff; font-weight: 600; }
+.channels-container { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.channel-badge { background: #21262d; border: 1px solid #30363d; color: #3fb950; font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 12px; font-weight: 500; font-family: monospace; }
+.channel-name { color: #8b949e; font-weight: 400; font-family: sans-serif; }
+.card-desc { color: #8b949e; font-size: 0.875rem; margin-bottom: 1rem; flex-grow: 1; }
+.card-meta { font-size: 0.8rem; color: #8b949e; border-top: 1px solid #21262d; padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.formats-container { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.format-tag { font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #21262d; color: #8b949e; border: 1px solid #30363d; }
+.format-tag.active { background: #1f6feb; color: #ffffff; border-color: #1f6feb; }
+.arch-tag { font-size: 0.75rem; color: #8b949e; }
+.loading { grid-column: 1 / -1; text-align: center; color: #8b949e; padding: 2rem 0; }
