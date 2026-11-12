@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: 'en-US'
+tone_instructions: >
+  Termux native systems & Bun performance engineer. Be direct, concise, and technical; avoid pleasantries, corporate fluff, and filler. Prioritize Bionic libc correctness, hermetic multi-format packaging (.deb, .pkg.tar.zst, .apk), ELF dynamic symbol cleanliness, zero corporate fluff, and native Bun runtime optimizations.
+
+reviews:
+  profile: 'assertive'
+  poem: false
+  high_level_summary: false
+  high_level_summary_in_walkthrough: true
+  collapse_walkthrough: true
+  request_changes_workflow: false
+
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_pause_after_reviewed_commits: 0
+    base_branches:
+      - 'main'
+
+  pre_merge_checks:
+    title:
+      mode: 'warning'
+    description:
+      mode: 'warning'
+    docstrings:
+      mode: 'off'
+
+  path_filters:
+    - '!bun.lock'
+    - '!build/**'
+    - '!output/**'
+    - '!build_logs/**'
+    - '!.cache/**'
+    - '!*.deb'
+    - '!*.pkg.tar.zst'
+    - '!*.apk'
+
+  path_instructions:
+    - path: 'scripts/**/*.ts'
+      instructions: |
+        - Native Bun Runtime: Enforce Bun exclusivity (`bun <file>`, `bun test`). Never suggest Node.js, npm, yarn, or pnpm.
+        - Path Invariants: Termux does not have a root `/tmp`. Never hardcode `/tmp`; always use `process.env.TMPDIR || tmpdir()` from `node:os`.
+        - Named Imports: Enforce named ESM imports from `node:path`, `node:fs`, `node:child_process`.
+        - Type Safety: Enforce strict TypeScript typing and explicit return types; reject `any` in core DAG and resolver logic.
+
+    - path: 'scripts/sanitizer/**/*.ts'
+      instructions: |
+        - ELF Invariants: Ensure ELF sanitization strictly verifies DT_NEEDED libraries, strips glibc versioning tags (DT_VERNEED, DT_VERSYM), and preserves Bionic libc compatibility.
+        - Shebang Sanitization: Ensure shebang sanitizer replaces `/usr/bin/`, `/bin/sh`, and `/bin/bash` with `$PREFIX/bin/...` or `/data/data/com.termux/files/usr/bin/...`.
+
+    - path: 'scripts/builders/**/*.ts'
+      instructions: |
+        - Multi-Format Parity: Debian (.deb), Pacman (.pkg.tar.zst), and Alpine (.apk) builders must produce consistent metadata, permissions, and directory structures.
+        - Arch Mapping: Validate architecture mappings across all 4 supported architectures: `aarch64`, `arm`, `x86_64`, `i686`.
+        - Package Metadata Exclusions: Ensure source recipe metadata (`pkg.yml`, `__init__.py`) are excluded from archive roots to prevent `dpkg` read-only errors on Termux.
+
+    - path: 'pkg/**/pkg.yml'
+      instructions: |
+        - Recipe Schema: Ensure recipes conform to PackageRecipe schema with valid channels, formats (`apt`, `pacman`, `apk`), explicit resource limits (`zram`, `swap`, `tmpfs`), and reproducible phases.
+        - Native System Packages Only: Reject any Python wheels, npm packages, or non-system package recipes.
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - 'AGENTS.md'
+      - '.github/CONTRIBUTING.md'
