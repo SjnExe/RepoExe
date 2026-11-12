@@ -1,0 +1,14 @@
+# Ignore generated or artifact files
+dist/
+build/
+.venv/
+venv/
+__pycache__/
+*.deb
+*.apk
+*.pkg.tar.zst
+.build-state/
+
+# Ignore upstream backups
+backup/
+termux-packages/

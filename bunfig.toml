@@ -1,0 +1,20 @@
+# Top-level Runtime Settings
+telemetry = false
+logLevel = "warn"
+
+[install]
+minimumReleaseAge = 0
+peer = true
+linker = "isolated"
+
+[run]
+bun = true
+shell = "bun"
+noOrphans = true
+
+[test]
+smol = false
+onlyFailures = true
+isolate = false
+randomize = true
+timeout = 5000
