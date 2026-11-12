@@ -16,6 +16,7 @@ artifacts/
 apt_staging/
 npm_staging/
 site/
+node_modules/
 *.deb
 *.apk
 *.pkg.tar.zst

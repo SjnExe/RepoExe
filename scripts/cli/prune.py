@@ -45,13 +45,6 @@ def get_expected_asset_filenames(recipe: PackageRecipe) -> set[str]:
     if "apk" in formats or "alpine" in formats:
         expected.add(f"{pkg}-{version_str_apk}.apk")
 
-    if "npm" in formats:
-        expected.add(f"{pkg}-{ver}.tgz")
-
-    if "pip" in formats:
-        clean_name = pkg.replace("-", "_")
-        expected.add(f"{clean_name}-{ver}-py3-none-any.whl")
-
     return expected
 
 

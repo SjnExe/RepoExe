@@ -114,52 +114,6 @@ def fetch_github_tag(owner: str, repo: str) -> str | None:
     return None
 
 
-def fetch_pypi_version(package_name: str) -> str | None:
-    url = f"https://pypi.org/pypi/{package_name}/json"
-    with contextlib.suppress(
-        requests.RequestException, ValueError, KeyError, TypeError
-    ):
-        res = requests.get(url, timeout=10)
-        if res.status_code == 200:
-            raw_ver = res.json().get("info", {}).get("version", "")
-            parsed = extract_semver(raw_ver)
-            if parsed:
-                return str(parsed)
-    return None
-
-
-def fetch_npm_version(package_name: str, target_series: str | None = None) -> str | None:
-    """Queries NPM registry for the latest published package version matching optional series (e.g. 5.0)."""
-    if target_series:
-        url = f"https://registry.npmjs.org/{package_name}"
-        with contextlib.suppress(
-            requests.RequestException, ValueError, KeyError, TypeError
-        ):
-            res = requests.get(url, timeout=10)
-            if res.status_code == 200:
-                versions_dict = res.json().get("versions", {})
-                matching: list[Version] = []
-                for v_str in versions_dict:
-                    parsed = extract_semver(v_str)
-                    if parsed and f"{parsed.major}.{parsed.minor}" == target_series:
-                        matching.append(parsed)
-                if matching:
-                    return str(max(matching))
-        return None
-
-    url = f"https://registry.npmjs.org/{package_name}/latest"
-    with contextlib.suppress(
-        requests.RequestException, ValueError, KeyError, TypeError
-    ):
-        res = requests.get(url, timeout=10)
-        if res.status_code == 200:
-            raw_ver = res.json().get("version", "")
-            parsed = extract_semver(raw_ver)
-            if parsed:
-                return str(parsed)
-    return None
-
-
 def fetch_custom_update(recipe: Any) -> str | None:
     custom_cmd = getattr(recipe, "custom_update_cmd", None)
     if custom_cmd:
@@ -216,12 +170,6 @@ def resolve_latest_version(recipe: Any) -> str | None:
 
     elif strategy == "git_tag":
         res = fetch_git_tag(src_url)
-
-    elif strategy == "pypi":
-        res = fetch_pypi_version(recipe.name)
-
-    elif strategy == "npm":
-        res = fetch_npm_version(recipe.name, target_series=target_series)
 
     elif strategy == "crates":
         res = fetch_crates_version(recipe.name)

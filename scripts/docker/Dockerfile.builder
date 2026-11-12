@@ -19,12 +19,11 @@ RUN groupadd -r systemd-journal -g 999 2>/dev/null || true \
  && echo "deb https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | tee /etc/apt/sources.list.d/llvm.list \
  && apt-get update && apt-get install -yq --no-install-recommends \
     zstd locales apt-utils eatmydata sudo git aria2 \
-    unzip patch xvfb xauth libgtk-3-dev libcairo2-dev libx11-dev libxext-dev libxrender-dev build-essential cmake ninja-build meson pkg-config gettext intltool itstool nodejs npm shellcheck \
-    proot dpkg-dev gcc g++ clang lld llvm clang-21 lld-21 llvm-21 nasm ruby ruby-dev bison flex gperf guile-3.0 guile-3.0-dev libicu-dev python3-pip python3-yaml python3-pydantic docker.io \
+    unzip patch xvfb xauth libgtk-3-dev libcairo2-dev libx11-dev libxext-dev libxrender-dev build-essential cmake ninja-build meson pkg-config gettext intltool itstool shellcheck \
+    proot dpkg-dev gcc g++ clang lld llvm clang-21 lld-21 llvm-21 nasm ruby ruby-dev bison flex gperf guile-3.0 guile-3.0-dev libicu-dev docker.io \
     librsvg2-dev libxml2-dev libxml2-utils desktop-file-utils shared-mime-info appstream-util yelp-tools libssl-dev patchelf \
  && locale-gen en_US.UTF-8 \
  && update-locale LANG=en_US.UTF-8 \
- && npm install -g prettier@latest \
  && apt-get autoremove -y \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
@@ -55,19 +54,18 @@ RUN userdel -r ubuntu || true \
  && mkdir -p /data/data/com.termux/files/usr /data/data/com.termux/files/home \
  && chown -R builder:builder /data/data/com.termux /home/builder
 
-# Install uv & tools (Python 3.14)
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Install Bun
+USER root
+RUN curl -fsSL https://bun.sh/install | bash \
+ && mv /root/.bun/bin/bun /usr/local/bin/bun \
+ && mv /root/.bun/bin/bunx /usr/local/bin/bunx \
+ && chmod +x /usr/local/bin/bun /usr/local/bin/bunx
+
 USER builder:builder
 WORKDIR /home/builder
 ENV PATH="/home/builder/.local/bin:${PATH}"
 
-RUN uv python install 3.14 \
- && uv tool install ruff \
- && uv tool install mypy
-
 WORKDIR /home/builder/RepoExe
-
-RUN python3 -m pip install --break-system-packages --no-cache-dir pyyaml "pydantic>=2.0.0" pytest ruff maturin hatchling hatch-fancy-pypi-readme hatch-vcs
 
 # Install Rust Toolchain & targets
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \

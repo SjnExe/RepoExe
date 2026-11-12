@@ -65,20 +65,13 @@ jobs:
             fi
           done
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          python-version: "3.14"
+          bun-version: latest
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
-        with:
-          enable-cache: true
-
-      - name: Install Orchestrator Dependencies
-        run: |
-          uv pip install --system -r pyproject.toml || true
-          pip install pydantic pyyaml
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile --silent || bun install --silent
 
       - name: Determine Publish Decision
         id: decision
@@ -94,10 +87,9 @@ jobs:
         env:
           TARGET_INPUT: ${{ inputs.packages || 'auto' }}
           FORCE_REBUILD: ${{ inputs.force }}
-          PYTHONPATH: scripts
           GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
-          JSON_OUT="$(python scripts/cli/generate_shards.py)"
+          JSON_OUT="$(bun run scripts/cli/generate_shards.ts)"
           MATRIX="$(echo "$JSON_OUT" | jq -c '.matrix')"
           echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
 
@@ -108,27 +100,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          python-version: "3.14"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
-        with:
-          enable-cache: true
+          bun-version: latest
 
       - name: Install Dependencies
-        run: |
-          uv pip install --system -r pyproject.toml || true
-          pip install ruff pydantic pyyaml
+        run: bun install --frozen-lockfile --silent || bun install --silent
 
-      - name: Code Quality Audit
-        env:
-          PYTHONPATH: scripts
-        run: |
-          python scripts/cli/build.py check
-          ruff check .
+      - name: Code Quality & Health Audit
+        run: bun run check
 
       - name: Cache Actionlint Binary
         uses: actions/cache@v6
@@ -145,37 +126,27 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           ~/.local/bin/actionlint
 
-  pytest-suite:
-    name: Pytest Unit Test Suite
+  test-suite:
+    name: Bun Unit Test Suite
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          python-version: "3.14"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
-        with:
-          enable-cache: true
+          bun-version: latest
 
       - name: Install Dependencies
-        run: |
-          uv pip install --system -r pyproject.toml || true
-          pip install pytest pydantic pyyaml
+        run: bun install --frozen-lockfile --silent || bun install --silent
 
-      - name: Execute Pytest Suite
-        env:
-          PYTHONPATH: scripts
-        run: |
-          python3 -m pytest scripts/tests/
+      - name: Execute Test Suite
+        run: bun test
 
   build:
     name: "${{ matrix.package }}@${{ matrix.channel }}"
-    needs: [generate-matrix, lint-audit, pytest-suite]
+    needs: [generate-matrix, lint-audit, test-suite]
     if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
     runs-on: ubuntu-24.04-arm
     strategy:
@@ -487,29 +458,23 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          python-version: "3.14"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
-        with:
-          enable-cache: true
+          bun-version: latest
 
       - name: Install Build Tools & GPG
         run: |
           sudo apt-get update
           sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
-          pip install pydantic pyyaml
+          bun install --frozen-lockfile --silent || bun install --silent
 
       - name: Build Full Site & Repository Indexes
         env:
-          PYTHONPATH: scripts
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          python scripts/cli/index_gen.py
+          bun run scripts/cli/index_gen.ts
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v6
@@ -526,6 +491,5 @@ jobs:
       - name: Prune Outdated Release Assets & Tags
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHONPATH: scripts
         run: |
-          python scripts/cli/prune.py
+          bun run scripts/cli/prune.ts

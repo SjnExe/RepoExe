@@ -39,22 +39,6 @@ show_help() {
   printf "  ${CYAN}help, -h${RESET}                    Show this help menu\n"
 }
 
-ensure_autostart_script() {
-  if [ -d "$PREFIX/etc/profile.d" ]; then
-    cat << 'EOF' > "$PREFIX/etc/profile.d/repoexe.sh"
-# Enable RepoExe interceptor for node_modules and venv native package redirection
-if [ -f "$PREFIX/lib/librepoexe_override.so" ]; then
-  case ":${LD_PRELOAD:-}:" in
-    *:"$PREFIX/lib/librepoexe_override.so":*) ;;
-    *) export LD_PRELOAD="$PREFIX/lib/librepoexe_override.so${LD_PRELOAD:+:$LD_PRELOAD}" ;;
-  esac
-fi
-EOF
-    chmod +x "$PREFIX/etc/profile.d/repoexe.sh" 2>/dev/null || true
-  fi
-  return 0
-}
-
 check_status() {
   printf "${BOLD}=== RepoExe System Status ===${RESET}\n"
 
@@ -74,12 +58,6 @@ check_status() {
     printf "  APK Repository:      [${GREEN}ENABLED${RESET}]\n"
   else
     printf "  APK Repository:      [${RED}DISABLED${RESET}]\n"
-  fi
-
-  if [ -f "$PREFIX/lib/librepoexe_override.so" ]; then
-    printf "  Native Interceptor:  [${GREEN}INSTALLED${RESET}]\n"
-  else
-    printf "  Native Interceptor:  [${YELLOW}NOT INSTALLED${RESET}]\n"
   fi
 }
 
@@ -114,7 +92,6 @@ enable_single_manager() {
       mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
       echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
       curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc" 2>/dev/null || true
-      ensure_autostart_script
       printf "${GREEN}✓ Enabled APT repository.${RESET}\n"
       ;;
     pacman)
@@ -123,7 +100,6 @@ enable_single_manager() {
           printf "\n[repoexe]\nSigLevel = Optional TrustAll\nServer = %s/pacman/\$arch\n" "$REPO_URL" >> /etc/pacman.conf
         fi
         curl -sL "$REPO_URL/repoexe.rsa.pub" -o /etc/pacman.d/repoexe.rsa.pub 2>/dev/null || true
-        ensure_autostart_script
         printf "${GREEN}✓ Enabled Pacman repository.${RESET}\n"
       else
         printf "${YELLOW}! Pacman configuration /etc/pacman.conf not found.${RESET}\n"
@@ -136,7 +112,6 @@ enable_single_manager() {
         if ! grep -q "$REPO_URL/apk" /etc/apk/repositories 2>/dev/null; then
           echo "$REPO_URL/apk/main" >> /etc/apk/repositories
         fi
-        ensure_autostart_script
         printf "${GREEN}✓ Enabled APK repository.${RESET}\n"
       else
         printf "${YELLOW}! APK configuration /etc/apk not found.${RESET}\n"

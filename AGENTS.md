@@ -9,24 +9,23 @@ To properly interact with and test the `RepoExe` repository, execute the followi
 sudo apt-get update
 sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
 
-# Install 'uv' for fast Python dependency management
-curl -LsSf https://astral.sh/uv/install.sh | bash
-source $HOME/.cargo/env
+# Install 'bun' for high-performance TypeScript orchestration & testing
+curl -fsSL https://bun.sh/install | bash
+export PATH="$HOME/.bun/bin:$PATH"
 
 # Install actionlint for GitHub Actions validation
 bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
 sudo mv actionlint /usr/local/bin/
 
 # Sync dependencies
-uv sync
+bun install --silent
 ```
 
 ## 🧪 Testing Commands
 
-*   **Format & Lint (Ruff):** `uv run ruff check --fix scripts/`
-    *   *Warning:* Do not use `--unsafe-fixes` on `scripts/`, as it destroys dynamic imports (like `sys.path.insert`) required by the orchestrator.
-*   **Unit Tests (Pytest):** `uv run pytest scripts/tests/`
-*   **Health Checks:** `uv run scripts/cli/build.py check`
+*   **Unit Tests (Bun Test):** `bun test`
+*   **Health Checks:** `bun run check` (or `bun run scripts/cli/build.ts check`)
+*   **Generate Shards:** `bun run shards`
 *   **Actionlint:** `actionlint .github/workflows/*.yml`
 
 ## 🏗️ Architectural Constraints

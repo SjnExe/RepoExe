@@ -7,17 +7,16 @@ from cli.prune import get_expected_asset_filenames, identify_outdated_assets
 
 def test_get_expected_asset_filenames():
     recipe = MagicMock()
-    recipe.name = "ruff"
-    recipe.version = "0.16.0"
+    recipe.name = "aisleriot"
+    recipe.version = "3.22.35"
     recipe.revision = 0
-    recipe.formats = ["apt", "pacman", "apk", "pip"]
+    recipe.formats = ["apt", "pacman", "apk"]
 
     expected = get_expected_asset_filenames(recipe)
 
-    assert "ruff_0.16.0_arm64.deb" in expected
-    assert "ruff-0.16.0-1-aarch64.pkg.tar.zst" in expected
-    assert "ruff-0.16.0-r0.apk" in expected
-    assert "ruff-0.16.0-py3-none-any.whl" in expected
+    assert "aisleriot_3.22.35_arm64.deb" in expected
+    assert "aisleriot-3.22.35-1-aarch64.pkg.tar.zst" in expected
+    assert "aisleriot-3.22.35-r0.apk" in expected
     assert "metadata.json" in expected
 
 

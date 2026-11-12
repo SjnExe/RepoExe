@@ -28,19 +28,14 @@ def update_recipe(pkg: str, channel: str, new_version: str) -> None:
     old_version = str(d.get("version", ""))
     formats = d.get("formats", [])
 
-    # Automated channel creation for npm/pip ecosystem when updating 'latest' across minor/major version boundaries
+    # Automated channel creation when updating 'latest' across minor/major version boundaries
     if channel == "latest" and old_version and old_version != new_version:
         old_mm = get_major_minor(old_version)
         new_mm = get_major_minor(new_version)
 
-        # Check if package targets npm or pip ecosystem and minor/major changed
-        if (
-            (any(fmt in formats for fmt in ("npm", "pip")) or "channels" in d)
-            and old_mm
-            and new_mm
-            and old_mm != new_mm
-        ):
-            if "channels" not in d or not isinstance(d["channels"], dict):
+        # Check if package maintains version channels and minor/major changed
+        if "channels" in d and old_mm and new_mm and old_mm != new_mm:
+            if not isinstance(d["channels"], dict):
                 d["channels"] = {}
 
             # Preserve old major.minor as an explicit pinned channel if not already present

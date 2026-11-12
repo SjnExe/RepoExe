@@ -1,6 +1,15 @@
 import argparse
+import shutil
+import subprocess
 import sys
 from pathlib import Path
+
+# Forward execution to Bun/TypeScript CLI when available
+if shutil.which("bun"):
+    _ts_cli = Path(__file__).with_suffix(".ts")
+    if _ts_cli.exists():
+        _res = subprocess.run(["bun", "run", str(_ts_cli)] + sys.argv[1:])
+        sys.exit(_res.returncode)
 
 _scripts_dir = str(Path(__file__).resolve().parents[1])
 if _scripts_dir not in sys.path:

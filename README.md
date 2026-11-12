@@ -31,21 +31,24 @@ If you discover a security vulnerability within RepoExe, please refer to our Sec
 
 ## 🚀 Installation
 
-RepoExe provides native binaries for Android terminal environments across multiple package managers and ecosystems.
+RepoExe provides native system packages for Android terminal environments across multiple package managers.
 
 ### 1. Termux / APT (Default)
 ```bash
 curl -sL https://SjnExe.github.io/RepoExe/install | sh
 ```
-### 2. NPM Scope (@repoexe)
+
+### 2. Pacman (Arch Linux / Termux Pacman)
 ```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --npm
+repoexe enable pacman
 ```
-### 3. Python Wheels / Pip
+
+### 3. Alpine Linux (apk)
 ```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --pip
+repoexe enable apk
 ```
-### 4. All Package Repositories
+
+### 4. Enable All Supported Package Managers
 ```bash
 curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --all
 ``` 
