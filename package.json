@@ -11,8 +11,8 @@
     "prune": "bun run scripts/cli/prune.ts"
   },
   "dependencies": {
-    "@types/bun": "^1.4.4",
-    "yaml": "^2.9.1",
-    "zod": "^4.6.7"
+    "@types/bun": "latest",
+    "yaml": "latest",
+    "zod": "latest"
   }
 }

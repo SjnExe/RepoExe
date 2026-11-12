@@ -1,24 +1,25 @@
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
+# Dependencies & Runtime
+node_modules/
+bun-debug.log*
+
+# Build Outputs & Generated Registries
 build/
-dist/
-downloads/
-venv/
-.venv/
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-.sccache/
 output/
 artifacts/
 apt_staging/
 npm_staging/
 /site/
-node_modules/
+
+# Build Caches & Intermediate State
+.cache/
+.sccache/
+.gocache/
+.gomodcache/
+.cargoregistry/
+.cargogit/
+*.tsbuildinfo
+
+# Packaging Outputs
 *.deb
 *.apk
 *.pkg.tar.zst
-*.whl
-*.tgz

@@ -245,8 +245,6 @@ jobs:
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
-            --env PYTHONPATH="scripts" \
-            --env PYTHONUNBUFFERED="1" \
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
@@ -259,7 +257,7 @@ jobs:
             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+            bun run scripts/cli/build.ts compile "pkg/${PKG_NAME}" --channel "${CHANNEL}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Profile Build Memory Peak
         if: always()
@@ -327,8 +325,6 @@ jobs:
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
-            --env PYTHONPATH="scripts" \
-            --env PYTHONUNBUFFERED="1" \
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
@@ -341,7 +337,7 @@ jobs:
             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+            bun run scripts/cli/build.ts pack "pkg/${PKG_NAME}" --channel "${CHANNEL}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Termux Docker Smoke Test
         id: test_step
@@ -363,15 +359,13 @@ jobs:
             --volume "${{ github.workspace }}:/home/builder/RepoExe" \
             --workdir /home/builder/RepoExe \
             --env GH_TOKEN="${GH_TOKEN}" \
-            --env PYTHONPATH="scripts" \
-            --env PYTHONUNBUFFERED="1" \
             --env REPO_OWNER="${OWNER}" \
             --env GITHUB_WORKSPACE="${{ github.workspace }}" \
             --env SCCACHE_DIR="/home/builder/.cache/sccache" \
             --env SCCACHE_CACHE_SIZE="1G" \
             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            python3 scripts/cli/build.py test "pkg/${PKG_NAME}" --channel "${CHANNEL}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+            bun run scripts/cli/build.ts test "pkg/${PKG_NAME}" --channel "${CHANNEL}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Fix Cache Permissions Before Save
         if: always()
@@ -427,11 +421,16 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Aggregate All Logs
         run: |
           mkdir -p summary
           if [ -d "all_logs" ]; then
-            python3 scripts/utils/log_aggregator.py all_logs summary/all_build_logs.txt
+            bun run scripts/utils/log_aggregator.ts all_logs summary/all_build_logs.txt
           else
             echo "No build logs collected." > summary/all_build_logs.txt
           fi
