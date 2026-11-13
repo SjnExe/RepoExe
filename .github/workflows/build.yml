@@ -422,7 +422,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v7
         with:
-          name: "package-artifact-${{ matrix.package }}"
+          name: "package-artifact-${{ matrix.package }}-${{ matrix.channel }}"
           path: output/
           retention-days: 1
 

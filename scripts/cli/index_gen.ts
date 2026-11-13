@@ -10,6 +10,10 @@ export function getExactPackageArtifacts(artPath: string, pkgName: string): stri
   const matching: string[] = [];
   if (!existsSync(artPath)) return matching;
 
+  const escapedPkg = pkgName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pacmanRegex = new RegExp(`^${escapedPkg}-(?:[0-9]|v[0-9])`);
+  const apkRegex = new RegExp(`^${escapedPkg}-(?:[0-9]|v[0-9])`);
+
   const traverse = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
@@ -19,8 +23,8 @@ export function getExactPackageArtifacts(artPath: string, pkgName: string): stri
         const name = entry.name;
         if (
           (name.startsWith(`${pkgName}_`) && name.endsWith(".deb")) ||
-          (name.startsWith(`${pkgName}-`) && (name.includes(".pkg.tar.zst") || name.includes(".pkg.tar.gz"))) ||
-          (name.startsWith(`${pkgName}-`) && name.endsWith(".apk"))
+          (pacmanRegex.test(name) && (name.includes(".pkg.tar.zst") || name.includes(".pkg.tar.gz"))) ||
+          (apkRegex.test(name) && name.endsWith(".apk"))
         ) {
           matching.push(full);
         }

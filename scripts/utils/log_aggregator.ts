@@ -6,16 +6,29 @@ export function classifyLog(content: string): [string, string, boolean] {
   const hasSubcommandFailed =
     content.includes("ninja: build stopped: subcommand failed") ||
     content.includes("cgo: C compiler");
-  const hasSmokeTestFailure = content.includes("Smoke test failed for");
+  const hasSmokeTestFailure =
+    content.includes("Smoke test failed") ||
+    content.includes("Smoke test timed out") ||
+    content.includes("QEMU emulation crash") ||
+    content.includes("❌ STATUS: TEST FAILURE") ||
+    /Smoke test.*failed/i.test(content);
   const hasSmokeTestPass = content.includes("Smoke test passed") || content.includes("✓ [");
   const hasPackStage = content.includes("=== STAGE: PACK ===");
+  const hasTestStage = content.includes("=== STAGE: TEST ===");
   const hasException = content.includes("error:") || content.includes("Error:") || content.includes("fatal error:");
 
-  if (hasSmokeTestFailure) {
+  if (hasSmokeTestFailure || (hasTestStage && !hasSmokeTestPass && hasException)) {
     const failureLines: string[] = [];
     let capture = false;
     for (const line of lines) {
-      if (line.includes("Smoke test failed") || line.includes("STDERR:") || line.includes("STDOUT:")) {
+      if (
+        line.includes("Smoke test failed") ||
+        line.includes("Smoke test timed out") ||
+        line.includes("QEMU emulation crash") ||
+        line.includes("STDERR:") ||
+        line.includes("STDOUT:") ||
+        line.includes("=== STAGE: TEST ===")
+      ) {
         capture = true;
       }
       if (capture) {
@@ -54,6 +67,10 @@ export function classifyLog(content: string): [string, string, boolean] {
       detail = lines.slice(-30).join("\n");
     }
     return ["❌ STATUS: BUILD FAILURE", detail, true];
+  }
+
+  if (hasTestStage && !hasSmokeTestPass) {
+    return ["❌ STATUS: TEST FAILURE", lines.slice(-25).join("\n"), true];
   }
 
   if (hasSmokeTestPass || hasPackStage) {

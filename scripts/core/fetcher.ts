@@ -37,7 +37,7 @@ export async function checkExistingReleaseHash(
   const apiUrl = `https://api.github.com/repos/${repoSlug}/releases/tags/${tag}`;
 
   try {
-    const resp = await fetch(apiUrl, { headers: getAuthHeaders() });
+    const resp = await fetch(apiUrl, { headers: getAuthHeaders(), signal: AbortSignal.timeout(5000) });
     if (!resp.ok) return false;
     const data = (await resp.json()) as any;
 
