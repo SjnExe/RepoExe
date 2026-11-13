@@ -9,69 +9,100 @@ export function getMajorMinor(versionStr: string): string | null {
   return null;
 }
 
-export function updateRecipeContent(content: string, channel: string, newVersion: string): string {
-  const original = content;
+function findMatchingBrace(str: string, openBraceIdx: number): number {
+  let count = 0;
+  for (let i = openBraceIdx; i < str.length; i++) {
+    if (str[i] === '{') {
+      count++;
+    } else if (str[i] === '}') {
+      count--;
+      if (count === 0) return i;
+    }
+  }
+  return -1;
+}
 
+export function updateRecipeContent(content: string, channel: string, newVersion: string): string {
   if (channel === 'latest') {
     // If channels: { ... } exists, isolate top-level by excluding the channels block
-    const channelsIdx = content.indexOf('channels:');
-    if (channelsIdx !== -1) {
-      let braceCount = 0;
-      let startBrace = -1;
-      let endBrace = -1;
-      for (let i = channelsIdx; i < content.length; i++) {
-        if (content[i] === '{') {
-          if (braceCount === 0) startBrace = i;
-          braceCount++;
-        } else if (content[i] === '}') {
-          braceCount--;
-          if (braceCount === 0) {
-            endBrace = i;
-            break;
-          }
+    const channelsMatch = content.match(/\bchannels\s*:\s*\{/);
+    if (channelsMatch && channelsMatch.index !== undefined) {
+      const openBraceIdx = content.indexOf('{', channelsMatch.index);
+      const closeBraceIdx = findMatchingBrace(content, openBraceIdx);
+
+      if (openBraceIdx !== -1 && closeBraceIdx !== -1) {
+        const before = content.slice(0, channelsMatch.index);
+        const chanBlock = content.slice(channelsMatch.index, closeBraceIdx + 1);
+        const after = content.slice(closeBraceIdx + 1);
+
+        let versionUpdated = false;
+        const updateVer = (part: string) => {
+          return part.replace(/(\bversion:\s*)(['"])[^'"]+\2/, (m, p1, q) => {
+            versionUpdated = true;
+            return `${p1}${q}${newVersion}${q}`;
+          });
+        };
+        const resetRev = (part: string) => part.replace(/(\brevision:\s*)\d+/, '$10');
+
+        let newBefore = updateVer(before);
+        let newAfter = after;
+        if (!versionUpdated) {
+          newAfter = updateVer(after);
         }
-      }
 
-      if (startBrace !== -1 && endBrace !== -1) {
-        const before = content.slice(0, channelsIdx);
-        const chanBlock = content.slice(channelsIdx, endBrace + 1);
-        const after = content.slice(endBrace + 1);
+        newBefore = resetRev(newBefore);
+        newAfter = resetRev(newAfter);
 
-        let updatedBefore = before.replace(/(\bversion:\s*)(['"])[^'"]+\2/, `$1$2${newVersion}$2`);
-        updatedBefore = updatedBefore.replace(/(\brevision:\s*)\d+/, '$10');
-
-        let updatedAfter = after;
-        if (updatedBefore === before) {
-          updatedAfter = after.replace(/(\bversion:\s*)(['"])[^'"]+\2/, `$1$2${newVersion}$2`);
-          updatedAfter = updatedAfter.replace(/(\brevision:\s*)\d+/, '$10');
+        if (!versionUpdated) {
+          throw new Error(`Failed to update version to ${newVersion} for latest: version property not found.`);
         }
-        content = updatedBefore + chanBlock + updatedAfter;
-      } else {
-        content = content.replace(/(\bversion:\s*)(['"])[^'"]+\2/, `$1$2${newVersion}$2`);
-        content = content.replace(/(\brevision:\s*)\d+/, '$10');
+
+        return newBefore + chanBlock + newAfter;
       }
-    } else {
-      content = content.replace(/(\bversion:\s*)(['"])[^'"]+\2/, `$1$2${newVersion}$2`);
-      content = content.replace(/(\brevision:\s*)\d+/, '$10');
     }
-  } else {
-    // Escape regex metacharacters in channel and match key boundary
-    const escaped = channel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const channelRegex = new RegExp(`(^|\\s|["'])(${escaped})(["']?\\s*:\\s*\\{[\\s\\S]*?\\})`);
-    content = content.replace(channelRegex, (match, p1, p2, block) => {
-      let updatedBlock = block.replace(/(\bversion:\s*)(['"])[^'"]+\2/, `$1$2${newVersion}$2`);
-      updatedBlock = updatedBlock.replace(/(\brevision:\s*)\d+/, '$10');
-      return `${p1}${p2}${updatedBlock}`;
+
+    let versionUpdated = false;
+    let res = content.replace(/(\bversion:\s*)(['"])[^'"]+\2/, (m, p1, q) => {
+      versionUpdated = true;
+      return `${p1}${q}${newVersion}${q}`;
     });
-  }
+    res = res.replace(/(\brevision:\s*)\d+/, '$10');
 
-  if (content === original) {
-    throw new Error(
-      `Failed to update version to ${newVersion} for channel ${channel}: target version property not found or unchanged.`,
-    );
-  }
+    if (!versionUpdated) {
+      throw new Error(`Failed to update version to ${newVersion} for latest: version property not found.`);
+    }
+    return res;
+  } else {
+    // Locate the specific channel entry inside channels: { ... }
+    const escaped = channel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const channelKeyRegex = new RegExp(`(?:^|\\s|["'])(${escaped})(?:["']?\\s*:\\s*\\{)`);
+    const match = content.match(channelKeyRegex);
+    if (!match || match.index === undefined) {
+      throw new Error(`Channel ${channel} not found in recipe.`);
+    }
 
-  return content;
+    const openBraceIdx = content.indexOf('{', match.index);
+    const closeBraceIdx = findMatchingBrace(content, openBraceIdx);
+    if (openBraceIdx === -1 || closeBraceIdx === -1) {
+      throw new Error(`Malformed channel block for ${channel}.`);
+    }
+
+    const chanObject = content.slice(openBraceIdx, closeBraceIdx + 1);
+    let chanVersionUpdated = false;
+    let updatedChanObject = chanObject.replace(/(\bversion:\s*)(['"])[^'"]+\2/, (m, p1, q) => {
+      chanVersionUpdated = true;
+      return `${p1}${q}${newVersion}${q}`;
+    });
+    updatedChanObject = updatedChanObject.replace(/(\brevision:\s*)\d+/, '$10');
+
+    if (!chanVersionUpdated) {
+      throw new Error(
+        `Failed to update version to ${newVersion} for channel ${channel}: version property not found inside channel.`,
+      );
+    }
+
+    return content.slice(0, openBraceIdx) + updatedChanObject + content.slice(closeBraceIdx + 1);
+  }
 }
 
 export function updateRecipe(pkg: string, channel: string, newVersion: string): void {

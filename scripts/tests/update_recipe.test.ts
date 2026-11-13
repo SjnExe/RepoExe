@@ -69,6 +69,44 @@ export default defineRecipe({
     expect(updated).toMatch(/"1\.x":\s*\{[\s\S]*version:\s*"1\.0\.1",\s*revision:\s*0/);
   });
 
+  it('updates top-level version and revision independently when channels is between them', () => {
+    const original = `
+export default defineRecipe({
+  revision: 3,
+  channels: {
+    "1.x": { version: "1.0.0" }
+  },
+  version: "2.0.0",
+});
+`;
+    const updated = updateRecipeContent(original, 'latest', '2.1.0');
+    expect(updated).toMatch(/version:\s*"2\.1\.0"/);
+    expect(updated).toMatch(/revision:\s*0/);
+    expect(updated).toContain('"1.x": { version: "1.0.0" }');
+  });
+
+  it('updates channel with nested objects preceding version', () => {
+    const original = `
+export default defineRecipe({
+  version: "2.0.0",
+  channels: {
+    "1.x": {
+      phases: {
+        configure: "echo hi",
+      },
+      version: "1.0.0",
+      revision: 4,
+    },
+  },
+});
+`;
+    const updated = updateRecipeContent(original, '1.x', '1.0.1');
+    expect(updated).toContain('version: "2.0.0"');
+    expect(updated).toContain('configure: "echo hi"');
+    expect(updated).toMatch(/version:\s*"1\.0\.1"/);
+    expect(updated).toMatch(/revision:\s*0/);
+  });
+
   it('throws when target version cannot be found or unchanged', () => {
     const original = `export default defineRecipe({ name: "foo" });`;
     expect(() => updateRecipeContent(original, 'latest', '1.0.0')).toThrow();
