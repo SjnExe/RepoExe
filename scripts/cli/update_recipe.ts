@@ -9,12 +9,90 @@ export function getMajorMinor(versionStr: string): string | null {
   return null;
 }
 
-function findMatchingBrace(str: string, openBraceIdx: number): number {
+export function findMatchingBrace(str: string, openBraceIdx: number): number {
   let count = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inTemplate = false;
+  const templateBraceStack: number[] = [];
+  let inLineComment = false;
+  let inBlockComment = false;
+
   for (let i = openBraceIdx; i < str.length; i++) {
-    if (str[i] === '{') {
+    const char = str[i];
+    const prev = i > 0 ? str[i - 1] : '';
+
+    if (inLineComment) {
+      if (char === '\n') inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      if (char === '/' && prev === '*') inBlockComment = false;
+      continue;
+    }
+    if (inSingleQuote) {
+      if (char === "'" && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) inSingleQuote = false;
+      continue;
+    }
+    if (inDoubleQuote) {
+      if (char === '"' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) inDoubleQuote = false;
+      continue;
+    }
+    if (inTemplate) {
+      if (char === '`' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) {
+        inTemplate = false;
+        continue;
+      }
+      if (char === '$' && i + 1 < str.length && str[i + 1] === '{') {
+        templateBraceStack.push(0);
+        i++;
+        continue;
+      }
+      if (templateBraceStack.length > 0) {
+        if (char === '{') {
+          templateBraceStack[templateBraceStack.length - 1]++;
+        } else if (char === '}') {
+          const top = templateBraceStack[templateBraceStack.length - 1];
+          if (top === 0) {
+            templateBraceStack.pop();
+          } else {
+            templateBraceStack[templateBraceStack.length - 1]--;
+          }
+        }
+        continue;
+      }
+      continue;
+    }
+
+    if (char === '/' && i + 1 < str.length) {
+      if (str[i + 1] === '/') {
+        inLineComment = true;
+        i++;
+        continue;
+      }
+      if (str[i + 1] === '*') {
+        inBlockComment = true;
+        i++;
+        continue;
+      }
+    }
+
+    if (char === "'") {
+      inSingleQuote = true;
+      continue;
+    }
+    if (char === '"') {
+      inDoubleQuote = true;
+      continue;
+    }
+    if (char === '`') {
+      inTemplate = true;
+      continue;
+    }
+
+    if (char === '{') {
       count++;
-    } else if (str[i] === '}') {
+    } else if (char === '}') {
       count--;
       if (count === 0) return i;
     }
@@ -22,56 +100,169 @@ function findMatchingBrace(str: string, openBraceIdx: number): number {
   return -1;
 }
 
-export function updateRecipeContent(content: string, channel: string, newVersion: string): string {
-  if (channel === 'latest') {
-    // If channels: { ... } exists, isolate top-level by excluding the channels block
-    const channelsMatch = content.match(/\bchannels\s*:\s*\{/);
-    if (channelsMatch && channelsMatch.index !== undefined) {
-      const openBraceIdx = content.indexOf('{', channelsMatch.index);
-      const closeBraceIdx = findMatchingBrace(content, openBraceIdx);
+export function updateDirectObjectProperties(
+  str: string,
+  openBraceIdx: number,
+  newVersion: string,
+  targetName: string,
+): string {
+  let count = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inTemplate = false;
+  const templateBraceStack: number[] = [];
+  let inLineComment = false;
+  let inBlockComment = false;
 
-      if (openBraceIdx !== -1 && closeBraceIdx !== -1) {
-        const before = content.slice(0, channelsMatch.index);
-        const chanBlock = content.slice(channelsMatch.index, closeBraceIdx + 1);
-        const after = content.slice(closeBraceIdx + 1);
+  interface EditRange {
+    start: number;
+    end: number;
+    replacement: string;
+  }
 
-        let versionUpdated = false;
-        const updateVer = (part: string) => {
-          return part.replace(/(\bversion:\s*)(['"])[^'"]+\2/, (m, p1, q) => {
-            versionUpdated = true;
-            return `${p1}${q}${newVersion}${q}`;
-          });
-        };
-        const resetRev = (part: string) => part.replace(/(\brevision:\s*)\d+/, '$10');
+  let versionEdit: EditRange | null = null;
+  let revisionEdit: EditRange | null = null;
 
-        let newBefore = updateVer(before);
-        let newAfter = after;
-        if (!versionUpdated) {
-          newAfter = updateVer(after);
+  for (let i = openBraceIdx; i < str.length; i++) {
+    const char = str[i];
+    const prev = i > 0 ? str[i - 1] : '';
+
+    if (inLineComment) {
+      if (char === '\n') inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      if (char === '/' && prev === '*') inBlockComment = false;
+      continue;
+    }
+    if (inSingleQuote) {
+      if (char === "'" && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) inSingleQuote = false;
+      continue;
+    }
+    if (inDoubleQuote) {
+      if (char === '"' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) inDoubleQuote = false;
+      continue;
+    }
+    if (inTemplate) {
+      if (char === '`' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) {
+        inTemplate = false;
+        continue;
+      }
+      if (char === '$' && i + 1 < str.length && str[i + 1] === '{') {
+        templateBraceStack.push(0);
+        i++;
+        continue;
+      }
+      if (templateBraceStack.length > 0) {
+        if (char === '{') {
+          templateBraceStack[templateBraceStack.length - 1]++;
+        } else if (char === '}') {
+          const top = templateBraceStack[templateBraceStack.length - 1];
+          if (top === 0) {
+            templateBraceStack.pop();
+          } else {
+            templateBraceStack[templateBraceStack.length - 1]--;
+          }
         }
+        continue;
+      }
+      continue;
+    }
 
-        newBefore = resetRev(newBefore);
-        newAfter = resetRev(newAfter);
-
-        if (!versionUpdated) {
-          throw new Error(`Failed to update version to ${newVersion} for latest: version property not found.`);
-        }
-
-        return newBefore + chanBlock + newAfter;
+    if (char === '/' && i + 1 < str.length) {
+      if (str[i + 1] === '/') {
+        inLineComment = true;
+        i++;
+        continue;
+      }
+      if (str[i + 1] === '*') {
+        inBlockComment = true;
+        i++;
+        continue;
       }
     }
 
-    let versionUpdated = false;
-    let res = content.replace(/(\bversion:\s*)(['"])[^'"]+\2/, (m, p1, q) => {
-      versionUpdated = true;
-      return `${p1}${q}${newVersion}${q}`;
-    });
-    res = res.replace(/(\brevision:\s*)\d+/, '$10');
-
-    if (!versionUpdated) {
-      throw new Error(`Failed to update version to ${newVersion} for latest: version property not found.`);
+    if (char === "'") {
+      inSingleQuote = true;
+      continue;
     }
-    return res;
+    if (char === '"') {
+      inDoubleQuote = true;
+      continue;
+    }
+    if (char === '`') {
+      inTemplate = true;
+      continue;
+    }
+
+    if (char === '{') {
+      count++;
+    } else if (char === '}') {
+      count--;
+      if (count === 0) {
+        break;
+      }
+    } else if (count === 1 && (char === 'v' || char === 'r' || char === '"' || char === "'")) {
+      const sub = str.slice(i);
+      const verMatch = sub.match(/^(?:(?:\bversion)|(?:["']version["']))\s*:\s*(['"])([^'"]*)\1/);
+      if (verMatch && verMatch.index === 0) {
+        const quote = verMatch[1];
+        const valOffset = sub.indexOf(quote);
+        const start = i + valOffset + 1;
+        const end = start + verMatch[2].length;
+        versionEdit = { start, end, replacement: newVersion };
+        i += verMatch[0].length - 1;
+        continue;
+      }
+
+      const revMatch = sub.match(/^(?:(?:\brevision)|(?:["']revision["']))\s*:\s*(\d+)/);
+      if (revMatch && revMatch.index === 0) {
+        const valStr = revMatch[1];
+        const valOffset = sub.indexOf(valStr, sub.indexOf(':'));
+        const start = i + valOffset;
+        const end = start + valStr.length;
+        revisionEdit = { start, end, replacement: '0' };
+        i += revMatch[0].length - 1;
+        continue;
+      }
+    }
+  }
+
+  if (!versionEdit) {
+    throw new Error(`Failed to update version to ${newVersion} for ${targetName}: version property not found.`);
+  }
+
+  const edits: EditRange[] = [versionEdit];
+  if (revisionEdit) {
+    edits.push(revisionEdit);
+  }
+  edits.sort((a, b) => b.start - a.start);
+
+  let res = str;
+  for (const edit of edits) {
+    res = res.slice(0, edit.start) + edit.replacement + res.slice(edit.end);
+  }
+  return res;
+}
+
+export function updateRecipeContent(content: string, channel: string, newVersion: string): string {
+  if (channel === 'latest') {
+    let rootBraceIdx = -1;
+    const defMatch = content.match(/defineRecipe\s*\(\s*\{/);
+    if (defMatch && defMatch.index !== undefined) {
+      rootBraceIdx = content.indexOf('{', defMatch.index);
+    } else {
+      const expMatch = content.match(/export\s+default\s*\{/);
+      if (expMatch && expMatch.index !== undefined) {
+        rootBraceIdx = content.indexOf('{', expMatch.index);
+      } else {
+        rootBraceIdx = content.indexOf('{');
+      }
+    }
+    if (rootBraceIdx === -1) {
+      throw new Error(`Failed to find recipe root object.`);
+    }
+    return updateDirectObjectProperties(content, rootBraceIdx, newVersion, 'latest');
   } else {
     // Locate the specific channel entry inside channels: { ... }
     const escaped = channel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -82,26 +273,11 @@ export function updateRecipeContent(content: string, channel: string, newVersion
     }
 
     const openBraceIdx = content.indexOf('{', match.index);
-    const closeBraceIdx = findMatchingBrace(content, openBraceIdx);
-    if (openBraceIdx === -1 || closeBraceIdx === -1) {
+    if (openBraceIdx === -1) {
       throw new Error(`Malformed channel block for ${channel}.`);
     }
 
-    const chanObject = content.slice(openBraceIdx, closeBraceIdx + 1);
-    let chanVersionUpdated = false;
-    let updatedChanObject = chanObject.replace(/(\bversion:\s*)(['"])[^'"]+\2/, (m, p1, q) => {
-      chanVersionUpdated = true;
-      return `${p1}${q}${newVersion}${q}`;
-    });
-    updatedChanObject = updatedChanObject.replace(/(\brevision:\s*)\d+/, '$10');
-
-    if (!chanVersionUpdated) {
-      throw new Error(
-        `Failed to update version to ${newVersion} for channel ${channel}: version property not found inside channel.`,
-      );
-    }
-
-    return content.slice(0, openBraceIdx) + updatedChanObject + content.slice(closeBraceIdx + 1);
+    return updateDirectObjectProperties(content, openBraceIdx, newVersion, `channel ${channel}`);
   }
 }
 

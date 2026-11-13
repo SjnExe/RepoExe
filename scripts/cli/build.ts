@@ -106,9 +106,14 @@ export function fetchAndPrepareSource(recipe: any, pDir: string, destdir: string
 
 export async function executePack(recipe: any, pkgDir: string, destdir: string, outputDir: string): Promise<void> {
   mkdirSync(outputDir, { recursive: true });
+  const escapedPkg = recipe.name.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+  const isTargetDeb = new RegExp(`^${escapedPkg}_[^_]+_[^_]+\\.deb$`);
+  const isTargetPacman = new RegExp(`^${escapedPkg}-[0-9].*\\.pkg\\.tar\\..+$`);
+  const isTargetApk = new RegExp(`^${escapedPkg}-[0-9].*\\.apk$`);
+
   // Clear any existing artifacts for this package to prevent stale files
   for (const f of readdirSync(outputDir)) {
-    if (f.startsWith(`${recipe.name}_`) || f.startsWith(`${recipe.name}-`)) {
+    if (isTargetDeb.test(f) || isTargetPacman.test(f) || isTargetApk.test(f)) {
       rmSync(join(outputDir, f), { force: true });
     }
   }
@@ -169,6 +174,8 @@ export function executeTest(recipe: any, destdir?: string, outputDir?: string): 
     const installCommands = [
       'set -e',
       'INSTALLED=0',
+      // Install sibling runtime dependencies matching host architecture before target install
+      `for sib in ${containerPkgDir}/*_${debArch}.deb ${containerPkgDir}/*_all.deb; do if [ -f "$sib" ] && [ "$(basename "$sib")" != "${targetDeb}" ]; then if ! dpkg -i --force-architecture --force-depends "$sib" 2>/dev/null; then TMP_S=$(mktemp -d); if dpkg-deb -x "$sib" "$TMP_S" 2>/dev/null; then if [ -d "$TMP_S/data/data/com.termux/files" ]; then cp -a "$TMP_S/data/data/com.termux/files/." /data/data/com.termux/files/ 2>/dev/null || true; fi; fi; rm -rf "$TMP_S"; fi; fi; done`,
       // If target Debian package exists, install it directly with dpkg or extract into PREFIX
       `if [ -f "${containerPkgDir}/${targetDeb}" ]; then if dpkg -i --force-architecture --force-depends "${containerPkgDir}/${targetDeb}" 2>/dev/null; then INSTALLED=1; else TMP_X=$(mktemp -d); if dpkg-deb -x "${containerPkgDir}/${targetDeb}" "$TMP_X" 2>/dev/null; then if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -a "$TMP_X/data/data/com.termux/files/." /data/data/com.termux/files/ && INSTALLED=1; fi; fi; rm -rf "$TMP_X"; fi; elif ls ${containerPkgDir}/${recipe.name}_*.deb 1>/dev/null 2>&1; then for f in ${containerPkgDir}/${recipe.name}_*.deb; do if [ -f "$f" ]; then if dpkg -i --force-architecture --force-depends "$f" 2>/dev/null; then INSTALLED=1; else TMP_X=$(mktemp -d); if dpkg-deb -x "$f" "$TMP_X" 2>/dev/null; then if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -a "$TMP_X/data/data/com.termux/files/." /data/data/com.termux/files/ && INSTALLED=1; fi; fi; rm -rf "$TMP_X"; fi; fi; done; fi`,
       // If pacman package for target is present and deb not installed, extract into /data/data/com.termux/files/
