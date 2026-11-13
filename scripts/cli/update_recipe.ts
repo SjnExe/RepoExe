@@ -185,6 +185,45 @@ function findSyntaxMatch(content: string, pattern: RegExp): number {
   return -1;
 }
 
+function skipWhitespaceAndComments(str: string, pos: number): number {
+  let i = pos;
+  while (i < str.length) {
+    if (/\s/.test(str[i])) {
+      i++;
+    } else if (str[i] === '/' && i + 1 < str.length && str[i + 1] === '/') {
+      i += 2;
+      while (i < str.length && str[i] !== '\n') {
+        i++;
+      }
+      if (i < str.length && str[i] === '\n') {
+        i++;
+      }
+    } else if (str[i] === '/' && i + 1 < str.length && str[i + 1] === '*') {
+      const end = str.indexOf('*/', i + 2);
+      if (end === -1) {
+        return str.length;
+      }
+      i = end + 2;
+    } else {
+      break;
+    }
+  }
+  return i;
+}
+
+function matchPropertyKey(str: string, pos: number, key: string): number {
+  if (str.startsWith(`"${key}"`, pos) || str.startsWith(`'${key}'`, pos)) {
+    return pos + key.length + 2;
+  }
+  if (str.startsWith(key, pos)) {
+    const nextChar = str[pos + key.length];
+    if (!nextChar || !/[a-zA-Z0-9_$]/.test(nextChar)) {
+      return pos + key.length;
+    }
+  }
+  return -1;
+}
+
 export function updateDirectObjectProperties(
   str: string,
   openBraceIdx: number,
@@ -270,31 +309,49 @@ export function updateDirectObjectProperties(
 
     // Direct property matching when count === 1 and preceded by '{' or ','
     if (count === 1 && (lastSignificantToken === '{' || lastSignificantToken === ',')) {
-      const sub = str.slice(i);
-      const verMatch = sub.match(/^(?:(?:\bversion\b)|(?:["']version["']))\s*:\s*(['"])([^'"]*)\1/);
-      if (verMatch && verMatch.index === 0) {
-        const colonOffset = sub.indexOf(':');
-        const quote = verMatch[1];
-        const valOffset = sub.indexOf(quote, colonOffset);
-        const start = i + valOffset + 1;
-        const end = start + verMatch[2].length;
-        versionEdit = { start, end, replacement: newVersion };
-        lastSignificantToken = ':';
-        i += verMatch[0].length - 1;
-        continue;
+      if (!versionEdit) {
+        const verKeyEnd = matchPropertyKey(str, i, 'version');
+        if (verKeyEnd !== -1) {
+          const colonPos = skipWhitespaceAndComments(str, verKeyEnd);
+          if (colonPos < str.length && str[colonPos] === ':') {
+            const valPos = skipWhitespaceAndComments(str, colonPos + 1);
+            if (valPos < str.length && (str[valPos] === "'" || str[valPos] === '"')) {
+              const quote = str[valPos];
+              let endVal = valPos + 1;
+              while (endVal < str.length && str[endVal] !== quote) {
+                if (str[endVal] === '\\') endVal++;
+                endVal++;
+              }
+              if (endVal < str.length && str[endVal] === quote) {
+                const start = valPos + 1;
+                const end = endVal;
+                versionEdit = { start, end, replacement: newVersion };
+                lastSignificantToken = ':';
+                i = endVal;
+                continue;
+              }
+            }
+          }
+        }
       }
 
-      const revMatch = sub.match(/^(?:(?:\brevision\b)|(?:["']revision["']))\s*:\s*(\d+)/);
-      if (revMatch && revMatch.index === 0) {
-        const colonOffset = sub.indexOf(':');
-        const valStr = revMatch[1];
-        const valOffset = sub.indexOf(valStr, colonOffset);
-        const start = i + valOffset;
-        const end = start + valStr.length;
-        revisionEdit = { start, end, replacement: '0' };
-        lastSignificantToken = ':';
-        i += revMatch[0].length - 1;
-        continue;
+      if (!revisionEdit) {
+        const revKeyEnd = matchPropertyKey(str, i, 'revision');
+        if (revKeyEnd !== -1) {
+          const colonPos = skipWhitespaceAndComments(str, revKeyEnd);
+          if (colonPos < str.length && str[colonPos] === ':') {
+            const valPos = skipWhitespaceAndComments(str, colonPos + 1);
+            const digitsMatch = str.slice(valPos).match(/^(\d+)/);
+            if (digitsMatch) {
+              const start = valPos;
+              const end = valPos + digitsMatch[1].length;
+              revisionEdit = { start, end, replacement: '0' };
+              lastSignificantToken = ':';
+              i = end - 1;
+              continue;
+            }
+          }
+        }
       }
     }
 
@@ -376,9 +433,6 @@ function findDirectObjectPropertyBrace(str: string, openBraceIdx: number, propNa
   let inBlockComment = false;
   let lastSignificantToken = '{';
 
-  const escaped = propName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const propPattern = new RegExp(`^(?:${escaped}|["']${escaped}["'])\\s*:\\s*\\{`);
-
   for (let i = openBraceIdx; i < str.length; i++) {
     const char = str[i];
     const prev = i > 0 ? str[i - 1] : '';
@@ -435,11 +489,15 @@ function findDirectObjectPropertyBrace(str: string, openBraceIdx: number, propNa
     }
 
     if (count === 1 && (lastSignificantToken === '{' || lastSignificantToken === ',')) {
-      const sub = str.slice(i);
-      const m = sub.match(propPattern);
-      if (m && m.index === 0) {
-        const braceOffset = sub.indexOf('{');
-        return i + braceOffset;
+      const keyEnd = matchPropertyKey(str, i, propName);
+      if (keyEnd !== -1) {
+        const colonPos = skipWhitespaceAndComments(str, keyEnd);
+        if (colonPos < str.length && str[colonPos] === ':') {
+          const bracePos = skipWhitespaceAndComments(str, colonPos + 1);
+          if (bracePos < str.length && str[bracePos] === '{') {
+            return bracePos;
+          }
+        }
       }
     }
 
