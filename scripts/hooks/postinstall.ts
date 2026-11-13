@@ -1,4 +1,4 @@
-import { chmodSync, existsSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 /**
@@ -44,9 +44,17 @@ export async function resolveGitDir(baseGitDir = '.git'): Promise<string> {
 export async function postinstallTask(gitDir = '.git'): Promise<boolean> {
   const targetDir = await resolveGitDir(gitDir);
   if (existsSync(`${targetDir}/HEAD`)) {
-    const hooksDir = `${targetDir}/hooks`;
+    let hooksDir = `${targetDir}/hooks`;
+    const gitConfigRes = Bun.spawnSync(['git', 'config', '--get', 'core.hooksPath']);
+    if (gitConfigRes.exitCode === 0) {
+      const configuredHooksPath = gitConfigRes.stdout.toString().trim();
+      if (configuredHooksPath) {
+        hooksDir = resolve(configuredHooksPath);
+      }
+    }
+
     if (!existsSync(hooksDir)) {
-      await Bun.write(`${hooksDir}/.keep`, '');
+      mkdirSync(hooksDir, { recursive: true });
     }
     const hookPath = `${hooksDir}/pre-commit`;
     await Bun.write(hookPath, '#!/bin/sh\nbun scripts/hooks/pre-commit.ts\n');

@@ -16,6 +16,11 @@ export default defineRecipe({
   formats: ['apt', 'pacman', 'apk'],
   build_deps: ['gtk3', 'guile', 'librsvg', 'libcanberra', 'libxml2', 'desktop-file-utils', 'shared-mime-info'],
   deps: ['gtk3', 'guile', 'librsvg', 'libcanberra', 'libxml2'],
+  resources: {
+    zram: 0,
+    swap: 0,
+    tmpfs: 12,
+  },
   phases: {
     configure: `export SCCACHE_DISABLE=1
 mkdir -p "\${PREFIX}/bin"
@@ -50,7 +55,12 @@ if command -v termux-elf-cleaner >/dev/null 2>&1; then
   termux-elf-cleaner "\${DESTDIR}\${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true
 fi
 `,
-    test: `SOL_PATH="$(find /tmp/stage "$PREFIX" -name sol -type f 2>/dev/null | head -n 1)"
+    test: `SOL_PATH="$(command -v sol || true)"
+if [ -z "$SOL_PATH" ]; then
+  if [ -x "\${PREFIX}/bin/sol" ]; then
+    SOL_PATH="\${PREFIX}/bin/sol"
+  fi
+fi
 if [ -z "$SOL_PATH" ]; then
   echo "Error: sol executable not found" >&2
   exit 1

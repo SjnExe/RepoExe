@@ -17,6 +17,8 @@ describe('upstream_check and update_recipe', () => {
     expect(compareSemver('2.0.0', '1.99.99')).toBeGreaterThan(0);
     expect(compareSemver('1.0.1', '1.0.0')).toBeGreaterThan(0);
     expect(compareSemver('1.0.0', '1.0.0-rc1')).toBeGreaterThan(0);
+    expect(compareSemver('1.0.0-preview-2', '1.0.0-preview-1')).toBeGreaterThan(0);
+    expect(compareSemver('1.0.0-rc.2', '1.0.0-rc.10')).toBeLessThan(0);
   });
 
   it('computes major.minor correctly', () => {
@@ -25,31 +27,31 @@ describe('upstream_check and update_recipe', () => {
     expect(getMajorMinor('single')).toBeNull();
   });
 
-  it('updates recipe content for latest channel', () => {
+  it('updates recipe content for latest channel with single or double quotes', () => {
     const original = `
 import { defineRecipe } from "@core/types.ts";
 
 export default defineRecipe({
   name: "foo",
-  version: "1.0.0",
+  version: '1.0.0',
   revision: 2,
   description: "test",
 });
 `;
     const updated = updateRecipeContent(original, 'latest', '1.1.0');
-    expect(updated).toContain('version: "1.1.0"');
+    expect(updated).toContain("version: '1.1.0'");
     expect(updated).toContain('revision: 0');
-    expect(updated).not.toContain('version: "1.0.0"');
+    expect(updated).not.toContain("version: '1.0.0'");
   });
 
-  it('updates recipe content for specific channel', () => {
+  it('updates recipe content for specific channel and preserves top-level revision', () => {
     const original = `
 import { defineRecipe } from "@core/types.ts";
 
 export default defineRecipe({
   name: "foo",
   version: "2.0.0",
-  revision: 0,
+  revision: 5,
   channels: {
     "1.x": {
       version: "1.0.0",
@@ -61,6 +63,14 @@ export default defineRecipe({
     const updated = updateRecipeContent(original, '1.x', '1.0.1');
     expect(updated).toContain('version: "2.0.0"');
     expect(updated).toContain('version: "1.0.1"');
-    expect(updated).toContain('revision: 0');
+    // Top-level revision should remain 5
+    expect(updated).toMatch(/version:\s*"2\.0\.0",\s*revision:\s*5/);
+    // Channel revision should be reset to 0
+    expect(updated).toMatch(/"1\.x":\s*\{[\s\S]*version:\s*"1\.0\.1",\s*revision:\s*0/);
+  });
+
+  it('throws when target version cannot be found or unchanged', () => {
+    const original = `export default defineRecipe({ name: "foo" });`;
+    expect(() => updateRecipeContent(original, 'latest', '1.0.0')).toThrow();
   });
 });
