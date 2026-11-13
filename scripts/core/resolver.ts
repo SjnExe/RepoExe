@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 
 function interpolateValues(obj: any, ctx: Record<string, string>): any {
   if (typeof obj === "string") {
@@ -72,7 +72,7 @@ export function applyChannelOverlay(recipe: any, channelName: string = "latest")
 }
 
 export function computeChannelStateHash(resolvedRecipe: Record<string, any>, pkgDir?: string): string {
-  const hashableDict = {
+  const hashableDict: Record<string, any> = {
     name: resolvedRecipe.name,
     version: resolvedRecipe.version,
     revision: resolvedRecipe.revision,
@@ -85,11 +85,29 @@ export function computeChannelStateHash(resolvedRecipe: Record<string, any>, pkg
     env: resolvedRecipe.env || {},
   };
 
+  if (pkgDir && existsSync(pkgDir) && statSync(pkgDir).isDirectory()) {
+    const parentDir = dirname(pkgDir);
+    const depVersions: Record<string, string> = {};
+    for (const dep of [...(resolvedRecipe.deps || []), ...(resolvedRecipe.build_deps || [])]) {
+      const depFile = join(parentDir, dep, "pkg.yml");
+      if (existsSync(depFile)) {
+        try {
+          const content = readFileSync(depFile, "utf-8");
+          const mVer = content.match(/version:\s*['"]?([^'"\r\n]+)/);
+          const mRev = content.match(/revision:\s*['"]?([^'"\r\n]+)/);
+          if (mVer) depVersions[dep] = `${mVer[1]}-${mRev ? mRev[1] : "0"}`;
+        } catch {}
+      }
+    }
+    if (Object.keys(depVersions).length > 0) {
+      hashableDict.dep_versions = depVersions;
+    }
+  }
+
   const hasher = createHash("sha256");
   hasher.update(JSON.stringify(hashableDict), "utf-8");
 
   if (pkgDir && existsSync(pkgDir) && statSync(pkgDir).isDirectory()) {
-    const patches = resolvedRecipe.patches || [];
     for (const patchRel of patches) {
       const patchPath = join(pkgDir, patchRel);
       if (existsSync(patchPath)) {

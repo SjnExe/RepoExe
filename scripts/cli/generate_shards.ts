@@ -53,6 +53,14 @@ export function getChangedPackages(repoRoot: string, dag?: DependencyGraph): Set
         }
       }
     }
+
+    // Include transitive downstream dependents so updating a dependency triggers rebuild & testing
+    const directChanged = Array.from(changed);
+    for (const p of directChanged) {
+      for (const dep of dag.getDependents(p)) {
+        changed.add(dep);
+      }
+    }
   }
 
   return changed;

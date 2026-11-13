@@ -28,17 +28,18 @@ export class DependencyGraph {
     }
   }
 
-  resolveBuildOrder(): string[] {
+  resolveBuildOrder(targetPackages?: string[]): string[] {
     const graph: Record<string, string[]> = {};
     const inDegree: Record<string, number> = {};
 
-    for (const p of Object.keys(this.recipes)) {
+    const allPkgs = Object.keys(this.recipes);
+    for (const p of allPkgs) {
       graph[p] = [];
       inDegree[p] = 0;
     }
 
     for (const [pkgName, recipe] of Object.entries(this.recipes)) {
-      const deps = new Set([...recipe.deps, ...recipe.build_deps]);
+      const deps = new Set([...(recipe.deps || []), ...(recipe.build_deps || [])]);
       for (const dep of deps) {
         if (this.recipes[dep]) {
           graph[dep].push(pkgName);
@@ -47,7 +48,7 @@ export class DependencyGraph {
       }
     }
 
-    const queue: string[] = Object.keys(this.recipes).filter((p) => inDegree[p] === 0);
+    const queue: string[] = allPkgs.filter((p) => inDegree[p] === 0);
     const order: string[] = [];
 
     while (queue.length > 0) {
@@ -61,10 +62,29 @@ export class DependencyGraph {
       }
     }
 
-    if (order.length !== Object.keys(this.recipes).length) {
-      return Object.keys(this.recipes);
+    const fullOrder = order.length === allPkgs.length ? order : allPkgs;
+    if (!targetPackages || targetPackages.length === 0) {
+      return fullOrder;
     }
-    return order;
+
+    const targetSet = new Set(targetPackages);
+    return fullOrder.filter((p) => targetSet.has(p));
+  }
+
+  getDependents(pkgName: string): Set<string> {
+    const dependents = new Set<string>();
+    const queue = [pkgName];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      for (const [p, recipe] of Object.entries(this.recipes)) {
+        const deps = new Set([...(recipe.deps || []), ...(recipe.build_deps || [])]);
+        if (deps.has(current) && !dependents.has(p)) {
+          dependents.add(p);
+          queue.push(p);
+        }
+      }
+    }
+    return dependents;
   }
 
   getLayers(targetPackages?: string[]): string[][] {
