@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, readdirSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { checkExistingReleaseHash } from "../core/fetcher.ts";
 import { parseRecipe } from "../core/parser.ts";
 import { auditRepositoryHealth } from "../utils/health.ts";
-import { buildDeb } from "../builders/debian.ts";
+import { buildDeb, ARCH_MAP, formatDebianFilenameVersion } from "../builders/debian.ts";
 import { buildPacman } from "../builders/pacman.ts";
 import { buildAlpine } from "../builders/alpine.ts";
 import { sanitizeStagingElfs } from "../sanitizer/elf.ts";
@@ -51,31 +51,44 @@ export function executeTest(recipe: any, destdir?: string, outputDir?: string): 
   const testCmd = recipe.phases?.test || `${recipe.name} --version || ${recipe.name} --help`;
   console.log(`Running smoke test for ${recipe.name}: ${testCmd}`);
 
-  const hasDockerSocket = existsSync("/var/run/docker.sock");
+  const localOutputDir = outputDir ? resolve(outputDir) : resolve("output");
+  const relOutputDir = relative(resolve("."), localOutputDir);
   const hostWorkspace = process.env.GITHUB_WORKSPACE || resolve(".");
-  const hostOutputDir = join(hostWorkspace, "output");
-  const localOutputDir = outputDir || resolve("output");
+  const hostOutputDir = relOutputDir.startsWith("..") ? localOutputDir : join(hostWorkspace, relOutputDir);
+
+  const hasDockerSocket = existsSync("/var/run/docker.sock");
 
   if (hasDockerSocket) {
     const owner = (process.env.REPO_OWNER || "sjnexe").toLowerCase();
-    const testerImage = process.env.TESTER_IMAGE || `ghcr.io/${owner}/repoexe-tester:latest`;
+    const rawArch = (recipe.arch || "aarch64").toLowerCase();
+    const debArch = ARCH_MAP[rawArch] || rawArch;
+    const filenameVer = formatDebianFilenameVersion(recipe);
+    const targetDeb = `${recipe.name}_${filenameVer}_${debArch}.deb`;
+    const escapedCmd = testCmd.replace(/'/g, "'\\''");
+
+    const archKey = `TESTER_IMAGE_${rawArch.toUpperCase()}`;
+    const testerImage = process.env[archKey] || process.env.TESTER_IMAGE || `ghcr.io/${owner}/repoexe-tester:latest`;
 
     // Multi-package & sibling-aware package installer with forced architecture and dependency resolution
     const installCommands = [
       "set -e",
+      "INSTALLED=0",
       // Install all available .deb packages in /tmp/repoexe-pkg with forced architecture & dependencies
-      "if ls /tmp/repoexe-pkg/*.deb 1>/dev/null 2>&1; then dpkg -i --force-architecture --force-depends /tmp/repoexe-pkg/*.deb 2>/dev/null || true; for f in /tmp/repoexe-pkg/*.deb; do [ -f \"$f\" ] && dpkg-deb -x \"$f\" / 2>/dev/null || true; done; fi",
+      "if ls /tmp/repoexe-pkg/*.deb 1>/dev/null 2>&1; then dpkg -i --force-architecture --force-depends /tmp/repoexe-pkg/*.deb 2>/dev/null || true; fi",
+      // Specifically unpack the target package matching current name, version and arch
+      `if [ -f "/tmp/repoexe-pkg/${targetDeb}" ]; then dpkg-deb -x "/tmp/repoexe-pkg/${targetDeb}" /; INSTALLED=1; elif ls /tmp/repoexe-pkg/*.deb 1>/dev/null 2>&1; then for f in /tmp/repoexe-pkg/*.deb; do if [ -f "$f" ]; then dpkg-deb -x "$f" /; INSTALLED=1; fi; done; fi`,
       // If pacman packages are present, extract them into /
-      "if ls /tmp/repoexe-pkg/*.pkg.tar.* 1>/dev/null 2>&1; then for f in /tmp/repoexe-pkg/*.pkg.tar.*; do [ -f \"$f\" ] && tar -xf \"$f\" -C / 2>/dev/null || true; done; fi",
+      "if ls /tmp/repoexe-pkg/*.pkg.tar.* 1>/dev/null 2>&1; then for f in /tmp/repoexe-pkg/*.pkg.tar.*; do if [ -f \"$f\" ]; then tar -xf \"$f\" -C /; INSTALLED=1; fi; done; fi",
       // If apk packages are present, extract them into /
-      "if ls /tmp/repoexe-pkg/*.apk 1>/dev/null 2>&1; then for f in /tmp/repoexe-pkg/*.apk; do [ -f \"$f\" ] && tar -xf \"$f\" -C / 2>/dev/null || true; done; fi",
+      "if ls /tmp/repoexe-pkg/*.apk 1>/dev/null 2>&1; then for f in /tmp/repoexe-pkg/*.apk; do if [ -f \"$f\" ]; then tar -xf \"$f\" -C /; INSTALLED=1; fi; done; fi",
+      "if [ \"$INSTALLED\" -eq 0 ]; then echo \"::error:: No package artifacts found in /tmp/repoexe-pkg to install for smoke testing!\"; exit 1; fi",
       "chmod +x ${PREFIX:-/data/data/com.termux/files/usr}/bin/* 2>/dev/null || true",
-      `timeout 120s ${testCmd}`,
+      `timeout 120s sh -c '${escapedCmd}'`,
     ];
 
     const installAndTest = installCommands.join("; ");
 
-    console.log(`Executing container smoke test via ${testerImage}...`);
+    console.log(`Executing container smoke test via ${testerImage} (${rawArch})...`);
     const dockerArgs = [
       "run",
       "--rm",
@@ -91,6 +104,8 @@ export function executeTest(recipe: any, destdir?: string, outputDir?: string): 
       "LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib",
       "-e",
       "HOME=/data/data/com.termux/files/home",
+      "-e",
+      `TARGET_ARCH=${rawArch}`,
       testerImage,
       "sh",
       "-c",
