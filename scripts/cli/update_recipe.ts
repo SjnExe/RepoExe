@@ -348,39 +348,157 @@ export function updateDirectObjectProperties(
   return res;
 }
 
-export function updateRecipeContent(content: string, channel: string, newVersion: string): string {
-  if (channel === 'latest') {
-    let rootBraceIdx = -1;
-    const defIdx = findSyntaxMatch(content, /^defineRecipe\s*\(\s*\{/);
-    if (defIdx !== -1) {
-      rootBraceIdx = content.indexOf('{', defIdx);
-    } else {
-      const expIdx = findSyntaxMatch(content, /^export\s+default\s*\{/);
-      if (expIdx !== -1) {
-        rootBraceIdx = content.indexOf('{', expIdx);
-      } else {
-        rootBraceIdx = findSyntaxMatch(content, /^\{/);
+function findExportedRecipeRoot(content: string): number {
+  const expDefaultIdx = findSyntaxMatch(content, /^export\s+default\b/);
+  if (expDefaultIdx !== -1) {
+    const afterExport = content.slice(expDefaultIdx);
+    const openBrace = findSyntaxMatch(afterExport, /^\{/);
+    if (openBrace !== -1) {
+      return expDefaultIdx + openBrace;
+    }
+  }
+
+  const defIdx = findSyntaxMatch(content, /^defineRecipe\s*\(\s*\{/);
+  if (defIdx !== -1) {
+    return content.indexOf('{', defIdx);
+  }
+
+  return findSyntaxMatch(content, /^\{/);
+}
+
+function findDirectObjectPropertyBrace(str: string, openBraceIdx: number, propName: string): number {
+  let count = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inTemplate = false;
+  const templateBraceStack: number[] = [];
+  let inLineComment = false;
+  let inBlockComment = false;
+  let lastSignificantToken = '{';
+
+  const escaped = propName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const propPattern = new RegExp(`^(?:${escaped}|["']${escaped}["'])\\s*:\\s*\\{`);
+
+  for (let i = openBraceIdx; i < str.length; i++) {
+    const char = str[i];
+    const prev = i > 0 ? str[i - 1] : '';
+
+    if (inLineComment) {
+      if (char === '\n') inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      if (char === '/' && prev === '*') inBlockComment = false;
+      continue;
+    }
+    if (inSingleQuote) {
+      if (char === "'" && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) inSingleQuote = false;
+      continue;
+    }
+    if (inDoubleQuote) {
+      if (char === '"' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) inDoubleQuote = false;
+      continue;
+    }
+    if (inTemplate) {
+      if (char === '`' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) {
+        inTemplate = false;
+        continue;
+      }
+      if (char === '$' && i + 1 < str.length && str[i + 1] === '{') {
+        templateBraceStack.push(0);
+        i++;
+        continue;
+      }
+      if (templateBraceStack.length > 0) {
+        if (char === '{') {
+          templateBraceStack[templateBraceStack.length - 1]++;
+        } else if (char === '}') {
+          const top = templateBraceStack[templateBraceStack.length - 1];
+          if (top === 0) templateBraceStack.pop();
+          else templateBraceStack[templateBraceStack.length - 1]--;
+        }
+      }
+      continue;
+    }
+
+    if (char === '/' && i + 1 < str.length) {
+      if (str[i + 1] === '/') {
+        inLineComment = true;
+        i++;
+        continue;
+      }
+      if (str[i + 1] === '*') {
+        inBlockComment = true;
+        i++;
+        continue;
       }
     }
-    if (rootBraceIdx === -1) {
-      throw new Error(`Failed to find recipe root object.`);
+
+    if (count === 1 && (lastSignificantToken === '{' || lastSignificantToken === ',')) {
+      const sub = str.slice(i);
+      const m = sub.match(propPattern);
+      if (m && m.index === 0) {
+        const braceOffset = sub.indexOf('{');
+        return i + braceOffset;
+      }
     }
-    return updateDirectObjectProperties(content, rootBraceIdx, newVersion, 'latest');
+
+    if (char === "'") {
+      inSingleQuote = true;
+      if (count === 1) lastSignificantToken = "'";
+      continue;
+    }
+    if (char === '"') {
+      inDoubleQuote = true;
+      if (count === 1) lastSignificantToken = '"';
+      continue;
+    }
+    if (char === '`') {
+      inTemplate = true;
+      if (count === 1) lastSignificantToken = '`';
+      continue;
+    }
+
+    if (char === '{') {
+      count++;
+      if (count === 1) lastSignificantToken = '{';
+    } else if (char === '}') {
+      count--;
+      if (count === 0) break;
+    } else if (count === 1) {
+      if (char === ',') {
+        lastSignificantToken = ',';
+      } else if (!/\s/.test(char)) {
+        lastSignificantToken = char;
+      }
+    }
+  }
+
+  return -1;
+}
+
+export function updateRecipeContent(content: string, channel: string, newVersion: string): string {
+  const recipeRootBraceIdx = findExportedRecipeRoot(content);
+  if (recipeRootBraceIdx === -1) {
+    throw new Error(`Failed to find recipe root object.`);
+  }
+
+  if (channel === 'latest') {
+    return updateDirectObjectProperties(content, recipeRootBraceIdx, newVersion, 'latest');
   } else {
+    // Locate the direct channels property of the exported recipe
+    const channelsBraceIdx = findDirectObjectPropertyBrace(content, recipeRootBraceIdx, 'channels');
+    if (channelsBraceIdx === -1) {
+      throw new Error(`Channels property not found in exported recipe.`);
+    }
+
     // Locate the specific channel entry inside channels: { ... }
-    const escaped = channel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const channelKeyRegex = new RegExp(`^(?:${escaped}|["']${escaped}["'])\\s*:\\s*\\{`);
-    const chanIdx = findSyntaxMatch(content, channelKeyRegex);
-    if (chanIdx === -1) {
-      throw new Error(`Channel ${channel} not found in recipe.`);
+    const chanBraceIdx = findDirectObjectPropertyBrace(content, channelsBraceIdx, channel);
+    if (chanBraceIdx === -1) {
+      throw new Error(`Channel ${channel} not found in recipe channels.`);
     }
 
-    const openBraceIdx = content.indexOf('{', chanIdx);
-    if (openBraceIdx === -1) {
-      throw new Error(`Malformed channel block for ${channel}.`);
-    }
-
-    return updateDirectObjectProperties(content, openBraceIdx, newVersion, `channel ${channel}`);
+    return updateDirectObjectProperties(content, chanBraceIdx, newVersion, `channel ${channel}`);
   }
 }
 

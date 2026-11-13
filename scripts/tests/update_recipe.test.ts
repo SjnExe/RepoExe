@@ -196,7 +196,52 @@ export default defineRecipe({
     expect(updated).toContain('revision: 0');
   });
 
-  it('throws when target version cannot be found or unchanged', () => {
+  it('updates exported recipe when preceded by helper defineRecipe objects', (): void => {
+    const original = `
+const helper = defineRecipe({
+  version: "0.0.1",
+  revision: 1,
+});
+
+export default defineRecipe({
+  version: "1.0.0",
+  revision: 3,
+});
+`;
+    const updated = updateRecipeContent(original, 'latest', '1.2.0');
+    expect(updated).toContain('version: "0.0.1"');
+    expect(updated).toContain('revision: 1');
+    expect(updated).toContain('version: "1.2.0"');
+    expect(updated).toContain('revision: 0');
+  });
+
+  it('restricts channel search to exported recipe channels property when earlier objects have matching keys', (): void => {
+    const original = `
+const earlierConfig = {
+  "1.x": {
+    version: "0.1.0",
+    revision: 1,
+  },
+};
+
+export default defineRecipe({
+  version: "2.0.0",
+  revision: 1,
+  channels: {
+    "1.x": {
+      version: "1.0.0",
+      revision: 4,
+    },
+  },
+});
+`;
+    const updated = updateRecipeContent(original, '1.x', '1.0.1');
+    expect(updated).toContain('version: "0.1.0"');
+    expect(updated).toContain('version: "1.0.1"');
+    expect(updated).toMatch(/channels:\s*\{[\s\S]*"1\.x":\s*\{[\s\S]*version:\s*"1\.0\.1",\s*revision:\s*0/);
+  });
+
+  it('throws when target version cannot be found or unchanged', (): void => {
     const original = `export default defineRecipe({ name: "foo" });`;
     expect(() => updateRecipeContent(original, 'latest', '1.0.0')).toThrow();
   });
