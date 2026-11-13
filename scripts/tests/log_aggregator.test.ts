@@ -51,13 +51,23 @@ fatal error: runtime error
 });
 
 test("classifyLog reports success when smoke test passes", (): void => {
-  const successLog = `
+  const containerSuccessLog = `
 === STAGE: COMPILE ===
 === STAGE: PACK ===
 === STAGE: TEST ===
 ✓ Smoke test passed in container for repoexe
 `;
-  const [status, , isFail] = classifyLog(successLog);
+  const [status, , isFail] = classifyLog(containerSuccessLog);
   expect(isFail).toBeFalse();
   expect(status).toBe("✓ STATUS: SUCCESS");
+
+  const localSuccessLog = `
+=== STAGE: COMPILE ===
+=== STAGE: PACK ===
+=== STAGE: TEST ===
+✓ Smoke test passed locally for repoexe
+`;
+  const [localStatus, , localFail] = classifyLog(localSuccessLog);
+  expect(localFail).toBeFalse();
+  expect(localStatus).toBe("✓ STATUS: SUCCESS");
 });

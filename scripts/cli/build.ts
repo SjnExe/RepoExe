@@ -148,11 +148,11 @@ export function executeTest(recipe: any, destdir?: string, outputDir?: string): 
     PATH: [stageBin, ...siblingBins, process.env.PATH].filter(Boolean).join(":"),
     LD_LIBRARY_PATH: [stageLib, ...siblingLibs, process.env.LD_LIBRARY_PATH].filter(Boolean).join(":"),
   };
-  const res = spawnSync("sh", ["-c", testCmd], { stdio: "inherit", env, timeout: 60_000 });
+  const res = spawnSync("sh", ["-c", testCmd], { stdio: "inherit", env, timeout: 60_000, killSignal: "SIGKILL" });
   if (res.status !== 0) {
     throw new Error(`Smoke test failed with exit code ${res.status} for ${recipe.name}`);
   }
-  console.log(`✓ Local smoke test passed for ${recipe.name}`);
+  console.log(`✓ Smoke test passed locally for ${recipe.name}`);
 }
 
 async function main(): Promise<void> {
