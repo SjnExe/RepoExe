@@ -15,7 +15,7 @@ This universal script will automatically detect your active package manager (APT
 ## Features
 
 - **Multi-Format Support:** Natively distributes `.deb` (APT), `.pkg.tar.zst` (Pacman), and `.apk` (Alpine) packages.
-- **Standalone Build System**: Packages are defined declaratively via `pkg.yml` using a custom Python orchestrator.
+- **Standalone Build System**: Packages are defined declaratively via TypeScript recipes (`recipe.ts`) using a high-performance Bun orchestrator.
 - **Independent CI/CD Pipelines**: Automated dependency tracking, dynamic CI matrix sharding, and static Pages deployments.
 - **Hermetic Docker Environments**: Reproducible artifact generation through strictly sandboxed custom Docker builder images.
 
@@ -34,21 +34,25 @@ If you discover a security vulnerability within RepoExe, please refer to our Sec
 RepoExe provides native system packages for Android terminal environments across multiple package managers.
 
 ### 1. Termux / APT (Default)
+
 ```bash
 curl -sL https://SjnExe.github.io/RepoExe/install | sh
 ```
 
 ### 2. Pacman (Arch Linux / Termux Pacman)
+
 ```bash
 repoexe enable pacman
 ```
 
 ### 3. Alpine Linux (apk)
+
 ```bash
 repoexe enable apk
 ```
 
 ### 4. Enable All Supported Package Managers
+
 ```bash
 curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --all
-``` 
+```

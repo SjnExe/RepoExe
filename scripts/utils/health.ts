@@ -1,7 +1,7 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
-import { parseRecipe } from "../core/parser.ts";
+import { spawnSync } from 'node:child_process';
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseRecipe } from '../core/parser.ts';
 
 export interface HealthReport {
   total_packages: number;
@@ -16,7 +16,7 @@ export function auditRepositoryHealth(packagesDir: string): HealthReport {
   const invalidPackages: Array<{ package: string; error: string }> = [];
   const buildSystems: Record<string, number> = {};
 
-  const shellBin = spawnSync("which", ["bash"]).status === 0 ? "bash" : "sh";
+  const shellBin = spawnSync('which', ['bash']).status === 0 ? 'bash' : 'sh';
 
   const entries = readdirSync(packagesDir, { withFileTypes: true })
     .filter((e) => e.isDirectory())
@@ -25,7 +25,7 @@ export function auditRepositoryHealth(packagesDir: string): HealthReport {
 
   for (const pkgName of entries) {
     const pkgDir = join(packagesDir, pkgName);
-    const recipeFile = join(pkgDir, "pkg.yml");
+    const recipeFile = join(pkgDir, 'recipe.ts');
 
     if (existsSync(recipeFile)) {
       totalPackages++;
@@ -35,13 +35,13 @@ export function auditRepositoryHealth(packagesDir: string): HealthReport {
         // Validate shell syntax across all defined phase blocks
         if (recipe.phases) {
           for (const [phaseName, scriptText] of Object.entries(recipe.phases)) {
-            if (scriptText && typeof scriptText === "string") {
-              const res = spawnSync(shellBin, ["-n"], {
+            if (scriptText && typeof scriptText === 'string') {
+              const res = spawnSync(shellBin, ['-n'], {
                 input: scriptText,
-                encoding: "utf-8",
+                encoding: 'utf-8',
               });
               if (res.status !== 0) {
-                const err = res.stderr?.trim() || "Unknown shell syntax error";
+                const err = res.stderr?.trim() || 'Unknown shell syntax error';
                 throw new Error(`Shell syntax error in phase '${phaseName}': ${err}`);
               }
             }
@@ -49,7 +49,7 @@ export function auditRepositoryHealth(packagesDir: string): HealthReport {
         }
 
         validPackages++;
-        const bs = recipe.build_system || "custom";
+        const bs = recipe.build_system || 'custom';
         buildSystems[bs] = (buildSystems[bs] || 0) + 1;
       } catch (err: any) {
         invalidPackages.push({ package: pkgName, error: err.message || String(err) });
