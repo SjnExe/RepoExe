@@ -68,20 +68,21 @@ export function executeTest(recipe: any, destdir?: string, outputDir?: string): 
 
     const archKey = `TESTER_IMAGE_${rawArch.toUpperCase()}`;
     const testerImage = process.env[archKey] || process.env.TESTER_IMAGE || `ghcr.io/${owner}/repoexe-tester:latest`;
+    const containerPkgDir = "/data/data/com.termux/files/usr/tmp/repoexe-pkg";
 
     // Multi-package & sibling-aware package installer with forced architecture and dependency resolution
     const installCommands = [
       "set -e",
       "INSTALLED=0",
-      // Install all available .deb packages in /tmp/repoexe-pkg with forced architecture & dependencies
-      "if ls /tmp/repoexe-pkg/*.deb 1>/dev/null 2>&1; then dpkg -i --force-architecture --force-depends /tmp/repoexe-pkg/*.deb 2>/dev/null || true; fi",
+      // Install all available .deb packages in package staging dir with forced architecture & dependencies
+      `if ls ${containerPkgDir}/*.deb 1>/dev/null 2>&1; then dpkg -i --force-architecture --force-depends ${containerPkgDir}/*.deb 2>/dev/null || true; fi`,
       // Specifically unpack the target package matching current name, version and arch
-      `if [ -f "/tmp/repoexe-pkg/${targetDeb}" ]; then dpkg-deb -x "/tmp/repoexe-pkg/${targetDeb}" /; INSTALLED=1; elif ls /tmp/repoexe-pkg/*.deb 1>/dev/null 2>&1; then for f in /tmp/repoexe-pkg/*.deb; do if [ -f "$f" ]; then dpkg-deb -x "$f" /; INSTALLED=1; fi; done; fi`,
+      `if [ -f "${containerPkgDir}/${targetDeb}" ]; then dpkg-deb -x "${containerPkgDir}/${targetDeb}" /; INSTALLED=1; elif ls ${containerPkgDir}/*.deb 1>/dev/null 2>&1; then for f in ${containerPkgDir}/*.deb; do if [ -f "$f" ]; then dpkg-deb -x "$f" /; INSTALLED=1; fi; done; fi`,
       // If pacman packages are present, extract them into /
-      "if ls /tmp/repoexe-pkg/*.pkg.tar.* 1>/dev/null 2>&1; then for f in /tmp/repoexe-pkg/*.pkg.tar.*; do if [ -f \"$f\" ]; then tar -xf \"$f\" -C /; INSTALLED=1; fi; done; fi",
+      `if ls ${containerPkgDir}/*.pkg.tar.* 1>/dev/null 2>&1; then for f in ${containerPkgDir}/*.pkg.tar.*; do if [ -f "$f" ]; then tar -xf "$f" -C /; INSTALLED=1; fi; done; fi`,
       // If apk packages are present, extract them into /
-      "if ls /tmp/repoexe-pkg/*.apk 1>/dev/null 2>&1; then for f in /tmp/repoexe-pkg/*.apk; do if [ -f \"$f\" ]; then tar -xf \"$f\" -C /; INSTALLED=1; fi; done; fi",
-      "if [ \"$INSTALLED\" -eq 0 ]; then echo \"::error:: No package artifacts found in /tmp/repoexe-pkg to install for smoke testing!\"; exit 1; fi",
+      `if ls ${containerPkgDir}/*.apk 1>/dev/null 2>&1; then for f in ${containerPkgDir}/*.apk; do if [ -f "$f" ]; then tar -xf "$f" -C /; INSTALLED=1; fi; done; fi`,
+      `if [ "$INSTALLED" -eq 0 ]; then echo "::error:: No package artifacts found in ${containerPkgDir} to install for smoke testing!"; exit 1; fi`,
       "chmod +x ${PREFIX:-/data/data/com.termux/files/usr}/bin/* 2>/dev/null || true",
       `timeout 120s sh -c '${escapedCmd}'`,
     ];
@@ -93,7 +94,7 @@ export function executeTest(recipe: any, destdir?: string, outputDir?: string): 
       "run",
       "--rm",
       "--volume",
-      `${hostOutputDir}:/tmp/repoexe-pkg:ro`,
+      `${hostOutputDir}:${containerPkgDir}:ro`,
       "--workdir",
       "/data/data/com.termux/files/home",
       "-e",

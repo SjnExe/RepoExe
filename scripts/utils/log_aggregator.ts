@@ -18,25 +18,30 @@ export function classifyLog(content: string): [string, string, boolean] {
   const hasException = content.includes("error:") || content.includes("Error:") || content.includes("fatal error:");
 
   if (hasSmokeTestFailure || (hasTestStage && !hasSmokeTestPass && hasException)) {
-    const failureLines: string[] = [];
-    let capture = false;
-    for (const line of lines) {
+    const failureIndices: number[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       if (
         line.includes("Smoke test failed") ||
         line.includes("Smoke test timed out") ||
         line.includes("QEMU emulation crash") ||
         line.includes("STDERR:") ||
         line.includes("STDOUT:") ||
-        line.includes("=== STAGE: TEST ===")
+        line.includes("error:") ||
+        line.includes("Error:")
       ) {
-        capture = true;
-      }
-      if (capture) {
-        failureLines.push(line);
-        if (failureLines.length > 40) break;
+        failureIndices.push(i);
       }
     }
-    const detail = failureLines.length > 0 ? failureLines.join("\n") : lines.slice(-25).join("\n");
+    let detail = "";
+    if (failureIndices.length > 0) {
+      const firstIdx = failureIndices[0];
+      const start = Math.max(0, firstIdx - 5);
+      const end = Math.min(lines.length, start + 40);
+      detail = lines.slice(start, end).join("\n");
+    } else {
+      detail = lines.slice(-25).join("\n");
+    }
     return ["❌ STATUS: TEST FAILURE", detail, true];
   }
 

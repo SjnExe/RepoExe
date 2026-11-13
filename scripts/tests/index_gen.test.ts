@@ -4,7 +4,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-test("getExactPackageArtifacts prevents prefix collision", () => {
+test("getExactPackageArtifacts prevents prefix collision", (): void => {
   const testDir = join(tmpdir(), `repoexe-test-artifacts-${Date.now()}`);
   mkdirSync(testDir, { recursive: true });
 
