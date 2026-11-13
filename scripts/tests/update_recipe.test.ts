@@ -107,6 +107,51 @@ export default defineRecipe({
     expect(updated).toMatch(/revision:\s*0/);
   });
 
+  it('ignores nested vars.version and correctly updates top-level direct version', () => {
+    const original = `
+export default defineRecipe({
+  name: "foo",
+  vars: {
+    version: "tool",
+  },
+  version: "1.0.0",
+  revision: 3,
+});
+`;
+    const updated = updateRecipeContent(original, 'latest', '1.0.1');
+    expect(updated).toContain('version: "tool"');
+    expect(updated).toContain('version: "1.0.1"');
+    expect(updated).toContain('revision: 0');
+  });
+
+  it('ignores braces inside strings, comments, and template literals during channel matching', () => {
+    const original = `
+export default defineRecipe({
+  version: "2.0.0",
+  channels: {
+    "1.x": {
+      // comment with } and {
+      /* block comment with } */
+      phases: {
+        configure: "echo } and {",
+        build: \`echo \${"nested" + "}"} }\`,
+      },
+      vars: {
+        version: "inner",
+      },
+      version: "1.0.0",
+      revision: 4,
+    },
+  },
+});
+`;
+    const updated = updateRecipeContent(original, '1.x', '1.0.1');
+    expect(updated).toContain('version: "2.0.0"');
+    expect(updated).toContain('version: "inner"');
+    expect(updated).toContain('version: "1.0.1"');
+    expect(updated).toContain('revision: 0');
+  });
+
   it('throws when target version cannot be found or unchanged', () => {
     const original = `export default defineRecipe({ name: "foo" });`;
     expect(() => updateRecipeContent(original, 'latest', '1.0.0')).toThrow();

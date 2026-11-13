@@ -138,6 +138,24 @@ async function downloadFile(url: string, destPath: string): Promise<void> {
   writeFileSync(destPath, Buffer.from(arr));
 }
 
+function extractDebToPrefix(debPath: string, prefixRoot: string): void {
+  const extractTmp = join(tmpdir(), `deb_extract_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  rmSync(extractTmp, { recursive: true, force: true });
+  mkdirSync(extractTmp, { recursive: true });
+  spawnSync('dpkg-deb', ['-x', debPath, extractTmp]);
+
+  const extractedUsr = join(extractTmp, 'data', 'data', 'com.termux', 'files', 'usr');
+  if (existsSync(extractedUsr)) {
+    spawnSync('cp', ['-a', `${extractedUsr}/.`, `${prefixRoot}/`]);
+  } else {
+    const directUsr = join(extractTmp, 'usr');
+    if (existsSync(directUsr)) {
+      spawnSync('cp', ['-a', `${directUsr}/.`, `${prefixRoot}/`]);
+    }
+  }
+  rmSync(extractTmp, { recursive: true, force: true });
+}
+
 export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<string>): Promise<boolean> {
   const [pkgName] = parseDepSpec(dep);
   if (fetched.has(pkgName)) return true;
@@ -149,6 +167,7 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
 
   const prefixRoot = PREFIX;
   mkdirSync(prefixRoot, { recursive: true });
+  mkdirSync(destdir, { recursive: true });
   const outputDir = resolve('output');
 
   // 1. Local artifacts
@@ -163,7 +182,7 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
   const localArts = [...checkArtifacts('artifacts'), ...checkArtifacts(outputDir)];
   if (localArts.length > 0) {
     console.log(`✓ Found local artifact for dependency '${pkgName}': ${basename(localArts[0])}`);
-    spawnSync('dpkg-deb', ['-x', localArts[0], '/data/data/com.termux/files']);
+    extractDebToPrefix(localArts[0], prefixRoot);
     fetched.add(pkgName);
     return true;
   }
@@ -180,7 +199,7 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
       if (debAsset) {
         const debPath = join(destdir, debAsset.name);
         await downloadFile(debAsset.browser_download_url, debPath);
-        spawnSync('dpkg-deb', ['-x', debPath, '/data/data/com.termux/files']);
+        extractDebToPrefix(debPath, prefixRoot);
         fetched.add(pkgName);
         return true;
       }
@@ -198,17 +217,7 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
     const debDest = join(destdir, debFilename);
     console.log(`⚡ Fetching Termux upstream dependency '${pkgName}' from ${debUrl}...`);
     await downloadFile(debUrl, debDest);
-
-    const extractTmp = join(tmpdir(), 'deb_extract');
-    rmSync(extractTmp, { recursive: true, force: true });
-    mkdirSync(extractTmp, { recursive: true });
-    spawnSync('dpkg-deb', ['-x', debDest, extractTmp]);
-
-    const extractedUsr = join(extractTmp, 'data', 'data', 'com.termux', 'files', 'usr');
-    if (existsSync(extractedUsr)) {
-      spawnSync('cp', ['-a', `${extractedUsr}/.`, `${prefixRoot}/`]);
-    }
-    rmSync(extractTmp, { recursive: true, force: true });
+    extractDebToPrefix(debDest, prefixRoot);
 
     fetched.add(pkgName);
     if (pkgInfo.Package) fetched.add(pkgInfo.Package);

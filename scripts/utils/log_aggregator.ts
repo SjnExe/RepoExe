@@ -1,65 +1,68 @@
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 export function classifyLog(content: string): [string, string, boolean] {
   const lines = content.split(/\r?\n/);
   const hasSubcommandFailed =
-    content.includes("ninja: build stopped: subcommand failed") ||
-    content.includes("cgo: C compiler");
+    content.includes('ninja: build stopped: subcommand failed') || content.includes('cgo: C compiler');
   const hasSmokeTestFailure =
-    content.includes("Smoke test failed") ||
-    content.includes("Smoke test timed out") ||
-    content.includes("QEMU emulation crash") ||
-    content.includes("❌ STATUS: TEST FAILURE") ||
+    content.includes('Smoke test failed') ||
+    content.includes('Smoke test timed out') ||
+    content.includes('QEMU emulation crash') ||
+    content.includes('❌ STATUS: TEST FAILURE') ||
     /Smoke test.*failed/i.test(content);
-  const hasSmokeTestPass = content.includes("Smoke test passed") || content.includes("✓ [");
-  const hasPackStage = content.includes("=== STAGE: PACK ===");
-  const hasTestStage = content.includes("=== STAGE: TEST ===");
-  const hasException = content.includes("error:") || content.includes("Error:") || content.includes("fatal error:");
+  const hasSmokeTestPass = content.includes('Smoke test passed') || content.includes('✓ [');
+  const hasPackStage = content.includes('=== STAGE: PACK ===');
+  const hasTestStage = content.includes('=== STAGE: TEST ===');
+  const hasException = content.includes('error:') || content.includes('Error:') || content.includes('fatal error:');
 
   if (hasSmokeTestFailure || (hasTestStage && !hasSmokeTestPass && hasException)) {
     const failureIndices: number[] = [];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (
-        line.includes("Smoke test failed") ||
-        line.includes("Smoke test timed out") ||
-        line.includes("QEMU emulation crash") ||
-        line.includes("STDERR:") ||
-        line.includes("STDOUT:") ||
-        line.includes("error:") ||
-        line.includes("Error:")
+        line.includes('Smoke test failed') ||
+        line.includes('Smoke test timed out') ||
+        line.includes('QEMU emulation crash') ||
+        line.includes('STDERR:') ||
+        line.includes('STDOUT:') ||
+        line.includes('error:') ||
+        line.includes('Error:')
       ) {
         failureIndices.push(i);
       }
     }
-    let detail = "";
+    let detail = '';
     if (failureIndices.length > 0) {
       const firstIdx = failureIndices[0];
       const start = Math.max(0, firstIdx - 5);
       const end = Math.min(lines.length, start + 40);
-      detail = lines.slice(start, end).join("\n");
+      detail = lines.slice(start, end).join('\n');
     } else {
-      detail = lines.slice(-25).join("\n");
+      detail = lines.slice(-25).join('\n');
     }
-    return ["❌ STATUS: TEST FAILURE", detail, true];
+    return ['❌ STATUS: TEST FAILURE', detail, true];
+  }
+
+  if (hasSmokeTestPass && !hasSmokeTestFailure && !hasSubcommandFailed) {
+    return ['✓ STATUS: SUCCESS', '', false];
   }
 
   if (hasSubcommandFailed || hasException) {
     const errorSnippets: string[] = [];
-    const errorKeywords = ["error:", "fatal error:", "panic:", "FAILED:", "undefined reference to"];
+    const errorKeywords = ['error:', 'fatal error:', 'panic:', 'FAILED:', 'undefined reference to'];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (errorKeywords.some((kw) => line.includes(kw)) && !line.trim().startsWith("note:")) {
+      if (errorKeywords.some((kw) => line.includes(kw)) && !line.trim().startsWith('note:')) {
         const start = Math.max(0, i - 2);
         const end = Math.min(lines.length, i + 4);
         errorSnippets.push(...lines.slice(start, end));
-        errorSnippets.push("---");
+        errorSnippets.push('---');
       }
     }
 
-    let detail = "";
+    let detail = '';
     if (errorSnippets.length > 0) {
       const deduped: string[] = [];
       for (const item of errorSnippets) {
@@ -67,22 +70,22 @@ export function classifyLog(content: string): [string, string, boolean] {
           deduped.push(item);
         }
       }
-      detail = deduped.slice(0, 50).join("\n");
+      detail = deduped.slice(0, 50).join('\n');
     } else {
-      detail = lines.slice(-30).join("\n");
+      detail = lines.slice(-30).join('\n');
     }
-    return ["❌ STATUS: BUILD FAILURE", detail, true];
+    return ['❌ STATUS: BUILD FAILURE', detail, true];
   }
 
   if (hasTestStage && !hasSmokeTestPass) {
-    return ["❌ STATUS: TEST FAILURE", lines.slice(-25).join("\n"), true];
+    return ['❌ STATUS: TEST FAILURE', lines.slice(-25).join('\n'), true];
   }
 
   if (hasSmokeTestPass || hasPackStage) {
-    return ["✓ STATUS: SUCCESS", "", false];
+    return ['✓ STATUS: SUCCESS', '', false];
   }
 
-  return ["✓ STATUS: SUCCESS", "", false];
+  return ['✓ STATUS: SUCCESS', '', false];
 }
 
 function findLogFiles(dir: string): string[] {
@@ -94,7 +97,7 @@ function findLogFiles(dir: string): string[] {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
       results.push(...findLogFiles(fullPath));
-    } else if (entry.isFile() && entry.name.endsWith(".log")) {
+    } else if (entry.isFile() && entry.name.endsWith('.log')) {
       results.push(fullPath);
     }
   }
@@ -103,23 +106,27 @@ function findLogFiles(dir: string): string[] {
 
 export function generateSummary(logsDir: string, outputFile: string): boolean {
   const summary: string[] = [
-    "================================================================================",
-    "REPOEXE CI/CD BUILD & TEST SUMMARY",
-    "================================================================================",
-    "",
+    '================================================================================',
+    'REPOEXE CI/CD BUILD & TEST SUMMARY',
+    '================================================================================',
+    '',
   ];
 
   const logFiles = findLogFiles(logsDir);
   if (logFiles.length === 0) {
-    summary.push("No logs found. The matrix job likely failed completely before running any target steps.");
-    writeFileSync(outputFile, summary.join("\n"), "utf-8");
+    summary.push('No logs found. The matrix job likely failed completely before running any target steps.');
+    writeFileSync(outputFile, summary.join('\n'), 'utf-8');
     return true;
   }
 
   let hasFailures = false;
   for (const logPath of logFiles) {
-    const target = logPath.split("/").pop()?.replace(/\.log$/, "") || "unknown";
-    const content = readFileSync(logPath, "utf-8");
+    const target =
+      logPath
+        .split('/')
+        .pop()
+        ?.replace(/\.log$/, '') || 'unknown';
+    const content = readFileSync(logPath, 'utf-8');
 
     summary.push(`--- TARGET: ${target} ---`);
     const [statusStr, detail, isFail] = classifyLog(content);
@@ -132,23 +139,23 @@ export function generateSummary(logsDir: string, outputFile: string): boolean {
     if (detail) {
       summary.push(detail);
     }
-    summary.push("\n");
+    summary.push('\n');
   }
 
-  writeFileSync(outputFile, summary.join("\n"), "utf-8");
+  writeFileSync(outputFile, summary.join('\n'), 'utf-8');
   return hasFailures;
 }
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
   if (args.length !== 2) {
-    console.log("Usage: bun run log_aggregator.ts <logs_dir> <output_file>");
+    console.log('Usage: bun run log_aggregator.ts <logs_dir> <output_file>');
     process.exit(1);
   }
 
   const hasAnyFailure = generateSummary(resolve(args[0]), resolve(args[1]));
   if (hasAnyFailure) {
-    console.error("::error:: One or more build/test targets failed in CI matrix.");
+    console.error('::error:: One or more build/test targets failed in CI matrix.');
     process.exit(1);
   }
 }
