@@ -218,27 +218,40 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Ensure Builder & Tester Images
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.event.after }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -o pipefail
           OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
           BUILDER_IMAGE="ghcr.io/${OWNER}/repoexe-builder:latest"
           TESTER_IMAGE="ghcr.io/${OWNER}/repoexe-tester:latest"
-          BASE_REF="${GITHUB_BASE_REF:-main}"
+
+          DIFF_RANGE=""
+          if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${BASE_REF}" ]; then
+            DIFF_RANGE="origin/${BASE_REF}...HEAD"
+          elif [ -n "${BEFORE_SHA}" ] && [ "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]; then
+            DIFF_RANGE="${BEFORE_SHA}...${AFTER_SHA:-HEAD}"
+          else
+            DIFF_RANGE="HEAD~1...HEAD"
+          fi
 
           DOCKER_CHANGED=false
-          if git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null | grep -qE '^scripts/docker/|docker-bake\.hcl|\.github/workflows/docker\.yml'; then
+          if git diff --name-only "${DIFF_RANGE}" 2>/dev/null | grep -qE '^scripts/docker/|docker-bake\.hcl|\.github/workflows/docker\.yml'; then
             DOCKER_CHANGED=true
           fi
 
           if [ "$DOCKER_CHANGED" = "true" ] || ! docker pull "$BUILDER_IMAGE"; then
             echo "🔨 Building builder image locally with buildx bake..."
-            REPO_OWNER="${OWNER}" docker buildx bake --load builder
+            REPO_OWNER="${OWNER}" docker buildx bake --load --set *.cache-to="" builder
             docker tag "ghcr.io/sjnexe/repoexe-builder:latest" "$BUILDER_IMAGE" 2>/dev/null || true
           fi
 
           if [ "$DOCKER_CHANGED" = "true" ] || ! docker pull "$TESTER_IMAGE"; then
             echo "🔨 Building tester image locally with buildx bake..."
-            REPO_OWNER="${OWNER}" docker buildx bake --load tester
+            REPO_OWNER="${OWNER}" docker buildx bake --load --set *.cache-to="" tester
             docker tag "ghcr.io/sjnexe/repoexe-tester:latest" "$TESTER_IMAGE" 2>/dev/null || true
           fi
 
