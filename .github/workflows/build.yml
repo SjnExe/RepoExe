@@ -245,13 +245,13 @@ jobs:
 
           if [ "$DOCKER_CHANGED" = "true" ] || ! docker pull "$BUILDER_IMAGE"; then
             echo "🔨 Building builder image locally with buildx bake..."
-            REPO_OWNER="${OWNER}" docker buildx bake --load --set *.cache-to="" builder
+            REPO_OWNER="${OWNER}" docker buildx bake --load --set '*.cache-to=' builder
             docker tag "ghcr.io/sjnexe/repoexe-builder:latest" "$BUILDER_IMAGE" 2>/dev/null || true
           fi
 
           if [ "$DOCKER_CHANGED" = "true" ] || ! docker pull "$TESTER_IMAGE"; then
             echo "🔨 Building tester image locally with buildx bake..."
-            REPO_OWNER="${OWNER}" docker buildx bake --load --set *.cache-to="" tester
+            REPO_OWNER="${OWNER}" docker buildx bake --load --set '*.cache-to=' tester
             docker tag "ghcr.io/sjnexe/repoexe-tester:latest" "$TESTER_IMAGE" 2>/dev/null || true
           fi
 
