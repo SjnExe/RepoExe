@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { classifyLog } from "../utils/log_aggregator.ts";
 
-test("classifyLog detects smoke test failure correctly", () => {
+test("classifyLog detects smoke test failure correctly", (): void => {
   const logContent = `
 === STAGE: COMPILE ===
 Build complete
@@ -17,7 +17,7 @@ Error: Smoke test failed with exit code 127 for testpkg
   expect(detail).toContain("Smoke test failed");
 });
 
-test("classifyLog detects emulation timeout and qemu crash", () => {
+test("classifyLog detects emulation timeout and qemu crash", (): void => {
   const timeoutLog = `
 === STAGE: PACK ===
 === STAGE: TEST ===
@@ -37,7 +37,7 @@ Error: QEMU emulation crash (signal 139) executing aisleriot
   expect(cStatus).toBe("❌ STATUS: TEST FAILURE");
 });
 
-test("classifyLog does not mask test failures with stage pack", () => {
+test("classifyLog does not mask test failures with stage pack", (): void => {
   const logWithPackAndFailedTest = `
 === STAGE: PACK ===
 Pack success
@@ -50,7 +50,7 @@ fatal error: runtime error
   expect(status).toBe("❌ STATUS: TEST FAILURE");
 });
 
-test("classifyLog reports success when smoke test passes", () => {
+test("classifyLog reports success when smoke test passes", (): void => {
   const successLog = `
 === STAGE: COMPILE ===
 === STAGE: PACK ===
