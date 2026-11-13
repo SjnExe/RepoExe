@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { PREFIX } from '../utils/properties.ts';
 
@@ -131,6 +131,7 @@ export function parseDepSpec(depSpec: string): [string, string | null] {
 }
 
 async function downloadFile(url: string, destPath: string): Promise<void> {
+  mkdirSync(dirname(destPath), { recursive: true });
   const resp = await fetch(url, { headers: getAuthHeaders() });
   if (!resp.ok) throw new Error(`Download failed with status ${resp.status}: ${url}`);
   const arr = await resp.arrayBuffer();
