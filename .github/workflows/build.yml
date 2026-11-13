@@ -239,7 +239,9 @@ jobs:
           fi
 
           DOCKER_CHANGED=false
-          if git diff --name-only "${DIFF_RANGE}" 2>/dev/null | grep -qE '^scripts/docker/|docker-bake\.hcl|\.github/workflows/docker\.yml'; then
+          if ! CHANGED_FILES="$(git diff --name-only "${DIFF_RANGE}")"; then
+            DOCKER_CHANGED=true
+          elif printf '%s\n' "${CHANGED_FILES}" | grep -qE '^scripts/docker/|docker-bake\.hcl|\.github/workflows/docker\.yml'; then
             DOCKER_CHANGED=true
           fi
 
