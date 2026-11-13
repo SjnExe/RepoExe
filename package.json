@@ -8,7 +8,9 @@
     "build": "bun run scripts/cli/build.ts",
     "shards": "bun run scripts/cli/generate_shards.ts",
     "index": "bun run scripts/cli/index_gen.ts",
-    "prune": "bun run scripts/cli/prune.ts"
+    "prune": "bun run scripts/cli/prune.ts",
+    "pre-commit": "bun scripts/hooks/pre-commit.ts",
+    "postinstall": "bun scripts/hooks/postinstall.ts"
   },
   "dependencies": {
     "@types/bun": "latest",

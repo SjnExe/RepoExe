@@ -10,6 +10,9 @@ apt_staging/
 npm_staging/
 /site/
 
+# Agent Workspaces & Customizations
+.agents/
+
 # Build Caches & Intermediate State
 .cache/
 .sccache/

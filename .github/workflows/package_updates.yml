@@ -16,17 +16,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v7
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          enable-cache: true
+          bun-version: latest
 
-      - name: Run upstream_check.py
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile --silent
+
+      - name: Run Upstream Version Check
         id: check
-        env:
-          PYTHONPATH: scripts
         run: |
-          uv run python scripts/cli/upstream_check.py > update_log.txt 2>&1 || true
+          bun run scripts/cli/upstream_check.ts > update_log.txt 2>&1 || true
           cat update_log.txt
 
           grep "Update available for" update_log.txt > updates_to_process.txt || true
@@ -57,24 +58,20 @@ jobs:
               echo "Processing update for $PKG@$CHANNEL to $NEW"
               git checkout -b "$BRANCH_NAME"
 
-              python3 scripts/cli/update_recipe.py "$PKG" "$CHANNEL" "$NEW"
+              bun run scripts/cli/update_recipe.ts "$PKG" "$CHANNEL" "$NEW"
 
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
-              git add "pkg/$PKG/pkg.yml"
+              git add "pkg/$PKG/recipe.ts"
               git commit -m "feat($PKG@$CHANNEL): update to $NEW"
 
               git push origin "$BRANCH_NAME"
               PR_URL=$(gh pr create --title "feat($PKG@$CHANNEL): update to $NEW" --body "Automated update for channel **$CHANNEL** from $OLD to $NEW" --base main --head "$BRANCH_NAME" 2>&1 || true)
               echo "$PR_URL"
-              if ! gh pr merge "$BRANCH_NAME" --auto --squash; then
-                echo "Automated PR merge failed for $BRANCH_NAME. Triggering Jules API auto-fix..."
-                uv run python scripts/cli/jules_autofix.py "$PKG" "$CHANNEL" "$OLD" "$NEW" "$BRANCH_NAME" "Automated PR merge or build checks failed" || true
-              fi
+              gh pr merge "$BRANCH_NAME" --auto --squash || true
 
               git checkout main
             fi
           done < updates_to_process.txt
         env:
           GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
-          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}

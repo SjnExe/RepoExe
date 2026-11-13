@@ -1,19 +1,19 @@
-import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
+import { parseDependencyList, extractAllPackageNames } from './dependencies.ts';
 
 function interpolateValues(obj: any, ctx: Record<string, string>): any {
-  if (typeof obj === "string") {
+  if (typeof obj === 'string') {
     let res = obj;
     for (const [k, v] of Object.entries(ctx)) {
-      res = res.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+      res = res.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
     }
     return res;
   }
   if (Array.isArray(obj)) {
     return obj.map((item) => interpolateValues(item, ctx));
   }
-  if (obj && typeof obj === "object") {
+  if (obj && typeof obj === 'object') {
     const res: Record<string, any> = {};
     for (const [k, v] of Object.entries(obj)) {
       res[k] = interpolateValues(v, ctx);
@@ -25,7 +25,7 @@ function interpolateValues(obj: any, ctx: Record<string, string>): any {
 
 export function resolveChannelRecipe(
   rawRecipe: Record<string, any>,
-  channelName: string = "latest"
+  channelName: string = 'latest',
 ): Record<string, any> {
   const baseData = JSON.parse(JSON.stringify(rawRecipe));
   const channelsMap = baseData.channels || {};
@@ -36,10 +36,10 @@ export function resolveChannelRecipe(
 
   for (const [key, val] of Object.entries(channelCfg)) {
     if (val === undefined || val === null) continue;
-    if (["deps", "build_deps", "patches", "formats"].includes(key)) {
+    if (['deps', 'build_deps', 'patches', 'formats'].includes(key)) {
       resolved[key] = JSON.parse(JSON.stringify(val));
-    } else if (key.startsWith("extra_")) {
-      const targetKey = key.replace(/^extra_/, "");
+    } else if (key.startsWith('extra_')) {
+      const targetKey = key.replace(/^extra_/, '');
       const existingList = Array.isArray(resolved[targetKey]) ? [...resolved[targetKey]] : [];
       if (Array.isArray(val)) {
         for (const item of val) {
@@ -47,7 +47,7 @@ export function resolveChannelRecipe(
         }
       }
       resolved[targetKey] = existingList;
-    } else if (typeof val === "object" && !Array.isArray(val) && typeof resolved[key] === "object") {
+    } else if (typeof val === 'object' && !Array.isArray(val) && typeof resolved[key] === 'object') {
       resolved[key] = { ...resolved[key], ...JSON.parse(JSON.stringify(val)) };
     } else {
       resolved[key] = JSON.parse(JSON.stringify(val));
@@ -55,17 +55,17 @@ export function resolveChannelRecipe(
   }
 
   const ctx: Record<string, string> = {
-    name: String(resolved.name || ""),
-    version: String(resolved.version || ""),
+    name: String(resolved.name || ''),
+    version: String(resolved.version || ''),
     revision: String(resolved.revision ?? 0),
     channel: String(channelName),
-    arch: String(resolved.arch || "aarch64"),
+    arch: String(resolved.arch || 'aarch64'),
   };
 
   return interpolateValues(resolved, ctx);
 }
 
-export function applyChannelOverlay(recipe: any, channelName: string = "latest"): any {
+export function applyChannelOverlay(recipe: any, channelName: string = 'latest'): any {
   const resolved = resolveChannelRecipe(recipe, channelName);
   Object.assign(recipe, resolved);
   return recipe;
@@ -88,14 +88,19 @@ export function computeChannelStateHash(resolvedRecipe: Record<string, any>, pkg
   if (pkgDir && existsSync(pkgDir) && statSync(pkgDir).isDirectory()) {
     const parentDir = dirname(pkgDir);
     const depVersions: Record<string, string> = {};
-    for (const dep of [...(resolvedRecipe.deps || []), ...(resolvedRecipe.build_deps || [])]) {
-      const depFile = join(parentDir, dep, "pkg.yml");
+    const rawDeps = [...(resolvedRecipe.deps || []), ...(resolvedRecipe.build_deps || [])];
+    const cleanDepNames = extractAllPackageNames(parseDependencyList(rawDeps));
+
+    for (const dep of cleanDepNames) {
+      const depFile = join(parentDir, dep, 'recipe.ts');
       if (existsSync(depFile)) {
         try {
-          const content = readFileSync(depFile, "utf-8");
-          const mVer = content.match(/version:\s*['"]?([^'"\r\n]+)/);
-          const mRev = content.match(/revision:\s*['"]?([^'"\r\n]+)/);
-          if (mVer) depVersions[dep] = `${mVer[1]}-${mRev ? mRev[1] : "0"}`;
+          delete require.cache[depFile];
+          const mod = require(depFile);
+          const r = mod.default || mod;
+          if (r && r.version) {
+            depVersions[dep] = `${r.version}-${r.revision ?? 0}`;
+          }
         } catch {}
       }
     }
@@ -104,10 +109,11 @@ export function computeChannelStateHash(resolvedRecipe: Record<string, any>, pkg
     }
   }
 
-  const hasher = createHash("sha256");
-  hasher.update(JSON.stringify(hashableDict), "utf-8");
+  const hasher = new Bun.CryptoHasher('sha256');
+  hasher.update(JSON.stringify(hashableDict));
 
   if (pkgDir && existsSync(pkgDir) && statSync(pkgDir).isDirectory()) {
+    const patches = Array.isArray(resolvedRecipe.patches) ? resolvedRecipe.patches : [];
     for (const patchRel of patches) {
       const patchPath = join(pkgDir, patchRel);
       if (existsSync(patchPath)) {
@@ -115,25 +121,23 @@ export function computeChannelStateHash(resolvedRecipe: Record<string, any>, pkg
       }
     }
 
-    const collectFiles = (dir: string): string[] => {
-      let results: string[] = [];
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = join(dir, entry.name);
-        if (entry.isDirectory()) {
-          results = results.concat(collectFiles(full));
-        } else if (entry.isFile() && entry.name !== "pkg.yml") {
-          results.push(full);
+    const glob = new Bun.Glob('**/*');
+    const files: string[] = [];
+    for (const rel of glob.scanSync({ cwd: pkgDir })) {
+      if (rel !== 'recipe.ts' && rel !== 'pkg.yml') {
+        const full = join(pkgDir, rel);
+        if (statSync(full).isFile()) {
+          files.push(rel);
         }
       }
-      return results;
-    };
+    }
 
-    for (const file of collectFiles(pkgDir).sort()) {
-      const relPath = relative(pkgDir, file).replace(/\\/g, "/");
-      hasher.update(relPath, "utf-8");
-      hasher.update(readFileSync(file));
+    files.sort();
+    for (const rel of files) {
+      hasher.update(rel);
+      hasher.update(readFileSync(join(pkgDir, rel)));
     }
   }
 
-  return hasher.digest("hex").slice(0, 16);
+  return hasher.digest('hex').slice(0, 16);
 }

@@ -1,15 +1,16 @@
-import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
-import { gzipSync } from "node:zlib";
-import type { PackageRecipe } from "../core/types.ts";
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { basename, join, relative, resolve } from 'node:path';
+import { gzipSync } from 'node:zlib';
+import type { PackageRecipe } from '../core/types.ts';
+import { parseDependencyList, filterDepsForArch, formatDebianDependency } from '../core/dependencies.ts';
 
 export const ARCH_MAP: Record<string, string> = {
-  aarch64: "aarch64",
-  x86_64: "x86_64",
-  arm: "arm",
-  i686: "i686",
+  aarch64: 'aarch64',
+  x86_64: 'x86_64',
+  arm: 'arm',
+  i686: 'i686',
 };
 
 export function formatDebianVersion(recipe: PackageRecipe): string {
@@ -30,33 +31,47 @@ export function generateControlFile(recipe: PackageRecipe, installedSizeKib?: nu
     `Package: ${recipe.name}`,
     `Version: ${versionStr}`,
     `Architecture: ${debArch}`,
-    `Maintainer: ${recipe.maintainer || "SjnExe"}`,
-    `Description: ${recipe.description || "RepoExe package"}`,
+    `Maintainer: ${recipe.maintainer || 'SjnExe'}`,
+    `Description: ${recipe.description || 'RepoExe package'}`,
   ];
 
   if (installedSizeKib !== undefined) {
     lines.push(`Installed-Size: ${installedSizeKib}`);
   }
   if (recipe.homepage) lines.push(`Homepage: ${recipe.homepage}`);
-  if (recipe.deps.length > 0) lines.push(`Depends: ${recipe.deps.join(", ")}`);
-  if (recipe.recommends.length > 0) lines.push(`Recommends: ${recipe.recommends.join(", ")}`);
-  if (recipe.suggests.length > 0) lines.push(`Suggests: ${recipe.suggests.join(", ")}`);
-  if (recipe.conflicts.length > 0) lines.push(`Conflicts: ${recipe.conflicts.join(", ")}`);
-  if (recipe.provides.length > 0) lines.push(`Provides: ${recipe.provides.join(", ")}`);
-  if (recipe.replaces.length > 0) lines.push(`Replaces: ${recipe.replaces.join(", ")}`);
 
-  return lines.join("\n") + "\n";
+  const formatDepField = (rawList: string[]): string => {
+    if (!rawList || rawList.length === 0) return '';
+    const clauses = parseDependencyList(rawList);
+    const filtered = filterDepsForArch(clauses, debArch);
+    return formatDebianDependency(filtered);
+  };
+
+  const depends = formatDepField(recipe.deps);
+  if (depends) lines.push(`Depends: ${depends}`);
+  const recommends = formatDepField(recipe.recommends);
+  if (recommends) lines.push(`Recommends: ${recommends}`);
+  const suggests = formatDepField(recipe.suggests);
+  if (suggests) lines.push(`Suggests: ${suggests}`);
+  const conflicts = formatDepField(recipe.conflicts);
+  if (conflicts) lines.push(`Conflicts: ${conflicts}`);
+  const provides = formatDepField(recipe.provides);
+  if (provides) lines.push(`Provides: ${provides}`);
+  const replaces = formatDepField(recipe.replaces);
+  if (replaces) lines.push(`Replaces: ${replaces}`);
+
+  return lines.join('\n') + '\n';
 }
 
 export function prepareDebianDir(recipe: PackageRecipe, buildDir: string): string {
-  const stageDir = join(buildDir, "stage");
-  const debianDir = join(stageDir, "DEBIAN");
+  const stageDir = join(buildDir, 'stage');
+  const debianDir = join(stageDir, 'DEBIAN');
   mkdirSync(debianDir, { recursive: true });
   chmodSync(debianDir, 0o755);
 
   const controlContent = generateControlFile(recipe);
-  const controlFile = join(debianDir, "control");
-  writeFileSync(controlFile, controlContent, "utf-8");
+  const controlFile = join(debianDir, 'control');
+  writeFileSync(controlFile, controlContent, 'utf-8');
   chmodSync(controlFile, 0o644);
 
   return stageDir;
@@ -66,7 +81,7 @@ export function buildDeb(
   recipe: PackageRecipe,
   destdir: string,
   outputDir: string,
-  targetArch: string = "aarch64"
+  targetArch: string = 'aarch64',
 ): string {
   const buildPath = resolve(destdir);
   const outPath = resolve(outputDir);
@@ -74,12 +89,12 @@ export function buildDeb(
 
   const stageDir = prepareDebianDir(recipe, buildPath);
 
-  // Exclude unwanted __init__.py or pkg.yml from deb roots per AGENTS.md constraint
-  const unwantedRootFiles = ["__init__.py", "pkg.yml"];
+  // Exclude unwanted __init__.py, recipe.ts, or pkg.yml from deb roots per AGENTS.md constraint
+  const unwantedRootFiles = ['__init__.py', 'recipe.ts', 'pkg.yml'];
   for (const unwanted of unwantedRootFiles) {
     const target = join(stageDir, unwanted);
     if (existsSync(target)) {
-      spawnSync("rm", ["-f", target]);
+      spawnSync('rm', ['-f', target]);
     }
   }
 
@@ -89,7 +104,7 @@ export function buildDeb(
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name !== "DEBIAN") countBytes(full);
+        if (entry.name !== 'DEBIAN') countBytes(full);
       } else if (entry.isFile() && !entry.isSymbolicLink()) {
         totalBytes += statSync(full).size;
       }
@@ -99,7 +114,7 @@ export function buildDeb(
   const installedSizeKib = Math.ceil(totalBytes / 1024);
 
   const controlContent = generateControlFile(recipe, installedSizeKib);
-  writeFileSync(join(stageDir, "DEBIAN", "control"), controlContent, "utf-8");
+  writeFileSync(join(stageDir, 'DEBIAN', 'control'), controlContent, 'utf-8');
 
   const filenameVer = formatDebianFilenameVersion(recipe);
   const rawArch = recipe.arch || targetArch;
@@ -107,11 +122,11 @@ export function buildDeb(
   const debFilename = `${recipe.name}_${filenameVer}_${arch}.deb`;
   const debPath = join(outPath, debFilename);
 
-  let res = spawnSync("dpkg-deb", ["--build", "-Zxz", "-z9", stageDir, debPath], {
-    encoding: "utf-8",
+  let res = spawnSync('dpkg-deb', ['--build', '-Zxz', '-z9', stageDir, debPath], {
+    encoding: 'utf-8',
   });
   if (res.status !== 0) {
-    res = spawnSync("dpkg-deb", ["--build", stageDir, debPath], { encoding: "utf-8" });
+    res = spawnSync('dpkg-deb', ['--build', stageDir, debPath], { encoding: 'utf-8' });
     if (res.status !== 0) {
       throw new Error(`dpkg-deb failed for ${recipe.name}: ${res.stderr?.trim()}`);
     }
@@ -120,47 +135,39 @@ export function buildDeb(
   return debPath;
 }
 
-export function generateAptMetadata(
-  outputDir: string,
-  component: string = "main",
-  arch: string = "aarch64"
-): void {
-  const binaryDir = join(outputDir, "dists", "stable", component, `binary-${arch}`);
+export function generateAptMetadata(outputDir: string, component: string = 'main', arch: string = 'aarch64'): void {
+  const binaryDir = join(outputDir, 'dists', 'stable', component, `binary-${arch}`);
   mkdirSync(binaryDir, { recursive: true });
 
-  const packagesPath = join(binaryDir, "Packages");
+  const packagesPath = join(binaryDir, 'Packages');
   const entries: string[] = [];
 
   const debFiles = readdirSync(outputDir)
-    .filter((f) => f.endsWith(".deb"))
+    .filter((f) => f.endsWith('.deb'))
     .sort();
 
   for (const debName of debFiles) {
     const debPath = join(outputDir, debName);
-    const res = spawnSync("dpkg-deb", ["-f", debPath], { encoding: "utf-8" });
+    const res = spawnSync('dpkg-deb', ['-f', debPath], { encoding: 'utf-8' });
     if (res.status === 0 && res.stdout) {
       const controlInfo = res.stdout.trim();
       const content = readFileSync(debPath);
       const size = content.length;
-      const md5 = createHash("md5").update(content).digest("hex");
-      const sha256 = createHash("sha256").update(content).digest("hex");
+      const md5 = createHash('md5').update(content).digest('hex');
+      const sha256 = createHash('sha256').update(content).digest('hex');
       entries.push(`${controlInfo}\nFilename: ${debName}\nSize: ${size}\nMD5sum: ${md5}\nSHA256: ${sha256}\n\n`);
     }
   }
 
-  const packagesContent = entries.join("");
-  writeFileSync(packagesPath, packagesContent, "utf-8");
-  writeFileSync(`${packagesPath}.gz`, gzipSync(Buffer.from(packagesContent, "utf-8")));
+  const packagesContent = entries.join('');
+  writeFileSync(packagesPath, packagesContent, 'utf-8');
+  writeFileSync(`${packagesPath}.gz`, gzipSync(Buffer.from(packagesContent, 'utf-8')));
 }
 
-export function generateReleaseFile(
-  outputDir: string,
-  suite: string = "stable",
-  component: string = "main"
-): void {
-  const distsDir = join(outputDir, "dists", suite);
+export function generateReleaseFile(outputDir: string, suite: string = 'stable', component: string = 'main'): void {
+  const distsDir = join(outputDir, 'dists', suite);
   mkdirSync(distsDir, { recursive: true });
-  const releasePath = join(distsDir, "Release");
+  const releasePath = join(distsDir, 'Release');
 
   const arches = new Set<string>();
   const fileEntries: string[] = [];
@@ -170,22 +177,22 @@ export function generateReleaseFile(
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         walk(full);
-      } else if (entry.name === "Packages" || entry.name === "Packages.gz") {
-        const relPath = relative(distsDir, full).replace(/\\/g, "/");
-        for (const p of relPath.split("/")) {
-          if (p.startsWith("binary-")) {
-            arches.add(p.replace("binary-", ""));
+      } else if (entry.name === 'Packages' || entry.name === 'Packages.gz') {
+        const relPath = relative(distsDir, full).replace(/\\/g, '/');
+        for (const p of relPath.split('/')) {
+          if (p.startsWith('binary-')) {
+            arches.add(p.replace('binary-', ''));
           }
         }
         const data = readFileSync(full);
-        const sha256 = createHash("sha256").update(data).digest("hex");
+        const sha256 = createHash('sha256').update(data).digest('hex');
         fileEntries.push(` ${sha256} ${data.length} ${relPath}`);
       }
     }
   };
   walk(distsDir);
 
-  const archStr = Array.from(arches).sort().join(" ") || "aarch64";
+  const archStr = Array.from(arches).sort().join(' ') || 'aarch64';
   const dateStr = new Date().toUTCString();
 
   const releaseContent = [
@@ -199,23 +206,23 @@ export function generateReleaseFile(
     `Description: RepoExe Package Repository`,
     `SHA256:`,
     ...fileEntries,
-    "",
-  ].join("\n");
+    '',
+  ].join('\n');
 
-  writeFileSync(releasePath, releaseContent, "utf-8");
+  writeFileSync(releasePath, releaseContent, 'utf-8');
 
   // GPG signing
   const gpgPrivKey = process.env.GPG_PRIVATE_KEY;
   if (gpgPrivKey) {
-    spawnSync("gpg", ["--import"], { input: gpgPrivKey, encoding: "utf-8" });
+    spawnSync('gpg', ['--import'], { input: gpgPrivKey, encoding: 'utf-8' });
   } else {
-    let keyPath = "scripts/repoexe.gpg";
-    if (!existsSync(keyPath)) keyPath = "repoexe.gpg";
+    let keyPath = 'scripts/repoexe.gpg';
+    if (!existsSync(keyPath)) keyPath = 'repoexe.gpg';
     if (existsSync(keyPath)) {
-      spawnSync("gpg", ["--import", keyPath]);
+      spawnSync('gpg', ['--import', keyPath]);
     }
   }
 
-  spawnSync("gpg", ["--clearsign", "-o", join(distsDir, "InRelease"), releasePath]);
-  spawnSync("gpg", ["-abs", "-o", join(distsDir, "Release.gpg"), releasePath]);
+  spawnSync('gpg', ['--clearsign', '-o', join(distsDir, 'InRelease'), releasePath]);
+  spawnSync('gpg', ['-abs', '-o', join(distsDir, 'Release.gpg'), releasePath]);
 }

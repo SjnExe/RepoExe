@@ -1,7 +1,8 @@
-import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-import { parseRecipe } from "../core/parser.ts";
-import type { PackageRecipe } from "../core/types.ts";
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseRecipe } from '../core/parser.ts';
+import type { PackageRecipe } from '../core/types.ts';
+import { parseDependencyList, extractAllPackageNames } from '../core/dependencies.ts';
 
 export class DependencyGraph {
   packagesDir: string;
@@ -14,18 +15,20 @@ export class DependencyGraph {
 
   loadRecipes(): void {
     if (!existsSync(this.packagesDir)) return;
-    const entries = readdirSync(this.packagesDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const recipeFile = join(this.packagesDir, entry.name, "pkg.yml");
-        if (existsSync(recipeFile)) {
-          try {
-            const r = parseRecipe(recipeFile);
-            this.recipes[r.name] = r;
-          } catch {}
-        }
-      }
+    const glob = new Bun.Glob('**/recipe.ts');
+    for (const file of glob.scanSync({ cwd: this.packagesDir })) {
+      const full = join(this.packagesDir, file);
+      try {
+        const r = parseRecipe(full);
+        this.recipes[r.name] = r;
+      } catch {}
     }
+  }
+
+  getRecipeDepNames(recipe: PackageRecipe): Set<string> {
+    const raw = [...(recipe.deps || []), ...(recipe.build_deps || [])];
+    const clauses = parseDependencyList(raw);
+    return extractAllPackageNames(clauses);
   }
 
   resolveBuildOrder(targetPackages?: string[]): string[] {
@@ -39,7 +42,7 @@ export class DependencyGraph {
     }
 
     for (const [pkgName, recipe] of Object.entries(this.recipes)) {
-      const deps = new Set([...(recipe.deps || []), ...(recipe.build_deps || [])]);
+      const deps = this.getRecipeDepNames(recipe);
       for (const dep of deps) {
         if (this.recipes[dep]) {
           graph[dep].push(pkgName);
@@ -77,7 +80,7 @@ export class DependencyGraph {
     while (queue.length > 0) {
       const current = queue.shift()!;
       for (const [p, recipe] of Object.entries(this.recipes)) {
-        const deps = new Set([...(recipe.deps || []), ...(recipe.build_deps || [])]);
+        const deps = this.getRecipeDepNames(recipe);
         if (deps.has(current) && !dependents.has(p)) {
           dependents.add(p);
           queue.push(p);
@@ -88,9 +91,7 @@ export class DependencyGraph {
   }
 
   getLayers(targetPackages?: string[]): string[][] {
-    const pkgs = new Set(
-      targetPackages ? targetPackages.filter((p) => this.recipes[p]) : Object.keys(this.recipes)
-    );
+    const pkgs = new Set(targetPackages ? targetPackages.filter((p) => this.recipes[p]) : Object.keys(this.recipes));
 
     const subGraph: Record<string, Set<string>> = {};
     const inDegree: Record<string, number> = {};
@@ -102,7 +103,7 @@ export class DependencyGraph {
 
     for (const p of pkgs) {
       const recipe = this.recipes[p];
-      const deps = new Set([...recipe.deps, ...recipe.build_deps]);
+      const deps = this.getRecipeDepNames(recipe);
       for (const dep of deps) {
         if (pkgs.has(dep)) {
           subGraph[dep].add(p);

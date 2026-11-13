@@ -23,8 +23,9 @@
       "@sanitizer/*": ["scripts/sanitizer/*"],
       "@docker/*": ["scripts/docker/*"],
       "@cli/*": ["scripts/cli/*"],
-      "@utils/*": ["scripts/utils/*"]
+      "@utils/*": ["scripts/utils/*"],
+      "@repoexe/*": ["scripts/*"]
     }
   },
-  "include": ["scripts/**/*"]
+  "include": ["scripts/**/*", "pkg/**/*"]
 }

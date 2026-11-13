@@ -1,16 +1,12 @@
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { parseRecipe } from "../core/parser.ts";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { parseRecipe } from '../core/parser.ts';
 
-export function generatePackagesJson(
-  pkgDir?: string,
-  outputFile?: string,
-  artifactsDir?: string
-): void {
-  const repoRoot = resolve(".");
-  const pkgsPath = pkgDir ? resolve(pkgDir) : join(repoRoot, "pkg");
-  const outPath = outputFile ? resolve(outputFile) : join(repoRoot, "site", "packages.json");
-  const artPath = artifactsDir ? resolve(artifactsDir) : join(repoRoot, "artifacts");
+export function generatePackagesJson(pkgDir?: string, outputFile?: string, artifactsDir?: string): void {
+  const repoRoot = resolve('.');
+  const pkgsPath = pkgDir ? resolve(pkgDir) : join(repoRoot, 'pkg');
+  const outPath = outputFile ? resolve(outputFile) : join(repoRoot, 'site', 'packages.json');
+  const artPath = artifactsDir ? resolve(artifactsDir) : join(repoRoot, 'artifacts');
 
   mkdirSync(dirname(outPath), { recursive: true });
 
@@ -35,16 +31,16 @@ export function generatePackagesJson(
       .sort();
 
     for (const pName of entries) {
-      const recipeFile = join(pkgsPath, pName, "pkg.yml");
+      const recipeFile = join(pkgsPath, pName, 'recipe.ts');
       if (existsSync(recipeFile)) {
         try {
           const recipe = parseRecipe(recipeFile);
-          const formats = recipe.formats || ["apt", "pacman", "apk"];
+          const formats = recipe.formats || ['apt', 'pacman', 'apk'];
 
           const channelsList: Array<{ name: string; version: string; revision: number }> = [];
-          const chNames = recipe.channels ? Object.keys(recipe.channels) : ["latest"];
-          if (!chNames.includes("latest")) {
-            chNames.unshift("latest");
+          const chNames = recipe.channels ? Object.keys(recipe.channels) : ['latest'];
+          if (!chNames.includes('latest')) {
+            chNames.unshift('latest');
           }
 
           for (const ch of chNames) {
@@ -60,7 +56,7 @@ export function generatePackagesJson(
 
           if (channelsList.length === 0) {
             channelsList.push({
-              name: "latest",
+              name: 'latest',
               version: recipe.version,
               revision: recipe.revision,
             });
@@ -69,9 +65,9 @@ export function generatePackagesJson(
           items.push({
             name: recipe.name,
             description: recipe.description || `${recipe.name} binary package`,
-            arch: recipe.arch || "aarch64",
-            license: recipe.license || "MIT",
-            homepage: recipe.homepage || "https://github.com/SjnExe/RepoExe",
+            arch: recipe.arch || 'aarch64',
+            license: recipe.license || 'MIT',
+            homepage: recipe.homepage || 'https://github.com/SjnExe/RepoExe',
             formats: Array.from(new Set(formats)).sort(),
             deps: recipe.deps,
             recommends: recipe.recommends,
@@ -87,6 +83,6 @@ export function generatePackagesJson(
     }
   }
 
-  writeFileSync(outPath, JSON.stringify(items, null, 2), "utf-8");
+  writeFileSync(outPath, JSON.stringify(items, null, 2), 'utf-8');
   console.log(`✓ Generated ${outPath} with ${items.length} package entries.`);
 }

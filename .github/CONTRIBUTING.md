@@ -31,7 +31,7 @@ RepoExe is a modular, high-performance package repository and build orchestratio
 
 ## Ways to Contribute
 
-- **Add System Packages:** Submit declarative recipes (`pkg/<name>/pkg.yml`) for standalone command-line tools, compilers, and utilities compiled for Termux.
+- **Add System Packages:** Submit declarative recipes (`pkg/<name>/recipe.ts`) for standalone command-line tools, compilers, and utilities compiled for Termux.
 - **Report Build Failures:** Open an issue with full build logs and architecture details.
 - **Enhance Build Orchestration:** Optimize TypeScript builders in `scripts/builders/` and sanitizers in `scripts/sanitizer/`.
 - **Improve Documentation:** Keep installation guides, CLI documentation, and package metadata accurate.
@@ -50,9 +50,10 @@ Before reporting a bug:
 
 ## Adding New Packages
 
-Packages in RepoExe are defined declaratively in `pkg/<name>/pkg.yml`.
+Packages in RepoExe are defined declaratively in `pkg/<name>/recipe.ts`.
 
 ### Recipe Invariants:
+
 - **Strict System Packages Only:** RepoExe packages native system tools, compilers, and CLI utilities. Do **not** package Python wheels or npm modules; users install those via language-specific managers.
 - **Native Bionic Compliance:** Binaries must link against Android Bionic libc (`/system/bin/linker64`), never glibc (`libc.so.6`).
 - **Standard Prefix:** All binaries and assets must install into `${DESTDIR}${PREFIX}` (`/data/data/com.termux/files/usr`).

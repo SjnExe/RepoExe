@@ -1,8 +1,8 @@
-import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { parseRecipe } from "../core/parser.ts";
-import type { PackageRecipe } from "../core/types.ts";
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { parseRecipe } from '../core/parser.ts';
+import type { PackageRecipe } from '../core/types.ts';
 
 export function getExpectedAssetFilenames(recipe: PackageRecipe): Set<string> {
   const ver = recipe.version;
@@ -13,25 +13,22 @@ export function getExpectedAssetFilenames(recipe: PackageRecipe): Set<string> {
   const versionStrPacman = rev > 0 ? `${ver}-${rev}` : `${ver}-1`;
   const versionStrApk = rev > 0 ? `${ver}-r${rev}` : `${ver}-r0`;
 
-  const expected = new Set<string>([
-    "metadata.json",
-    `${pkg}_metadata.json`,
-  ]);
+  const expected = new Set<string>(['metadata.json', `${pkg}_metadata.json`]);
 
-  const formats = new Set(recipe.formats || ["apt", "pacman", "apk"]);
+  const formats = new Set(recipe.formats || ['apt', 'pacman', 'apk']);
 
-  if (formats.has("apt")) {
+  if (formats.has('apt')) {
     expected.add(`${pkg}_${versionStrDeb}_arm64.deb`);
     expected.add(`${pkg}_${versionStrDeb}_aarch64.deb`);
     expected.add(`${pkg}_${versionStrDeb}_all.deb`);
   }
 
-  if (formats.has("pacman")) {
+  if (formats.has('pacman')) {
     expected.add(`${pkg}-${versionStrPacman}-aarch64.pkg.tar.zst`);
     expected.add(`${pkg}-${versionStrPacman}-aarch64.pkg.tar.gz`);
   }
 
-  if (formats.has("apk") || formats.has("alpine")) {
+  if (formats.has('apk') || formats.has('alpine')) {
     expected.add(`${pkg}-${versionStrApk}.apk`);
   }
 
@@ -41,7 +38,7 @@ export function getExpectedAssetFilenames(recipe: PackageRecipe): Set<string> {
 export function identifyOutdatedAssets(
   assets: Array<Record<string, any>>,
   recipe?: PackageRecipe,
-  pkgName?: string
+  pkgName?: string,
 ): Array<Record<string, any>> {
   const toDelete: Array<Record<string, any>> = [];
   if (!recipe) return toDelete;
@@ -49,7 +46,7 @@ export function identifyOutdatedAssets(
   const whitelist = getExpectedAssetFilenames(recipe);
 
   for (const asset of assets) {
-    const name = asset.name || "";
+    const name = asset.name || '';
     if (!whitelist.has(name)) {
       toDelete.push(asset);
     }
@@ -59,12 +56,12 @@ export function identifyOutdatedAssets(
 }
 
 export async function pruneReleaseTags(): Promise<void> {
-  const repoRoot = resolve(".");
-  const pkgsDir = join(repoRoot, "pkg");
+  const repoRoot = resolve('.');
+  const pkgsDir = join(repoRoot, 'pkg');
 
-  const repoRes = spawnSync("gh", ["repo", "view", "--json", "name,owner"], { encoding: "utf-8" });
+  const repoRes = spawnSync('gh', ['repo', 'view', '--json', 'name,owner'], { encoding: 'utf-8' });
   if (repoRes.status !== 0) {
-    console.log("⚠️ gh CLI unauthenticated or not inside git repository.");
+    console.log('⚠️ gh CLI unauthenticated or not inside git repository.');
     return;
   }
 
@@ -79,11 +76,9 @@ export async function pruneReleaseTags(): Promise<void> {
     return;
   }
 
-  const releasesRes = spawnSync(
-    "gh",
-    ["api", `repos/${owner}/${repoName}/releases?per_page=100`],
-    { encoding: "utf-8" }
-  );
+  const releasesRes = spawnSync('gh', ['api', `repos/${owner}/${repoName}/releases?per_page=100`], {
+    encoding: 'utf-8',
+  });
   if (releasesRes.status !== 0) {
     console.log(`Failed to fetch releases: ${releasesRes.stderr}`);
     return;
@@ -101,12 +96,12 @@ export async function pruneReleaseTags(): Promise<void> {
   const orphanedReleases: string[] = [];
 
   for (const rel of releases) {
-    const tag = rel.tag_name || "";
+    const tag = rel.tag_name || '';
     const assets = rel.assets || [];
-    if (!tag.includes("@")) continue;
+    if (!tag.includes('@')) continue;
 
-    const [pkg, channel] = tag.split("@");
-    const recipePath = join(pkgsDir, pkg, "pkg.yml");
+    const [pkg, channel] = tag.split('@');
+    const recipePath = join(pkgsDir, pkg, 'recipe.ts');
 
     if (existsSync(recipePath)) {
       try {
@@ -128,12 +123,12 @@ export async function pruneReleaseTags(): Promise<void> {
   // 1. Prune orphaned releases (deleted packages)
   for (const tag of orphanedReleases) {
     console.log(`🗑️ Pruning deleted package release and tag: ${tag}`);
-    spawnSync("gh", ["release", "delete", tag, "--cleanup-tag", "-y"]);
+    spawnSync('gh', ['release', 'delete', tag, '--cleanup-tag', '-y']);
   }
 
   // 2. Prune outdated assets
   if (deletionTasks.length === 0 && orphanedReleases.length === 0) {
-    console.log("✓ All release assets and tags are up to date! Nothing to prune.");
+    console.log('✓ All release assets and tags are up to date! Nothing to prune.');
     return;
   }
 
@@ -141,9 +136,9 @@ export async function pruneReleaseTags(): Promise<void> {
     console.log(`🗑️ Found ${deletionTasks.length} outdated asset(s) to prune...`);
     for (const task of deletionTasks) {
       const res = spawnSync(
-        "gh",
-        ["api", "--method", "DELETE", `repos/${owner}/${repoName}/releases/assets/${task.assetId}`],
-        { encoding: "utf-8" }
+        'gh',
+        ['api', '--method', 'DELETE', `repos/${owner}/${repoName}/releases/assets/${task.assetId}`],
+        { encoding: 'utf-8' },
       );
       if (res.status === 0) {
         console.log(`✓ [${task.tag}] Deleted ${task.name}`);
