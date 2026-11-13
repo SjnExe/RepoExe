@@ -241,6 +241,44 @@ export default defineRecipe({
     expect(updated).toMatch(/channels:\s*\{[\s\S]*"1\.x":\s*\{[\s\S]*version:\s*"1\.0\.1",\s*revision:\s*0/);
   });
 
+  it('locates channels and channel entries when separated by whitespace and comments', (): void => {
+    const original = `
+export default defineRecipe({
+  version: "2.0.0",
+  revision: /* initial */ 1,
+  channels /* release channels */ : /* tracks */ {
+    // legacy track
+    "1.x" /* semver */ : // start of 1.x object
+    {
+      version: /* release track ver */ "1.0.0",
+      revision: // revision count
+        3,
+    },
+  },
+});
+`;
+    const updated = updateRecipeContent(original, '1.x', '1.0.1');
+    expect(updated).toContain('version: "2.0.0"');
+    expect(updated).toContain('revision: /* initial */ 1');
+    expect(updated).toContain('version: /* release track ver */ "1.0.1"');
+    expect(updated).toContain('revision: // revision count\n        0');
+  });
+
+  it('updates top-level version and revision when comments appear around colon and values', (): void => {
+    const original = `
+export default defineRecipe({
+  name: "foo",
+  /* metadata comment */
+  version /* ver */ : /* current */ '1.0.0',
+  revision // rev
+    : /* count */ 5,
+});
+`;
+    const updated = updateRecipeContent(original, 'latest', '1.1.0');
+    expect(updated).toContain("version /* ver */ : /* current */ '1.1.0'");
+    expect(updated).toContain('revision // rev\n    : /* count */ 0');
+  });
+
   it('throws when target version cannot be found or unchanged', (): void => {
     const original = `export default defineRecipe({ name: "foo" });`;
     expect(() => updateRecipeContent(original, 'latest', '1.0.0')).toThrow();
