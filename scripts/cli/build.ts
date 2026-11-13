@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { checkExistingReleaseHash } from "../core/fetcher.ts";
 import { parseRecipe } from "../core/parser.ts";
@@ -44,14 +44,72 @@ export async function executePack(
   await Bun.write(join(outputDir, `${recipe.name}_metadata.json`), JSON.stringify(meta, null, 2));
 }
 
-export function executeTest(recipe: any, destdir?: string): void {
+export function executeTest(recipe: any, destdir?: string, outputDir?: string): void {
   const testCmd = recipe.phases?.test || `${recipe.name} --version || ${recipe.name} --help`;
-  console.log(`Running test for ${recipe.name}: ${testCmd}`);
-  const env = { ...process.env, PATH: `${destdir}/stage/data/data/com.termux/files/usr/bin:${process.env.PATH}` };
-  const res = spawnSync("sh", ["-c", testCmd], { stdio: "inherit", env });
-  if (res.status !== 0) {
-    throw new Error(`Test failed for ${recipe.name}`);
+  console.log(`Running smoke test for ${recipe.name}: ${testCmd}`);
+
+  const hasDockerSocket = existsSync("/var/run/docker.sock");
+  const hostWorkspace = process.env.GITHUB_WORKSPACE || resolve(".");
+  const hostOutputDir = join(hostWorkspace, "output");
+  const localOutputDir = outputDir || resolve("output");
+
+  if (hasDockerSocket) {
+    const owner = (process.env.REPO_OWNER || "sjnexe").toLowerCase();
+    const testerImage = process.env.TESTER_IMAGE || `ghcr.io/${owner}/repoexe-tester:latest`;
+
+    let debFilename = "";
+    if (existsSync(localOutputDir)) {
+      const files = readdirSync(localOutputDir);
+      const match = files.find((f) => f.startsWith(`${recipe.name}_`) && f.endsWith(".deb"));
+      if (match) debFilename = match;
+    }
+
+    const installAndTest = debFilename
+      ? `set -e; dpkg -i /tmp/repoexe-pkg/${debFilename} || true; timeout 120s ${testCmd}`
+      : `set -e; timeout 120s ${testCmd}`;
+
+    console.log(`Executing container smoke test via ${testerImage}...`);
+    const dockerArgs = [
+      "run",
+      "--rm",
+      "--volume",
+      `${hostOutputDir}:/tmp/repoexe-pkg:ro`,
+      "--workdir",
+      "/data/data/com.termux/files/home",
+      "-e",
+      "PREFIX=/data/data/com.termux/files/usr",
+      "-e",
+      "PATH=/data/data/com.termux/files/usr/bin:/bin:/usr/bin",
+      "-e",
+      "LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib",
+      "-e",
+      "HOME=/data/data/com.termux/files/home",
+      testerImage,
+      "sh",
+      "-c",
+      installAndTest,
+    ];
+
+    const res = spawnSync("docker", dockerArgs, { stdio: "inherit", timeout: 150_000 });
+    if (res.status !== 0) {
+      if (res.status === 124) {
+        throw new Error(`Smoke test timed out after 120s under emulation for ${recipe.name}`);
+      } else if (res.status === 132 || res.status === 139) {
+        throw new Error(`QEMU emulation crash (signal ${res.status}) executing ${recipe.name}`);
+      }
+      throw new Error(`Smoke test failed with exit code ${res.status} for ${recipe.name}`);
+    }
+    console.log(`✓ Smoke test passed in container for ${recipe.name}`);
+    return;
   }
+
+  // Fallback: Local execution on native Termux device
+  const env = { ...process.env, PATH: `${destdir}/stage/data/data/com.termux/files/usr/bin:${process.env.PATH}` };
+  const res = spawnSync("sh", ["-c", testCmd], { stdio: "inherit", env, timeout: 60_000 });
+  if (res.status !== 0) {
+    throw new Error(`Smoke test failed with exit code ${res.status} for ${recipe.name}`);
+  }
+  console.log(`✓ Local smoke test passed for ${recipe.name}`);
 }
 
 async function main(): Promise<void> {
@@ -132,7 +190,7 @@ async function main(): Promise<void> {
 
       if (command === "build") {
         await executePack(recipe, pDir, destdir, outputDir);
-        executeTest(recipe, destdir);
+        executeTest(recipe, destdir, outputDir);
       }
     } else if (command === "pack") {
       if (!existsSync(stageDir)) {
@@ -149,7 +207,7 @@ async function main(): Promise<void> {
         console.log(`Notice: stage_dir ${stageDir} does not exist for test.`);
         return;
       }
-      executeTest(recipe, destdir);
+      executeTest(recipe, destdir, outputDir);
     }
   } else {
     console.log("RepoExe Build System CLI (Bun/TypeScript)");
