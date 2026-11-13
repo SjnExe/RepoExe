@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { parseDependencyList, extractAllPackageNames } from './dependencies.ts';
 
 function interpolateValues(obj: any, ctx: Record<string, string>): any {
@@ -92,7 +92,7 @@ export function computeChannelStateHash(resolvedRecipe: Record<string, any>, pkg
     const cleanDepNames = extractAllPackageNames(parseDependencyList(rawDeps));
 
     for (const dep of cleanDepNames) {
-      const depFile = join(parentDir, dep, 'recipe.ts');
+      const depFile = resolve(join(parentDir, dep, 'recipe.ts'));
       if (existsSync(depFile)) {
         try {
           delete require.cache[depFile];
@@ -123,7 +123,7 @@ export function computeChannelStateHash(resolvedRecipe: Record<string, any>, pkg
 
     const glob = new Bun.Glob('**/*');
     const files: string[] = [];
-    for (const rel of glob.scanSync({ cwd: pkgDir })) {
+    for (const rel of glob.scanSync({ cwd: pkgDir, dot: true })) {
       if (rel !== 'recipe.ts' && rel !== 'pkg.yml') {
         const full = join(pkgDir, rel);
         if (statSync(full).isFile()) {

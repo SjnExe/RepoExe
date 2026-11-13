@@ -34,11 +34,8 @@ export async function runPreCommitHook(options?: PreCommitOptions): Promise<bool
   try {
     let stagedFiles = options?.stagedFiles;
     if (!stagedFiles) {
-      const stagedOutput = await $`git diff --cached --name-only --diff-filter=ACMR`.text();
-      stagedFiles = stagedOutput
-        .split('\n')
-        .map((f) => f.trim())
-        .filter(Boolean);
+      const stagedOutput = await $`git diff --cached --name-only -z --diff-filter=ACMR`.text();
+      stagedFiles = stagedOutput.split('\0').filter(Boolean);
     }
 
     if (!options?.quiet) {
@@ -61,15 +58,13 @@ export async function runPreCommitHook(options?: PreCommitOptions): Promise<bool
       if (formattableFiles.length > 0) {
         const unstagedFiles = new Set<string>();
         try {
-          const unstagedOutput = await $`git diff --name-only -- ${formattableFiles}`.quiet().text();
-          for (const f of unstagedOutput
-            .split('\n')
-            .map((l) => l.trim())
-            .filter(Boolean)) {
+          const unstagedOutput = await $`git diff --name-only -z -- ${formattableFiles}`.quiet().text();
+          for (const f of unstagedOutput.split('\0').filter(Boolean)) {
             unstagedFiles.add(f);
           }
-        } catch {
-          // If git diff fails, proceed without unstaged isolation
+        } catch (err) {
+          console.error('Failed to inspect unstaged changes:', err);
+          return false;
         }
 
         const fullyStagedFiles = formattableFiles.filter((f) => !unstagedFiles.has(f));
@@ -98,7 +93,7 @@ export async function runPreCommitHook(options?: PreCommitOptions): Promise<bool
           if (!options?.quiet) {
             console.log('📋 Linting GitHub Workflows with actionlint...');
           }
-          const alResult = await $`actionlint .github/workflows/*.yml`.nothrow();
+          const alResult = await $`actionlint`.nothrow();
           if (alResult.exitCode !== 0) {
             console.error(
               `=== Actionlint Failed (Exit: ${alResult.exitCode}) ===\n${alResult.stderr || alResult.stdout}`,

@@ -11,10 +11,18 @@ export function extractSemver(raw: string): string | null {
 
 export function compareSemver(a: string, b: string): number {
   const parseParts = (v: string) => {
-    const [main, pre] = v.split('-');
-    const num = (main || '').split('.').map((x) => parseInt(x, 10) || 0);
-    return { num, pre };
+    const withoutBuild = v.split('+')[0];
+    const dashIdx = withoutBuild.indexOf('-');
+    let mainStr = withoutBuild;
+    let preStr = '';
+    if (dashIdx !== -1) {
+      mainStr = withoutBuild.slice(0, dashIdx);
+      preStr = withoutBuild.slice(dashIdx + 1);
+    }
+    const num = mainStr.split('.').map((x) => parseInt(x, 10) || 0);
+    return { num, pre: preStr };
   };
+
   const pa = parseParts(a);
   const pb = parseParts(b);
   const maxLen = Math.max(pa.num.length, pb.num.length);
@@ -23,9 +31,38 @@ export function compareSemver(a: string, b: string): number {
     const nb = pb.num[i] || 0;
     if (na !== nb) return na - nb;
   }
+
   if (!pa.pre && pb.pre) return 1;
   if (pa.pre && !pb.pre) return -1;
-  if (pa.pre && pb.pre) return pa.pre.localeCompare(pb.pre);
+  if (!pa.pre && !pb.pre) return 0;
+
+  const preA = pa.pre.split('.');
+  const preB = pb.pre.split('.');
+  const preLen = Math.max(preA.length, preB.length);
+
+  for (let i = 0; i < preLen; i++) {
+    const partA = preA[i];
+    const partB = preB[i];
+    if (partA === undefined) return -1;
+    if (partB === undefined) return 1;
+    if (partA === partB) continue;
+
+    const isNumA = /^\d+$/.test(partA);
+    const isNumB = /^\d+$/.test(partB);
+
+    if (isNumA && isNumB) {
+      const diff = parseInt(partA, 10) - parseInt(partB, 10);
+      if (diff !== 0) return diff;
+    } else if (isNumA && !isNumB) {
+      return -1;
+    } else if (!isNumA && isNumB) {
+      return 1;
+    } else {
+      const cmp = partA.localeCompare(partB);
+      if (cmp !== 0) return cmp;
+    }
+  }
+
   return 0;
 }
 
@@ -51,9 +88,14 @@ export async function fetchGithubTag(owner: string, repo: string): Promise<strin
       const versions: string[] = [];
       for (const t of data) {
         const rawName = t.name || '';
-        if (/(alpha|beta|rc|dev|test)/i.test(rawName)) continue;
         const ver = extractSemver(rawName);
-        if (ver) versions.push(ver);
+        if (!ver) continue;
+        const dashIdx = ver.indexOf('-');
+        if (dashIdx !== -1) {
+          const pre = ver.slice(dashIdx + 1);
+          if (/(alpha|beta|rc|dev|test)/i.test(pre)) continue;
+        }
+        versions.push(ver);
       }
       if (versions.length > 0) {
         versions.sort(compareSemver);
@@ -73,9 +115,14 @@ export function fetchGitTag(gitUrl: string): string | null {
     for (const line of lines) {
       if (line.includes('^{}')) continue;
       const tag = line.split('/').pop() || '';
-      if (/(alpha|beta|rc|dev|test)/i.test(tag)) continue;
       const ver = extractSemver(tag);
-      if (ver) versions.push(ver);
+      if (!ver) continue;
+      const dashIdx = ver.indexOf('-');
+      if (dashIdx !== -1) {
+        const pre = ver.slice(dashIdx + 1);
+        if (/(alpha|beta|rc|dev|test)/i.test(pre)) continue;
+      }
+      versions.push(ver);
     }
     if (versions.length > 0) {
       versions.sort(compareSemver);

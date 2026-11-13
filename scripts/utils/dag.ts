@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseRecipe } from '../core/parser.ts';
 import type { PackageRecipe } from '../core/types.ts';
-import { parseDependencyList, extractAllPackageNames } from '../core/dependencies.ts';
+import { parseDependencyList, filterDepsForArch, extractAllPackageNames } from '../core/dependencies.ts';
 
 export class DependencyGraph {
   packagesDir: string;
@@ -15,7 +15,7 @@ export class DependencyGraph {
 
   loadRecipes(): void {
     if (!existsSync(this.packagesDir)) return;
-    const glob = new Bun.Glob('**/recipe.ts');
+    const glob = new Bun.Glob('*/recipe.ts');
     for (const file of glob.scanSync({ cwd: this.packagesDir })) {
       const full = join(this.packagesDir, file);
       try {
@@ -25,13 +25,15 @@ export class DependencyGraph {
     }
   }
 
-  getRecipeDepNames(recipe: PackageRecipe): Set<string> {
+  getRecipeDepNames(recipe: PackageRecipe, arch?: string): Set<string> {
     const raw = [...(recipe.deps || []), ...(recipe.build_deps || [])];
     const clauses = parseDependencyList(raw);
-    return extractAllPackageNames(clauses);
+    const targetArch = arch || recipe.arch || 'aarch64';
+    const filtered = filterDepsForArch(clauses, targetArch);
+    return extractAllPackageNames(filtered);
   }
 
-  resolveBuildOrder(targetPackages?: string[]): string[] {
+  resolveBuildOrder(targetPackages?: string[], arch?: string): string[] {
     const graph: Record<string, string[]> = {};
     const inDegree: Record<string, number> = {};
 
@@ -42,7 +44,7 @@ export class DependencyGraph {
     }
 
     for (const [pkgName, recipe] of Object.entries(this.recipes)) {
-      const deps = this.getRecipeDepNames(recipe);
+      const deps = this.getRecipeDepNames(recipe, arch);
       for (const dep of deps) {
         if (this.recipes[dep]) {
           graph[dep].push(pkgName);
@@ -74,13 +76,13 @@ export class DependencyGraph {
     return fullOrder.filter((p) => targetSet.has(p));
   }
 
-  getDependents(pkgName: string): Set<string> {
+  getDependents(pkgName: string, arch?: string): Set<string> {
     const dependents = new Set<string>();
     const queue = [pkgName];
     while (queue.length > 0) {
       const current = queue.shift()!;
       for (const [p, recipe] of Object.entries(this.recipes)) {
-        const deps = this.getRecipeDepNames(recipe);
+        const deps = this.getRecipeDepNames(recipe, arch);
         if (deps.has(current) && !dependents.has(p)) {
           dependents.add(p);
           queue.push(p);
@@ -90,7 +92,7 @@ export class DependencyGraph {
     return dependents;
   }
 
-  getLayers(targetPackages?: string[]): string[][] {
+  getLayers(targetPackages?: string[], arch?: string): string[][] {
     const pkgs = new Set(targetPackages ? targetPackages.filter((p) => this.recipes[p]) : Object.keys(this.recipes));
 
     const subGraph: Record<string, Set<string>> = {};
@@ -103,7 +105,7 @@ export class DependencyGraph {
 
     for (const p of pkgs) {
       const recipe = this.recipes[p];
-      const deps = this.getRecipeDepNames(recipe);
+      const deps = this.getRecipeDepNames(recipe, arch);
       for (const dep of deps) {
         if (pkgs.has(dep)) {
           subGraph[dep].add(p);

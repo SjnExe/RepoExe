@@ -10,6 +10,11 @@ export default defineRecipe({
   maintainer: 'SjnExe',
   build_system: 'custom',
   formats: ['apt', 'pacman', 'apk'],
+  resources: {
+    zram: 0,
+    swap: 0,
+    tmpfs: 2,
+  },
   phases: {
     install: `mkdir -p "\${DESTDIR}\${PREFIX}/bin"
 cp "../../scripts/site/install" "\${DESTDIR}\${PREFIX}/bin/repoexe"

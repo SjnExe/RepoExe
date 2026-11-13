@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { checkExistingReleaseHash, resolveAndFetchBuildDependencies } from '../core/fetcher.ts';
 import { setupBionicCompat } from '../core/compat.ts';
@@ -17,6 +18,9 @@ export function fetchAndPrepareSource(recipe: any, pDir: string, destdir: string
 
   const srcUrl = recipe.source.replace(/\{version\}/g, recipe.version);
   const srcExtractDir = join(destdir, 'src');
+  if (existsSync(srcExtractDir)) {
+    rmSync(srcExtractDir, { recursive: true, force: true });
+  }
   mkdirSync(srcExtractDir, { recursive: true });
   console.log(`[${recipe.name}] Fetching source from ${srcUrl}...`);
 
@@ -27,15 +31,23 @@ export function fetchAndPrepareSource(recipe: any, pDir: string, destdir: string
     if (srcUrl.includes('#')) {
       const [repoUrl, ref] = srcUrl.split('#');
       if (ref.length === 40 && /^[0-9a-fA-F]+$/.test(ref)) {
-        spawnSync('git', ['init', srcExtractDir], { stdio: 'inherit' });
-        spawnSync('git', ['-C', srcExtractDir, 'remote', 'add', 'origin', repoUrl], { stdio: 'inherit' });
-        spawnSync('git', ['-C', srcExtractDir, 'fetch', '--depth', '1', 'origin', ref], { stdio: 'inherit' });
-        spawnSync('git', ['-C', srcExtractDir, 'checkout', 'FETCH_HEAD'], { stdio: 'inherit' });
+        let res = spawnSync('git', ['init', srcExtractDir], { stdio: 'inherit' });
+        if (res.status !== 0) throw new Error(`git init failed for ${recipe.name}`);
+        res = spawnSync('git', ['-C', srcExtractDir, 'remote', 'add', 'origin', repoUrl], { stdio: 'inherit' });
+        if (res.status !== 0) throw new Error(`git remote add failed for ${recipe.name}`);
+        res = spawnSync('git', ['-C', srcExtractDir, 'fetch', '--depth', '1', 'origin', ref], { stdio: 'inherit' });
+        if (res.status !== 0) throw new Error(`git fetch failed for ${recipe.name}`);
+        res = spawnSync('git', ['-C', srcExtractDir, 'checkout', 'FETCH_HEAD'], { stdio: 'inherit' });
+        if (res.status !== 0) throw new Error(`git checkout failed for ${recipe.name}`);
       } else {
-        spawnSync('git', ['clone', '--depth', '1', '--branch', ref, repoUrl, srcExtractDir], { stdio: 'inherit' });
+        const res = spawnSync('git', ['clone', '--depth', '1', '--branch', ref, repoUrl, srcExtractDir], {
+          stdio: 'inherit',
+        });
+        if (res.status !== 0) throw new Error(`git clone failed for ${recipe.name} from ${repoUrl}`);
       }
     } else {
-      spawnSync('git', ['clone', '--depth', '1', srcUrl, srcExtractDir], { stdio: 'inherit' });
+      const res = spawnSync('git', ['clone', '--depth', '1', srcUrl, srcExtractDir], { stdio: 'inherit' });
+      if (res.status !== 0) throw new Error(`git clone failed for ${recipe.name} from ${srcUrl}`);
     }
   } else {
     const archivePath = join(destdir, 'source_archive');
@@ -46,10 +58,21 @@ export function fetchAndPrepareSource(recipe: any, pDir: string, destdir: string
       throw new Error(`Failed to download source archive for ${recipe.name} from ${srcUrl}`);
     }
 
+    if (recipe.sha256) {
+      const digest = createHash('sha256').update(readFileSync(archivePath)).digest('hex');
+      if (digest.toLowerCase() !== recipe.sha256.toLowerCase()) {
+        throw new Error(`sha256 mismatch for ${recipe.name}: expected ${recipe.sha256}, got ${digest}`);
+      }
+    }
+
+    let extractRes;
     if (srcUrl.endsWith('.zip') || srcUrl.includes('.zip')) {
-      spawnSync('unzip', ['-q', '-o', archivePath, '-d', srcExtractDir], { stdio: 'inherit' });
+      extractRes = spawnSync('unzip', ['-q', '-o', archivePath, '-d', srcExtractDir], { stdio: 'inherit' });
     } else {
-      spawnSync('tar', ['-xf', archivePath, '-C', srcExtractDir], { stdio: 'inherit' });
+      extractRes = spawnSync('tar', ['-xf', archivePath, '-C', srcExtractDir], { stdio: 'inherit' });
+    }
+    if (extractRes.status !== 0) {
+      throw new Error(`Failed to extract source archive for ${recipe.name}`);
     }
 
     const items = readdirSync(srcExtractDir, { withFileTypes: true });
@@ -140,13 +163,11 @@ export function executeTest(recipe: any, destdir?: string, outputDir?: string): 
       'set -e',
       'INSTALLED=0',
       // Install all available .deb packages in package staging dir with forced architecture & dependencies
-      `if ls ${containerPkgDir}/*.deb 1>/dev/null 2>&1; then dpkg -i --force-architecture --force-depends ${containerPkgDir}/*.deb 2>/dev/null || true; fi`,
-      // Specifically unpack the target package matching current name, version and arch
-      `if [ -f "${containerPkgDir}/${targetDeb}" ]; then dpkg-deb -x "${containerPkgDir}/${targetDeb}" /; INSTALLED=1; elif ls ${containerPkgDir}/*.deb 1>/dev/null 2>&1; then for f in ${containerPkgDir}/*.deb; do if [ -f "$f" ]; then dpkg-deb -x "$f" /; INSTALLED=1; fi; done; fi`,
-      // If pacman packages are present, extract them into /
-      `if ls ${containerPkgDir}/*.pkg.tar.* 1>/dev/null 2>&1; then for f in ${containerPkgDir}/*.pkg.tar.*; do if [ -f "$f" ]; then tar -xf "$f" -C /; INSTALLED=1; fi; done; fi`,
-      // If apk packages are present, extract them into /
-      `if ls ${containerPkgDir}/*.apk 1>/dev/null 2>&1; then for f in ${containerPkgDir}/*.apk; do if [ -f "$f" ]; then tar -xf "$f" -C /; INSTALLED=1; fi; done; fi`,
+      `if ls ${containerPkgDir}/*.deb 1>/dev/null 2>&1; then if dpkg -i --force-architecture --force-depends ${containerPkgDir}/*.deb 2>/dev/null; then INSTALLED=1; else for f in ${containerPkgDir}/*.deb; do if [ -f "$f" ]; then TMP_X=$(mktemp -d); dpkg-deb -x "$f" "$TMP_X" 2>/dev/null || true; if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -r "$TMP_X/data/data/com.termux/files/"* /data/data/com.termux/files/ 2>/dev/null || true; fi; rm -rf "$TMP_X"; INSTALLED=1; fi; done; fi; fi`,
+      // If pacman packages are present, extract them into /data/data/com.termux/files/
+      `if ls ${containerPkgDir}/*.pkg.tar.* 1>/dev/null 2>&1; then for f in ${containerPkgDir}/*.pkg.tar.*; do if [ -f "$f" ]; then TMP_X=$(mktemp -d); tar -xf "$f" -C "$TMP_X" 2>/dev/null || true; if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -r "$TMP_X/data/data/com.termux/files/"* /data/data/com.termux/files/ 2>/dev/null || true; fi; rm -rf "$TMP_X"; INSTALLED=1; fi; done; fi`,
+      // If apk packages are present, extract them into /data/data/com.termux/files/
+      `if ls ${containerPkgDir}/*.apk 1>/dev/null 2>&1; then for f in ${containerPkgDir}/*.apk; do if [ -f "$f" ]; then TMP_X=$(mktemp -d); tar -xf "$f" -C "$TMP_X" 2>/dev/null || true; if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -r "$TMP_X/data/data/com.termux/files/"* /data/data/com.termux/files/ 2>/dev/null || true; fi; rm -rf "$TMP_X"; INSTALLED=1; fi; done; fi`,
       `if [ "$INSTALLED" -eq 0 ]; then echo "::error:: No package artifacts found in ${containerPkgDir} to install for smoke testing!"; exit 1; fi`,
       'chmod +x ${PREFIX:-/data/data/com.termux/files/usr}/bin/* 2>/dev/null || true',
       `timeout 120s sh -c '${escapedCmd}'`,
@@ -327,6 +348,7 @@ async function main(): Promise<void> {
           RECIPE_VERSION: recipe.version,
           RECIPE_EPOCH: String(recipe.epoch),
           ACTIVE_CHANNEL: channel,
+          RECIPE_NDK: recipe.ndk || 'default',
           PKG_CONFIG_DIR: '',
           PKG_CONFIG_LIBDIR: `${prefixDir}/lib/pkgconfig:${prefixDir}/share/pkgconfig`,
           PKG_CONFIG_PATH: `${prefixDir}/lib/pkgconfig:${prefixDir}/share/pkgconfig`,
@@ -350,7 +372,10 @@ async function main(): Promise<void> {
         if (existsSync(filesDir)) {
           const prefixDest = join(stageDir, 'data', 'data', 'com.termux', 'files', 'usr');
           mkdirSync(prefixDest, { recursive: true });
-          spawnSync('cp', ['-a', `${filesDir}/.`, `${prefixDest}/`]);
+          const cpRes = spawnSync('cp', ['-a', `${filesDir}/.`, `${prefixDest}/`]);
+          if (cpRes.status !== 0) {
+            throw new Error(`Failed to copy static files from ${filesDir} to ${prefixDest}`);
+          }
         }
 
         if (command === 'build') {

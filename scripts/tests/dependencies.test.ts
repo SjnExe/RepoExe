@@ -45,6 +45,17 @@ test('filters architecture-specific dependencies', () => {
   expect(formatDebianDependency(x86)).toBe('lapack');
 });
 
+test('filters architecture-specific dependencies with Debian wildcards', () => {
+  const raw = ['libfoo [any]', 'libbar [!any]', 'libarm [any-arm64]'];
+  const clauses = parseDependencyList(raw);
+
+  const arm64 = filterDepsForArch(clauses, 'aarch64');
+  expect(formatDebianDependency(arm64)).toBe('libfoo, libarm');
+
+  const x64 = filterDepsForArch(clauses, 'x86_64');
+  expect(formatDebianDependency(x64)).toBe('libfoo');
+});
+
 test('strips architecture brackets for debian binary control', () => {
   const clauses = parseDependencyList(['libfoo (>= 1.0) [arm64] | libbar [amd64]']);
   const filtered = filterDepsForArch(clauses, 'aarch64');

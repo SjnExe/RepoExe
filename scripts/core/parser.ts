@@ -49,7 +49,7 @@ export function computeStateHash(recipe: PackageRecipe, pkgDir?: string): string
   if (pkgDir && existsSync(pkgDir) && statSync(pkgDir).isDirectory()) {
     const glob = new Bun.Glob('**/*');
     const files: string[] = [];
-    for (const rel of glob.scanSync({ cwd: pkgDir })) {
+    for (const rel of glob.scanSync({ cwd: pkgDir, dot: true })) {
       if (rel !== 'recipe.ts' && rel !== 'pkg.yml') {
         const full = join(pkgDir, rel);
         if (statSync(full).isFile()) {
@@ -143,6 +143,10 @@ export function parseRecipe(recipePath: string, channel: string = 'latest'): Pac
     state_hash: '',
     ndk: rawData.ndk,
   };
+
+  if (baseRecipe.ndk && baseRecipe.ndk !== '30' && baseRecipe.ndk !== '23c') {
+    throw new Error(`Unsupported NDK version: ${baseRecipe.ndk}. Supported versions: '30', '23c'.`);
+  }
 
   // Apply channel override if present
   if (channel in baseRecipe.channels) {

@@ -125,6 +125,23 @@ export function parseDependencyList(deps: string[] | string): DependencyClause[]
   return clauses;
 }
 
+export function matchArchWildcard(pattern: string, normTarget: string): boolean {
+  const normPattern = normalizeArch(pattern);
+  if (normPattern === 'any') return true;
+  if (normPattern === normTarget) return true;
+
+  if (pattern.includes('-')) {
+    const parts = pattern.split('-');
+    if (parts.length === 2) {
+      const [os, cpu] = parts;
+      const osMatch = os === 'any' || os === 'linux';
+      const cpuMatch = cpu === 'any' || normalizeArch(cpu) === normTarget;
+      return osMatch && cpuMatch;
+    }
+  }
+  return false;
+}
+
 export function filterDepsForArch(clauses: DependencyClause[], targetArch: string): DependencyClause[] {
   const normTarget = normalizeArch(targetArch);
   const result: DependencyClause[] = [];
@@ -136,7 +153,7 @@ export function filterDepsForArch(clauses: DependencyClause[], targetArch: strin
       if (!token.architectures || token.architectures.length === 0 || normTarget === 'all') {
         matchedTokens.push({ ...token, architectures: undefined, negatedArch: undefined });
       } else {
-        const matches = token.architectures.includes(normTarget);
+        const matches = token.architectures.some((archPattern) => matchArchWildcard(archPattern, normTarget));
         const include = token.negatedArch ? !matches : matches;
         if (include) {
           matchedTokens.push({ ...token, architectures: undefined, negatedArch: undefined });

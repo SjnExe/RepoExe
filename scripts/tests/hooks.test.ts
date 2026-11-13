@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { mkdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { postinstallTask, resolveGitDir } from '../hooks/postinstall.ts';
 import { runPreCommitHook } from '../hooks/pre-commit.ts';
 
-const tmpBase = process.env.TMPDIR || (process.env.PREFIX ? `${process.env.PREFIX}/tmp` : '/tmp');
+const tmpBase = process.env.TMPDIR || (process.env.PREFIX ? `${process.env.PREFIX}/tmp` : tmpdir());
 const testDir = join(tmpBase, 'repoexe-hook-test-' + Date.now());
 
 describe('pre-commit and postinstall hooks', () => {

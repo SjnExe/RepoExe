@@ -55,9 +55,25 @@ export function buildPacman(
 
   const zstdCheck = spawnSync('which', ['zstd']);
   if (zstdCheck.status === 0) {
-    const res = spawnSync('tar', ['--exclude=DEBIAN', '-I', 'zstd -9', '-cf', zstPath, '-C', stageDir, '.'], {
-      encoding: 'utf-8',
-    });
+    const res = spawnSync(
+      'tar',
+      [
+        '--exclude=DEBIAN',
+        '--exclude=recipe.ts',
+        '--exclude=pkg.yml',
+        '--exclude=__init__.py',
+        '-I',
+        'zstd -9',
+        '-cf',
+        zstPath,
+        '-C',
+        stageDir,
+        '.',
+      ],
+      {
+        encoding: 'utf-8',
+      },
+    );
     if (res.status === 0) {
       return zstPath;
     }
@@ -66,9 +82,23 @@ export function buildPacman(
   // Fallback to .tar.gz
   const gzFilename = `${recipe.name}-${filenameVer}-${pkgArch}.pkg.tar.gz`;
   const gzPath = join(outPath, gzFilename);
-  const res = spawnSync('tar', ['--exclude=DEBIAN', '-czf', gzPath, '-C', stageDir, '.'], {
-    encoding: 'utf-8',
-  });
+  const res = spawnSync(
+    'tar',
+    [
+      '--exclude=DEBIAN',
+      '--exclude=recipe.ts',
+      '--exclude=pkg.yml',
+      '--exclude=__init__.py',
+      '-czf',
+      gzPath,
+      '-C',
+      stageDir,
+      '.',
+    ],
+    {
+      encoding: 'utf-8',
+    },
+  );
   if (res.status !== 0) {
     throw new Error(`Pacman tar packaging failed: ${res.stderr}`);
   }

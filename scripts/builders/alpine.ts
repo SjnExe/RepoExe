@@ -48,9 +48,25 @@ export function buildAlpine(
   const apkFilename = `${recipe.name}-${pkgver}.apk`;
   const apkPath = join(outPath, apkFilename);
 
-  const res = spawnSync('tar', ['--exclude=DEBIAN', '-I', 'gzip -9', '-cf', apkPath, '-C', stageDir, '.'], {
-    encoding: 'utf-8',
-  });
+  const res = spawnSync(
+    'tar',
+    [
+      '--exclude=DEBIAN',
+      '--exclude=recipe.ts',
+      '--exclude=pkg.yml',
+      '--exclude=__init__.py',
+      '-I',
+      'gzip -9',
+      '-cf',
+      apkPath,
+      '-C',
+      stageDir,
+      '.',
+    ],
+    {
+      encoding: 'utf-8',
+    },
+  );
 
   if (res.status !== 0) {
     throw new Error(`Alpine tar packaging failed: ${res.stderr}`);
