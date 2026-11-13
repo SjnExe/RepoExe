@@ -326,6 +326,9 @@ async function main(): Promise<void> {
           continue;
         }
 
+        mkdirSync(destdir, { recursive: true });
+        mkdirSync(stageDir, { recursive: true });
+
         // 1. Setup bionic compat if available
         try {
           setupBionicCompat();
@@ -340,7 +343,6 @@ async function main(): Promise<void> {
         const workDir = fetchAndPrepareSource(recipe, pDir, destdir);
 
         // 4. Staging directories & environment
-        mkdirSync(stageDir, { recursive: true });
         const prefixDir = '/data/data/com.termux/files/usr';
         try {
           mkdirSync(join(prefixDir, 'lib'), { recursive: true });
