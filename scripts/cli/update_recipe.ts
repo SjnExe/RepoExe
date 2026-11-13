@@ -100,6 +100,91 @@ export function findMatchingBrace(str: string, openBraceIdx: number): number {
   return -1;
 }
 
+function findSyntaxMatch(content: string, pattern: RegExp): number {
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inTemplate = false;
+  const templateBraceStack: number[] = [];
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    const prev = i > 0 ? content[i - 1] : '';
+
+    if (inLineComment) {
+      if (char === '\n') inLineComment = false;
+      continue;
+    }
+    if (inBlockComment) {
+      if (char === '/' && prev === '*') inBlockComment = false;
+      continue;
+    }
+    if (inSingleQuote) {
+      if (char === "'" && (prev !== '\\' || (i > 1 && content[i - 2] === '\\'))) inSingleQuote = false;
+      continue;
+    }
+    if (inDoubleQuote) {
+      if (char === '"' && (prev !== '\\' || (i > 1 && content[i - 2] === '\\'))) inDoubleQuote = false;
+      continue;
+    }
+    if (inTemplate) {
+      if (char === '`' && (prev !== '\\' || (i > 1 && content[i - 2] === '\\'))) {
+        inTemplate = false;
+        continue;
+      }
+      if (char === '$' && i + 1 < content.length && content[i + 1] === '{') {
+        templateBraceStack.push(0);
+        i++;
+        continue;
+      }
+      if (templateBraceStack.length > 0) {
+        if (char === '{') {
+          templateBraceStack[templateBraceStack.length - 1]++;
+        } else if (char === '}') {
+          const top = templateBraceStack[templateBraceStack.length - 1];
+          if (top === 0) templateBraceStack.pop();
+          else templateBraceStack[templateBraceStack.length - 1]--;
+        }
+      }
+      continue;
+    }
+
+    if (char === '/' && i + 1 < content.length) {
+      if (content[i + 1] === '/') {
+        inLineComment = true;
+        i++;
+        continue;
+      }
+      if (content[i + 1] === '*') {
+        inBlockComment = true;
+        i++;
+        continue;
+      }
+    }
+
+    const sub = content.slice(i);
+    const m = sub.match(pattern);
+    if (m && m.index === 0) {
+      return i;
+    }
+
+    if (char === "'") {
+      inSingleQuote = true;
+      continue;
+    }
+    if (char === '"') {
+      inDoubleQuote = true;
+      continue;
+    }
+    if (char === '`') {
+      inTemplate = true;
+      continue;
+    }
+  }
+  return -1;
+}
+
 export function updateDirectObjectProperties(
   str: string,
   openBraceIdx: number,
@@ -113,6 +198,7 @@ export function updateDirectObjectProperties(
   const templateBraceStack: number[] = [];
   let inLineComment = false;
   let inBlockComment = false;
+  let lastSignificantToken = '{';
 
   interface EditRange {
     start: number;
@@ -182,48 +268,65 @@ export function updateDirectObjectProperties(
       }
     }
 
+    // Direct property matching when count === 1 and preceded by '{' or ','
+    if (count === 1 && (lastSignificantToken === '{' || lastSignificantToken === ',')) {
+      const sub = str.slice(i);
+      const verMatch = sub.match(/^(?:(?:\bversion\b)|(?:["']version["']))\s*:\s*(['"])([^'"]*)\1/);
+      if (verMatch && verMatch.index === 0) {
+        const colonOffset = sub.indexOf(':');
+        const quote = verMatch[1];
+        const valOffset = sub.indexOf(quote, colonOffset);
+        const start = i + valOffset + 1;
+        const end = start + verMatch[2].length;
+        versionEdit = { start, end, replacement: newVersion };
+        lastSignificantToken = ':';
+        i += verMatch[0].length - 1;
+        continue;
+      }
+
+      const revMatch = sub.match(/^(?:(?:\brevision\b)|(?:["']revision["']))\s*:\s*(\d+)/);
+      if (revMatch && revMatch.index === 0) {
+        const colonOffset = sub.indexOf(':');
+        const valStr = revMatch[1];
+        const valOffset = sub.indexOf(valStr, colonOffset);
+        const start = i + valOffset;
+        const end = start + valStr.length;
+        revisionEdit = { start, end, replacement: '0' };
+        lastSignificantToken = ':';
+        i += revMatch[0].length - 1;
+        continue;
+      }
+    }
+
     if (char === "'") {
       inSingleQuote = true;
+      if (count === 1) lastSignificantToken = "'";
       continue;
     }
     if (char === '"') {
       inDoubleQuote = true;
+      if (count === 1) lastSignificantToken = '"';
       continue;
     }
     if (char === '`') {
       inTemplate = true;
+      if (count === 1) lastSignificantToken = '`';
       continue;
     }
 
     if (char === '{') {
       count++;
+      if (count === 1) lastSignificantToken = '{';
     } else if (char === '}') {
       count--;
       if (count === 0) {
         break;
       }
-    } else if (count === 1 && (char === 'v' || char === 'r' || char === '"' || char === "'")) {
-      const sub = str.slice(i);
-      const verMatch = sub.match(/^(?:(?:\bversion)|(?:["']version["']))\s*:\s*(['"])([^'"]*)\1/);
-      if (verMatch && verMatch.index === 0) {
-        const quote = verMatch[1];
-        const valOffset = sub.indexOf(quote);
-        const start = i + valOffset + 1;
-        const end = start + verMatch[2].length;
-        versionEdit = { start, end, replacement: newVersion };
-        i += verMatch[0].length - 1;
-        continue;
-      }
-
-      const revMatch = sub.match(/^(?:(?:\brevision)|(?:["']revision["']))\s*:\s*(\d+)/);
-      if (revMatch && revMatch.index === 0) {
-        const valStr = revMatch[1];
-        const valOffset = sub.indexOf(valStr, sub.indexOf(':'));
-        const start = i + valOffset;
-        const end = start + valStr.length;
-        revisionEdit = { start, end, replacement: '0' };
-        i += revMatch[0].length - 1;
-        continue;
+    } else if (count === 1) {
+      if (char === ',') {
+        lastSignificantToken = ',';
+      } else if (!/\s/.test(char)) {
+        lastSignificantToken = char;
       }
     }
   }
@@ -236,7 +339,7 @@ export function updateDirectObjectProperties(
   if (revisionEdit) {
     edits.push(revisionEdit);
   }
-  edits.sort((a, b) => b.start - a.start);
+  edits.sort((a: EditRange, b: EditRange): number => b.start - a.start);
 
   let res = str;
   for (const edit of edits) {
@@ -248,15 +351,15 @@ export function updateDirectObjectProperties(
 export function updateRecipeContent(content: string, channel: string, newVersion: string): string {
   if (channel === 'latest') {
     let rootBraceIdx = -1;
-    const defMatch = content.match(/defineRecipe\s*\(\s*\{/);
-    if (defMatch && defMatch.index !== undefined) {
-      rootBraceIdx = content.indexOf('{', defMatch.index);
+    const defIdx = findSyntaxMatch(content, /^defineRecipe\s*\(\s*\{/);
+    if (defIdx !== -1) {
+      rootBraceIdx = content.indexOf('{', defIdx);
     } else {
-      const expMatch = content.match(/export\s+default\s*\{/);
-      if (expMatch && expMatch.index !== undefined) {
-        rootBraceIdx = content.indexOf('{', expMatch.index);
+      const expIdx = findSyntaxMatch(content, /^export\s+default\s*\{/);
+      if (expIdx !== -1) {
+        rootBraceIdx = content.indexOf('{', expIdx);
       } else {
-        rootBraceIdx = content.indexOf('{');
+        rootBraceIdx = findSyntaxMatch(content, /^\{/);
       }
     }
     if (rootBraceIdx === -1) {
@@ -266,13 +369,13 @@ export function updateRecipeContent(content: string, channel: string, newVersion
   } else {
     // Locate the specific channel entry inside channels: { ... }
     const escaped = channel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const channelKeyRegex = new RegExp(`(?:^|\\s|["'])(${escaped})(?:["']?\\s*:\\s*\\{)`);
-    const match = content.match(channelKeyRegex);
-    if (!match || match.index === undefined) {
+    const channelKeyRegex = new RegExp(`^(?:${escaped}|["']${escaped}["'])\\s*:\\s*\\{`);
+    const chanIdx = findSyntaxMatch(content, channelKeyRegex);
+    if (chanIdx === -1) {
       throw new Error(`Channel ${channel} not found in recipe.`);
     }
 
-    const openBraceIdx = content.indexOf('{', match.index);
+    const openBraceIdx = content.indexOf('{', chanIdx);
     if (openBraceIdx === -1) {
       throw new Error(`Malformed channel block for ${channel}.`);
     }

@@ -107,7 +107,7 @@ export function fetchAndPrepareSource(recipe: any, pDir: string, destdir: string
 export async function executePack(recipe: any, pkgDir: string, destdir: string, outputDir: string): Promise<void> {
   mkdirSync(outputDir, { recursive: true });
   const escapedPkg = recipe.name.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-  const isTargetDeb = new RegExp(`^${escapedPkg}_[^_]+_[^_]+\\.deb$`);
+  const isTargetDeb = new RegExp(`^${escapedPkg}_.+_[^_]+\\.deb$`);
   const isTargetPacman = new RegExp(`^${escapedPkg}-[0-9].*\\.pkg\\.tar\\..+$`);
   const isTargetApk = new RegExp(`^${escapedPkg}-[0-9].*\\.apk$`);
 

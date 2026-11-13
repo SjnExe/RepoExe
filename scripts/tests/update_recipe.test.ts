@@ -107,7 +107,7 @@ export default defineRecipe({
     expect(updated).toMatch(/revision:\s*0/);
   });
 
-  it('ignores nested vars.version and correctly updates top-level direct version', () => {
+  it('ignores nested vars.version and correctly updates top-level direct version', (): void => {
     const original = `
 export default defineRecipe({
   name: "foo",
@@ -124,7 +124,7 @@ export default defineRecipe({
     expect(updated).toContain('revision: 0');
   });
 
-  it('ignores braces inside strings, comments, and template literals during channel matching', () => {
+  it('ignores braces inside strings, comments, and template literals during channel matching', (): void => {
     const original = `
 export default defineRecipe({
   version: "2.0.0",
@@ -149,6 +149,50 @@ export default defineRecipe({
     expect(updated).toContain('version: "2.0.0"');
     expect(updated).toContain('version: "inner"');
     expect(updated).toContain('version: "1.0.1"');
+    expect(updated).toContain('revision: 0');
+  });
+
+  it('recognizes quoted property keys and updates only the value', (): void => {
+    const original = `
+export default defineRecipe({
+  "name": "foo",
+  "version": "1.0.0",
+  "revision": 3,
+});
+`;
+    const updated = updateRecipeContent(original, 'latest', '1.1.0');
+    expect(updated).toContain('"version": "1.1.0"');
+    expect(updated).toContain('"revision": 0');
+  });
+
+  it('does not match version identifier in ternary expression operand', (): void => {
+    const original = `
+const version = "stable";
+export default defineRecipe({
+  version: "1.0.0",
+  revision: 3,
+  description: true ? version : "fallback",
+});
+`;
+    const updated = updateRecipeContent(original, 'latest', '1.1.0');
+    expect(updated).toContain('version: "1.1.0"');
+    expect(updated).toContain('description: true ? version : "fallback"');
+    expect(updated).toContain('revision: 0');
+  });
+
+  it('excludes commented defineRecipe when locating root object', (): void => {
+    const original = `
+// defineRecipe({ version: "0.0.0", revision: 1 });
+/* defineRecipe({ version: "0.0.1" }); */
+export default defineRecipe({
+  version: "1.0.0",
+  revision: 2,
+});
+`;
+    const updated = updateRecipeContent(original, 'latest', '1.2.0');
+    expect(updated).toContain('// defineRecipe({ version: "0.0.0", revision: 1 });');
+    expect(updated).toContain('/* defineRecipe({ version: "0.0.1" }); */');
+    expect(updated).toContain('version: "1.2.0"');
     expect(updated).toContain('revision: 0');
   });
 

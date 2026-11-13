@@ -142,18 +142,30 @@ function extractDebToPrefix(debPath: string, prefixRoot: string): void {
   const extractTmp = join(tmpdir(), `deb_extract_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   rmSync(extractTmp, { recursive: true, force: true });
   mkdirSync(extractTmp, { recursive: true });
-  spawnSync('dpkg-deb', ['-x', debPath, extractTmp]);
-
-  const extractedUsr = join(extractTmp, 'data', 'data', 'com.termux', 'files', 'usr');
-  if (existsSync(extractedUsr)) {
-    spawnSync('cp', ['-a', `${extractedUsr}/.`, `${prefixRoot}/`]);
-  } else {
-    const directUsr = join(extractTmp, 'usr');
-    if (existsSync(directUsr)) {
-      spawnSync('cp', ['-a', `${directUsr}/.`, `${prefixRoot}/`]);
+  try {
+    const extractRes = spawnSync('dpkg-deb', ['-x', debPath, extractTmp], { encoding: 'utf-8' });
+    if (extractRes.status !== 0) {
+      throw new Error(`dpkg-deb failed to extract ${basename(debPath)}: ${extractRes.stderr || 'unknown error'}`);
     }
+
+    const extractedUsr = join(extractTmp, 'data', 'data', 'com.termux', 'files', 'usr');
+    if (existsSync(extractedUsr)) {
+      const cpRes = spawnSync('cp', ['-a', `${extractedUsr}/.`, `${prefixRoot}/`], { encoding: 'utf-8' });
+      if (cpRes.status !== 0) {
+        throw new Error(`Failed to copy extracted usr into ${prefixRoot}: ${cpRes.stderr || 'unknown error'}`);
+      }
+    } else {
+      const directUsr = join(extractTmp, 'usr');
+      if (existsSync(directUsr)) {
+        const cpRes = spawnSync('cp', ['-a', `${directUsr}/.`, `${prefixRoot}/`], { encoding: 'utf-8' });
+        if (cpRes.status !== 0) {
+          throw new Error(`Failed to copy direct usr into ${prefixRoot}: ${cpRes.stderr || 'unknown error'}`);
+        }
+      }
+    }
+  } finally {
+    rmSync(extractTmp, { recursive: true, force: true });
   }
-  rmSync(extractTmp, { recursive: true, force: true });
 }
 
 export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<string>): Promise<boolean> {
