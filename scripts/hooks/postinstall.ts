@@ -44,12 +44,22 @@ export async function resolveGitDir(baseGitDir = '.git'): Promise<string> {
 export async function postinstallTask(gitDir = '.git'): Promise<boolean> {
   const targetDir = await resolveGitDir(gitDir);
   if (existsSync(`${targetDir}/HEAD`)) {
+    const worktreeRoot = dirname(resolve(gitDir));
     let hooksDir = `${targetDir}/hooks`;
-    const gitConfigRes = Bun.spawnSync(['git', 'config', '--get', 'core.hooksPath']);
+
+    const env = { ...process.env };
+    delete env.GIT_DIR;
+    delete env.GIT_WORK_TREE;
+    delete env.GIT_COMMON_DIR;
+
+    const gitConfigRes = Bun.spawnSync(['git', 'config', '--get', 'core.hooksPath'], {
+      cwd: worktreeRoot,
+      env,
+    });
     if (gitConfigRes.exitCode === 0) {
       const configuredHooksPath = gitConfigRes.stdout.toString().trim();
       if (configuredHooksPath) {
-        hooksDir = resolve(configuredHooksPath);
+        hooksDir = resolve(worktreeRoot, configuredHooksPath);
       }
     }
 

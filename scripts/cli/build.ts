@@ -106,6 +106,13 @@ export function fetchAndPrepareSource(recipe: any, pDir: string, destdir: string
 
 export async function executePack(recipe: any, pkgDir: string, destdir: string, outputDir: string): Promise<void> {
   mkdirSync(outputDir, { recursive: true });
+  // Clear any existing artifacts for this package to prevent stale files
+  for (const f of readdirSync(outputDir)) {
+    if (f.startsWith(`${recipe.name}_`) || f.startsWith(`${recipe.name}-`)) {
+      rmSync(join(outputDir, f), { force: true });
+    }
+  }
+
   const stageDir = join(destdir, 'stage');
 
   sanitizeStagingElfs(stageDir);
@@ -158,17 +165,17 @@ export function executeTest(recipe: any, destdir?: string, outputDir?: string): 
     const testerImage = process.env[archKey] || process.env.TESTER_IMAGE || `ghcr.io/${owner}/repoexe-tester:latest`;
     const containerPkgDir = '/data/data/com.termux/files/usr/tmp/repoexe-pkg';
 
-    // Multi-package & sibling-aware package installer with forced architecture and dependency resolution
+    // Sibling & target package installer with explicit exit verification
     const installCommands = [
       'set -e',
       'INSTALLED=0',
-      // Install all available .deb packages in package staging dir with forced architecture & dependencies
-      `if ls ${containerPkgDir}/*.deb 1>/dev/null 2>&1; then if dpkg -i --force-architecture --force-depends ${containerPkgDir}/*.deb 2>/dev/null; then INSTALLED=1; else for f in ${containerPkgDir}/*.deb; do if [ -f "$f" ]; then TMP_X=$(mktemp -d); dpkg-deb -x "$f" "$TMP_X" 2>/dev/null || true; if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -r "$TMP_X/data/data/com.termux/files/"* /data/data/com.termux/files/ 2>/dev/null || true; fi; rm -rf "$TMP_X"; INSTALLED=1; fi; done; fi; fi`,
-      // If pacman packages are present, extract them into /data/data/com.termux/files/
-      `if ls ${containerPkgDir}/*.pkg.tar.* 1>/dev/null 2>&1; then for f in ${containerPkgDir}/*.pkg.tar.*; do if [ -f "$f" ]; then TMP_X=$(mktemp -d); tar -xf "$f" -C "$TMP_X" 2>/dev/null || true; if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -r "$TMP_X/data/data/com.termux/files/"* /data/data/com.termux/files/ 2>/dev/null || true; fi; rm -rf "$TMP_X"; INSTALLED=1; fi; done; fi`,
-      // If apk packages are present, extract them into /data/data/com.termux/files/
-      `if ls ${containerPkgDir}/*.apk 1>/dev/null 2>&1; then for f in ${containerPkgDir}/*.apk; do if [ -f "$f" ]; then TMP_X=$(mktemp -d); tar -xf "$f" -C "$TMP_X" 2>/dev/null || true; if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -r "$TMP_X/data/data/com.termux/files/"* /data/data/com.termux/files/ 2>/dev/null || true; fi; rm -rf "$TMP_X"; INSTALLED=1; fi; done; fi`,
-      `if [ "$INSTALLED" -eq 0 ]; then echo "::error:: No package artifacts found in ${containerPkgDir} to install for smoke testing!"; exit 1; fi`,
+      // If target Debian package exists, install it directly with dpkg or extract into PREFIX
+      `if [ -f "${containerPkgDir}/${targetDeb}" ]; then if dpkg -i --force-architecture --force-depends "${containerPkgDir}/${targetDeb}" 2>/dev/null; then INSTALLED=1; else TMP_X=$(mktemp -d); if dpkg-deb -x "${containerPkgDir}/${targetDeb}" "$TMP_X" 2>/dev/null; then if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -a "$TMP_X/data/data/com.termux/files/." /data/data/com.termux/files/ && INSTALLED=1; fi; fi; rm -rf "$TMP_X"; fi; elif ls ${containerPkgDir}/${recipe.name}_*.deb 1>/dev/null 2>&1; then for f in ${containerPkgDir}/${recipe.name}_*.deb; do if [ -f "$f" ]; then if dpkg -i --force-architecture --force-depends "$f" 2>/dev/null; then INSTALLED=1; else TMP_X=$(mktemp -d); if dpkg-deb -x "$f" "$TMP_X" 2>/dev/null; then if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -a "$TMP_X/data/data/com.termux/files/." /data/data/com.termux/files/ && INSTALLED=1; fi; fi; rm -rf "$TMP_X"; fi; fi; done; fi`,
+      // If pacman package for target is present and deb not installed, extract into /data/data/com.termux/files/
+      `if [ "$INSTALLED" -eq 0 ] && ls ${containerPkgDir}/${recipe.name}-*.pkg.tar.* 1>/dev/null 2>&1; then for f in ${containerPkgDir}/${recipe.name}-*.pkg.tar.*; do if [ -f "$f" ]; then TMP_X=$(mktemp -d); if tar --no-overwrite-dir -xf "$f" -C "$TMP_X" 2>/dev/null || tar -xf "$f" -C "$TMP_X" 2>/dev/null; then if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -a "$TMP_X/data/data/com.termux/files/." /data/data/com.termux/files/ && INSTALLED=1; fi; fi; rm -rf "$TMP_X"; fi; done; fi`,
+      // If apk package for target is present and not yet installed, extract into /data/data/com.termux/files/
+      `if [ "$INSTALLED" -eq 0 ] && ls ${containerPkgDir}/${recipe.name}-*.apk 1>/dev/null 2>&1; then for f in ${containerPkgDir}/${recipe.name}-*.apk; do if [ -f "$f" ]; then TMP_X=$(mktemp -d); if tar --no-overwrite-dir -xf "$f" -C "$TMP_X" 2>/dev/null || tar -xf "$f" -C "$TMP_X" 2>/dev/null; then if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -a "$TMP_X/data/data/com.termux/files/." /data/data/com.termux/files/ && INSTALLED=1; fi; fi; rm -rf "$TMP_X"; fi; done; fi`,
+      `if [ "$INSTALLED" -eq 0 ]; then echo "::error:: Target package artifact for ${recipe.name} could not be installed for smoke testing!"; exit 1; fi`,
       'chmod +x ${PREFIX:-/data/data/com.termux/files/usr}/bin/* 2>/dev/null || true',
       `timeout 120s sh -c '${escapedCmd}'`,
     ];
