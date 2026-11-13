@@ -11,15 +11,3 @@ updates:
       all-actions:
         patterns:
           - '*'
-
-  - package-ecosystem: 'pip'
-    directory: '/scripts'
-    schedule:
-      interval: 'daily'
-    labels:
-      - 'dependencies'
-      - 'python'
-    groups:
-      all-python:
-        patterns:
-          - '*'
