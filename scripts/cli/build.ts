@@ -305,23 +305,9 @@ export async function simulateDryRun(
   pDir: string,
   destdir: string,
   outputDir: string,
-  arg1: string,
-  arg2?: any,
-  arg3?: any,
+  command: string = 'build',
+  force: boolean = false,
 ): Promise<void> {
-  let command = 'build';
-  let force = false;
-
-  if (typeof arg2 === 'boolean') {
-    command = arg1;
-    force = arg2;
-  } else if (typeof arg2 === 'string') {
-    command = arg2;
-    force = Boolean(arg3);
-  } else if (arg1) {
-    command = arg1;
-  }
-
   console.log(`\n============================================================`);
   console.log(`🔍 [DRY-RUN SIMULATION] ${recipe.name} (${command.toUpperCase()})`);
   console.log(`============================================================`);
