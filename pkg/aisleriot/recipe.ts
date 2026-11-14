@@ -69,7 +69,6 @@ meson setup build \\
 rm -rf "\${PREFIX}/host-bin"
 rm -f "\${PREFIX}/bin/guile"* "\${PREFIX}/bin/guild"*
 rm -f "\${DESTDIR}\${PREFIX}/bin/guile"* "\${DESTDIR}\${PREFIX}/bin/guild"* "\${DESTDIR}\${PREFIX}/bin/glib-compile-resources"
-ln -sf sol "\${DESTDIR}\${PREFIX}/bin/aisleriot"
 if command -v termux-elf-cleaner >/dev/null 2>&1; then
   termux-elf-cleaner "\${DESTDIR}\${PREFIX}/bin/sol" 2>/dev/null || true
   termux-elf-cleaner "\${DESTDIR}\${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true
