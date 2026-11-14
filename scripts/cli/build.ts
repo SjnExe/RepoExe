@@ -537,7 +537,9 @@ async function main(): Promise<void> {
         // 1. Setup bionic compat if available
         try {
           setupBionicCompat();
-        } catch {}
+        } catch (err) {
+          console.error(`Warning: setupBionicCompat failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
 
         // 2. Fetch build dependencies
         if (!skipDeps && recipe.build_deps && recipe.build_deps.length > 0) {
