@@ -75,14 +75,10 @@ if command -v termux-elf-cleaner >/dev/null 2>&1; then
 fi
 `,
     test: `SOL_PATH=""
-if [ -x "\${PREFIX}/bin/sol" ]; then
+if [ -n "\${DESTDIR}" ] && [ -x "\${DESTDIR}\${PREFIX}/bin/sol" ]; then
+  SOL_PATH="\${DESTDIR}\${PREFIX}/bin/sol"
+elif [ -x "\${PREFIX}/bin/sol" ]; then
   SOL_PATH="\${PREFIX}/bin/sol"
-fi
-if [ -z "$SOL_PATH" ]; then
-  CANDIDATE="$(command -v sol || true)"
-  if [ -n "$CANDIDATE" ] && [ "$CANDIDATE" != "/usr/bin/sol" ] && [ "$CANDIDATE" != "/bin/sol" ]; then
-    SOL_PATH="$CANDIDATE"
-  fi
 fi
 if [ -z "$SOL_PATH" ]; then
   echo "Error: sol executable not found in staged package or PREFIX" >&2
