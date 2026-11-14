@@ -35,7 +35,7 @@ bun install --silent
 3.  **Docker Builders:** All Docker configurations (e.g., `Dockerfile`, `runner.py`) must remain in `scripts/docker/` and are triggered by `docker.yml`. Tester image exclusively targets Bionic libc (`x11-repo`, `root-repo`) without `glibc-repo` or `glibc-runner`. Modifying `scripts/docker/` files returns an empty package matrix `[]` in `generate_shards.py` so package rebuilds are not falsely triggered.
 4.  **No `__init__.py` in Deb Roots:** When building `.deb` packages via `scripts/builders/debian.py`, ensure source recipe metadata (`recipe.ts`, `pkg.yml`, `__init__.py`) are excluded from the archive root to prevent `dpkg` read-only errors on Termux.
 5.  **GitHub Releases:** When using `gh release create` programmatically, do not pass `--clobber`. It is invalid for creation operations and causes silent failures.
-6.  **Binary Dependency Invariants:** Binary `DEBIAN/control` files strictly forbid architecture qualifiers (`[arch]`). All architecture qualifiers must be filtered and stripped at packaging time via `scripts/core/dependencies.ts`. Pacman and Alpine builders extract the primary provider.
+6.  **Binary Dependency Invariants:** Binary `DEBIAN/control` files strictly forbid architecture qualifiers (`[arch]`). All architecture qualifiers must be filtered and stripped at packaging time via `scripts/core/dependencies.ts`. The repository targets APT (`.deb`) exclusively.
 
 ## 🚀 Workflows & Runners
 

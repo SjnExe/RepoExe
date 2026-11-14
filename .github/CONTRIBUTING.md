@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to **RepoExe**! We welcome bug reports, package recipe additions, documentation improvements, and high-quality build infrastructure contributions.
 
-RepoExe is a modular, high-performance package repository and build orchestration suite designed for Android Termux, providing native `.deb` (APT), `.pkg.tar.zst` (Pacman), and `.apk` (Alpine) packages.
+RepoExe is a modular, high-performance package repository and build orchestration suite designed for Android Termux, providing native `.deb` (APT) packages.
 
 ---
 
@@ -43,7 +43,7 @@ RepoExe is a modular, high-performance package repository and build orchestratio
 Before reporting a bug:
 
 1. Search existing [GitHub Issues](https://github.com/SjnExe/RepoExe/issues) to avoid duplicates.
-2. Verify if the issue reproduces on the latest package release or across package formats (`apt`, `pacman`, `apk`).
+2. Verify if the issue reproduces on the latest package release.
 3. Include your device architecture (`uname -m`), Termux version, and complete terminal error outputs.
 
 ---

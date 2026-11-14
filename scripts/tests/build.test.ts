@@ -91,7 +91,7 @@ describe('build CLI helpers', (): void => {
       build_system: 'custom',
       source: 'https://example.com/test-pkg.tar.gz',
       sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-      formats: ['apt', 'apk'],
+      formats: ['apt'],
       build_deps: ['make'],
       deps: ['libc'],
       recommends: [],

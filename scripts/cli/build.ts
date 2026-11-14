@@ -326,7 +326,7 @@ export async function simulateDryRun(
   console.log(`⏳ Epoch:         ${recipe.epoch}`);
   console.log(`🏛️ Architecture:  ${recipe.arch || 'aarch64'}`);
   console.log(`📡 Channel:       ${channel}`);
-  console.log(`📁 Formats:       ${(recipe.formats || ['apt', 'pacman', 'apk']).join(', ')}`);
+  console.log(`📁 Formats:       ${(recipe.formats || ['apt']).join(', ')}`);
   if (recipe.description) console.log(`📝 Description:   ${recipe.description}`);
   if (recipe.homepage) console.log(`🌐 Homepage:      ${recipe.homepage}`);
 

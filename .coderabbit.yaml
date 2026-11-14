@@ -51,13 +51,13 @@ reviews:
 
     - path: 'scripts/builders/**/*.ts'
       instructions: |
-        - Multi-Format Parity: Debian (.deb), Pacman (.pkg.tar.zst), and Alpine (.apk) builders must produce consistent metadata, permissions, and directory structures.
+        - Debian (.deb) Builder: Debian (.deb) builder must produce consistent metadata, permissions, and directory structures.
         - Arch Mapping: Validate architecture mappings across all 4 supported architectures: `aarch64`, `arm`, `x86_64`, `i686`.
         - Package Metadata Exclusions: Ensure source recipe metadata (`recipe.ts`, `pkg.yml`, `__init__.py`) are excluded from archive roots to prevent `dpkg` read-only errors on Termux.
 
     - path: 'pkg/**/recipe.ts'
       instructions: |
-        - Recipe Schema: Ensure recipes conform to PackageRecipe schema with valid channels, formats (`apt`, `pacman`, `apk`), explicit resource limits (`zram`, `swap`, `tmpfs`), and reproducible phases.
+        - Recipe Schema: Ensure recipes conform to PackageRecipe schema with valid channels, formats (`apt`), explicit resource limits (`zram`, `swap`, `tmpfs`), and reproducible phases.
         - Native System Packages Only: Reject any Python wheels, npm packages, or non-system package recipes.
 
 chat:

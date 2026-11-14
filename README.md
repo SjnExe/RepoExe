@@ -1,23 +1,23 @@
 # RepoExe
 
-A scalable, multi-format package repository providing custom tools and standalone packages (like aapt2, zipalign, and aidl) built with modern continuous integration pipelines.
+A high-performance Termux package repository distributing custom tools and standalone packages built with modern continuous integration pipelines.
 
 ## Quick Install
 
-To automatically install this custom repository on your device, run:
+To install the RepoExe repository on your Termux device, run:
 
 ```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh
+curl -sL https://sjnexe.github.io/RepoExe/install | sh
 ```
 
-This universal script will automatically detect your active package manager (APT, Pacman, or Alpine apk), securely download the required keys, and inject the RepoExe repository into your system.
+This script configures the RepoExe APT repository and imports the repository signing key.
 
 ## Features
 
-- **Multi-Format Support:** Natively distributes `.deb` (APT), `.pkg.tar.zst` (Pacman), and `.apk` (Alpine) packages.
-- **Standalone Build System**: Packages are defined declaratively via TypeScript recipes (`recipe.ts`) using a high-performance Bun orchestrator.
-- **Independent CI/CD Pipelines**: Automated dependency tracking, dynamic CI matrix sharding, and static Pages deployments.
-- **Hermetic Docker Environments**: Reproducible artifact generation through strictly sandboxed custom Docker builder images.
+- **Native APT Repository:** Distributes `.deb` packages directly compatible with Termux `apt` and `pkg`.
+- **Standalone Build System:** Packages are defined declaratively via TypeScript recipes (`recipe.ts`) using a high-performance Bun orchestrator.
+- **Independent CI/CD Pipelines:** Automated dependency tracking, dynamic CI matrix sharding, and static Pages deployments.
+- **Hermetic Docker Environments:** Reproducible artifact generation through strictly sandboxed Android NDK r30 Docker builder images.
 
 ## Contributing
 
@@ -29,30 +29,23 @@ If you are an AI agent or maintainer looking to modify the build infrastructure,
 
 If you discover a security vulnerability within RepoExe, please refer to our Security Policy in `SECURITY.md`.
 
-## 🚀 Installation
+## 🚀 Installation & Management
 
-RepoExe provides native system packages for Android terminal environments across multiple package managers.
-
-### 1. Termux / APT (Default)
+Install or re-sync the repository integration:
 
 ```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh
+curl -sL https://sjnexe.github.io/RepoExe/install | sh
 ```
 
-### 2. Pacman (Arch Linux / Termux Pacman)
+Use the `repoexe` management CLI:
 
 ```bash
-repoexe enable pacman
-```
+# Check repository status
+repoexe status
 
-### 3. Alpine Linux (apk)
+# Run diagnostic health check
+repoexe doctor
 
-```bash
-repoexe enable apk
-```
-
-### 4. Enable All Supported Package Managers
-
-```bash
-curl -sL https://SjnExe.github.io/RepoExe/install | sh -s -- --all
+# Sync repository lists
+repoexe sync
 ```
