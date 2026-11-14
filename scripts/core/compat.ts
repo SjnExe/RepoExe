@@ -83,6 +83,7 @@ export function setupBionicCompat(): void {
       [
         `-I${join(repoRoot, 'scripts', 'compat')}`,
         '-fPIC',
+        '-fvisibility=hidden',
         '-O2',
         '-Wno-error',
         '-Wno-ignored-attributes',

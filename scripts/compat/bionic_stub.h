@@ -136,21 +136,11 @@ void __fpurge(FILE *stream);
 int getdomainname(char *name, size_t len);
 int setdomainname(const char *name, size_t len);
 
-int *__get_h_errno(void);
-int *__h_errno(void);
-int __cxa_at_quick_exit(void (*func)(void), void *dso_handle);
-int at_quick_exit(void (*func)(void));
-void quick_exit(int status);
-void __wrap_quick_exit(int status);
+int *__errno_location(void);
+int *__h_errno_location(void);
 int _dl_find_object(void *address, void *result);
 int dl_find_object(void *address, void *result);
 int dladdr1(const void *addr, Dl_info *info, void **extra_info, int flags);
-void *__libc_dlopen_mode(const char *name, int mode);
-void *__libc_dlsym(void *handle, const char *name);
-int __libc_dlclose(void *handle);
-int __register_atfork(void (*prepare)(void), void (*parent)(void), void (*child)(void), void *dso_handle);
-int __libc_current_sigrtmin(void);
-int __libc_current_sigrtmax(void);
 int timespec_get(struct timespec *ts, int base);
 int timespec_getres(struct timespec *ts, int base);
 
@@ -164,7 +154,6 @@ int pthread_setcancelstate(int state, int *oldstate);
 int pthread_setcanceltype(int type, int *oldtype);
 int pthread_cancel(pthread_t thread);
 void pthread_testcancel(void);
-int pthread_yield(void);
 int pthread_getname_np(pthread_t thread, char *name, size_t len);
 
 struct prop_info;
@@ -196,22 +185,17 @@ int lutimes(const char *path, const struct timeval tv[2]);
 int futimesat(int dirfd, const char *path, const struct timeval times[2]);
 int posix_fadvise(int fd, off_t offset, off_t len, int advice);
 int posix_fadvise64(int fd, off_t offset, off_t len, int advice);
-int posix_fallocate(int fd, off_t offset, off_t len);
 int posix_fallocate64(int fd, off_t offset, off_t len);
 
 int getloadavg(double loadavg[], int nelem);
 int malloc_trim(size_t pad);
 void malloc_stats(void);
 int mallopt(int param, int value);
-char *secure_getenv(const char *name);
-char *__secure_getenv(const char *name);
-int clearenv(void);
 
 char *canonicalize_file_name(const char *path);
 char *get_current_dir_name(void);
 int sync_file_range(int fd, off64_t offset, off64_t nbytes, unsigned int flags);
 
-time_t timelocal(struct tm *tm);
 int stime(const time_t *t);
 int res_init(void);
 int __res_init(void);
@@ -219,18 +203,6 @@ unsigned int gnu_dev_major(unsigned long long dev);
 unsigned int gnu_dev_minor(unsigned long long dev);
 unsigned long long gnu_dev_makedev(unsigned int maj, unsigned int min);
 
-double __exp_finite(double x);
-double __exp2_finite(double x);
-double __log_finite(double x);
-double __log2_finite(double x);
-double __log10_finite(double x);
-double __pow_finite(double x, double y);
-float __expf_finite(float x);
-float __exp2f_finite(float x);
-float __logf_finite(float x);
-float __log2f_finite(float x);
-float __log10f_finite(float x);
-float __powf_finite(float x, float y);
 void sincos(double x, double *s, double *c);
 void __sincos(double x, double *s, double *c);
 void sincosf(float x, float *s, float *c);
