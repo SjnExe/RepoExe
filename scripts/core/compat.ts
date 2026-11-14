@@ -127,6 +127,10 @@ export function setupBionicCompat(): void {
     ndkStrip = resolveNdkTool('strip');
   }
 
+  const hostGlibCompileResources =
+    spawnSync('which', ['glib-compile-resources'], { encoding: 'utf-8' }).stdout?.trim() ||
+    '/usr/bin/glib-compile-resources';
+
   const stubH = join(tempDir, 'bionic_stub.h');
   const mesonCross = `[binaries]
 c = '${ndkClang}'
@@ -134,6 +138,7 @@ cpp = '${ndkClangxx}'
 ar = '${ndkAr}'
 strip = '${ndkStrip}'
 pkg-config = 'pkg-config'
+glib-compile-resources = '${hostGlibCompileResources}'
 
 [built-in options]
 c_args = ['-I/data/data/com.termux/files/usr/include', '-I${tempDir}', '-include', '${stubH}', '-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1', '-fPIC']
