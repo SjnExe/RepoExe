@@ -49,7 +49,7 @@
  #endif
  
  __nodiscard FILE* _Nullable fdopen(int __fd, const char* _Nonnull __mode);
-@@ -444,6 +455,36 @@
+@@ -444,6 +455,37 @@
  #include <bits/fortify/stdio.h>
  #endif
  
