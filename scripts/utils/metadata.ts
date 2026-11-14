@@ -37,37 +37,17 @@ export function generatePackagesJson(pkgDir?: string, outputFile?: string, artif
           const recipe = parseRecipe(recipeFile);
           const formats = recipe.formats || ['apt'];
 
-          const channelsList: Array<{ name: string; version: string; revision: number }> = [];
-          const chNames = recipe.channels ? Object.keys(recipe.channels) : ['latest'];
-          if (!chNames.includes('latest')) {
-            chNames.unshift('latest');
-          }
-
-          for (const ch of chNames) {
-            try {
-              const chRecipe = parseRecipe(recipeFile, ch);
-              channelsList.push({
-                name: ch,
-                version: chRecipe.version,
-                revision: chRecipe.revision,
-              });
-            } catch {}
-          }
-
-          if (channelsList.length === 0) {
-            channelsList.push({
-              name: 'latest',
-              version: recipe.version,
-              revision: recipe.revision,
-            });
-          }
-
           items.push({
             name: recipe.name,
+            version: recipe.version,
+            revision: recipe.revision,
+            epoch: recipe.epoch,
             description: recipe.description || `${recipe.name} binary package`,
             arch: recipe.arch || 'aarch64',
             license: recipe.license || 'MIT',
             homepage: recipe.homepage || 'https://github.com/SjnExe/RepoExe',
+            maintainer: recipe.maintainer || 'SjnExe',
+            uploaders: recipe.uploaders || [],
             formats: Array.from(new Set(formats)).sort(),
             deps: recipe.deps,
             recommends: recipe.recommends,
@@ -75,7 +55,7 @@ export function generatePackagesJson(pkgDir?: string, outputFile?: string, artif
             conflicts: recipe.conflicts,
             provides: recipe.provides,
             replaces: recipe.replaces,
-            channels: channelsList,
+            channels: [{ name: 'latest', version: recipe.version, revision: recipe.revision }],
             verified_built: Array.from(availableFiles).some((f) => f.includes(recipe.name)),
           });
         } catch {}

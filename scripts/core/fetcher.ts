@@ -25,39 +25,41 @@ function getAuthHeaders(headers?: Record<string, string>): Record<string, string
   return res;
 }
 
-export async function checkExistingReleaseHash(pkgName: string, channel: string, targetHash: string): Promise<boolean> {
+export async function checkExistingReleaseHash(pkgName: string, arg1: string, arg2?: string): Promise<boolean> {
+  const targetHash = arg2 !== undefined ? arg2 : arg1;
   if (!targetHash) return false;
-  const tag = `${pkgName}@${channel}`;
   const repoSlug = process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
-  const apiUrl = `https://api.github.com/repos/${repoSlug}/releases/tags/${tag}`;
+  const tags = [pkgName, `${pkgName}@latest`];
 
-  try {
-    const resp = await fetch(apiUrl, { headers: getAuthHeaders(), signal: AbortSignal.timeout(5000) });
-    if (!resp.ok) return false;
-    const data = (await resp.json()) as any;
+  for (const tag of tags) {
+    const apiUrl = `https://api.github.com/repos/${repoSlug}/releases/tags/${tag}`;
+    try {
+      const resp = await fetch(apiUrl, { headers: getAuthHeaders(), signal: AbortSignal.timeout(5000) });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as any;
 
-    const body = (data.body || '').trim();
-    if (body) {
-      try {
-        const remoteMeta = JSON.parse(body);
-        if (typeof remoteMeta === 'object' && remoteMeta.state_hash === targetHash) {
-          return true;
-        }
-      } catch {}
-    }
+      const body = (data.body || '').trim();
+      if (body) {
+        try {
+          const remoteMeta = JSON.parse(body);
+          if (typeof remoteMeta === 'object' && remoteMeta.state_hash === targetHash) {
+            return true;
+          }
+        } catch {}
+      }
 
-    for (const asset of data.assets || []) {
-      if (asset.name === 'metadata.json' || asset.name === `${pkgName}_metadata.json`) {
-        const assetResp = await fetch(asset.browser_download_url, { headers: getAuthHeaders() });
-        if (assetResp.ok) {
-          const meta = (await assetResp.json()) as any;
-          if (meta.state_hash === targetHash) return true;
+      for (const asset of data.assets || []) {
+        if (asset.name === 'metadata.json' || asset.name === `${pkgName}_metadata.json`) {
+          const assetResp = await fetch(asset.browser_download_url, { headers: getAuthHeaders() });
+          if (assetResp.ok) {
+            const meta = (await assetResp.json()) as any;
+            if (meta.state_hash === targetHash) return true;
+          }
         }
       }
-    }
-  } catch {
-    return false;
+    } catch {}
   }
+
   return false;
 }
 
@@ -200,23 +202,24 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
   }
 
   // 2. RepoExe GitHub releases
-  const tag = `${pkgName}@latest`;
   const repoSlug = process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
-  const apiUrl = `https://api.github.com/repos/${repoSlug}/releases/tags/${tag}`;
-  try {
-    const resp = await fetch(apiUrl, { headers: getAuthHeaders() });
-    if (resp.ok) {
-      const relData = (await resp.json()) as any;
-      const debAsset = (relData.assets || []).find((a: any) => a.name?.endsWith('.deb'));
-      if (debAsset) {
-        const debPath = join(destdir, debAsset.name);
-        await downloadFile(debAsset.browser_download_url, debPath);
-        extractDebToPrefix(debPath, prefixRoot);
-        fetched.add(pkgName);
-        return true;
+  for (const tag of [pkgName, `${pkgName}@latest`]) {
+    const apiUrl = `https://api.github.com/repos/${repoSlug}/releases/tags/${tag}`;
+    try {
+      const resp = await fetch(apiUrl, { headers: getAuthHeaders() });
+      if (resp.ok) {
+        const relData = (await resp.json()) as any;
+        const debAsset = (relData.assets || []).find((a: any) => a.name?.endsWith('.deb'));
+        if (debAsset) {
+          const debPath = join(destdir, debAsset.name);
+          await downloadFile(debAsset.browser_download_url, debPath);
+          extractDebToPrefix(debPath, prefixRoot);
+          fetched.add(pkgName);
+          return true;
+        }
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
   // 3. Official Termux Upstream Mirrors
   const index = await loadTermuxIndex();

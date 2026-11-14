@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import type { ChannelOverride, PackageRecipe, RecipeDefinition, ResourceConfig } from './types.ts';
+import type { PackageRecipe, RecipeDefinition, ResourceConfig } from './types.ts';
 
 function canonicalJson(obj: unknown): string {
   if (obj === null || typeof obj !== 'object') {
@@ -41,7 +41,6 @@ export function computeStateHash(recipe: PackageRecipe, pkgDir?: string): string
     phases: recipe.phases,
     vars: recipe.vars,
     env: recipe.env,
-    channel: recipe.active_channel,
     toolchains: recipe.toolchains,
     ndk: recipe.ndk,
   };
@@ -71,7 +70,7 @@ export function computeStateHash(recipe: PackageRecipe, pkgDir?: string): string
   return hasher.digest('hex').slice(0, 16);
 }
 
-export function parseRecipe(recipePath: string, channel: string = 'latest'): PackageRecipe {
+export function parseRecipe(recipePath: string, _channel?: string): PackageRecipe {
   let p = resolve(recipePath);
   if (existsSync(p) && statSync(p).isDirectory()) {
     p = join(p, 'recipe.ts');
@@ -104,8 +103,6 @@ export function parseRecipe(recipePath: string, channel: string = 'latest'): Pac
     tmpfs: Math.max(0, Math.min(12, Number(rawData.resources?.tmpfs ?? 12))),
   };
 
-  const channels: Record<string, ChannelOverride> = rawData.channels || {};
-
   const baseRecipe: PackageRecipe = {
     name: String(rawData.name || ''),
     version: String(rawData.version || ''),
@@ -116,6 +113,14 @@ export function parseRecipe(recipePath: string, channel: string = 'latest'): Pac
     license: String(rawData.license || 'MIT'),
     homepage: String(rawData.homepage || ''),
     maintainer: String(rawData.maintainer || 'SjnExe'),
+    uploaders: Array.isArray(rawData.uploaders)
+      ? rawData.uploaders.map(String)
+      : typeof rawData.uploaders === 'string'
+        ? rawData.uploaders
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+        : [],
     component: String(rawData.component || 'main'),
     build_system: String(rawData.build_system || 'custom'),
     source: rawData.source ? String(rawData.source) : null,
@@ -147,20 +152,12 @@ export function parseRecipe(recipePath: string, channel: string = 'latest'): Pac
     vars: rawData.vars && typeof rawData.vars === 'object' ? rawData.vars : {},
     env: rawData.env && typeof rawData.env === 'object' ? rawData.env : {},
     toolchains: rawData.toolchains && typeof rawData.toolchains === 'object' ? rawData.toolchains : {},
-    channels,
-    active_channel: channel,
     state_hash: '',
     ndk: rawData.ndk,
   };
 
   if (baseRecipe.ndk && baseRecipe.ndk !== '30' && baseRecipe.ndk !== '23c') {
     throw new Error(`Unsupported NDK version: ${baseRecipe.ndk}. Supported versions: '30', '23c'.`);
-  }
-
-  // Apply channel override if present
-  if (channel in baseRecipe.channels) {
-    const override = baseRecipe.channels[channel];
-    Object.assign(baseRecipe, override);
   }
 
   const verStr = String(baseRecipe.version);
@@ -180,7 +177,6 @@ export function parseRecipe(recipePath: string, channel: string = 'latest'): Pac
     baseRecipe.vars = newVars;
   }
 
-  baseRecipe.active_channel = channel;
   baseRecipe.state_hash = computeStateHash(baseRecipe, pkgDir);
 
   return baseRecipe;

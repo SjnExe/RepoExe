@@ -115,8 +115,6 @@ describe('build CLI helpers', (): void => {
       vars: {},
       env: {},
       toolchains: {},
-      channels: {},
-      active_channel: 'latest',
       state_hash: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
     };
 
@@ -127,7 +125,7 @@ describe('build CLI helpers', (): void => {
     };
 
     try {
-      await simulateDryRun(recipe, 'pkg/test-pkg', testDest, testOut, 'latest', 'build', true);
+      await simulateDryRun(recipe, 'pkg/test-pkg', testDest, testOut, 'build', true);
       expect(logCalled).toBeTrue();
     } finally {
       console.log = originalLog;

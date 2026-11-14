@@ -23,8 +23,10 @@ export function identifyOrphanedReleases(releases: Array<Record<string, any>>, p
   const orphaned: string[] = [];
   for (const rel of releases) {
     const tag = rel.tag_name || '';
-    if (!tag.includes('@')) continue;
-    const [pkg] = tag.split('@');
+    const isPkgRelease = tag.includes('@') || (rel.assets && rel.assets.some((a: any) => a.name?.endsWith('.deb')));
+    if (!isPkgRelease) continue;
+
+    const pkg = tag.includes('@') ? tag.split('@')[0] : tag;
     const recipePath = join(pkgsDir, pkg, 'recipe.ts');
     if (!existsSync(recipePath)) {
       orphaned.push(tag);
@@ -97,14 +99,15 @@ export async function pruneReleaseTags(): Promise<void> {
   for (const rel of releases) {
     const tag = rel.tag_name || '';
     const assets = rel.assets || [];
-    if (!tag.includes('@')) continue;
+    const isPkgRelease = tag.includes('@') || assets.some((a: any) => a.name?.endsWith('.deb'));
+    if (!isPkgRelease) continue;
 
-    const [pkg, channel] = tag.split('@');
+    const pkg = tag.includes('@') ? tag.split('@')[0] : tag;
     const recipePath = join(pkgsDir, pkg, 'recipe.ts');
 
     if (existsSync(recipePath)) {
       try {
-        const recipe = parseRecipe(recipePath, channel);
+        const recipe = parseRecipe(recipePath);
         const outdated = identifyOutdatedAssets(assets, recipe, pkg);
         for (const asset of outdated) {
           if (asset.id && asset.name) {

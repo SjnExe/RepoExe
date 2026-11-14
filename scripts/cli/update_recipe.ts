@@ -535,32 +535,18 @@ function findDirectObjectPropertyBrace(str: string, openBraceIdx: number, propNa
   return -1;
 }
 
-export function updateRecipeContent(content: string, channel: string, newVersion: string): string {
+export function updateRecipeContent(content: string, arg1: string, arg2?: string): string {
+  const newVersion = arg2 !== undefined ? arg2 : arg1;
   const recipeRootBraceIdx = findExportedRecipeRoot(content);
   if (recipeRootBraceIdx === -1) {
     throw new Error(`Failed to find recipe root object.`);
   }
 
-  if (channel === 'latest') {
-    return updateDirectObjectProperties(content, recipeRootBraceIdx, newVersion, 'latest');
-  } else {
-    // Locate the direct channels property of the exported recipe
-    const channelsBraceIdx = findDirectObjectPropertyBrace(content, recipeRootBraceIdx, 'channels');
-    if (channelsBraceIdx === -1) {
-      throw new Error(`Channels property not found in exported recipe.`);
-    }
-
-    // Locate the specific channel entry inside channels: { ... }
-    const chanBraceIdx = findDirectObjectPropertyBrace(content, channelsBraceIdx, channel);
-    if (chanBraceIdx === -1) {
-      throw new Error(`Channel ${channel} not found in recipe channels.`);
-    }
-
-    return updateDirectObjectProperties(content, chanBraceIdx, newVersion, `channel ${channel}`);
-  }
+  return updateDirectObjectProperties(content, recipeRootBraceIdx, newVersion, 'recipe');
 }
 
-export function updateRecipe(pkg: string, channel: string, newVersion: string): void {
+export function updateRecipe(pkg: string, arg1: string, arg2?: string): void {
+  const newVersion = arg2 !== undefined ? arg2 : arg1;
   const recipePath = resolve('pkg', pkg, 'recipe.ts');
   if (!existsSync(recipePath)) {
     console.error(`Error: Recipe at ${recipePath} does not exist.`);
@@ -568,16 +554,16 @@ export function updateRecipe(pkg: string, channel: string, newVersion: string): 
   }
 
   const raw = readFileSync(recipePath, 'utf-8');
-  const updated = updateRecipeContent(raw, channel, newVersion);
+  const updated = updateRecipeContent(raw, newVersion);
   writeFileSync(recipePath, updated, 'utf-8');
 
-  console.log(`✓ Successfully updated ${pkg} (${channel}) to ${newVersion}`);
+  console.log(`✓ Successfully updated ${pkg} to ${newVersion}`);
 }
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
-  if (args.length < 3) {
-    console.error('Usage: bun run scripts/cli/update_recipe.ts <pkg> <channel> <new_version>');
+  if (args.length < 2) {
+    console.error('Usage: bun run scripts/cli/update_recipe.ts <pkg> <new_version>');
     process.exit(1);
   }
   updateRecipe(args[0], args[1], args[2]);

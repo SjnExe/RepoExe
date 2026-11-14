@@ -70,24 +70,11 @@ export function getChangedPackages(repoRoot: string, dag?: DependencyGraph): Set
   return changed;
 }
 
-export function getAvailableChannels(pkg: string, dag: DependencyGraph): Set<string> {
-  const recipe = dag.recipes[pkg];
-  if (!recipe) return new Set(['latest']);
-  const set = new Set(['latest']);
-  if (recipe.channels) {
-    for (const ch of Object.keys(recipe.channels)) {
-      set.add(ch);
-    }
-  }
-  return set;
-}
-
-export function parseTargetTokens(rawInput: string, dag: DependencyGraph, pkgsDir: string): Array<[string, string]> {
+export function parseTargetTokens(rawInput: string, dag: DependencyGraph, _pkgsDir?: string): string[] {
   const allPkgs = new Set(Object.keys(dag.recipes));
   const tokens = rawInput.trim().split(/\s+/).filter(Boolean);
 
-  const selectedPairs = new Set<string>();
-  const excludedPairs = new Set<string>();
+  const selectedPkgs = new Set<string>();
   const excludedPkgs = new Set<string>();
 
   let hasPositiveSelection = false;
@@ -96,13 +83,8 @@ export function parseTargetTokens(rawInput: string, dag: DependencyGraph, pkgsDi
     const isExclude = token.startsWith('!');
     if (isExclude) token = token.slice(1);
 
-    let targetPart = token;
-    let channelPart = 'latest';
-    if (token.includes('@')) {
-      const parts = token.split('@');
-      targetPart = parts[0];
-      channelPart = parts[1];
-    }
+    // Strip legacy @channel token if present
+    const targetPart = token.includes('@') ? token.split('@')[0] : token;
 
     const matchedPkgs = new Set<string>();
     if (targetPart.startsWith('type:') || targetPart.startsWith('format:')) {
@@ -116,38 +98,24 @@ export function parseTargetTokens(rawInput: string, dag: DependencyGraph, pkgsDi
       matchedPkgs.add(targetPart);
     }
 
-    const pairs = new Set<string>();
-    for (const p of matchedPkgs) {
-      const avail = getAvailableChannels(p, dag);
-      if (channelPart === 'all') {
-        for (const ch of avail) pairs.add(`${p}@${ch}`);
-      } else {
-        pairs.add(`${p}@${channelPart}`);
-      }
-    }
-
     if (isExclude) {
-      for (const pair of pairs) excludedPairs.add(pair);
-      if (channelPart === 'all') {
-        for (const p of matchedPkgs) excludedPkgs.add(p);
-      }
+      for (const p of matchedPkgs) excludedPkgs.add(p);
     } else {
       hasPositiveSelection = true;
-      for (const pair of pairs) selectedPairs.add(pair);
+      for (const p of matchedPkgs) selectedPkgs.add(p);
     }
   }
 
   if (!hasPositiveSelection) {
     for (const p of allPkgs) {
-      selectedPairs.add(`${p}@latest`);
+      selectedPkgs.add(p);
     }
   }
 
-  const finalRequested: Array<[string, string]> = [];
-  for (const pair of selectedPairs) {
-    if (!excludedPairs.has(pair)) {
-      const [p, ch] = pair.split('@');
-      finalRequested.push([p, ch]);
+  const finalRequested: string[] = [];
+  for (const p of selectedPkgs) {
+    if (!excludedPkgs.has(p)) {
+      finalRequested.push(p);
     }
   }
 
@@ -155,23 +123,23 @@ export function parseTargetTokens(rawInput: string, dag: DependencyGraph, pkgsDi
 }
 
 export async function buildMatrixLayer(
-  pkgsList: Array<[string, string]>,
+  pkgsList: string[],
   pkgsDir: string,
   dag: DependencyGraph,
 ): Promise<Array<Record<string, any>>> {
   const matrix: Array<Record<string, any>> = [];
   const forceRebuild = ['true', '1'].includes((process.env.FORCE_REBUILD || '').toLowerCase());
 
-  for (const [p, ch] of pkgsList) {
+  for (const p of pkgsList) {
     const recipePath = join(pkgsDir, p, 'recipe.ts');
     if (!existsSync(recipePath)) continue;
 
     try {
-      const r = parseRecipe(recipePath, ch);
+      const r = parseRecipe(recipePath);
       const stateHash = r.state_hash || '';
 
-      if (!forceRebuild && stateHash && (await checkExistingReleaseHash(p, ch, stateHash))) {
-        console.error(`Notice: Skipping matrix shard for ${p}@${ch} (state_hash unchanged).`);
+      if (!forceRebuild && stateHash && (await checkExistingReleaseHash(p, stateHash))) {
+        console.error(`Notice: Skipping matrix shard for ${p} (state_hash unchanged).`);
         continue;
       }
 
@@ -184,7 +152,7 @@ export async function buildMatrixLayer(
       for (const depName of cleanBuildDeps) {
         const depRecipePath = join(pkgsDir, depName, 'recipe.ts');
         if (existsSync(depRecipePath)) {
-          const dr = parseRecipe(depRecipePath, 'latest');
+          const dr = parseRecipe(depRecipePath);
           maxZram = Math.max(maxZram, dr.resources.zram ?? 0);
           maxSwap = Math.max(maxSwap, dr.resources.swap ?? 0);
           maxFreeSpace = maxFreeSpace || (dr.resources.free_space ?? false);
@@ -193,7 +161,6 @@ export async function buildMatrixLayer(
 
       matrix.push({
         package: p,
-        channel: ch,
         heavy: r.heavy_build || maxSwap > 0 || maxZram > 0,
         build_system: r.build_system,
         zram: maxZram,
@@ -202,7 +169,7 @@ export async function buildMatrixLayer(
         tmpfs: r.resources.tmpfs ?? 12,
       });
     } catch (err: any) {
-      console.error(`Notice: Failed to build matrix layer for ${p}@${ch}: ${err.message}`);
+      console.error(`Notice: Failed to build matrix layer for ${p}: ${err.message}`);
     }
   }
 
@@ -216,17 +183,16 @@ async function main(): Promise<void> {
 
   const dag = new DependencyGraph(pkgsDir);
 
-  let targetPkgs: Array<[string, string]>;
+  let targetPkgs: string[];
   if (!rawInput || rawInput === 'auto') {
     const diffFiles = getGitDiffFiles(repoRoot);
     const changedPkgs = Array.from(getChangedPackages(repoRoot, dag));
     if (changedPkgs.length > 0) {
-      const tokens = changedPkgs.map((p) => `${p}@all`).join(' ');
-      targetPkgs = parseTargetTokens(tokens, dag, pkgsDir);
+      targetPkgs = parseTargetTokens(changedPkgs.join(' '), dag, pkgsDir);
     } else if (diffFiles.size > 0) {
       targetPkgs = [];
     } else {
-      targetPkgs = parseTargetTokens('all@latest', dag, pkgsDir);
+      targetPkgs = parseTargetTokens('all', dag, pkgsDir);
     }
   } else {
     targetPkgs = parseTargetTokens(rawInput, dag, pkgsDir);

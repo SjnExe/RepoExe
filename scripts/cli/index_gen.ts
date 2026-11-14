@@ -73,9 +73,7 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
 
   for (const rel of releases) {
     const tag = rel.tag_name || '';
-    if (!tag.includes('@')) continue;
-
-    const [pkg, channel] = tag.split('@');
+    const pkg = tag.includes('@') ? tag.split('@')[0] : tag;
     const recipePath = join(pkgsDir, pkg, 'recipe.ts');
 
     // Skip packages that no longer exist in the repository
@@ -85,7 +83,7 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
 
     let expectedFiles = new Set<string>();
     try {
-      const recipe = parseRecipe(recipePath, channel);
+      const recipe = parseRecipe(recipePath);
       expectedFiles = getExpectedAssetFilenames(recipe);
     } catch {
       continue;
@@ -154,8 +152,7 @@ export async function prepareSite(
       try {
         const meta = JSON.parse(readFileSync(pkgMetaFile, 'utf-8'));
         const pkgName = meta.name;
-        const channel = meta.channel || 'latest';
-        const tag = `${pkgName}@${channel}`;
+        const tag = pkgName;
 
         const matchingFiles = getExactPackageArtifacts(artPath, pkgName);
         if (matchingFiles.length === 0) {

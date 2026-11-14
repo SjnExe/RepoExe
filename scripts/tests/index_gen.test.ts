@@ -77,7 +77,7 @@ test('prepareSite parses metadata JSON files without reference errors', async ()
   mkdirSync(testArt, { recursive: true });
   mkdirSync(testStaging, { recursive: true });
 
-  writeFileSync(join(testArt, 'sample_metadata.json'), JSON.stringify({ name: 'sample', channel: 'latest' }));
+  writeFileSync(join(testArt, 'sample_metadata.json'), JSON.stringify({ name: 'sample' }));
   writeFileSync(join(testArt, 'sample_1.0.0_arm64.deb'), '');
 
   try {

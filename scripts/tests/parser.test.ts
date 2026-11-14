@@ -1,4 +1,7 @@
 import { expect, test } from 'bun:test';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { parseRecipe, computeStateHash } from '../core/parser.ts';
 
 test('parseRecipe parses aisleriot correctly', () => {
@@ -24,4 +27,43 @@ test('computeStateHash produces deterministic output', () => {
   const r1 = parseRecipe('pkg/repoexe');
   const r2 = parseRecipe('pkg/repoexe');
   expect(r1.state_hash).toBe(r2.state_hash);
+});
+
+test('parseRecipe supports maintainer and uploaders parsing', () => {
+  const recipe = parseRecipe('pkg/aisleriot');
+  expect(recipe.maintainer).toBe('SjnExe');
+  expect(Array.isArray(recipe.uploaders)).toBe(true);
+});
+
+test('parseRecipe normalizes uploaders array and string formats', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'recipe-test-'));
+  try {
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'uploader-test',
+        version: '1.0.0',
+        maintainer: '@SjnExe <sjnexe@example.com>',
+        uploaders: ['@co-maintainer1', 'Helper <helper@example.com>']
+      };`,
+    );
+    const r1 = parseRecipe(tmp);
+    expect(r1.maintainer).toBe('@SjnExe <sjnexe@example.com>');
+    expect(r1.uploaders).toEqual(['@co-maintainer1', 'Helper <helper@example.com>']);
+
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'uploader-test-str',
+        version: '1.0.0',
+        maintainer: '@SjnExe',
+        uploaders: '@co1, @co2, Helper <helper@example.com>'
+      };`,
+    );
+    const r2 = parseRecipe(tmp);
+    expect(r2.maintainer).toBe('@SjnExe');
+    expect(r2.uploaders).toEqual(['@co1', '@co2', 'Helper <helper@example.com>']);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
 });

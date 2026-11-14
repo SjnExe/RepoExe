@@ -169,8 +169,7 @@ async function main(): Promise<void> {
         if (recipe.auto_update) {
           const latest = await checkPackageUpstream(recipe);
           if (latest && compareSemver(latest, recipe.version) > 0) {
-            const channel = recipe.active_channel || 'latest';
-            console.log(`Update available for ${recipe.name}@${channel}: ${recipe.version} -> ${latest}`);
+            console.log(`Update available for ${recipe.name}: ${recipe.version} -> ${latest}`);
           }
         }
       } catch {}

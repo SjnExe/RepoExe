@@ -42,31 +42,45 @@ jobs:
         if: steps.check.outputs.updates_found == 'true'
         run: |
           while read -r line; do
-            if [[ "$line" =~ Update\ available\ for\ ([^@]+)@([^:]+):\ ([^\ ]+)\ -\>\ (.+) ]]; then
+            if [[ "$line" =~ Update\ available\ for\ ([^:]+):\ ([^\ ]+)\ -\>\ (.+) ]]; then
               PKG="${BASH_REMATCH[1]}"
-              CHANNEL="${BASH_REMATCH[2]}"
-              OLD="${BASH_REMATCH[3]}"
-              NEW="${BASH_REMATCH[4]}"
+              OLD="${BASH_REMATCH[2]}"
+              NEW="${BASH_REMATCH[3]}"
 
-              BRANCH_NAME="update/${PKG}@${CHANNEL}/${NEW}"
+              BRANCH_NAME="update/${PKG}/${NEW}"
 
               if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
                 echo "Branch $BRANCH_NAME already exists, skipping."
                 continue
               fi
 
-              echo "Processing update for $PKG@$CHANNEL to $NEW"
+              echo "Processing update for $PKG to $NEW"
               git checkout -b "$BRANCH_NAME"
 
-              bun run scripts/cli/update_recipe.ts "$PKG" "$CHANNEL" "$NEW"
+              bun run scripts/cli/update_recipe.ts "$PKG" "$NEW"
 
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
               git add "pkg/$PKG/recipe.ts"
-              git commit -m "feat($PKG@$CHANNEL): update to $NEW"
+              git commit -m "feat($PKG): update to $NEW"
 
               git push origin "$BRANCH_NAME"
-              PR_URL=$(gh pr create --title "feat($PKG@$CHANNEL): update to $NEW" --body "Automated update for channel **$CHANNEL** from $OLD to $NEW" --base main --head "$BRANCH_NAME" 2>&1 || true)
+
+              CC_LIST=$(bun -e '
+                import { parseRecipe } from "./scripts/core/parser.ts";
+                try {
+                  const r = parseRecipe("pkg/'"$PKG"'");
+                  const people = [r.maintainer, ...(r.uploaders || [])]
+                    .filter(Boolean)
+                    .map(m => m.trim())
+                    .map(m => m.startsWith("@") ? m : (m.includes("<") ? null : "@" + m))
+                    .filter(Boolean);
+                  const unique = Array.from(new Set(people));
+                  if (unique.length > 0) console.log("\n\nCC: " + unique.join(" "));
+                } catch {}
+              ')
+
+              PR_URL=$(gh pr create --title "feat($PKG): update to $NEW" --body "Automated update from $OLD to $NEW$CC_LIST" --base main --head "$BRANCH_NAME" 2>&1 || true)
               echo "$PR_URL"
               gh pr merge "$BRANCH_NAME" --auto --squash || true
 
