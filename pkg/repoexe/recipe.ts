@@ -9,7 +9,7 @@ export default defineRecipe({
   homepage: 'https://github.com/SjnExe/RepoExe',
   maintainer: 'SjnExe',
   build_system: 'custom',
-  formats: ['apt', 'pacman', 'apk'],
+  formats: ['apt'],
   resources: {
     zram: 0,
     swap: 0,

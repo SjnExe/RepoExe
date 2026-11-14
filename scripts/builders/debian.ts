@@ -59,11 +59,15 @@ export function generateControlFile(recipe: PackageRecipe, installedSizeKib?: nu
   if (provides) lines.push(`Provides: ${provides}`);
   const replaces = formatDepField(recipe.replaces);
   if (replaces) lines.push(`Replaces: ${replaces}`);
+  const breaks = formatDepField(recipe.breaks || []);
+  if (breaks) lines.push(`Breaks: ${breaks}`);
+  const enhances = formatDepField(recipe.enhances || []);
+  if (enhances) lines.push(`Enhances: ${enhances}`);
 
   return lines.join('\n') + '\n';
 }
 
-export function prepareDebianDir(recipe: PackageRecipe, buildDir: string): string {
+export function prepareDebianDir(recipe: PackageRecipe, buildDir: string, pkgDir?: string): string {
   const stageDir = join(buildDir, 'stage');
   const debianDir = join(stageDir, 'DEBIAN');
   mkdirSync(debianDir, { recursive: true });
@@ -74,6 +78,68 @@ export function prepareDebianDir(recipe: PackageRecipe, buildDir: string): strin
   writeFileSync(controlFile, controlContent, 'utf-8');
   chmodSync(controlFile, 0o644);
 
+  // Maintainer scripts: preinst, postinst, prerm, postrm
+  const maintainerScripts = ['preinst', 'postinst', 'prerm', 'postrm'];
+  for (const script of maintainerScripts) {
+    let content: string | undefined;
+    if (recipe.maintainer_scripts && typeof recipe.maintainer_scripts[script] === 'string') {
+      content = recipe.maintainer_scripts[script];
+    } else if (pkgDir) {
+      const scriptPath = join(pkgDir, script);
+      const debianScriptPath = join(pkgDir, 'DEBIAN', script);
+      if (existsSync(scriptPath)) {
+        content = readFileSync(scriptPath, 'utf-8');
+      } else if (existsSync(debianScriptPath)) {
+        content = readFileSync(debianScriptPath, 'utf-8');
+      }
+    }
+    if (content) {
+      const targetScript = join(debianDir, script);
+      writeFileSync(targetScript, content, 'utf-8');
+      chmodSync(targetScript, 0o755);
+    }
+  }
+
+  // conffiles: track configuration files under /data/data/com.termux/files/usr/etc/
+  const conffilesPath = join(debianDir, 'conffiles');
+  if (pkgDir && existsSync(join(pkgDir, 'conffiles'))) {
+    writeFileSync(conffilesPath, readFileSync(join(pkgDir, 'conffiles'), 'utf-8'), 'utf-8');
+    chmodSync(conffilesPath, 0o644);
+  } else if (pkgDir && existsSync(join(pkgDir, 'DEBIAN', 'conffiles'))) {
+    writeFileSync(conffilesPath, readFileSync(join(pkgDir, 'DEBIAN', 'conffiles'), 'utf-8'), 'utf-8');
+    chmodSync(conffilesPath, 0o644);
+  } else {
+    const etcDir = join(stageDir, 'data', 'data', 'com.termux', 'files', 'usr', 'etc');
+    if (existsSync(etcDir)) {
+      const conffileEntries: string[] = [];
+      const scanEtc = (dir: string) => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const full = join(dir, entry.name);
+          if (entry.isDirectory()) {
+            scanEtc(full);
+          } else if (entry.isFile()) {
+            const relPath = full.slice(stageDir.length);
+            conffileEntries.push(relPath.startsWith('/') ? relPath : `/${relPath}`);
+          }
+        }
+      };
+      scanEtc(etcDir);
+      if (conffileEntries.length > 0) {
+        writeFileSync(conffilesPath, conffileEntries.join('\n') + '\n', 'utf-8');
+        chmodSync(conffilesPath, 0o644);
+      }
+    }
+  }
+
+  // triggers: copy if present
+  if (pkgDir && existsSync(join(pkgDir, 'triggers'))) {
+    writeFileSync(join(debianDir, 'triggers'), readFileSync(join(pkgDir, 'triggers'), 'utf-8'), 'utf-8');
+    chmodSync(join(debianDir, 'triggers'), 0o644);
+  } else if (pkgDir && existsSync(join(pkgDir, 'DEBIAN', 'triggers'))) {
+    writeFileSync(join(debianDir, 'triggers'), readFileSync(join(pkgDir, 'DEBIAN', 'triggers'), 'utf-8'), 'utf-8');
+    chmodSync(join(debianDir, 'triggers'), 0o644);
+  }
+
   return stageDir;
 }
 
@@ -82,12 +148,13 @@ export function buildDeb(
   destdir: string,
   outputDir: string,
   targetArch: string = 'aarch64',
+  pkgDir?: string,
 ): string {
   const buildPath = resolve(destdir);
   const outPath = resolve(outputDir);
   mkdirSync(outPath, { recursive: true });
 
-  const stageDir = prepareDebianDir(recipe, buildPath);
+  const stageDir = prepareDebianDir(recipe, buildPath, pkgDir);
 
   // Exclude unwanted __init__.py, recipe.ts, or pkg.yml from deb roots per AGENTS.md constraint
   const unwantedRootFiles = ['__init__.py', 'recipe.ts', 'pkg.yml'];

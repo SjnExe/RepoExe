@@ -10,27 +10,11 @@ export function getExpectedAssetFilenames(recipe: PackageRecipe): Set<string> {
   const pkg = recipe.name;
 
   const versionStrDeb = rev > 0 ? `${ver}-${rev}` : ver;
-  const versionStrPacman = rev > 0 ? `${ver}-${rev}` : `${ver}-1`;
-  const versionStrApk = rev > 0 ? `${ver}-r${rev}` : `${ver}-r0`;
-
   const expected = new Set<string>(['metadata.json', `${pkg}_metadata.json`]);
 
-  const formats = new Set(recipe.formats || ['apt', 'pacman', 'apk']);
-
-  if (formats.has('apt')) {
-    expected.add(`${pkg}_${versionStrDeb}_arm64.deb`);
-    expected.add(`${pkg}_${versionStrDeb}_aarch64.deb`);
-    expected.add(`${pkg}_${versionStrDeb}_all.deb`);
-  }
-
-  if (formats.has('pacman')) {
-    expected.add(`${pkg}-${versionStrPacman}-aarch64.pkg.tar.zst`);
-    expected.add(`${pkg}-${versionStrPacman}-aarch64.pkg.tar.gz`);
-  }
-
-  if (formats.has('apk') || formats.has('alpine')) {
-    expected.add(`${pkg}-${versionStrApk}.apk`);
-  }
+  expected.add(`${pkg}_${versionStrDeb}_arm64.deb`);
+  expected.add(`${pkg}_${versionStrDeb}_aarch64.deb`);
+  expected.add(`${pkg}_${versionStrDeb}_all.deb`);
 
   return expected;
 }

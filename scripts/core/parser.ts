@@ -31,6 +31,8 @@ export function computeStateHash(recipe: PackageRecipe, pkgDir?: string): string
     conflicts: [...recipe.conflicts].sort(),
     provides: [...recipe.provides].sort(),
     replaces: [...recipe.replaces].sort(),
+    breaks: [...(recipe.breaks || [])].sort(),
+    enhances: [...(recipe.enhances || [])].sort(),
     patches: recipe.patches,
     cflags: recipe.cflags,
     cxxflags: recipe.cxxflags,
@@ -117,7 +119,7 @@ export function parseRecipe(recipePath: string, channel: string = 'latest'): Pac
     build_system: String(rawData.build_system || 'custom'),
     source: rawData.source ? String(rawData.source) : null,
     sha256: rawData.sha256 ? String(rawData.sha256) : null,
-    formats: Array.isArray(rawData.formats) ? rawData.formats : ['apt', 'pacman', 'apk'],
+    formats: Array.isArray(rawData.formats) ? rawData.formats : ['apt'],
     build_deps: Array.isArray(rawData.build_deps) ? rawData.build_deps : [],
     deps: Array.isArray(rawData.deps) ? rawData.deps : [],
     recommends: Array.isArray(rawData.recommends) ? rawData.recommends : [],
@@ -125,6 +127,12 @@ export function parseRecipe(recipePath: string, channel: string = 'latest'): Pac
     conflicts: Array.isArray(rawData.conflicts) ? rawData.conflicts : [],
     provides: Array.isArray(rawData.provides) ? rawData.provides : [],
     replaces: Array.isArray(rawData.replaces) ? rawData.replaces : [],
+    breaks: Array.isArray(rawData.breaks) ? rawData.breaks : [],
+    enhances: Array.isArray(rawData.enhances) ? rawData.enhances : [],
+    maintainer_scripts:
+      rawData.maintainer_scripts && typeof rawData.maintainer_scripts === 'object'
+        ? rawData.maintainer_scripts
+        : undefined,
     resources,
     heavy_build: Boolean(rawData.heavy_build ?? false),
     auto_update: Boolean(rawData.auto_update ?? false),

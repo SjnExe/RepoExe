@@ -26,15 +26,13 @@
             </div>
 
             <div class="target-selector">
-                <span class="selector-label">Select Registries to Enable:</span>
+                <span class="selector-label">Repository Registry:</span>
                 <div class="checkbox-group">
-                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="apt" checked> APT (.deb)</label>
-                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="pacman" checked> Pacman (.pkg)</label>
-                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="apk" checked> Alpine (.apk)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="target-cb" value="apt" checked disabled> APT (.deb)</label>
                 </div>
             </div>
 
-            <code id="installCmd">curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- enable all</code>
+            <code id="installCmd">curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- enable apt</code>
         </section>
 
         <section class="search-section">
@@ -45,8 +43,6 @@
             <div class="filters">
                 <button class="filter-btn active" data-format="all">All</button>
                 <button class="filter-btn" data-format="apt">APT (.deb)</button>
-                <button class="filter-btn" data-format="pacman">Pacman (.pkg)</button>
-                <button class="filter-btn" data-format="apk">Alpine (.apk)</button>
             </div>
         </section>
 

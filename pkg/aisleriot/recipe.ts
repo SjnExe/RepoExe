@@ -13,7 +13,7 @@ export default defineRecipe({
   maintainer: 'SjnExe',
   build_system: 'custom',
   source: 'https://gitlab.gnome.org/GNOME/aisleriot.git#{version}',
-  formats: ['apt', 'pacman', 'apk'],
+  formats: ['apt'],
   build_deps: ['gtk3', 'guile', 'librsvg', 'libcanberra', 'libxml2', 'desktop-file-utils', 'shared-mime-info'],
   deps: ['gtk3', 'guile', 'librsvg', 'libcanberra', 'libxml2'],
   resources: {
@@ -23,19 +23,20 @@ export default defineRecipe({
   },
   phases: {
     configure: `export SCCACHE_DISABLE=1
-mkdir -p "\${PREFIX}/bin"
-# Bridge host guile binary so build-time scheme scripts compile into .go bytecode
+HOST_BIN="\${HOME:-/home/builder}/.local/bin"
+mkdir -p "\${HOST_BIN}"
+# Bridge host tools in dedicated host directory to keep PREFIX/bin clean
 if [ -x /usr/bin/guile-3.0 ]; then
-  ln -sf /usr/bin/guile-3.0 "\${PREFIX}/bin/guile"
-  ln -sf /usr/bin/guile-3.0 "\${PREFIX}/bin/guile-3.0"
+  ln -sf /usr/bin/guile-3.0 "\${HOST_BIN}/guile"
+  ln -sf /usr/bin/guile-3.0 "\${HOST_BIN}/guile-3.0"
 elif [ -x /usr/bin/guile ]; then
-  ln -sf /usr/bin/guile "\${PREFIX}/bin/guile"
-  ln -sf /usr/bin/guile "\${PREFIX}/bin/guile-3.0"
+  ln -sf /usr/bin/guile "\${HOST_BIN}/guile"
+  ln -sf /usr/bin/guile "\${HOST_BIN}/guile-3.0"
 fi
-# Bridge host glib-compile-resources for building resources
 if command -v glib-compile-resources >/dev/null 2>&1; then
-  ln -sf "$(command -v glib-compile-resources)" "\${PREFIX}/bin/glib-compile-resources"
+  ln -sf "$(command -v glib-compile-resources)" "\${HOST_BIN}/glib-compile-resources"
 fi
+export PATH="\${HOST_BIN}:\${PATH}"
 export CFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages \${CFLAGS:-}"
 export CXXFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages \${CXXFLAGS:-}"
 meson setup build \\
@@ -49,7 +50,6 @@ meson setup build \\
     make: `ninja -C build -j4 -k 0
 `,
     install: `DESTDIR="\${DESTDIR}" ninja -C build install
-rm -f "\${DESTDIR}\${PREFIX}/bin/guile" "\${DESTDIR}\${PREFIX}/bin/guile-3.0" "\${DESTDIR}\${PREFIX}/bin/glib-compile-resources"
 if command -v termux-elf-cleaner >/dev/null 2>&1; then
   termux-elf-cleaner "\${DESTDIR}\${PREFIX}/bin/sol" 2>/dev/null || true
   termux-elf-cleaner "\${DESTDIR}\${PREFIX}/lib/aisleriot/ar-cards/"*.so 2>/dev/null || true

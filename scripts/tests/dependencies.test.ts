@@ -3,8 +3,6 @@ import {
   parseDependencyList,
   filterDepsForArch,
   formatDebianDependency,
-  formatPacmanDependency,
-  formatAlpineDependency,
   extractAllPackageNames,
   extractPrimaryPackageNames,
 } from '../core/dependencies.ts';
@@ -63,15 +61,6 @@ test('strips architecture brackets for debian binary control', () => {
   expect(debianStr).toBe('libfoo (>= 1.0)');
   expect(debianStr.includes('[')).toBeFalse();
   expect(debianStr.includes(']')).toBeFalse();
-});
-
-test('formats pacman and alpine dependencies selecting primary alternative', () => {
-  const clauses = parseDependencyList(['gtk3 (>= 3.24.0)', 'openblas (>= 0.3.20) | lapack']);
-  const pacman = formatPacmanDependency(clauses);
-  expect(pacman).toEqual(['gtk3>=3.24.0', 'openblas>=0.3.20']);
-
-  const alpine = formatAlpineDependency(clauses);
-  expect(alpine).toEqual(['gtk3>=3.24.0', 'openblas>=0.3.20']);
 });
 
 test('extracts all package names across alternatives for DAG and cache invalidation', () => {
