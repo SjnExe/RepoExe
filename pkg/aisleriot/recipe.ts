@@ -24,26 +24,22 @@ export default defineRecipe({
   phases: {
     configure: `export SCCACHE_DISABLE=1
 mkdir -p "\${PREFIX}/bin"
-# Bridge host build tools so build-time scheme compilation and resource generation succeed natively
-for tool in guile guile-3.0 guild guild-3.0; do
-  for host_tool in "/usr/bin/\${tool}" "/usr/bin/guile-3.0"; do
-    if [ -x "\${host_tool}" ]; then
-      ln -sf "\${host_tool}" "\${PREFIX}/bin/\${tool}"
-      break
-    fi
-  done
-done
+# Overwrite target aarch64 binaries with host x86_64 binaries so build-time generators run natively
+if [ -x /usr/bin/guile-3.0 ]; then
+  ln -sf /usr/bin/guile-3.0 "\${PREFIX}/bin/guile"
+  ln -sf /usr/bin/guile-3.0 "\${PREFIX}/bin/guile-3.0"
+elif [ -x /usr/bin/guile ]; then
+  ln -sf /usr/bin/guile "\${PREFIX}/bin/guile"
+  ln -sf /usr/bin/guile "\${PREFIX}/bin/guile-3.0"
+fi
+if [ -x /usr/bin/guild ]; then
+  ln -sf /usr/bin/guild "\${PREFIX}/bin/guild"
+elif [ -x /usr/bin/guild-3.0 ]; then
+  ln -sf /usr/bin/guild-3.0 "\${PREFIX}/bin/guild"
+fi
 if command -v glib-compile-resources >/dev/null 2>&1; then
   ln -sf "$(command -v glib-compile-resources)" "\${PREFIX}/bin/glib-compile-resources"
 fi
-HOST_BIN="\${HOME:-/home/builder}/.local/bin"
-mkdir -p "\${HOST_BIN}"
-for tool in guile guile-3.0 guild guild-3.0 glib-compile-resources; do
-  if [ -e "\${PREFIX}/bin/\${tool}" ]; then
-    ln -sf "\${PREFIX}/bin/\${tool}" "\${HOST_BIN}/\${tool}"
-  fi
-done
-export PATH="\${HOST_BIN}:\${PREFIX}/bin:\${PATH}"
 export CFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages \${CFLAGS:-}"
 export CXXFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages \${CXXFLAGS:-}"
 CROSS_FILE="/tmp/meson-cross.ini"
