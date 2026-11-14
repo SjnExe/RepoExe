@@ -86,8 +86,8 @@ if [ -z "$SOL_PATH" ]; then
 fi
 env -u LD_LIBRARY_PATH readelf -h "$SOL_PATH"
 HOST_ARCH="$(uname -m)"
-if [ "$HOST_ARCH" = "aarch64" ] || [ "$HOST_ARCH" = "arm64" ]; then
-  env -u LD_LIBRARY_PATH "$SOL_PATH" --version
+if { [ "$HOST_ARCH" = "aarch64" ] || [ "$HOST_ARCH" = "arm64" ]; } && [ -e /system/bin/linker64 ]; then
+  env -u LD_LIBRARY_PATH "$SOL_PATH" --help >/dev/null
 fi
 `,
   },
