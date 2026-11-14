@@ -14,7 +14,9 @@ import { sanitizeShebangs } from '../sanitizer/shebang.ts';
 import { spawnSync } from 'node:child_process';
 import { DependencyGraph } from '../utils/dag.ts';
 
-export type SourceIdentityInput = Partial<Pick<PackageRecipe, 'source' | 'version' | 'sha256' | 'active_channel'>>;
+export type SourceIdentityInput = Partial<Pick<PackageRecipe, 'source' | 'sha256' | 'active_channel'>> & {
+  version: string;
+};
 
 export function computeSourceIdentity(recipe: SourceIdentityInput, pDir: string): string {
   const channel = recipe.active_channel || 'latest';
