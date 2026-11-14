@@ -9,7 +9,7 @@ test('generateControlFile formats valid Debian control file', () => {
   expect(control).toContain('Package: aisleriot');
   expect(control).toContain('Version: 3.22.35');
   expect(control).toContain('Architecture: aarch64');
-  expect(control).toContain('Maintainer: SjnExe');
+  expect(control).toContain('Maintainer: @SjnExe');
   expect(control).toContain('Installed-Size: 1024');
   expect(control).toContain('Depends: gtk3, guile, librsvg, libcanberra, libxml2');
 });

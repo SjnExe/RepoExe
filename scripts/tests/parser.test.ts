@@ -31,7 +31,7 @@ test('computeStateHash produces deterministic output', () => {
 
 test('parseRecipe supports maintainer and uploaders parsing', () => {
   const recipe = parseRecipe('pkg/aisleriot');
-  expect(recipe.maintainer).toBe('SjnExe');
+  expect(recipe.maintainer).toBe('@SjnExe');
   expect(Array.isArray(recipe.uploaders)).toBe(true);
 });
 

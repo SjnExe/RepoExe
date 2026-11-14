@@ -44,20 +44,6 @@ export default defineRecipe({
     expect(updated).not.toContain("version: '1.0.0'");
   });
 
-  it('updates recipe content with legacy 3-argument signature', () => {
-    const original = `
-export default defineRecipe({
-  name: "foo",
-  version: "1.0.0",
-  revision: 5,
-});
-`;
-    const updated = updateRecipeContent(original, 'latest', '1.1.0');
-    expect(updated).toContain('version: "1.1.0"');
-    expect(updated).toContain('revision: 0');
-    expect(updated).not.toContain('version: "1.0.0"');
-  });
-
   it('ignores nested vars.version and correctly updates top-level direct version', (): void => {
     const original = `
 export default defineRecipe({

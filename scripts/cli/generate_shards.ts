@@ -83,8 +83,7 @@ export function parseTargetTokens(rawInput: string, dag: DependencyGraph, _pkgsD
     const isExclude = token.startsWith('!');
     if (isExclude) token = token.slice(1);
 
-    // Strip legacy @channel token if present
-    const targetPart = token.includes('@') ? token.split('@')[0] : token;
+    const targetPart = token;
 
     const matchedPkgs = new Set<string>();
     if (targetPart.startsWith('type:') || targetPart.startsWith('format:')) {

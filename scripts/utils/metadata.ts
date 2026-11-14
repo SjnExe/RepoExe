@@ -55,7 +55,6 @@ export function generatePackagesJson(pkgDir?: string, outputFile?: string, artif
             conflicts: recipe.conflicts,
             provides: recipe.provides,
             replaces: recipe.replaces,
-            channels: [{ name: 'latest', version: recipe.version, revision: recipe.revision }],
             verified_built: Array.from(availableFiles).some((f) => f.includes(recipe.name)),
           });
         } catch {}

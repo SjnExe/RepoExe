@@ -7,7 +7,7 @@ export default defineRecipe({
   description: 'Central RepoExe package repository management CLI',
   license: 'MIT',
   homepage: 'https://github.com/SjnExe/RepoExe',
-  maintainer: 'SjnExe',
+  maintainer: '@SjnExe',
   build_system: 'custom',
   formats: ['apt'],
   resources: {

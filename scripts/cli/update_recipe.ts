@@ -535,8 +535,7 @@ function findDirectObjectPropertyBrace(str: string, openBraceIdx: number, propNa
   return -1;
 }
 
-export function updateRecipeContent(content: string, arg1: string, arg2?: string): string {
-  const newVersion = arg2 !== undefined ? arg2 : arg1;
+export function updateRecipeContent(content: string, newVersion: string): string {
   const recipeRootBraceIdx = findExportedRecipeRoot(content);
   if (recipeRootBraceIdx === -1) {
     throw new Error(`Failed to find recipe root object.`);
@@ -545,8 +544,7 @@ export function updateRecipeContent(content: string, arg1: string, arg2?: string
   return updateDirectObjectProperties(content, recipeRootBraceIdx, newVersion, 'recipe');
 }
 
-export function updateRecipe(pkg: string, arg1: string, arg2?: string): void {
-  const newVersion = arg2 !== undefined ? arg2 : arg1;
+export function updateRecipe(pkg: string, newVersion: string): void {
   const recipePath = resolve('pkg', pkg, 'recipe.ts');
   if (!existsSync(recipePath)) {
     console.error(`Error: Recipe at ${recipePath} does not exist.`);
@@ -566,5 +564,5 @@ if (import.meta.main) {
     console.error('Usage: bun run scripts/cli/update_recipe.ts <pkg> <new_version>');
     process.exit(1);
   }
-  updateRecipe(args[0], args[1], args[2]);
+  updateRecipe(args[0], args[1]);
 }

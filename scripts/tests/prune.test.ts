@@ -40,16 +40,16 @@ test('identifyOrphanedReleases detects deleted/missing recipes', (): void => {
   writeFileSync(join(tmpPkgDir, 'existing-pkg', 'recipe.ts'), 'export default {};');
 
   const releases = [
-    { tag_name: 'existing-pkg@latest' },
-    { tag_name: 'deleted-pkg@latest' },
-    { tag_name: 'pydantic-core@latest' },
+    { tag_name: 'existing-pkg', assets: [{ name: 'existing-pkg_1.0_aarch64.deb' }] },
+    { tag_name: 'deleted-pkg', assets: [{ name: 'deleted-pkg_1.0_aarch64.deb' }] },
+    { tag_name: 'legacy-pkg@latest' },
     { tag_name: 'random-non-package-tag' },
   ];
 
   const orphaned = identifyOrphanedReleases(releases, tmpPkgDir);
-  expect(orphaned).toContain('deleted-pkg@latest');
-  expect(orphaned).toContain('pydantic-core@latest');
-  expect(orphaned).not.toContain('existing-pkg@latest');
+  expect(orphaned).toContain('deleted-pkg');
+  expect(orphaned).toContain('legacy-pkg@latest');
+  expect(orphaned).not.toContain('existing-pkg');
   expect(orphaned).not.toContain('random-non-package-tag');
 
   rmSync(tmpPkgDir, { recursive: true, force: true });

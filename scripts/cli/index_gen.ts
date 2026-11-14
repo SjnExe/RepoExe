@@ -73,7 +73,8 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
 
   for (const rel of releases) {
     const tag = rel.tag_name || '';
-    const pkg = tag.includes('@') ? tag.split('@')[0] : tag;
+    if (!tag || tag.includes('@')) continue;
+    const pkg = tag;
     const recipePath = join(pkgsDir, pkg, 'recipe.ts');
 
     // Skip packages that no longer exist in the repository

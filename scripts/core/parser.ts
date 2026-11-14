@@ -70,7 +70,7 @@ export function computeStateHash(recipe: PackageRecipe, pkgDir?: string): string
   return hasher.digest('hex').slice(0, 16);
 }
 
-export function parseRecipe(recipePath: string, _channel?: string): PackageRecipe {
+export function parseRecipe(recipePath: string): PackageRecipe {
   let p = resolve(recipePath);
   if (existsSync(p) && statSync(p).isDirectory()) {
     p = join(p, 'recipe.ts');

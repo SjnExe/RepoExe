@@ -23,13 +23,15 @@ export function identifyOrphanedReleases(releases: Array<Record<string, any>>, p
   const orphaned: string[] = [];
   for (const rel of releases) {
     const tag = rel.tag_name || '';
+    if (tag.includes('@')) {
+      orphaned.push(tag);
+      continue;
+    }
     const isPkgRelease =
-      tag.includes('@') ||
-      (rel.assets && rel.assets.some((a: any) => a.name?.startsWith(`${tag}_`) && a.name?.endsWith('.deb')));
+      rel.assets && rel.assets.some((a: any) => a.name?.startsWith(`${tag}_`) && a.name?.endsWith('.deb'));
     if (!isPkgRelease) continue;
 
-    const pkg = tag.includes('@') ? tag.split('@')[0] : tag;
-    const recipePath = join(pkgsDir, pkg, 'recipe.ts');
+    const recipePath = join(pkgsDir, tag, 'recipe.ts');
     if (!existsSync(recipePath)) {
       orphaned.push(tag);
     }
@@ -100,25 +102,24 @@ export async function pruneReleaseTags(): Promise<void> {
 
   for (const rel of releases) {
     const tag = rel.tag_name || '';
+    if (tag.includes('@')) continue;
     const assets = rel.assets || [];
-    const isPkgRelease =
-      tag.includes('@') || assets.some((a: any) => a.name?.startsWith(`${tag}_`) && a.name?.endsWith('.deb'));
+    const isPkgRelease = assets.some((a: any) => a.name?.startsWith(`${tag}_`) && a.name?.endsWith('.deb'));
     if (!isPkgRelease) continue;
 
-    const pkg = tag.includes('@') ? tag.split('@')[0] : tag;
-    const recipePath = join(pkgsDir, pkg, 'recipe.ts');
+    const recipePath = join(pkgsDir, tag, 'recipe.ts');
 
     if (existsSync(recipePath)) {
       try {
         const recipe = parseRecipe(recipePath);
-        const outdated = identifyOutdatedAssets(assets, recipe, pkg);
+        const outdated = identifyOutdatedAssets(assets, recipe, tag);
         for (const asset of outdated) {
           if (asset.id && asset.name) {
             deletionTasks.push({ tag, name: asset.name, assetId: asset.id });
           }
         }
       } catch (e) {
-        console.log(`Could not parse recipe for ${pkg}: ${e}`);
+        console.log(`Could not parse recipe for ${tag}: ${e}`);
       }
     }
   }
