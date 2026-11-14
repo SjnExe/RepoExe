@@ -85,6 +85,9 @@ USER root
 COPY scripts/docker/ndk-patches /tmp/ndk-patches
 RUN PREBUILT_DIR=$(ls ${NDK}/toolchains/llvm/prebuilt | head -n1) \
  && cd ${NDK}/toolchains/llvm/prebuilt/${PREBUILT_DIR}/sysroot \
+ && if [ ! -d "/tmp/ndk-patches/${TERMUX_NDK_VERSION}" ]; then \
+      echo "Error: unsupported NDK version ${TERMUX_NDK_VERSION} - missing /tmp/ndk-patches/${TERMUX_NDK_VERSION}" >&2; exit 1; \
+    fi \
  && for patch in /tmp/ndk-patches/${TERMUX_NDK_VERSION}/*.patch; do \
       [ -f "$patch" ] || continue; \
       sed -i "s|@TERMUX_PREFIX@|/data/data/com.termux/files/usr|g" "$patch"; \
