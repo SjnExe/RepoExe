@@ -49,11 +49,12 @@
  #endif
  
  __nodiscard FILE* _Nullable fdopen(int __fd, const char* _Nonnull __mode);
-@@ -444,6 +455,30 @@
+@@ -444,6 +455,36 @@
  #include <bits/fortify/stdio.h>
  #endif
  
 +int open(const char*, int, ...);
++extern int close(int);
 +extern pid_t getpid();
 +extern int unlink(const char*);
 +void free(void*);
@@ -68,8 +69,14 @@
 +		int __termux_fd = open(__termux_path, O_RDWR | O_CREAT | O_EXCL | O_LARGEFILE, 0600);
 +		if (__termux_fd >= 0) {
 +			FILE* __termux_result = fdopen(__termux_fd, "w+");
++			int __termux_saved_errno = errno;
 +			unlink(__termux_path);
 +			free(__termux_path);
++			if (!__termux_result) {
++				close(__termux_fd);
++				errno = __termux_saved_errno;
++				return NULL;
++			}
 +			return __termux_result;
 +		}
 +		free(__termux_path);
