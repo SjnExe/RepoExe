@@ -130,6 +130,7 @@ export async function prepareSite(
   siteDir: string = 'site',
   artifactsDir: string = 'artifacts',
   skipRemote: boolean = false,
+  stagingDir?: string,
 ): Promise<void> {
   const sPath = resolve(siteDir);
   const artPath = resolve(artifactsDir);
@@ -139,7 +140,7 @@ export async function prepareSite(
     mkdirSync(join(sPath, sub), { recursive: true });
   }
 
-  const aptStaging = resolve('apt_staging');
+  const aptStaging = stagingDir ? resolve(stagingDir) : resolve('apt_staging');
   mkdirSync(aptStaging, { recursive: true });
 
   // 1. Publish newly built artifacts to GitHub Releases if gh CLI is available
@@ -263,21 +264,21 @@ export async function prepareSite(
 
   // Ensure site/install is a concrete file, never a dangling symlink
   const siteInstall = join(sPath, 'install');
-  if (existsSync(siteInstall)) {
-    try {
-      const lstat = lstatSync(siteInstall);
-      if (lstat.isSymbolicLink()) {
-        const linkTarget = readlinkSync(siteInstall);
-        const resolvedTarget = resolve(dirname(siteInstall), linkTarget);
-        if (existsSync(resolvedTarget)) {
-          rmSync(siteInstall, { force: true });
-          copyFileSync(resolvedTarget, siteInstall);
-        }
+  try {
+    const lstat = lstatSync(siteInstall);
+    if (lstat.isSymbolicLink()) {
+      const linkTarget = readlinkSync(siteInstall);
+      const resolvedTarget = resolve(dirname(siteInstall), linkTarget);
+      rmSync(siteInstall, { force: true });
+      if (existsSync(resolvedTarget)) {
+        copyFileSync(resolvedTarget, siteInstall);
       }
-    } catch {}
-  }
+    }
+  } catch {}
+
   const repoexeInstall = join(repoRoot, 'pkg', 'repoexe', 'install');
   if (!existsSync(siteInstall) && existsSync(repoexeInstall)) {
+    rmSync(siteInstall, { force: true });
     copyFileSync(repoexeInstall, siteInstall);
   }
 

@@ -3,7 +3,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { checkExistingReleaseHash, resolveAndFetchBuildDependencies } from '../core/fetcher.ts';
 import { setupBionicCompat } from '../core/compat.ts';
-import { parseRecipe } from '../core/parser.ts';
+import { parseRecipe, computeStateHash } from '../core/parser.ts';
+import type { PackageRecipe } from '../core/types.ts';
 import { auditRepositoryHealth } from '../utils/health.ts';
 import { buildDeb, ARCH_MAP, formatDebianFilenameVersion } from '../builders/debian.ts';
 import { buildPacman } from '../builders/pacman.ts';
@@ -23,14 +24,19 @@ export function fetchAndPrepareSource(
 
   const srcUrl = recipe.source.replace(/\{version\}/g, recipe.version);
   const srcExtractDir = join(destdir, 'src');
+  const readyFile = join(destdir, '.source_prepared');
 
-  if (continueBuild && existsSync(srcExtractDir)) {
+  if (continueBuild && existsSync(srcExtractDir) && existsSync(readyFile)) {
     console.log(`[${recipe.name}] Continuing build: reusing existing source directory at ${srcExtractDir}...`);
-    const items = readdirSync(srcExtractDir, { withFileTypes: true });
+    const items = readdirSync(srcExtractDir, { withFileTypes: true }).filter((i) => !i.name.startsWith('.'));
     if (items.length === 1 && items[0].isDirectory()) {
       return join(srcExtractDir, items[0].name);
     }
     return srcExtractDir;
+  }
+
+  if (existsSync(readyFile)) {
+    rmSync(readyFile, { force: true });
   }
 
   if (existsSync(srcExtractDir)) {
@@ -116,10 +122,19 @@ export function fetchAndPrepareSource(
     }
   }
 
+  writeFileSync(readyFile, String(recipe.version || '1'));
   return workDir;
 }
 
 export async function executePack(recipe: any, pkgDir: string, destdir: string, outputDir: string): Promise<void> {
+  const supportedFormats = new Set(['apt', 'pacman', 'apk']);
+  const fmts = recipe.formats || ['apt', 'pacman', 'apk'];
+  for (const fmt of fmts) {
+    if (!supportedFormats.has(fmt)) {
+      throw new Error(`Unsupported package format '${fmt}' for ${recipe.name}. Supported formats: apt, pacman, apk.`);
+    }
+  }
+
   mkdirSync(outputDir, { recursive: true });
   const escapedPkg = recipe.name.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
   const isTargetDeb = new RegExp(`^${escapedPkg}_.+_[^_]+\\.deb$`);
@@ -138,7 +153,6 @@ export async function executePack(recipe: any, pkgDir: string, destdir: string, 
   sanitizeStagingElfs(stageDir);
   sanitizeShebangs(stageDir);
 
-  const fmts = recipe.formats || ['apt', 'pacman', 'apk'];
   if (fmts.includes('apt')) {
     buildDeb(recipe, destdir, outputDir, recipe.arch);
   }
@@ -271,7 +285,7 @@ export function executeTest(recipe: any, destdir?: string, outputDir?: string): 
 }
 
 export async function simulateDryRun(
-  recipe: any,
+  recipe: PackageRecipe,
   pDir: string,
   destdir: string,
   outputDir: string,
@@ -302,7 +316,7 @@ export async function simulateDryRun(
   }
 
   const buildDeps = recipe.build_deps || [];
-  const runDeps = recipe.depends || [];
+  const runDeps = recipe.deps || [];
   console.log(`🔧 Build Deps:    ${buildDeps.length > 0 ? buildDeps.join(', ') : '(none)'}`);
   console.log(`🔗 Runtime Deps:  ${runDeps.length > 0 ? runDeps.join(', ') : '(none)'}`);
 
@@ -432,6 +446,20 @@ async function main(): Promise<void> {
       process.exit(1);
     }
 
+    const VALID_FORMATS = new Set(['apt', 'pacman', 'apk']);
+    let parsedFormats: string[] | undefined;
+    if (formatOverride !== undefined) {
+      const candidates = formatOverride
+        .split(',')
+        .map((f: string) => f.trim().toLowerCase())
+        .filter(Boolean);
+      if (candidates.length === 0 || candidates.some((f) => !VALID_FORMATS.has(f))) {
+        console.error(`Error: Invalid format override '${formatOverride}'. Supported formats: apt, pacman, apk.`);
+        process.exit(1);
+      }
+      parsedFormats = candidates;
+    }
+
     const dag = new DependencyGraph(pkgDir);
     const availablePkgs = Object.keys(dag.recipes);
 
@@ -462,21 +490,24 @@ async function main(): Promise<void> {
       if (targetArch) {
         recipe.arch = targetArch;
       }
-      if (formatOverride) {
-        recipe.formats = formatOverride.split(',').map((f: string) => f.trim());
+      if (parsedFormats) {
+        recipe.formats = [...parsedFormats];
+      }
+      if (targetArch || parsedFormats) {
+        recipe.state_hash = computeStateHash(recipe, pDir);
       }
 
       const destdir = resolve(join('build', `build_${recipe.name}`));
       const outputDir = outputDirOverride ? resolve(outputDirOverride) : resolve('output');
       const stageDir = join(destdir, 'stage');
 
-      if (cleanBuild && existsSync(destdir)) {
-        rmSync(destdir, { recursive: true, force: true });
-      }
-
       if (command === 'info' || dryRun) {
         await simulateDryRun(recipe, pDir, destdir, outputDir, channel, command, force);
         continue;
+      }
+
+      if (cleanBuild && existsSync(destdir)) {
+        rmSync(destdir, { recursive: true, force: true });
       }
 
       if (command === 'compile' || command === 'build') {
