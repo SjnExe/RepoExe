@@ -67,3 +67,24 @@ test('prepareSite dereferences install script and generates tar-clean site', asy
     rmSync(testBase, { recursive: true, force: true });
   }
 });
+
+test('prepareSite parses metadata JSON files without reference errors', async (): Promise<void> => {
+  const testBase = join(tmpdir(), `repoexe-site-meta-${Date.now()}`);
+  const testSite = join(testBase, 'site');
+  const testArt = join(testBase, 'artifacts');
+  const testStaging = join(testBase, 'apt_staging');
+  mkdirSync(testSite, { recursive: true });
+  mkdirSync(testArt, { recursive: true });
+  mkdirSync(testStaging, { recursive: true });
+
+  writeFileSync(join(testArt, 'sample_metadata.json'), JSON.stringify({ name: 'sample', channel: 'latest' }));
+  writeFileSync(join(testArt, 'sample_1.0.0_arm64.deb'), '');
+
+  try {
+    await prepareSite(testSite, testArt, true, testStaging);
+    const metaParsed = JSON.parse(readFileSync(join(testArt, 'sample_metadata.json'), 'utf-8'));
+    expect(metaParsed.name).toBe('sample');
+  } finally {
+    rmSync(testBase, { recursive: true, force: true });
+  }
+});
