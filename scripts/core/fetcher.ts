@@ -33,7 +33,10 @@ export async function checkExistingReleaseHash(pkgName: string, targetHash: stri
   try {
     const resp = await fetch(apiUrl, { headers: getAuthHeaders(), signal: AbortSignal.timeout(5000) });
     if (!resp.ok) return false;
-    const data = (await resp.json()) as { body?: string };
+    const data = (await resp.json()) as {
+      body?: string;
+      assets?: Array<{ name: string; browser_download_url: string }>;
+    };
 
     const body = (data.body || '').trim();
     if (body) {
@@ -49,7 +52,7 @@ export async function checkExistingReleaseHash(pkgName: string, targetHash: stri
       if (asset.name === 'metadata.json' || asset.name === `${pkgName}_metadata.json`) {
         const assetResp = await fetch(asset.browser_download_url, { headers: getAuthHeaders() });
         if (assetResp.ok) {
-          const meta = (await assetResp.json()) as any;
+          const meta = (await assetResp.json()) as { state_hash?: string };
           if (meta.state_hash === targetHash) return true;
         }
       }
@@ -128,9 +131,14 @@ export function parseDepSpec(depSpec: string): [string, string | null] {
   return [clean, null];
 }
 
-async function downloadFile(url: string, destPath: string, useAuth = false): Promise<void> {
+async function downloadFile(
+  url: string,
+  destPath: string,
+  useAuth = false,
+  extraHeaders?: Record<string, string>,
+): Promise<void> {
   mkdirSync(dirname(destPath), { recursive: true });
-  const headers = useAuth ? getAuthHeaders() : { 'User-Agent': USER_AGENT };
+  const headers = useAuth ? getAuthHeaders(extraHeaders) : { 'User-Agent': USER_AGENT, ...(extraHeaders || {}) };
   const resp = await fetch(url, { headers });
   if (!resp.ok) throw new Error(`Download failed with status ${resp.status}: ${url}`);
   const arr = await resp.arrayBuffer();
@@ -204,11 +212,20 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
   try {
     const resp = await fetch(apiUrl, { headers: getAuthHeaders() });
     if (resp.ok) {
-      const relData = (await resp.json()) as { assets?: Array<{ name?: string; browser_download_url: string }> };
-      const debAsset = (relData.assets || []).find((a: { name?: string }) => a.name?.endsWith('.deb'));
+      interface ReleaseAsset {
+        name: string;
+        url: string;
+        browser_download_url: string;
+      }
+      const relData = (await resp.json()) as { assets?: ReleaseAsset[] };
+      const debAsset = (relData.assets || []).find(
+        (a): a is ReleaseAsset => typeof a?.name === 'string' && a.name.endsWith('.deb'),
+      );
       if (debAsset) {
         const debPath = join(destdir, debAsset.name);
-        await downloadFile(debAsset.browser_download_url, debPath, true);
+        const downloadUrl = debAsset.url || debAsset.browser_download_url;
+        const extraHeaders = debAsset.url ? { Accept: 'application/octet-stream' } : undefined;
+        await downloadFile(downloadUrl, debPath, true, extraHeaders);
         extractDebToPrefix(debPath, prefixRoot);
         fetched.add(pkgName);
         return true;
