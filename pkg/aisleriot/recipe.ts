@@ -3,7 +3,7 @@ import { defineRecipe } from '@core/types.ts';
 export default defineRecipe({
   name: 'aisleriot',
   version: '3.22.35',
-  revision: 1,
+  revision: 2,
   auto_update: true,
   update_strategy: 'git_tag',
   arch: 'aarch64',
@@ -89,6 +89,10 @@ if [ -z "$SOL_PATH" ]; then
   exit 1
 fi
 env -u LD_LIBRARY_PATH readelf -h "$SOL_PATH"
+HOST_ARCH="$(uname -m)"
+if [ "$HOST_ARCH" = "aarch64" ] || [ "$HOST_ARCH" = "arm64" ]; then
+  env -u LD_LIBRARY_PATH "$SOL_PATH" --version
+fi
 `,
   },
 });
