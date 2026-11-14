@@ -9,9 +9,13 @@ test('getExpectedAssetFilenames returns native format filenames', (): void => {
   const recipe = parseRecipe('pkg/aisleriot');
   const expected = getExpectedAssetFilenames(recipe);
 
-  expect(expected.has('aisleriot_3.22.35_arm64.deb')).toBeTrue();
-  expect(expected.has('aisleriot-3.22.35-1-aarch64.pkg.tar.zst')).toBeTrue();
-  expect(expected.has('aisleriot-3.22.35-r0.apk')).toBeTrue();
+  const debVer = recipe.revision > 0 ? `${recipe.version}-${recipe.revision}` : recipe.version;
+  const apkVer = recipe.revision > 0 ? `${recipe.version}-r${recipe.revision}` : `${recipe.version}-r0`;
+  const pacmanVer = recipe.revision > 0 ? `${recipe.version}-${recipe.revision}` : `${recipe.version}-1`;
+
+  expect(expected.has(`aisleriot_${debVer}_arm64.deb`)).toBeTrue();
+  expect(expected.has(`aisleriot-${pacmanVer}-aarch64.pkg.tar.zst`)).toBeTrue();
+  expect(expected.has(`aisleriot-${apkVer}.apk`)).toBeTrue();
   expect(expected.has('metadata.json')).toBeTrue();
   // Ensure no pip wheels or npm tgz are generated
   expect(Array.from(expected).some((f) => f.endsWith('.whl'))).toBeFalse();
@@ -20,8 +24,9 @@ test('getExpectedAssetFilenames returns native format filenames', (): void => {
 
 test('identifyOutdatedAssets filters unknown assets', (): void => {
   const recipe = parseRecipe('pkg/aisleriot');
+  const debVer = recipe.revision > 0 ? `${recipe.version}-${recipe.revision}` : recipe.version;
   const assets = [
-    { name: 'aisleriot_3.22.35_arm64.deb', id: 1 },
+    { name: `aisleriot_${debVer}_arm64.deb`, id: 1 },
     { name: 'aisleriot_3.20.0_arm64.deb', id: 2 },
   ];
 
