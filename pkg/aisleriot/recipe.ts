@@ -3,11 +3,11 @@ import { defineRecipe } from '@core/types.ts';
 export default defineRecipe({
   name: 'aisleriot',
   version: '3.22.35',
-  revision: 3,
+  revision: 4,
   auto_update: true,
   update_strategy: 'git_tag',
   arch: 'aarch64',
-  description: 'Solitaire card games collection compiled for Termux X11',
+  description: 'GNOME solitaire card game collection',
   license: 'GPL-3.0-or-later',
   homepage: 'https://wiki.gnome.org/Apps/AisleRiot',
   maintainer: 'SjnExe',
