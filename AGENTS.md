@@ -36,6 +36,7 @@ bun install --silent
 4.  **No `__init__.py` in Deb Roots:** When building `.deb` packages via `scripts/builders/debian.py`, ensure source recipe metadata (`recipe.ts`, `pkg.yml`, `__init__.py`) are excluded from the archive root to prevent `dpkg` read-only errors on Termux.
 5.  **GitHub Releases:** When using `gh release create` programmatically, do not pass `--clobber`. It is invalid for creation operations and causes silent failures.
 6.  **Binary Dependency Invariants:** Binary `DEBIAN/control` files strictly forbid architecture qualifiers (`[arch]`). All architecture qualifiers must be filtered and stripped at packaging time via `scripts/core/dependencies.ts`. The repository targets APT (`.deb`) exclusively.
+7.  **Bionic Compatibility Invariants:** All polyfill functions in `scripts/compat/bionic_compat.c` must compile with `-fvisibility=hidden` (`visibility("hidden")`) to prevent dynamically linked executables from exporting them and interposing over `libc.so` or external runtimes. External Bionic libc imports (`environ`, `__errno`, `__get_h_errno`) referenced inside hidden visibility regions must explicitly declare `visibility("default")`. Mathematical polyfills (`sincos`, `sincosf`) must use `optnone` / `optimize("O0")` to prevent compiler optimization loops.
 
 ## 🚀 Workflows & Runners
 
