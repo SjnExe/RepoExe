@@ -14,7 +14,9 @@ import { sanitizeShebangs } from '../sanitizer/shebang.ts';
 import { spawnSync } from 'node:child_process';
 import { DependencyGraph } from '../utils/dag.ts';
 
-export function computeSourceIdentity(recipe: any, pDir: string): string {
+export type SourceIdentityInput = Partial<Pick<PackageRecipe, 'source' | 'version' | 'sha256' | 'active_channel'>>;
+
+export function computeSourceIdentity(recipe: SourceIdentityInput, pDir: string): string {
   const channel = recipe.active_channel || 'latest';
   const patches: string[] = [];
   for (const pf of [join(pDir, 'patches'), join(pDir, `patches@${channel}`)]) {
@@ -39,7 +41,7 @@ export function computeSourceIdentity(recipe: any, pDir: string): string {
 }
 
 export function fetchAndPrepareSource(
-  recipe: any,
+  recipe: Partial<PackageRecipe> & { name: string; version: string },
   pDir: string,
   destdir: string,
   continueBuild: boolean = false,
@@ -152,7 +154,12 @@ export function fetchAndPrepareSource(
   return workDir;
 }
 
-export async function executePack(recipe: any, pkgDir: string, destdir: string, outputDir: string): Promise<void> {
+export async function executePack(
+  recipe: PackageRecipe | (Partial<PackageRecipe> & { name: string; version: string }),
+  pkgDir: string,
+  destdir: string,
+  outputDir: string,
+): Promise<void> {
   const supportedFormats = new Set(['apt', 'pacman', 'apk']);
   const fmts = recipe.formats || ['apt', 'pacman', 'apk'];
   for (const fmt of fmts) {
@@ -202,7 +209,11 @@ export async function executePack(recipe: any, pkgDir: string, destdir: string, 
   await Bun.write(join(outputDir, `${recipe.name}_${meta.channel}_metadata.json`), metaContent);
 }
 
-export function executeTest(recipe: any, destdir?: string, outputDir?: string): void {
+export function executeTest(
+  recipe: PackageRecipe | (Partial<PackageRecipe> & { name: string }),
+  destdir?: string,
+  outputDir?: string,
+): void {
   const testCmd = recipe.phases?.test || `${recipe.name} --version || ${recipe.name} --help`;
   console.log(`Running smoke test for ${recipe.name}: ${testCmd}`);
 
