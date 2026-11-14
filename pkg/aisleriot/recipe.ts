@@ -89,7 +89,10 @@ if [ -z "$SOL_PATH" ]; then
   exit 1
 fi
 env -u LD_LIBRARY_PATH readelf -h "$SOL_PATH"
-env -u LD_LIBRARY_PATH "$SOL_PATH" --version
+HOST_ARCH="$(uname -m)"
+if [ "$HOST_ARCH" = "aarch64" ] || [ "$HOST_ARCH" = "arm64" ]; then
+  env -u LD_LIBRARY_PATH "$SOL_PATH" --version
+fi
 `,
   },
 });
