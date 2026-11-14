@@ -560,7 +560,7 @@ export function updateRecipe(pkg: string, newVersion: string): void {
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
-  if (args.length < 2) {
+  if (args.length !== 2) {
     console.error('Usage: bun run scripts/cli/update_recipe.ts <pkg> <new_version>');
     process.exit(1);
   }
