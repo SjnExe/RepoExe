@@ -12,20 +12,18 @@ import { sanitizeShebangs } from '../sanitizer/shebang.ts';
 import { spawnSync } from 'node:child_process';
 import { DependencyGraph } from '../utils/dag.ts';
 
-export type SourceIdentityInput = Partial<Pick<PackageRecipe, 'source' | 'sha256' | 'active_channel'>> & {
+export type SourceIdentityInput = Partial<Pick<PackageRecipe, 'source' | 'sha256'>> & {
   version: string;
 };
 
 export function computeSourceIdentity(recipe: SourceIdentityInput, pDir: string): string {
-  const channel = recipe.active_channel || 'latest';
   const patches: string[] = [];
-  for (const pf of [join(pDir, 'patches'), join(pDir, `patches@${channel}`)]) {
-    if (existsSync(pf)) {
-      for (const f of readdirSync(pf).sort()) {
-        if (f.endsWith('.patch')) {
-          const patchContent = readFileSync(join(pf, f));
-          patches.push(`${f}:${createHash('sha256').update(patchContent).digest('hex')}`);
-        }
+  const pf = join(pDir, 'patches');
+  if (existsSync(pf)) {
+    for (const f of readdirSync(pf).sort()) {
+      if (f.endsWith('.patch')) {
+        const patchContent = readFileSync(join(pf, f));
+        patches.push(`${f}:${createHash('sha256').update(patchContent).digest('hex')}`);
       }
     }
   }
@@ -34,7 +32,6 @@ export function computeSourceIdentity(recipe: SourceIdentityInput, pDir: string)
     source: recipe.source ? recipe.source.replace(/\{version\}/g, recipe.version) : '',
     version: String(recipe.version || ''),
     sha256: String(recipe.sha256 || ''),
-    channel,
     patches,
   };
   return createHash('sha256').update(JSON.stringify(identityData)).digest('hex');
@@ -131,21 +128,19 @@ export function fetchAndPrepareSource(
   }
 
   // Apply patches if present
-  const channel = recipe.active_channel || 'latest';
-  for (const pFolder of [join(pDir, 'patches'), join(pDir, `patches@${channel}`)]) {
-    if (existsSync(pFolder)) {
-      const patches = readdirSync(pFolder)
-        .filter((f) => f.endsWith('.patch'))
-        .sort();
-      for (const patch of patches) {
-        console.log(`⚡ Applying patch: ${patch}...`);
-        const patchRes = spawnSync('patch', ['-p1', '-i', join(pFolder, patch)], {
-          cwd: workDir,
-          stdio: 'inherit',
-        });
-        if (patchRes.status !== 0) {
-          throw new Error(`Failed to apply patch ${patch} for ${recipe.name}`);
-        }
+  const pFolder = join(pDir, 'patches');
+  if (existsSync(pFolder)) {
+    const patches = readdirSync(pFolder)
+      .filter((f) => f.endsWith('.patch'))
+      .sort();
+    for (const patch of patches) {
+      console.log(`⚡ Applying patch: ${patch}...`);
+      const patchRes = spawnSync('patch', ['-p1', '-i', join(pFolder, patch)], {
+        cwd: workDir,
+        stdio: 'inherit',
+      });
+      if (patchRes.status !== 0) {
+        throw new Error(`Failed to apply patch ${patch} for ${recipe.name}`);
       }
     }
   }
@@ -192,11 +187,9 @@ export async function executePack(
     revision: recipe.revision,
     arch: recipe.arch,
     state_hash: recipe.state_hash || '',
-    channel: recipe.active_channel || 'latest',
   };
   const metaContent = JSON.stringify(meta, null, 2);
   await Bun.write(join(outputDir, `${recipe.name}_metadata.json`), metaContent);
-  await Bun.write(join(outputDir, `${recipe.name}_${meta.channel}_metadata.json`), metaContent);
 }
 
 export function executeTest(
@@ -312,12 +305,25 @@ export async function simulateDryRun(
   pDir: string,
   destdir: string,
   outputDir: string,
-  channel: string,
-  command: string,
-  force: boolean = false,
+  arg1: string,
+  arg2?: any,
+  arg3?: any,
 ): Promise<void> {
+  let command = 'build';
+  let force = false;
+
+  if (typeof arg2 === 'boolean') {
+    command = arg1;
+    force = arg2;
+  } else if (typeof arg2 === 'string') {
+    command = arg2;
+    force = Boolean(arg3);
+  } else if (arg1) {
+    command = arg1;
+  }
+
   console.log(`\n============================================================`);
-  console.log(`🔍 [DRY-RUN SIMULATION] ${recipe.name}@${channel} (${command.toUpperCase()})`);
+  console.log(`🔍 [DRY-RUN SIMULATION] ${recipe.name} (${command.toUpperCase()})`);
   console.log(`============================================================`);
 
   console.log(`📦 Package:       ${recipe.name}`);
@@ -325,14 +331,13 @@ export async function simulateDryRun(
   console.log(`🔄 Revision:      ${recipe.revision}`);
   console.log(`⏳ Epoch:         ${recipe.epoch}`);
   console.log(`🏛️ Architecture:  ${recipe.arch || 'aarch64'}`);
-  console.log(`📡 Channel:       ${channel}`);
   console.log(`📁 Formats:       ${(recipe.formats || ['apt']).join(', ')}`);
   if (recipe.description) console.log(`📝 Description:   ${recipe.description}`);
   if (recipe.homepage) console.log(`🌐 Homepage:      ${recipe.homepage}`);
 
   const stateHash = recipe.state_hash || '';
   console.log(`🔑 State Hash:    ${stateHash ? stateHash.slice(0, 16) + '...' : '(none)'}`);
-  if (!force && stateHash && (await checkExistingReleaseHash(recipe.name, channel, stateHash))) {
+  if (!force && stateHash && (await checkExistingReleaseHash(recipe.name, stateHash))) {
     console.log(`⚡ Release State:  MATCHED EXISTING RELEASE (would skip without --force)`);
   } else {
     console.log(`⚡ Release State:  NEEDS BUILD (state hash differs or --force specified)`);
@@ -351,7 +356,7 @@ export async function simulateDryRun(
     console.log(`🌐 Source:        (local files only)`);
   }
 
-  const patchFolders = [join(pDir, 'patches'), join(pDir, `patches@${channel}`)];
+  const patchFolders = [join(pDir, 'patches')];
   const patchesToApply: string[] = [];
   for (const pf of patchFolders) {
     if (existsSync(pf)) {
@@ -382,7 +387,6 @@ export async function simulateDryRun(
     console.log(`   - apt:    ${recipe.name}_${filenameVer}_${debArch}.deb`);
   }
   console.log(`   - meta:   ${recipe.name}_metadata.json`);
-  console.log(`   - meta:   ${recipe.name}_${channel}_metadata.json`);
 
   const testCmd = recipe.phases?.test || `${recipe.name} --version || ${recipe.name} --help`;
   console.log(`🧪 Smoke Test:   ${testCmd}`);
@@ -405,7 +409,6 @@ async function main(): Promise<void> {
 
   if (['build', 'compile', 'pack', 'test', 'info'].includes(command)) {
     const rawTargets: string[] = [];
-    let channel = 'latest';
     let force = false;
     let dryRun = false;
     let targetArch: string | undefined = undefined;
@@ -418,9 +421,7 @@ async function main(): Promise<void> {
 
     for (let i = 1; i < args.length; i++) {
       const arg = args[i];
-      if (arg === '--channel' && args[i + 1]) {
-        channel = args[++i];
-      } else if ((arg === '-a' || arg === '--arch') && args[i + 1]) {
+      if ((arg === '-a' || arg === '--arch') && args[i + 1]) {
         targetArch = args[++i];
       } else if ((arg === '-o' || arg === '--output') && args[i + 1]) {
         outputDirOverride = args[++i];
@@ -447,7 +448,6 @@ async function main(): Promise<void> {
       console.error(
         `Usage: bun run scripts/cli/build.ts ${command} <package...> [options]\n\n` +
           `Options:\n` +
-          `  --channel <channel>  Target channel (default: latest)\n` +
           `  -a, --arch <arch>    Target architecture override (aarch64, arm, x86_64, all)\n` +
           `  -o, --output <dir>   Package output directory (default: output/)\n` +
           `  -f, --force          Force build even if state_hash matches existing release\n` +
@@ -500,7 +500,7 @@ async function main(): Promise<void> {
     for (const pkgName of sortedTargets) {
       const pkgPath = join(pkgDir, pkgName);
       const pDir = existsSync(pkgPath) ? pkgPath : resolve(pkgName);
-      const recipe = parseRecipe(pDir, channel);
+      const recipe = parseRecipe(pDir);
 
       if (targetArch) {
         recipe.arch = targetArch;
@@ -517,7 +517,7 @@ async function main(): Promise<void> {
       const stageDir = join(destdir, 'stage');
 
       if (command === 'info' || dryRun) {
-        await simulateDryRun(recipe, pDir, destdir, outputDir, channel, command, force);
+        await simulateDryRun(recipe, pDir, destdir, outputDir, command, force);
         continue;
       }
 
@@ -526,8 +526,8 @@ async function main(): Promise<void> {
       }
 
       if (command === 'compile' || command === 'build') {
-        if (!force && recipe.state_hash && (await checkExistingReleaseHash(recipe.name, channel, recipe.state_hash))) {
-          if (!quiet) console.log(`⏭️ Skipping ${recipe.name}@${channel}: state_hash unchanged.`);
+        if (!force && recipe.state_hash && (await checkExistingReleaseHash(recipe.name, recipe.state_hash))) {
+          if (!quiet) console.log(`⏭️ Skipping ${recipe.name}: state_hash unchanged.`);
           continue;
         }
 
@@ -563,7 +563,6 @@ async function main(): Promise<void> {
           PREFIX: prefixDir,
           RECIPE_VERSION: recipe.version,
           RECIPE_EPOCH: String(recipe.epoch),
-          ACTIVE_CHANNEL: channel,
           RECIPE_NDK: recipe.ndk || 'default',
           PKG_CONFIG_DIR: '',
           PKG_CONFIG_LIBDIR: `${prefixDir}/lib/pkgconfig:${prefixDir}/share/pkgconfig`,
