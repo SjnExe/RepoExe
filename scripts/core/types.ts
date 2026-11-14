@@ -26,6 +26,9 @@ export interface ChannelOverride {
   conflicts?: string[];
   provides?: string[];
   replaces?: string[];
+  breaks?: string[];
+  enhances?: string[];
+  maintainer_scripts?: Record<string, string>;
   heavy_build?: boolean;
   auto_update?: boolean;
   update_strategy?: string;
@@ -62,6 +65,9 @@ export interface RecipeDefinition {
   conflicts?: string[];
   provides?: string[];
   replaces?: string[];
+  breaks?: string[];
+  enhances?: string[];
+  maintainer_scripts?: Record<string, string>;
   resources?: ResourceConfig;
   heavy_build?: boolean;
   auto_update?: boolean;
@@ -105,6 +111,9 @@ export interface PackageRecipe {
   conflicts: string[];
   provides: string[];
   replaces: string[];
+  breaks?: string[];
+  enhances?: string[];
+  maintainer_scripts?: Record<string, string>;
   resources: ResourceConfig;
   heavy_build: boolean;
   auto_update: boolean;

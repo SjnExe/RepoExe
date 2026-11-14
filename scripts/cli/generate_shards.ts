@@ -42,8 +42,6 @@ export function getChangedPackages(repoRoot: string, dag?: DependencyGraph): Set
   if (dag) {
     const builderFormatMap: Record<string, string> = {
       'debian.ts': 'apt',
-      'pacman.ts': 'pacman',
-      'alpine.ts': 'apk',
     };
 
     for (const f of files) {

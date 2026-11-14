@@ -35,7 +35,7 @@ export function generatePackagesJson(pkgDir?: string, outputFile?: string, artif
       if (existsSync(recipeFile)) {
         try {
           const recipe = parseRecipe(recipeFile);
-          const formats = recipe.formats || ['apt', 'pacman', 'apk'];
+          const formats = recipe.formats || ['apt'];
 
           const channelsList: Array<{ name: string; version: string; revision: number }> = [];
           const chNames = recipe.channels ? Object.keys(recipe.channels) : ['latest'];

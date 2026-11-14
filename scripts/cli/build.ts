@@ -7,8 +7,6 @@ import { parseRecipe, computeStateHash } from '../core/parser.ts';
 import type { PackageRecipe } from '../core/types.ts';
 import { auditRepositoryHealth } from '../utils/health.ts';
 import { buildDeb, ARCH_MAP, formatDebianFilenameVersion } from '../builders/debian.ts';
-import { buildPacman } from '../builders/pacman.ts';
-import { buildAlpine } from '../builders/alpine.ts';
 import { sanitizeStagingElfs } from '../sanitizer/elf.ts';
 import { sanitizeShebangs } from '../sanitizer/shebang.ts';
 import { spawnSync } from 'node:child_process';
@@ -162,23 +160,21 @@ export async function executePack(
   destdir: string,
   outputDir: string,
 ): Promise<void> {
-  const supportedFormats = new Set(['apt', 'pacman', 'apk']);
-  const fmts = recipe.formats || ['apt', 'pacman', 'apk'];
+  const supportedFormats = new Set(['apt']);
+  const fmts = recipe.formats || ['apt'];
   for (const fmt of fmts) {
     if (!supportedFormats.has(fmt)) {
-      throw new Error(`Unsupported package format '${fmt}' for ${recipe.name}. Supported formats: apt, pacman, apk.`);
+      throw new Error(`Unsupported package format '${fmt}' for ${recipe.name}. Supported format: apt.`);
     }
   }
 
   mkdirSync(outputDir, { recursive: true });
   const escapedPkg = recipe.name.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
   const isTargetDeb = new RegExp(`^${escapedPkg}_.+_[^_]+\\.deb$`);
-  const isTargetPacman = new RegExp(`^${escapedPkg}-[0-9].*\\.pkg\\.tar\\..+$`);
-  const isTargetApk = new RegExp(`^${escapedPkg}-[0-9].*\\.apk$`);
 
   // Clear any existing artifacts for this package to prevent stale files
   for (const f of readdirSync(outputDir)) {
-    if (isTargetDeb.test(f) || isTargetPacman.test(f) || isTargetApk.test(f)) {
+    if (isTargetDeb.test(f)) {
       rmSync(join(outputDir, f), { force: true });
     }
   }
@@ -188,15 +184,7 @@ export async function executePack(
   sanitizeStagingElfs(stageDir);
   sanitizeShebangs(stageDir);
 
-  if (fmts.includes('apt')) {
-    buildDeb(recipe, destdir, outputDir, recipe.arch);
-  }
-  if (fmts.includes('pacman')) {
-    buildPacman(recipe, destdir, outputDir, recipe.arch);
-  }
-  if (fmts.includes('apk')) {
-    buildAlpine(recipe, destdir, outputDir, recipe.arch);
-  }
+  buildDeb(recipe as PackageRecipe, destdir, outputDir, recipe.arch, pkgDir);
 
   const meta = {
     name: recipe.name,
@@ -243,13 +231,9 @@ export function executeTest(
       'set -e',
       'INSTALLED=0',
       // Install sibling runtime dependencies matching host architecture before target install
-      `for sib in ${containerPkgDir}/*_${debArch}.deb ${containerPkgDir}/*_all.deb; do if [ -f "$sib" ] && [ "$(basename "$sib")" != "${targetDeb}" ]; then if ! dpkg -i --force-architecture --force-depends "$sib" 2>/dev/null; then TMP_S=$(mktemp -d); if dpkg-deb -x "$sib" "$TMP_S" 2>/dev/null; then if [ -d "$TMP_S/data/data/com.termux/files" ]; then cp -a "$TMP_S/data/data/com.termux/files/." /data/data/com.termux/files/ 2>/dev/null || true; fi; fi; rm -rf "$TMP_S"; fi; fi; done`,
-      // If target Debian package exists, install it directly with dpkg or extract into PREFIX
-      `if [ -f "${containerPkgDir}/${targetDeb}" ]; then if dpkg -i --force-architecture --force-depends "${containerPkgDir}/${targetDeb}" 2>/dev/null; then INSTALLED=1; else TMP_X=$(mktemp -d); if dpkg-deb -x "${containerPkgDir}/${targetDeb}" "$TMP_X" 2>/dev/null; then if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -a "$TMP_X/data/data/com.termux/files/." /data/data/com.termux/files/ && INSTALLED=1; fi; fi; rm -rf "$TMP_X"; fi; elif ls ${containerPkgDir}/${recipe.name}_*.deb 1>/dev/null 2>&1; then for f in ${containerPkgDir}/${recipe.name}_*.deb; do if [ -f "$f" ]; then if dpkg -i --force-architecture --force-depends "$f" 2>/dev/null; then INSTALLED=1; else TMP_X=$(mktemp -d); if dpkg-deb -x "$f" "$TMP_X" 2>/dev/null; then if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -a "$TMP_X/data/data/com.termux/files/." /data/data/com.termux/files/ && INSTALLED=1; fi; fi; rm -rf "$TMP_X"; fi; fi; done; fi`,
-      // If pacman package for target is present and deb not installed, extract into /data/data/com.termux/files/
-      `if [ "$INSTALLED" -eq 0 ] && ls ${containerPkgDir}/${recipe.name}-*.pkg.tar.* 1>/dev/null 2>&1; then for f in ${containerPkgDir}/${recipe.name}-*.pkg.tar.*; do if [ -f "$f" ]; then TMP_X=$(mktemp -d); if tar --no-overwrite-dir -xf "$f" -C "$TMP_X" 2>/dev/null || tar -xf "$f" -C "$TMP_X" 2>/dev/null; then if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -a "$TMP_X/data/data/com.termux/files/." /data/data/com.termux/files/ && INSTALLED=1; fi; fi; rm -rf "$TMP_X"; fi; done; fi`,
-      // If apk package for target is present and not yet installed, extract into /data/data/com.termux/files/
-      `if [ "$INSTALLED" -eq 0 ] && ls ${containerPkgDir}/${recipe.name}-*.apk 1>/dev/null 2>&1; then for f in ${containerPkgDir}/${recipe.name}-*.apk; do if [ -f "$f" ]; then TMP_X=$(mktemp -d); if tar --no-overwrite-dir -xf "$f" -C "$TMP_X" 2>/dev/null || tar -xf "$f" -C "$TMP_X" 2>/dev/null; then if [ -d "$TMP_X/data/data/com.termux/files" ]; then cp -a "$TMP_X/data/data/com.termux/files/." /data/data/com.termux/files/ && INSTALLED=1; fi; fi; rm -rf "$TMP_X"; fi; done; fi`,
+      `for sib in ${containerPkgDir}/*_${debArch}.deb ${containerPkgDir}/*_all.deb; do if [ -f "$sib" ] && [ "$(basename "$sib")" != "${targetDeb}" ]; then dpkg -i --force-architecture --force-depends "$sib" || true; fi; done`,
+      // Install target Debian package directly with dpkg
+      `if [ -f "${containerPkgDir}/${targetDeb}" ]; then dpkg -i --force-architecture --force-depends "${containerPkgDir}/${targetDeb}" && INSTALLED=1; elif ls ${containerPkgDir}/${recipe.name}_*.deb 1>/dev/null 2>&1; then for f in ${containerPkgDir}/${recipe.name}_*.deb; do if [ -f "$f" ]; then dpkg -i --force-architecture --force-depends "$f" && INSTALLED=1; fi; done; fi`,
       `if [ "$INSTALLED" -eq 0 ]; then echo "::error:: Target package artifact for ${recipe.name} could not be installed for smoke testing!"; exit 1; fi`,
       'chmod +x ${PREFIX:-/data/data/com.termux/files/usr}/bin/* 2>/dev/null || true',
       `timeout 120s sh -c '${escapedCmd}'`,
@@ -392,18 +376,10 @@ export async function simulateDryRun(
   const rawArch = (recipe.arch || 'aarch64').toLowerCase();
   const debArch = ARCH_MAP[rawArch] || rawArch;
   const filenameVer = formatDebianFilenameVersion(recipe);
-  const versionStrPacman = recipe.revision > 0 ? `${recipe.version}-${recipe.revision}` : `${recipe.version}-1`;
-  const versionStrApk = recipe.revision > 0 ? `${recipe.version}-r${recipe.revision}` : `${recipe.version}-r0`;
-  const fmts = recipe.formats || ['apt', 'pacman', 'apk'];
+  const fmts = recipe.formats || ['apt'];
 
   if (fmts.includes('apt')) {
     console.log(`   - apt:    ${recipe.name}_${filenameVer}_${debArch}.deb`);
-  }
-  if (fmts.includes('pacman')) {
-    console.log(`   - pacman: ${recipe.name}-${versionStrPacman}-${rawArch}.pkg.tar.zst`);
-  }
-  if (fmts.includes('apk')) {
-    console.log(`   - apk:    ${recipe.name}-${versionStrApk}.apk`);
   }
   console.log(`   - meta:   ${recipe.name}_metadata.json`);
   console.log(`   - meta:   ${recipe.name}_${channel}_metadata.json`);
@@ -479,13 +455,13 @@ async function main(): Promise<void> {
           `  -s, --skip-deps      Skip downloading and resolving build dependencies\n` +
           `  -c, --continue       Continue build reusing existing source directory\n` +
           `  -C, --clean          Clean build destination directory before starting\n` +
-          `  --format <formats>   Filter formats (comma-separated: apt, pacman, apk)\n` +
+          `  --format <formats>   Filter formats (apt)\n` +
           `  -q, --quiet          Quiet output mode`,
       );
       process.exit(1);
     }
 
-    const VALID_FORMATS = new Set(['apt', 'pacman', 'apk']);
+    const VALID_FORMATS = new Set(['apt']);
     let parsedFormats: string[] | undefined;
     if (formatOverride !== undefined) {
       const candidates = formatOverride
@@ -493,7 +469,7 @@ async function main(): Promise<void> {
         .map((f: string) => f.trim().toLowerCase())
         .filter(Boolean);
       if (candidates.length === 0 || candidates.some((f) => !VALID_FORMATS.has(f))) {
-        console.error(`Error: Invalid format override '${formatOverride}'. Supported formats: apt, pacman, apk.`);
+        console.error(`Error: Invalid format override '${formatOverride}'. Supported format: apt.`);
         process.exit(1);
       }
       parsedFormats = candidates;

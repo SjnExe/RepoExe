@@ -183,38 +183,6 @@ export function formatDebianDependency(clauses: DependencyClause[]): string {
     .join(', ');
 }
 
-export function formatPacmanDependency(clauses: DependencyClause[]): string[] {
-  const result: string[] = [];
-  for (const branch of clauses) {
-    if (branch.length === 0) continue;
-    const primary = branch[0];
-    let ver = '';
-    if (primary.versionConstraint) {
-      const op = primary.versionConstraint.operator;
-      const pacmanOp = op === '>=' ? '>=' : op === '<=' ? '<=' : op === '=' ? '=' : op === '>>' ? '>' : '<';
-      ver = `${pacmanOp}${primary.versionConstraint.version}`;
-    }
-    result.push(`${primary.name}${ver}`);
-  }
-  return result;
-}
-
-export function formatAlpineDependency(clauses: DependencyClause[]): string[] {
-  const result: string[] = [];
-  for (const branch of clauses) {
-    if (branch.length === 0) continue;
-    const primary = branch[0];
-    let ver = '';
-    if (primary.versionConstraint) {
-      const op = primary.versionConstraint.operator;
-      const apkOp = op === '>=' ? '>=' : op === '<=' ? '<=' : op === '=' ? '=' : op === '>>' ? '>' : '<';
-      ver = `${apkOp}${primary.versionConstraint.version}`;
-    }
-    result.push(`${primary.name}${ver}`);
-  }
-  return result;
-}
-
 export function extractAllPackageNames(clauses: DependencyClause[]): Set<string> {
   const names = new Set<string>();
   for (const branch of clauses) {

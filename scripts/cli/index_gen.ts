@@ -19,10 +19,6 @@ export function getExactPackageArtifacts(artPath: string, pkgName: string): stri
   const matching: string[] = [];
   if (!existsSync(artPath)) return matching;
 
-  const escapedPkg = pkgName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pacmanRegex = new RegExp(`^${escapedPkg}-(?:[0-9]|v[0-9])`);
-  const apkRegex = new RegExp(`^${escapedPkg}-(?:[0-9]|v[0-9])`);
-
   const traverse = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
@@ -30,11 +26,7 @@ export function getExactPackageArtifacts(artPath: string, pkgName: string): stri
         traverse(full);
       } else if (entry.isFile()) {
         const name = entry.name;
-        if (
-          (name.startsWith(`${pkgName}_`) && name.endsWith('.deb')) ||
-          (pacmanRegex.test(name) && (name.includes('.pkg.tar.zst') || name.includes('.pkg.tar.gz'))) ||
-          (apkRegex.test(name) && name.endsWith('.apk'))
-        ) {
+        if (name.startsWith(`${pkgName}_`) && name.endsWith('.deb')) {
           matching.push(full);
         }
       }
@@ -136,7 +128,7 @@ export async function prepareSite(
   const artPath = resolve(artifactsDir);
   const shouldSkipRemote = skipRemote || process.env.REPOEXE_SKIP_REMOTE === '1';
 
-  for (const sub of ['apt', 'pacman', 'alpine']) {
+  for (const sub of ['apt']) {
     mkdirSync(join(sPath, sub), { recursive: true });
   }
 
@@ -213,10 +205,6 @@ export async function prepareSite(
           if (entry.name.endsWith('.deb')) {
             copyFileSync(full, join(aptStaging, entry.name));
             copyFileSync(full, join(sPath, 'apt', entry.name));
-          } else if (entry.name.endsWith('.pkg.tar.zst') || entry.name.endsWith('.pkg.tar.gz')) {
-            copyFileSync(full, join(sPath, 'pacman', entry.name));
-          } else if (entry.name.endsWith('.apk')) {
-            copyFileSync(full, join(sPath, 'alpine', entry.name));
           }
         }
       }

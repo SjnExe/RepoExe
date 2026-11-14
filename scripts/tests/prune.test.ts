@@ -9,11 +9,14 @@ test('getExpectedAssetFilenames returns native format filenames', (): void => {
   const recipe = parseRecipe('pkg/aisleriot');
   const expected = getExpectedAssetFilenames(recipe);
 
-  expect(expected.has('aisleriot_3.22.35_arm64.deb')).toBeTrue();
-  expect(expected.has('aisleriot-3.22.35-1-aarch64.pkg.tar.zst')).toBeTrue();
-  expect(expected.has('aisleriot-3.22.35-r0.apk')).toBeTrue();
+  const debVer = recipe.revision > 0 ? `${recipe.version}-${recipe.revision}` : recipe.version;
+
+  expect(expected.has(`aisleriot_${debVer}_arm64.deb`)).toBeTrue();
+  expect(expected.has(`aisleriot_${debVer}_aarch64.deb`)).toBeTrue();
   expect(expected.has('metadata.json')).toBeTrue();
-  // Ensure no pip wheels or npm tgz are generated
+  // Ensure no pacman, apk, pip wheels or npm tgz are generated
+  expect(Array.from(expected).some((f) => f.endsWith('.pkg.tar.zst'))).toBeFalse();
+  expect(Array.from(expected).some((f) => f.endsWith('.apk'))).toBeFalse();
   expect(Array.from(expected).some((f) => f.endsWith('.whl'))).toBeFalse();
   expect(Array.from(expected).some((f) => f.endsWith('.tgz'))).toBeFalse();
 });
