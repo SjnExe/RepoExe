@@ -43,7 +43,7 @@ fi
 export CFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages \${CFLAGS:-}"
 export CXXFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages \${CXXFLAGS:-}"
 CROSS_FILE="/tmp/meson-cross.ini"
-if [ ! -f "\${CROSS_FILE}" ] && [ -n "\${TMPDIR}" ] && [ -f "\${TMPDIR}/meson-cross.ini" ]; then
+if [ -n "\${TMPDIR}" ] && [ -f "\${TMPDIR}/meson-cross.ini" ]; then
   CROSS_FILE="\${TMPDIR}/meson-cross.ini"
 fi
 meson setup build \\

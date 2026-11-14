@@ -33,8 +33,8 @@ show_help() {
   printf "  ${CYAN}sync, -y${RESET}                    Re-sync all manager integrations from upstream\n"
   printf "  ${CYAN}list, ls, -l${RESET}                List all available packages in RepoExe store\n"
   printf "  ${CYAN}doctor${RESET}                      Run diagnostic health checks on repository setup\n"
-  printf "  ${CYAN}enable, -e <target...>${RESET}       Enable manager(s) (${BOLD}apt|pacman|apk|all${RESET})\n"
-  printf "  ${CYAN}disable, -d <target...>${RESET}      Disable manager(s) (${BOLD}apt|pacman|apk|all${RESET})\n"
+  printf "  ${CYAN}enable, -e <target...>${RESET}       Enable manager(s) (${BOLD}apt|all${RESET})\n"
+  printf "  ${CYAN}disable, -d <target...>${RESET}      Disable manager(s) (${BOLD}apt|all${RESET})\n"
   printf "  ${CYAN}version, -v${RESET}                 Print CLI version\n"
   printf "  ${CYAN}help, -h${RESET}                    Show this help menu\n"
 }
@@ -46,18 +46,6 @@ check_status() {
     printf "  APT Repository:      [${GREEN}ENABLED${RESET}]\n"
   else
     printf "  APT Repository:      [${RED}DISABLED${RESET}]\n"
-  fi
-
-  if [ -f /etc/pacman.conf ] && grep -q "\[repoexe\]" /etc/pacman.conf 2>/dev/null; then
-    printf "  Pacman Repository:   [${GREEN}ENABLED${RESET}]\n"
-  else
-    printf "  Pacman Repository:   [${RED}DISABLED${RESET}]\n"
-  fi
-
-  if [ -f /etc/apk/repositories ] && grep -q "RepoExe" /etc/apk/repositories 2>/dev/null; then
-    printf "  APK Repository:      [${GREEN}ENABLED${RESET}]\n"
-  else
-    printf "  APK Repository:      [${RED}DISABLED${RESET}]\n"
   fi
 }
 
@@ -88,42 +76,14 @@ run_doctor() {
 
 enable_single_manager() {
   case "$1" in
-    apt)
+    apt|all)
       mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
       echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
       curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc" 2>/dev/null || true
       printf "${GREEN}✓ Enabled APT repository.${RESET}\n"
       ;;
-    pacman)
-      if [ -f /etc/pacman.conf ]; then
-        if ! grep -q "\[repoexe\]" /etc/pacman.conf 2>/dev/null; then
-          printf "\n[repoexe]\nSigLevel = Optional TrustAll\nServer = %s/pacman/\$arch\n" "$REPO_URL" >> /etc/pacman.conf
-        fi
-        curl -sL "$REPO_URL/repoexe.rsa.pub" -o /etc/pacman.d/repoexe.rsa.pub 2>/dev/null || true
-        printf "${GREEN}✓ Enabled Pacman repository.${RESET}\n"
-      else
-        printf "${YELLOW}! Pacman configuration /etc/pacman.conf not found.${RESET}\n"
-      fi
-      ;;
-    apk)
-      if [ -d /etc/apk ]; then
-        mkdir -p /etc/apk/keys
-        curl -sL "$REPO_URL/repoexe.rsa.pub" -o /etc/apk/keys/repoexe.rsa.pub 2>/dev/null || true
-        if ! grep -q "$REPO_URL/apk" /etc/apk/repositories 2>/dev/null; then
-          echo "$REPO_URL/apk/main" >> /etc/apk/repositories
-        fi
-        printf "${GREEN}✓ Enabled APK repository.${RESET}\n"
-      else
-        printf "${YELLOW}! APK configuration /etc/apk not found.${RESET}\n"
-      fi
-      ;;
-    all)
-      enable_single_manager apt
-      if [ -f /etc/pacman.conf ]; then enable_single_manager pacman; fi
-      if [ -d /etc/apk ]; then enable_single_manager apk; fi
-      ;;
     *)
-      printf "${RED}Error: Unknown target '$1'. Options: apt, pacman, apk, all${RESET}\n"
+      printf "${RED}Error: Unknown target '$1'. Options: apt, all${RESET}\n"
       return 1
       ;;
   esac
@@ -131,29 +91,12 @@ enable_single_manager() {
 
 disable_single_manager() {
   case "$1" in
-    apt)
+    apt|all)
       rm -f "$PREFIX/etc/apt/sources.list.d/repoexe.list"
       printf "${YELLOW}✓ Disabled APT repository.${RESET}\n"
       ;;
-    pacman)
-      if [ -f /etc/pacman.conf ]; then
-        sed -i '/\[repoexe\]/,+2d' /etc/pacman.conf 2>/dev/null || true
-      fi
-      printf "${YELLOW}✓ Disabled Pacman repository.${RESET}\n"
-      ;;
-    apk)
-      if [ -f /etc/apk/repositories ]; then
-        sed -i '/RepoExe/d' /etc/apk/repositories 2>/dev/null || true
-      fi
-      printf "${YELLOW}✓ Disabled APK repository.${RESET}\n"
-      ;;
-    all)
-      disable_single_manager apt
-      disable_single_manager pacman
-      disable_single_manager apk
-      ;;
     *)
-      printf "${RED}Error: Unknown target '$1'. Options: apt, pacman, apk, all${RESET}\n"
+      printf "${RED}Error: Unknown target '$1'. Options: apt, all${RESET}\n"
       return 1
       ;;
   esac
@@ -193,7 +136,7 @@ case "$1" in
   enable|-e)
     shift
     if [ $# -eq 0 ]; then
-      printf "${RED}Usage: repoexe enable <apt|pacman|apk|all...>${RESET}\n"
+      printf "${RED}Usage: repoexe enable <apt|all...>${RESET}\n"
       exit 1
     fi
     enable_manager "$@"
@@ -201,7 +144,7 @@ case "$1" in
   disable|-d)
     shift
     if [ $# -eq 0 ]; then
-      printf "${RED}Usage: repoexe disable <apt|pacman|apk|all...>${RESET}\n"
+      printf "${RED}Usage: repoexe disable <apt|all...>${RESET}\n"
       exit 1
     fi
     disable_manager "$@"
@@ -213,13 +156,7 @@ case "$1" in
     show_help
     ;;
   "")
-    if command -v apt >/dev/null 2>&1; then
-      enable_single_manager apt
-    elif command -v pacman >/dev/null 2>&1; then
-      enable_single_manager pacman
-    elif command -v apk >/dev/null 2>&1; then
-      enable_single_manager apk
-    fi
+    enable_single_manager apt
     ;;
   *)
     if [ "$1" = "--all" ]; then

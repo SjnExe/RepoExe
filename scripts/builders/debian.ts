@@ -1,10 +1,20 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import type { PackageRecipe } from '../core/types.ts';
 import { parseDependencyList, filterDepsForArch, formatDebianDependency } from '../core/dependencies.ts';
+import { sanitizeShebangs } from '../sanitizer/shebang.ts';
 
 export const ARCH_MAP: Record<string, string> = {
   aarch64: 'aarch64',
@@ -81,6 +91,7 @@ export function prepareDebianDir(recipe: PackageRecipe, buildDir: string, pkgDir
   // Maintainer scripts: preinst, postinst, prerm, postrm
   const maintainerScripts = ['preinst', 'postinst', 'prerm', 'postrm'];
   for (const script of maintainerScripts) {
+    const targetScript = join(debianDir, script);
     let content: string | undefined;
     if (recipe.maintainer_scripts && typeof recipe.maintainer_scripts[script] === 'string') {
       content = recipe.maintainer_scripts[script];
@@ -94,20 +105,20 @@ export function prepareDebianDir(recipe: PackageRecipe, buildDir: string, pkgDir
       }
     }
     if (content) {
-      const targetScript = join(debianDir, script);
       writeFileSync(targetScript, content, 'utf-8');
       chmodSync(targetScript, 0o755);
+    } else if (existsSync(targetScript)) {
+      unlinkSync(targetScript);
     }
   }
 
   // conffiles: track configuration files under /data/data/com.termux/files/usr/etc/
   const conffilesPath = join(debianDir, 'conffiles');
+  let conffilesContent: string | undefined;
   if (pkgDir && existsSync(join(pkgDir, 'conffiles'))) {
-    writeFileSync(conffilesPath, readFileSync(join(pkgDir, 'conffiles'), 'utf-8'), 'utf-8');
-    chmodSync(conffilesPath, 0o644);
+    conffilesContent = readFileSync(join(pkgDir, 'conffiles'), 'utf-8');
   } else if (pkgDir && existsSync(join(pkgDir, 'DEBIAN', 'conffiles'))) {
-    writeFileSync(conffilesPath, readFileSync(join(pkgDir, 'DEBIAN', 'conffiles'), 'utf-8'), 'utf-8');
-    chmodSync(conffilesPath, 0o644);
+    conffilesContent = readFileSync(join(pkgDir, 'DEBIAN', 'conffiles'), 'utf-8');
   } else {
     const etcDir = join(stageDir, 'data', 'data', 'com.termux', 'files', 'usr', 'etc');
     if (existsSync(etcDir)) {
@@ -125,20 +136,34 @@ export function prepareDebianDir(recipe: PackageRecipe, buildDir: string, pkgDir
       };
       scanEtc(etcDir);
       if (conffileEntries.length > 0) {
-        writeFileSync(conffilesPath, conffileEntries.join('\n') + '\n', 'utf-8');
-        chmodSync(conffilesPath, 0o644);
+        conffilesContent = conffileEntries.join('\n') + '\n';
       }
     }
   }
+  if (conffilesContent) {
+    writeFileSync(conffilesPath, conffilesContent, 'utf-8');
+    chmodSync(conffilesPath, 0o644);
+  } else if (existsSync(conffilesPath)) {
+    unlinkSync(conffilesPath);
+  }
 
   // triggers: copy if present
+  const triggersPath = join(debianDir, 'triggers');
+  let triggersContent: string | undefined;
   if (pkgDir && existsSync(join(pkgDir, 'triggers'))) {
-    writeFileSync(join(debianDir, 'triggers'), readFileSync(join(pkgDir, 'triggers'), 'utf-8'), 'utf-8');
-    chmodSync(join(debianDir, 'triggers'), 0o644);
+    triggersContent = readFileSync(join(pkgDir, 'triggers'), 'utf-8');
   } else if (pkgDir && existsSync(join(pkgDir, 'DEBIAN', 'triggers'))) {
-    writeFileSync(join(debianDir, 'triggers'), readFileSync(join(pkgDir, 'DEBIAN', 'triggers'), 'utf-8'), 'utf-8');
-    chmodSync(join(debianDir, 'triggers'), 0o644);
+    triggersContent = readFileSync(join(pkgDir, 'DEBIAN', 'triggers'), 'utf-8');
   }
+  if (triggersContent) {
+    writeFileSync(triggersPath, triggersContent, 'utf-8');
+    chmodSync(triggersPath, 0o644);
+  } else if (existsSync(triggersPath)) {
+    unlinkSync(triggersPath);
+  }
+
+  // Normalize maintainer script shebangs in DEBIAN directory
+  sanitizeShebangs(debianDir);
 
   return stageDir;
 }
