@@ -13,11 +13,26 @@ import { sanitizeShebangs } from '../sanitizer/shebang.ts';
 import { spawnSync } from 'node:child_process';
 import { DependencyGraph } from '../utils/dag.ts';
 
-export function fetchAndPrepareSource(recipe: any, pDir: string, destdir: string): string {
+export function fetchAndPrepareSource(
+  recipe: any,
+  pDir: string,
+  destdir: string,
+  continueBuild: boolean = false,
+): string {
   if (!recipe.source) return pDir;
 
   const srcUrl = recipe.source.replace(/\{version\}/g, recipe.version);
   const srcExtractDir = join(destdir, 'src');
+
+  if (continueBuild && existsSync(srcExtractDir)) {
+    console.log(`[${recipe.name}] Continuing build: reusing existing source directory at ${srcExtractDir}...`);
+    const items = readdirSync(srcExtractDir, { withFileTypes: true });
+    if (items.length === 1 && items[0].isDirectory()) {
+      return join(srcExtractDir, items[0].name);
+    }
+    return srcExtractDir;
+  }
+
   if (existsSync(srcExtractDir)) {
     rmSync(srcExtractDir, { recursive: true, force: true });
   }
@@ -255,6 +270,99 @@ export function executeTest(recipe: any, destdir?: string, outputDir?: string): 
   console.log(`✓ Smoke test passed locally for ${recipe.name}`);
 }
 
+export async function simulateDryRun(
+  recipe: any,
+  pDir: string,
+  destdir: string,
+  outputDir: string,
+  channel: string,
+  command: string,
+  force: boolean = false,
+): Promise<void> {
+  console.log(`\n============================================================`);
+  console.log(`🔍 [DRY-RUN SIMULATION] ${recipe.name}@${channel} (${command.toUpperCase()})`);
+  console.log(`============================================================`);
+
+  console.log(`📦 Package:       ${recipe.name}`);
+  console.log(`🔖 Version:       ${recipe.version}`);
+  console.log(`🔄 Revision:      ${recipe.revision}`);
+  console.log(`⏳ Epoch:         ${recipe.epoch}`);
+  console.log(`🏛️ Architecture:  ${recipe.arch || 'aarch64'}`);
+  console.log(`📡 Channel:       ${channel}`);
+  console.log(`📁 Formats:       ${(recipe.formats || ['apt', 'pacman', 'apk']).join(', ')}`);
+  if (recipe.description) console.log(`📝 Description:   ${recipe.description}`);
+  if (recipe.homepage) console.log(`🌐 Homepage:      ${recipe.homepage}`);
+
+  const stateHash = recipe.state_hash || '';
+  console.log(`🔑 State Hash:    ${stateHash ? stateHash.slice(0, 16) + '...' : '(none)'}`);
+  if (!force && stateHash && (await checkExistingReleaseHash(recipe.name, channel, stateHash))) {
+    console.log(`⚡ Release State:  MATCHED EXISTING RELEASE (would skip without --force)`);
+  } else {
+    console.log(`⚡ Release State:  NEEDS BUILD (state hash differs or --force specified)`);
+  }
+
+  const buildDeps = recipe.build_deps || [];
+  const runDeps = recipe.depends || [];
+  console.log(`🔧 Build Deps:    ${buildDeps.length > 0 ? buildDeps.join(', ') : '(none)'}`);
+  console.log(`🔗 Runtime Deps:  ${runDeps.length > 0 ? runDeps.join(', ') : '(none)'}`);
+
+  if (recipe.source) {
+    const srcUrl = recipe.source.replace(/\{version\}/g, recipe.version);
+    console.log(`🌐 Source URL:    ${srcUrl}`);
+    console.log(`🛡️ Source SHA256: ${recipe.sha256 || '(unspecified)'}`);
+  } else {
+    console.log(`🌐 Source:        (local files only)`);
+  }
+
+  const patchFolders = [join(pDir, 'patches'), join(pDir, `patches@${channel}`)];
+  const patchesToApply: string[] = [];
+  for (const pf of patchFolders) {
+    if (existsSync(pf)) {
+      for (const f of readdirSync(pf)) {
+        if (f.endsWith('.patch')) patchesToApply.push(f);
+      }
+    }
+  }
+  console.log(`⚡ Patches:       ${patchesToApply.length > 0 ? patchesToApply.join(', ') : '(none)'}`);
+
+  console.log(`🛠️ Build Phases:`);
+  for (const phase of ['prepare', 'configure', 'make', 'install']) {
+    const cmd = recipe.phases?.[phase];
+    if (cmd) {
+      console.log(`   - [${phase}]: ${cmd}`);
+    } else {
+      console.log(`   - [${phase}]: (skipped)`);
+    }
+  }
+
+  console.log(`🎯 Expected Artifacts:`);
+  const rawArch = (recipe.arch || 'aarch64').toLowerCase();
+  const debArch = ARCH_MAP[rawArch] || rawArch;
+  const filenameVer = formatDebianFilenameVersion(recipe);
+  const versionStrPacman = recipe.revision > 0 ? `${recipe.version}-${recipe.revision}` : `${recipe.version}-1`;
+  const versionStrApk = recipe.revision > 0 ? `${recipe.version}-r${recipe.revision}` : `${recipe.version}-r0`;
+  const fmts = recipe.formats || ['apt', 'pacman', 'apk'];
+
+  if (fmts.includes('apt')) {
+    console.log(`   - apt:    ${recipe.name}_${filenameVer}_${debArch}.deb`);
+  }
+  if (fmts.includes('pacman')) {
+    console.log(`   - pacman: ${recipe.name}-${versionStrPacman}-${rawArch}.pkg.tar.zst`);
+  }
+  if (fmts.includes('apk')) {
+    console.log(`   - apk:    ${recipe.name}-${versionStrApk}.apk`);
+  }
+  console.log(`   - meta:   ${recipe.name}_metadata.json`);
+  console.log(`   - meta:   ${recipe.name}_${channel}_metadata.json`);
+
+  const testCmd = recipe.phases?.test || `${recipe.name} --version || ${recipe.name} --help`;
+  console.log(`🧪 Smoke Test:   ${testCmd}`);
+  console.log(`📂 Output Dir:   ${outputDir}`);
+  console.log(`============================================================`);
+  console.log(`✓ Dry-run simulation finished for ${recipe.name} (${command}).`);
+  console.log(`============================================================\n`);
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
@@ -266,27 +374,60 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (['build', 'compile', 'pack', 'test'].includes(command)) {
+  if (['build', 'compile', 'pack', 'test', 'info'].includes(command)) {
     const rawTargets: string[] = [];
     let channel = 'latest';
     let force = false;
     let dryRun = false;
+    let targetArch: string | null = null;
+    let outputDirOverride: string | null = null;
+    let skipDeps = false;
+    let continueBuild = false;
+    let cleanBuild = false;
+    let formatOverride: string | null = null;
+    let quiet = false;
 
     for (let i = 1; i < args.length; i++) {
-      if (args[i] === '--channel' && args[i + 1]) {
+      const arg = args[i];
+      if (arg === '--channel' && args[i + 1]) {
         channel = args[++i];
-      } else if (args[i] === '--force') {
+      } else if ((arg === '-a' || arg === '--arch') && args[i + 1]) {
+        targetArch = args[++i];
+      } else if ((arg === '-o' || arg === '--output') && args[i + 1]) {
+        outputDirOverride = args[++i];
+      } else if (arg === '-f' || arg === '--force') {
         force = true;
-      } else if (args[i] === '--dry-run') {
+      } else if (arg === '-d' || arg === '-n' || arg === '--dry-run') {
         dryRun = true;
-      } else if (!args[i].startsWith('-')) {
-        rawTargets.push(args[i]);
+      } else if (arg === '-s' || arg === '--skip-deps') {
+        skipDeps = true;
+      } else if (arg === '-c' || arg === '--continue') {
+        continueBuild = true;
+      } else if (arg === '-C' || arg === '--clean') {
+        cleanBuild = true;
+      } else if (arg === '--format' && args[i + 1]) {
+        formatOverride = args[++i];
+      } else if (arg === '-q' || arg === '--quiet') {
+        quiet = true;
+      } else if (!arg.startsWith('-')) {
+        rawTargets.push(arg);
       }
     }
 
     if (rawTargets.length === 0) {
       console.error(
-        `Usage: bun run scripts/cli/build.ts ${command} <package...> [--channel <channel>] [--force] [--dry-run]`,
+        `Usage: bun run scripts/cli/build.ts ${command} <package...> [options]\n\n` +
+          `Options:\n` +
+          `  --channel <channel>  Target channel (default: latest)\n` +
+          `  -a, --arch <arch>    Target architecture override (aarch64, arm, x86_64, all)\n` +
+          `  -o, --output <dir>   Package output directory (default: output/)\n` +
+          `  -f, --force          Force build even if state_hash matches existing release\n` +
+          `  -d, --dry-run        Detailed simulation mode without modifying files\n` +
+          `  -s, --skip-deps      Skip downloading and resolving build dependencies\n` +
+          `  -c, --continue       Continue build reusing existing source directory\n` +
+          `  -C, --clean          Clean build destination directory before starting\n` +
+          `  --format <formats>   Filter formats (comma-separated: apt, pacman, apk)\n` +
+          `  -q, --quiet          Quiet output mode`,
       );
       process.exit(1);
     }
@@ -318,18 +459,29 @@ async function main(): Promise<void> {
       const pDir = existsSync(pkgPath) ? pkgPath : resolve(pkgName);
       const recipe = parseRecipe(pDir, channel);
 
+      if (targetArch) {
+        recipe.arch = targetArch;
+      }
+      if (formatOverride) {
+        recipe.formats = formatOverride.split(',').map((f: string) => f.trim());
+      }
+
       const destdir = resolve(join('build', `build_${recipe.name}`));
-      const outputDir = resolve('output');
+      const outputDir = outputDirOverride ? resolve(outputDirOverride) : resolve('output');
       const stageDir = join(destdir, 'stage');
 
-      if (command === 'compile' || command === 'build') {
-        if (dryRun) {
-          console.log(`✓ Dry-run complete for ${recipe.name} (${command}).`);
-          continue;
-        }
+      if (cleanBuild && existsSync(destdir)) {
+        rmSync(destdir, { recursive: true, force: true });
+      }
 
+      if (command === 'info' || dryRun) {
+        await simulateDryRun(recipe, pDir, destdir, outputDir, channel, command, force);
+        continue;
+      }
+
+      if (command === 'compile' || command === 'build') {
         if (!force && recipe.state_hash && (await checkExistingReleaseHash(recipe.name, channel, recipe.state_hash))) {
-          console.log(`⏭️ Skipping ${recipe.name}@${channel}: state_hash unchanged.`);
+          if (!quiet) console.log(`⏭️ Skipping ${recipe.name}@${channel}: state_hash unchanged.`);
           continue;
         }
 
@@ -342,12 +494,12 @@ async function main(): Promise<void> {
         } catch {}
 
         // 2. Fetch build dependencies
-        if (recipe.build_deps && recipe.build_deps.length > 0) {
+        if (!skipDeps && recipe.build_deps && recipe.build_deps.length > 0) {
           await resolveAndFetchBuildDependencies(recipe.build_deps, destdir);
         }
 
         // 3. Fetch source and apply patches
-        const workDir = fetchAndPrepareSource(recipe, pDir, destdir);
+        const workDir = fetchAndPrepareSource(recipe, pDir, destdir, continueBuild);
 
         // 4. Staging directories & environment
         const prefixDir = '/data/data/com.termux/files/usr';
@@ -375,7 +527,7 @@ async function main(): Promise<void> {
         for (const phase of ['prepare', 'configure', 'make', 'install']) {
           const cmd = recipe.phases[phase];
           if (cmd) {
-            console.log(`[${recipe.name}] Running ${phase} phase...`);
+            if (!quiet) console.log(`[${recipe.name}] Running ${phase} phase...`);
             const res = spawnSync('sh', ['-c', cmd], { stdio: 'inherit', env, cwd: workDir });
             if (res.status !== 0) {
               throw new Error(`${phase} phase failed for ${recipe.name}`);
@@ -403,14 +555,10 @@ async function main(): Promise<void> {
           console.warn(`::warning:: stage_dir ${stageDir} does not exist for pack.`);
           continue;
         }
-        if (dryRun) {
-          console.log(`✓ Dry-run complete for ${recipe.name} (${command}).`);
-          continue;
-        }
         await executePack(recipe, pDir, destdir, outputDir);
       } else if (command === 'test') {
         if (!existsSync(stageDir) && !existsSync(join(outputDir, `${recipe.name}_metadata.json`))) {
-          console.log(`Notice: Neither stage_dir nor package output exist for test (${recipe.name}).`);
+          if (!quiet) console.log(`Notice: Neither stage_dir nor package output exist for test (${recipe.name}).`);
           continue;
         }
         executeTest(recipe, destdir, outputDir);
@@ -418,7 +566,7 @@ async function main(): Promise<void> {
     }
   } else {
     console.log('RepoExe Build System CLI (Bun/TypeScript)');
-    console.log('Commands: check, build, compile, pack, test');
+    console.log('Commands: check, build, compile, pack, test, info');
   }
 }
 

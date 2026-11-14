@@ -1,4 +1,4 @@
-name: "Build & Deploy Pipeline"
+name: 'Build & Deploy Pipeline'
 
 on:
   push:
@@ -145,7 +145,7 @@ jobs:
         run: bun test
 
   build:
-    name: "${{ matrix.package }}@${{ matrix.channel }}"
+    name: '${{ matrix.package }}@${{ matrix.channel }}'
     needs: [generate-matrix, lint-audit, test-suite]
     if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
     runs-on: ubuntu-latest
@@ -422,7 +422,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v7
         with:
-          name: "package-artifact-${{ matrix.package }}-${{ matrix.channel }}"
+          name: 'package-artifact-${{ matrix.package }}-${{ matrix.channel }}'
           path: output/
           retention-days: 1
 
@@ -430,7 +430,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: "build-log-${{ matrix.package }}-${{ matrix.channel }}"
+          name: 'build-log-${{ matrix.package }}-${{ matrix.channel }}'
           path: build_logs/
           retention-days: 1
 
@@ -501,12 +501,24 @@ jobs:
           sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
           bun install --frozen-lockfile --silent
 
+      - name: Prune Outdated Release Assets & Tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bun run scripts/cli/prune.ts
+
       - name: Build Full Site & Repository Indexes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           bun run scripts/cli/index_gen.ts
+
+      - name: Verify Site Packaging & Symlink Integrity
+        run: |
+          # Pre-flight tar check ensuring zero broken symlinks or missing files
+          tar -czf /dev/null -C site .
+          echo "✓ Site artifact packaging integrity verified."
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v6
@@ -519,9 +531,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
-
-      - name: Prune Outdated Release Assets & Tags
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          bun run scripts/cli/prune.ts

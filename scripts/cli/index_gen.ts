@@ -1,6 +1,15 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import {
+  copyFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readlinkSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { generateAptMetadata, generateReleaseFile } from '../builders/debian.ts';
 import { parseRecipe } from '../core/parser.ts';
 import { generatePackagesJson } from '../utils/metadata.ts';
@@ -56,8 +65,9 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
     return;
   }
 
-  const releasesRes = spawnSync('gh', ['api', `repos/${owner}/${repoName}/releases?per_page=100`], {
+  const releasesRes = spawnSync('gh', ['api', '--paginate', `repos/${owner}/${repoName}/releases`], {
     encoding: 'utf-8',
+    maxBuffer: 20 * 1024 * 1024,
   });
   if (releasesRes.status !== 0) return;
 
@@ -74,13 +84,22 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
 
     const [pkg, channel] = tag.split('@');
     const recipePath = join(pkgsDir, pkg, 'recipe.ts');
-    let expectedFiles = new Set<string>();
 
-    if (existsSync(recipePath)) {
-      try {
-        const recipe = parseRecipe(recipePath, channel);
-        expectedFiles = getExpectedAssetFilenames(recipe);
-      } catch {}
+    // Skip packages that no longer exist in the repository
+    if (!existsSync(recipePath)) {
+      continue;
+    }
+
+    let expectedFiles = new Set<string>();
+    try {
+      const recipe = parseRecipe(recipePath, channel);
+      expectedFiles = getExpectedAssetFilenames(recipe);
+    } catch {
+      continue;
+    }
+
+    if (expectedFiles.size === 0) {
+      continue;
     }
 
     for (const asset of rel.assets || []) {
@@ -88,7 +107,7 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
       const downloadUrl = asset.browser_download_url;
       if (!name || !downloadUrl) continue;
 
-      if (expectedFiles.size > 0 && !expectedFiles.has(name)) {
+      if (!expectedFiles.has(name)) {
         continue;
       }
 
@@ -107,9 +126,14 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
   }
 }
 
-export async function prepareSite(siteDir: string = 'site', artifactsDir: string = 'artifacts'): Promise<void> {
+export async function prepareSite(
+  siteDir: string = 'site',
+  artifactsDir: string = 'artifacts',
+  skipRemote: boolean = false,
+): Promise<void> {
   const sPath = resolve(siteDir);
   const artPath = resolve(artifactsDir);
+  const shouldSkipRemote = skipRemote || process.env.REPOEXE_SKIP_REMOTE === '1';
 
   for (const sub of ['apt', 'pacman', 'alpine']) {
     mkdirSync(join(sPath, sub), { recursive: true });
@@ -120,7 +144,7 @@ export async function prepareSite(siteDir: string = 'site', artifactsDir: string
 
   // 1. Publish newly built artifacts to GitHub Releases if gh CLI is available
   const ghCheck = spawnSync('which', ['gh']);
-  if (existsSync(artPath) && ghCheck.status === 0) {
+  if (!shouldSkipRemote && existsSync(artPath) && ghCheck.status === 0) {
     console.log('⚡ Publishing release artifacts to GitHub Releases...');
     const metaFiles: string[] = [];
     const findMetas = (dir: string) => {
@@ -173,7 +197,9 @@ export async function prepareSite(siteDir: string = 'site', artifactsDir: string
   }
 
   // 2. Fetch existing release assets
-  await fetchExistingReleaseAssetsToArtifacts(artPath);
+  if (!shouldSkipRemote) {
+    await fetchExistingReleaseAssetsToArtifacts(artPath);
+  }
 
   // 3. Copy accumulated artifacts to respective directories
   if (existsSync(artPath)) {
@@ -229,10 +255,30 @@ export async function prepareSite(siteDir: string = 'site', artifactsDir: string
   const repoRoot = resolve('.');
   generatePackagesJson(join(repoRoot, 'pkg'), join(sPath, 'packages.json'), artPath);
 
-  // 6. Copy Frontend Source & Keyrings
+  // 6. Copy Frontend Source & Keyrings (dereferencing symlinks so site artifacts tarball cleanly)
   const siteSrcDir = join(repoRoot, 'scripts', 'site');
   if (existsSync(siteSrcDir)) {
-    spawnSync('cp', ['-a', `${siteSrcDir}/.`, `${sPath}/`]);
+    spawnSync('cp', ['-aL', `${siteSrcDir}/.`, `${sPath}/`]);
+  }
+
+  // Ensure site/install is a concrete file, never a dangling symlink
+  const siteInstall = join(sPath, 'install');
+  if (existsSync(siteInstall)) {
+    try {
+      const lstat = lstatSync(siteInstall);
+      if (lstat.isSymbolicLink()) {
+        const linkTarget = readlinkSync(siteInstall);
+        const resolvedTarget = resolve(dirname(siteInstall), linkTarget);
+        if (existsSync(resolvedTarget)) {
+          rmSync(siteInstall, { force: true });
+          copyFileSync(resolvedTarget, siteInstall);
+        }
+      }
+    } catch {}
+  }
+  const repoexeInstall = join(repoRoot, 'pkg', 'repoexe', 'install');
+  if (!existsSync(siteInstall) && existsSync(repoexeInstall)) {
+    copyFileSync(repoexeInstall, siteInstall);
   }
 
   for (const key of ['scripts/repoexe.gpg', 'scripts/repoexe.rsa.pub']) {

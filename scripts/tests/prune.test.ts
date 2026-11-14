@@ -1,28 +1,52 @@
-import { expect, test } from "bun:test";
-import { getExpectedAssetFilenames, identifyOutdatedAssets } from "../cli/prune.ts";
-import { parseRecipe } from "../core/parser.ts";
+import { expect, test } from 'bun:test';
+import { getExpectedAssetFilenames, identifyOrphanedReleases, identifyOutdatedAssets } from '../cli/prune.ts';
+import { parseRecipe } from '../core/parser.ts';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
-test("getExpectedAssetFilenames returns native format filenames", () => {
-  const recipe = parseRecipe("pkg/aisleriot");
+test('getExpectedAssetFilenames returns native format filenames', () => {
+  const recipe = parseRecipe('pkg/aisleriot');
   const expected = getExpectedAssetFilenames(recipe);
 
-  expect(expected.has("aisleriot_3.22.35_arm64.deb")).toBeTrue();
-  expect(expected.has("aisleriot-3.22.35-1-aarch64.pkg.tar.zst")).toBeTrue();
-  expect(expected.has("aisleriot-3.22.35-r0.apk")).toBeTrue();
-  expect(expected.has("metadata.json")).toBeTrue();
+  expect(expected.has('aisleriot_3.22.35_arm64.deb')).toBeTrue();
+  expect(expected.has('aisleriot-3.22.35-1-aarch64.pkg.tar.zst')).toBeTrue();
+  expect(expected.has('aisleriot-3.22.35-r0.apk')).toBeTrue();
+  expect(expected.has('metadata.json')).toBeTrue();
   // Ensure no pip wheels or npm tgz are generated
-  expect(Array.from(expected).some((f) => f.endsWith(".whl"))).toBeFalse();
-  expect(Array.from(expected).some((f) => f.endsWith(".tgz"))).toBeFalse();
+  expect(Array.from(expected).some((f) => f.endsWith('.whl'))).toBeFalse();
+  expect(Array.from(expected).some((f) => f.endsWith('.tgz'))).toBeFalse();
 });
 
-test("identifyOutdatedAssets filters unknown assets", () => {
-  const recipe = parseRecipe("pkg/aisleriot");
+test('identifyOutdatedAssets filters unknown assets', () => {
+  const recipe = parseRecipe('pkg/aisleriot');
   const assets = [
-    { name: "aisleriot_3.22.35_arm64.deb", id: 1 },
-    { name: "aisleriot_3.20.0_arm64.deb", id: 2 },
+    { name: 'aisleriot_3.22.35_arm64.deb', id: 1 },
+    { name: 'aisleriot_3.20.0_arm64.deb', id: 2 },
   ];
 
-  const outdated = identifyOutdatedAssets(assets, recipe, "aisleriot");
+  const outdated = identifyOutdatedAssets(assets, recipe, 'aisleriot');
   expect(outdated.length).toBe(1);
   expect(outdated[0].id).toBe(2);
+});
+
+test('identifyOrphanedReleases detects deleted/missing recipes', () => {
+  const tmpPkgDir = join(tmpdir(), `test-pkgs-${Date.now()}`);
+  mkdirSync(join(tmpPkgDir, 'existing-pkg'), { recursive: true });
+  writeFileSync(join(tmpPkgDir, 'existing-pkg', 'recipe.ts'), 'export default {};');
+
+  const releases = [
+    { tag_name: 'existing-pkg@latest' },
+    { tag_name: 'deleted-pkg@latest' },
+    { tag_name: 'pydantic-core@latest' },
+    { tag_name: 'random-non-package-tag' },
+  ];
+
+  const orphaned = identifyOrphanedReleases(releases, tmpPkgDir);
+  expect(orphaned).toContain('deleted-pkg@latest');
+  expect(orphaned).toContain('pydantic-core@latest');
+  expect(orphaned).not.toContain('existing-pkg@latest');
+  expect(orphaned).not.toContain('random-non-package-tag');
+
+  rmSync(tmpPkgDir, { recursive: true, force: true });
 });
