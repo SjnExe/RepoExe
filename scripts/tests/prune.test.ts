@@ -23,8 +23,9 @@ test('getExpectedAssetFilenames returns native format filenames', (): void => {
 
 test('identifyOutdatedAssets filters unknown assets', (): void => {
   const recipe = parseRecipe('pkg/aisleriot');
+  const debVer = recipe.revision > 0 ? `${recipe.version}-${recipe.revision}` : recipe.version;
   const assets = [
-    { name: 'aisleriot_3.22.35_arm64.deb', id: 1 },
+    { name: `aisleriot_${debVer}_arm64.deb`, id: 1 },
     { name: 'aisleriot_3.20.0_arm64.deb', id: 2 },
   ];
 

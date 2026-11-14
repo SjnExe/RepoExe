@@ -3,7 +3,7 @@ import { defineRecipe } from '@core/types.ts';
 export default defineRecipe({
   name: 'aisleriot',
   version: '3.22.35',
-  revision: 0,
+  revision: 1,
   auto_update: true,
   update_strategy: 'git_tag',
   arch: 'aarch64',
@@ -39,8 +39,12 @@ fi
 export PATH="\${HOST_BIN}:\${PATH}"
 export CFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages \${CFLAGS:-}"
 export CXXFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages \${CXXFLAGS:-}"
+CROSS_FILE="/tmp/meson-cross.ini"
+if [ ! -f "\${CROSS_FILE}" ] && [ -n "\${TMPDIR}" ] && [ -f "\${TMPDIR}/meson-cross.ini" ]; then
+  CROSS_FILE="\${TMPDIR}/meson-cross.ini"
+fi
 meson setup build \\
-  --cross-file /tmp/meson-cross.ini \\
+  --cross-file "\${CROSS_FILE}" \\
   --prefix="\${PREFIX}" \\
   --libdir="\${PREFIX}/lib" \\
   -Dwarning_level=0 \\

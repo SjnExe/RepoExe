@@ -1,36 +1,51 @@
-import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 export function resolveNdkTool(toolName: string): string {
   if (process.env[toolName]) {
     const val = process.env[toolName]!;
-    if (existsSync(val) || spawnSync("which", [val]).status === 0) {
+    if (existsSync(val) || spawnSync('which', [val]).status === 0) {
       return val;
     }
   }
 
-  const ndkPath = process.env.NDK || "/opt/android-ndk";
+  const ndkPath = process.env.NDK || '/opt/android-ndk';
   if (existsSync(ndkPath)) {
-    const findInNdk = (dir: string): string | null => {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = join(dir, entry.name);
-        if (entry.isDirectory()) {
-          const res = findInNdk(full);
-          if (res) return res;
-        } else if (entry.name === toolName) {
-          return full;
+    // 1. Direct LLVM prebuilt bin path (standard in all modern NDK versions)
+    const prebuiltDir = join(ndkPath, 'toolchains', 'llvm', 'prebuilt');
+    if (existsSync(prebuiltDir)) {
+      try {
+        for (const host of readdirSync(prebuiltDir)) {
+          const candidate = join(prebuiltDir, host, 'bin', toolName);
+          if (existsSync(candidate)) return candidate;
         }
-      }
+      } catch {}
+    }
+
+    // 2. Fallback bounded search if located in alternative subdirectories
+    const findInNdk = (dir: string, depth: number = 0): string | null => {
+      if (depth > 4) return null;
+      try {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const full = join(dir, entry.name);
+          if (entry.isDirectory()) {
+            const res = findInNdk(full, depth + 1);
+            if (res) return res;
+          } else if (entry.name === toolName) {
+            return full;
+          }
+        }
+      } catch {}
       return null;
     };
     const found = findInNdk(ndkPath);
     if (found) return found;
   }
 
-  const whichRes = spawnSync("which", [toolName], { encoding: "utf-8" });
+  const whichRes = spawnSync('which', [toolName], { encoding: 'utf-8' });
   if (whichRes.status === 0 && whichRes.stdout) {
     return whichRes.stdout.trim();
   }
@@ -38,24 +53,24 @@ export function resolveNdkTool(toolName: string): string {
 }
 
 export function setupBionicCompat(): void {
-  const ndkClang = resolveNdkTool("aarch64-linux-android24-clang");
-  let ndkAr = resolveNdkTool("llvm-ar");
-  if (ndkAr === "llvm-ar" && spawnSync("which", ["llvm-ar"]).status !== 0) {
-    ndkAr = resolveNdkTool("ar");
+  const ndkClang = resolveNdkTool('aarch64-linux-android24-clang');
+  let ndkAr = resolveNdkTool('llvm-ar');
+  if (ndkAr === 'llvm-ar' && spawnSync('which', ['llvm-ar']).status !== 0) {
+    ndkAr = resolveNdkTool('ar');
   }
 
-  const repoRoot = resolve(".");
-  const compatSrc = join(repoRoot, "scripts", "compat", "bionic_compat.c");
-  const stubSrc = join(repoRoot, "scripts", "compat", "bionic_stub.h");
+  const repoRoot = resolve('.');
+  const compatSrc = join(repoRoot, 'scripts', 'compat', 'bionic_compat.c');
+  const stubSrc = join(repoRoot, 'scripts', 'compat', 'bionic_stub.h');
 
   if (!existsSync(compatSrc) || !existsSync(stubSrc)) {
-    throw new Error("Bionic compat source files not found in scripts/compat/");
+    throw new Error('Bionic compat source files not found in scripts/compat/');
   }
 
   const srcData = Buffer.concat([readFileSync(compatSrc), readFileSync(stubSrc)]);
-  const srcHash = createHash("sha256").update(srcData).digest("hex").slice(0, 16);
+  const srcHash = createHash('sha256').update(srcData).digest('hex').slice(0, 16);
 
-  const cacheDir = join(repoRoot, ".cache", "compat");
+  const cacheDir = join(repoRoot, '.cache', 'compat');
   mkdirSync(cacheDir, { recursive: true });
 
   const cachedObj = join(cacheDir, `compat_${srcHash}.o`);
@@ -66,51 +81,53 @@ export function setupBionicCompat(): void {
     const resCc = spawnSync(
       ndkClang,
       [
-        `-I${join(repoRoot, "scripts", "compat")}`,
-        "-fPIC",
-        "-O2",
-        "-Wno-error",
-        "-Wno-ignored-attributes",
-        "-c",
+        `-I${join(repoRoot, 'scripts', 'compat')}`,
+        '-fPIC',
+        '-O2',
+        '-Wno-error',
+        '-Wno-ignored-attributes',
+        '-c',
         compatSrc,
-        "-o",
+        '-o',
         cachedObj,
       ],
-      { encoding: "utf-8" }
+      { encoding: 'utf-8' },
     );
-    if (resCc.status !== 0) {
-      throw new Error(`Failed to compile bionic_compat.c:\n${resCc.stderr}`);
+    if (resCc.status !== 0 || resCc.error) {
+      const errDetail = resCc.error ? resCc.error.message : resCc.stderr || `exit code ${resCc.status}`;
+      throw new Error(`Failed to compile bionic_compat.c:\n${errDetail}`);
     }
 
-    const resAr = spawnSync(ndkAr, ["rcs", cachedLib, cachedObj], { encoding: "utf-8" });
-    if (resAr.status !== 0) {
-      throw new Error(`Failed to create libcompat.a:\n${resAr.stderr}`);
+    const resAr = spawnSync(ndkAr, ['rcs', cachedLib, cachedObj], { encoding: 'utf-8' });
+    if (resAr.status !== 0 || resAr.error) {
+      const errDetail = resAr.error ? resAr.error.message : resAr.stderr || `exit code ${resAr.status}`;
+      throw new Error(`Failed to create libcompat.a:\n${errDetail}`);
     }
-    console.log("✓ Bionic compat library built and cached.");
+    console.log('✓ Bionic compat library built and cached.');
   }
 
   const tempDir = process.env.TMPDIR || tmpdir();
   mkdirSync(tempDir, { recursive: true });
-  copyFileSync(cachedObj, join(tempDir, "bionic_compat.o"));
-  copyFileSync(cachedLib, join(tempDir, "libcompat.a"));
-  copyFileSync(cachedLib, join(tempDir, "libbionic_compat.a"));
-  copyFileSync(stubSrc, join(tempDir, "bionic_stub.h"));
-  writeFileSync(join(tempDir, "spawn.h"), `#pragma once\n#include "${join(tempDir, "bionic_stub.h")}"\n`, "utf-8");
-  writeFileSync(join(tempDir, "android_lf.h"), "#pragma once\n#include <sys/types.h>\n", "utf-8");
+  copyFileSync(cachedObj, join(tempDir, 'bionic_compat.o'));
+  copyFileSync(cachedLib, join(tempDir, 'libcompat.a'));
+  copyFileSync(cachedLib, join(tempDir, 'libbionic_compat.a'));
+  copyFileSync(stubSrc, join(tempDir, 'bionic_stub.h'));
+  writeFileSync(join(tempDir, 'spawn.h'), `#pragma once\n#include "${join(tempDir, 'bionic_stub.h')}"\n`, 'utf-8');
+  writeFileSync(join(tempDir, 'android_lf.h'), '#pragma once\n#include <sys/types.h>\n', 'utf-8');
 
-  mkdirSync(join(tempDir, "icu-include"), { recursive: true });
-  writeFileSync(join(tempDir, "icu-include", "android_lf.h"), "#pragma once\n#include <sys/types.h>\n", "utf-8");
+  mkdirSync(join(tempDir, 'icu-include'), { recursive: true });
+  writeFileSync(join(tempDir, 'icu-include', 'android_lf.h'), '#pragma once\n#include <sys/types.h>\n', 'utf-8');
 
-  let ndkClangxx = resolveNdkTool("aarch64-linux-android24-clang++");
+  let ndkClangxx = resolveNdkTool('aarch64-linux-android24-clang++');
   if (!ndkClangxx || !existsSync(ndkClangxx)) {
-    ndkClangxx = ndkClang.replace("clang", "clang++");
+    ndkClangxx = ndkClang.replace('clang', 'clang++');
   }
-  let ndkStrip = resolveNdkTool("llvm-strip");
-  if (ndkStrip === "llvm-strip" && spawnSync("which", ["llvm-strip"]).status !== 0) {
-    ndkStrip = resolveNdkTool("strip");
+  let ndkStrip = resolveNdkTool('llvm-strip');
+  if (ndkStrip === 'llvm-strip' && spawnSync('which', ['llvm-strip']).status !== 0) {
+    ndkStrip = resolveNdkTool('strip');
   }
 
-  const stubH = join(tempDir, "bionic_stub.h");
+  const stubH = join(tempDir, 'bionic_stub.h');
   const mesonCross = `[binaries]
 c = '${ndkClang}'
 cpp = '${ndkClangxx}'
@@ -135,5 +152,10 @@ cpu_family = 'aarch64'
 cpu = 'aarch64'
 endian = 'little'
 `;
-  writeFileSync(join(tempDir, "meson-cross.ini"), mesonCross, "utf-8");
+  writeFileSync(join(tempDir, 'meson-cross.ini'), mesonCross, 'utf-8');
+  if (tempDir !== '/tmp') {
+    try {
+      writeFileSync('/tmp/meson-cross.ini', mesonCross, 'utf-8');
+    } catch {}
+  }
 }
