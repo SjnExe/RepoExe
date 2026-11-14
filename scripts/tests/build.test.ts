@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { executePack, fetchAndPrepareSource, simulateDryRun } from '../cli/build.ts';
+import { computeSourceIdentity, executePack, fetchAndPrepareSource, simulateDryRun } from '../cli/build.ts';
 import type { PackageRecipe } from '../core/types.ts';
 
 describe('build CLI helpers', (): void => {
@@ -18,9 +18,11 @@ describe('build CLI helpers', (): void => {
     const srcDir = join(testDest, 'src');
     mkdirSync(srcDir, { recursive: true });
     writeFileSync(join(srcDir, 'test.txt'), 'hello');
-    writeFileSync(join(testDest, '.source_prepared'), '1.0.0');
 
     const recipe = { name: 'dummy', version: '1.0.0', source: 'https://example.com/dummy.tar.gz' };
+    const identity = computeSourceIdentity(recipe, 'pkg/dummy');
+    writeFileSync(join(testDest, '.source_prepared.json'), JSON.stringify({ identity, workDir: srcDir }));
+
     const workDir = fetchAndPrepareSource(recipe, 'pkg/dummy', testDest, true);
     expect(workDir).toBe(srcDir);
 
@@ -33,11 +35,29 @@ describe('build CLI helpers', (): void => {
     mkdirSync(srcDir, { recursive: true });
     writeFileSync(join(srcDir, 'partial.txt'), 'partial');
 
-    // Without .source_prepared, fetchAndPrepareSource wipes srcDir and tries to fetch
-    const recipe = { name: 'dummy', version: '1.0.0', source: 'https://example.com/dummy.tar.gz' };
+    // Use local file URL to avoid live network download
+    const recipe = { name: 'dummy', version: '1.0.0', source: 'file:///nonexistent/dummy.tar.gz' };
     expect(() => fetchAndPrepareSource(recipe, 'pkg/dummy', testDest, true)).toThrow();
     // After fresh preparation begins, partial.txt is wiped
     expect(existsSync(join(srcDir, 'partial.txt'))).toBeFalse();
+
+    rmSync(testDest, { recursive: true, force: true });
+  });
+
+  it('rejects reusing extracted source when source identity has changed', (): void => {
+    const testDest = join(process.env.TMPDIR || tmpdir(), `dest-idchange-${Date.now()}`);
+    const srcDir = join(testDest, 'src');
+    mkdirSync(srcDir, { recursive: true });
+    writeFileSync(join(srcDir, 'old.txt'), 'old');
+
+    const oldRecipe = { name: 'dummy', version: '1.0.0', source: 'file:///nonexistent/dummy.tar.gz' };
+    const oldIdentity = computeSourceIdentity(oldRecipe, 'pkg/dummy');
+    writeFileSync(join(testDest, '.source_prepared.json'), JSON.stringify({ identity: oldIdentity, workDir: srcDir }));
+
+    // New version produces different identity, so continueBuild rejects stale source
+    const newRecipe = { name: 'dummy', version: '2.0.0', source: 'file:///nonexistent/dummy.tar.gz' };
+    expect(() => fetchAndPrepareSource(newRecipe, 'pkg/dummy', testDest, true)).toThrow();
+    expect(existsSync(join(srcDir, 'old.txt'))).toBeFalse();
 
     rmSync(testDest, { recursive: true, force: true });
   });
@@ -60,17 +80,44 @@ describe('build CLI helpers', (): void => {
     const recipe: PackageRecipe = {
       name: 'test-pkg',
       version: '1.2.3',
-      revision: 1,
       epoch: 0,
+      revision: 1,
       arch: 'aarch64',
+      description: 'A test package fixture',
+      license: 'MIT',
+      homepage: 'https://example.com',
+      maintainer: 'RepoExe <repoexe@example.com>',
+      component: 'main',
+      build_system: 'custom',
+      source: 'https://example.com/test-pkg.tar.gz',
+      sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       formats: ['apt', 'apk'],
       build_deps: ['make'],
       deps: ['libc'],
-      source: 'https://example.com/test-pkg.tar.gz',
+      recommends: [],
+      suggests: [],
+      conflicts: [],
+      provides: [],
+      replaces: [],
+      resources: {},
+      heavy_build: false,
+      auto_update: false,
+      update_strategy: null,
+      custom_update_cmd: null,
+      patches: [],
+      cflags: null,
+      cxxflags: null,
+      ldflags: null,
       phases: {
         configure: './configure',
         make: 'make -j4',
       },
+      vars: {},
+      env: {},
+      toolchains: {},
+      channels: {},
+      active_channel: 'latest',
+      state_hash: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
     };
 
     let logCalled = false;

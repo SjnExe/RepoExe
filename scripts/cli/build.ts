@@ -14,6 +14,30 @@ import { sanitizeShebangs } from '../sanitizer/shebang.ts';
 import { spawnSync } from 'node:child_process';
 import { DependencyGraph } from '../utils/dag.ts';
 
+export function computeSourceIdentity(recipe: any, pDir: string): string {
+  const channel = recipe.active_channel || 'latest';
+  const patches: string[] = [];
+  for (const pf of [join(pDir, 'patches'), join(pDir, `patches@${channel}`)]) {
+    if (existsSync(pf)) {
+      for (const f of readdirSync(pf).sort()) {
+        if (f.endsWith('.patch')) {
+          const patchContent = readFileSync(join(pf, f));
+          patches.push(`${f}:${createHash('sha256').update(patchContent).digest('hex')}`);
+        }
+      }
+    }
+  }
+
+  const identityData = {
+    source: recipe.source ? recipe.source.replace(/\{version\}/g, recipe.version) : '',
+    version: String(recipe.version || ''),
+    sha256: String(recipe.sha256 || ''),
+    channel,
+    patches,
+  };
+  return createHash('sha256').update(JSON.stringify(identityData)).digest('hex');
+}
+
 export function fetchAndPrepareSource(
   recipe: any,
   pDir: string,
@@ -24,15 +48,17 @@ export function fetchAndPrepareSource(
 
   const srcUrl = recipe.source.replace(/\{version\}/g, recipe.version);
   const srcExtractDir = join(destdir, 'src');
-  const readyFile = join(destdir, '.source_prepared');
+  const readyFile = join(destdir, '.source_prepared.json');
+  const currentIdentity = computeSourceIdentity(recipe, pDir);
 
   if (continueBuild && existsSync(srcExtractDir) && existsSync(readyFile)) {
-    console.log(`[${recipe.name}] Continuing build: reusing existing source directory at ${srcExtractDir}...`);
-    const items = readdirSync(srcExtractDir, { withFileTypes: true }).filter((i) => !i.name.startsWith('.'));
-    if (items.length === 1 && items[0].isDirectory()) {
-      return join(srcExtractDir, items[0].name);
-    }
-    return srcExtractDir;
+    try {
+      const marker = JSON.parse(readFileSync(readyFile, 'utf-8'));
+      if (marker.identity === currentIdentity && marker.workDir && existsSync(marker.workDir)) {
+        console.log(`[${recipe.name}] Continuing build: reusing existing source directory at ${marker.workDir}...`);
+        return marker.workDir;
+      }
+    } catch {}
   }
 
   if (existsSync(readyFile)) {
@@ -122,7 +148,7 @@ export function fetchAndPrepareSource(
     }
   }
 
-  writeFileSync(readyFile, String(recipe.version || '1'));
+  writeFileSync(readyFile, JSON.stringify({ identity: currentIdentity, workDir }, null, 2), 'utf-8');
   return workDir;
 }
 
@@ -393,12 +419,12 @@ async function main(): Promise<void> {
     let channel = 'latest';
     let force = false;
     let dryRun = false;
-    let targetArch: string | null = null;
-    let outputDirOverride: string | null = null;
+    let targetArch: string | undefined = undefined;
+    let outputDirOverride: string | undefined = undefined;
     let skipDeps = false;
     let continueBuild = false;
     let cleanBuild = false;
-    let formatOverride: string | null = null;
+    let formatOverride: string | undefined = undefined;
     let quiet = false;
 
     for (let i = 1; i < args.length; i++) {
