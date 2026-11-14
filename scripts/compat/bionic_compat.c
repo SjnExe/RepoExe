@@ -364,7 +364,7 @@ __attribute__((weak, visibility("hidden"))) int getdomainname(char *name, size_t
 __attribute__((weak, visibility("hidden"))) int setdomainname(const char *name, size_t len) { (void)name; (void)len; return 0; }
 
 
-extern int *__errno(void);
+extern int *__errno(void) __attribute__((visibility("default")));
 __attribute__((weak, visibility("hidden"))) int *__errno_location(void) { return __errno(); }
 extern int *__get_h_errno(void) __attribute__((visibility("default")));
 __attribute__((weak, visibility("hidden"))) int *__h_errno_location(void) { return __get_h_errno(); }
@@ -595,7 +595,16 @@ __attribute__((weak, visibility("hidden"))) int lutimes(const char *path, const 
 __attribute__((weak, visibility("hidden"))) int futimesat(int dirfd, const char *path, const struct timeval times[2]) { struct timespec ts[2]; if (!times) return utimensat(dirfd, path, NULL, 0); ts[0].tv_sec = times[0].tv_sec; ts[0].tv_nsec = times[0].tv_usec * 1000; ts[1].tv_sec = times[1].tv_sec; ts[1].tv_nsec = times[1].tv_usec * 1000; return utimensat(dirfd, path, ts, 0); }
 __attribute__((weak, visibility("hidden"))) int posix_fadvise(int fd, off_t offset, off_t len, int advice) { (void)fd; (void)offset; (void)len; (void)advice; return 0; }
 __attribute__((weak, visibility("hidden"))) int posix_fadvise64(int fd, off64_t offset, off64_t len, int advice) { (void)fd; (void)offset; (void)len; (void)advice; return 0; }
-__attribute__((weak, visibility("hidden"))) int posix_fallocate64(int fd, off64_t offset, off64_t len) { return (int)syscall(__NR_fallocate, fd, 0, offset, len); }
+__attribute__((weak, visibility("hidden"))) int posix_fallocate64(int fd, off64_t offset, off64_t len) {
+    int saved_errno = errno;
+    long ret = syscall(__NR_fallocate, fd, 0, offset, len);
+    if (ret == -1) {
+        int err = errno;
+        errno = saved_errno;
+        return err;
+    }
+    return 0;
+}
 
 __attribute__((weak, visibility("hidden"))) int getloadavg(double loadavg[], int nelem) { for (int i = 0; i < nelem; ++i) loadavg[i] = 0.0; return nelem; }
 __attribute__((weak, visibility("hidden"))) int malloc_trim(size_t pad) { (void)pad; return 0; }
@@ -630,10 +639,18 @@ __attribute__((weak, visibility("hidden"))) unsigned int gnu_dev_minor(unsigned 
 __attribute__((weak, visibility("hidden"))) unsigned long long gnu_dev_makedev(unsigned int maj, unsigned int min) { return ((unsigned long long)(maj & 0xfff) << 8) | (min & 0xff) | ((unsigned long long)(min & 0xfff00) << 12); }
 
 
-__attribute__((weak, visibility("hidden"))) void sincos(double x, double *s, double *c) { *s = sin(x); *c = cos(x); }
-__attribute__((weak, visibility("hidden"))) void __sincos(double x, double *s, double *c) { *s = sin(x); *c = cos(x); }
-__attribute__((weak, visibility("hidden"))) void sincosf(float x, float *s, float *c) { *s = sinf(x); *c = cosf(x); }
-__attribute__((weak, visibility("hidden"))) void __sincosf(float x, float *s, float *c) { *s = sinf(x); *c = cosf(x); }
+#if defined(__clang__)
+#define NO_BUILTIN_COMBINE __attribute__((optnone))
+#elif defined(__GNUC__)
+#define NO_BUILTIN_COMBINE __attribute__((optimize("O0")))
+#else
+#define NO_BUILTIN_COMBINE
+#endif
+
+__attribute__((weak, visibility("hidden"))) NO_BUILTIN_COMBINE void sincos(double x, double *s, double *c) { *s = sin(x); *c = cos(x); }
+__attribute__((weak, visibility("hidden"))) NO_BUILTIN_COMBINE void __sincos(double x, double *s, double *c) { *s = sin(x); *c = cos(x); }
+__attribute__((weak, visibility("hidden"))) NO_BUILTIN_COMBINE void sincosf(float x, float *s, float *c) { *s = sinf(x); *c = cosf(x); }
+__attribute__((weak, visibility("hidden"))) NO_BUILTIN_COMBINE void __sincosf(float x, float *s, float *c) { *s = sinf(x); *c = cosf(x); }
 __attribute__((weak, visibility("hidden"))) void *aligned_alloc(size_t alignment, size_t size) { void *p = NULL; return posix_memalign(&p, alignment, size) == 0 ? p : NULL; }
 
 static unsigned short __ctype_b_tab[384];
