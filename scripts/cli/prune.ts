@@ -23,7 +23,9 @@ export function identifyOrphanedReleases(releases: Array<Record<string, any>>, p
   const orphaned: string[] = [];
   for (const rel of releases) {
     const tag = rel.tag_name || '';
-    const isPkgRelease = tag.includes('@') || (rel.assets && rel.assets.some((a: any) => a.name?.endsWith('.deb')));
+    const isPkgRelease =
+      tag.includes('@') ||
+      (rel.assets && rel.assets.some((a: any) => a.name?.startsWith(`${tag}_`) && a.name?.endsWith('.deb')));
     if (!isPkgRelease) continue;
 
     const pkg = tag.includes('@') ? tag.split('@')[0] : tag;
@@ -99,7 +101,8 @@ export async function pruneReleaseTags(): Promise<void> {
   for (const rel of releases) {
     const tag = rel.tag_name || '';
     const assets = rel.assets || [];
-    const isPkgRelease = tag.includes('@') || assets.some((a: any) => a.name?.endsWith('.deb'));
+    const isPkgRelease =
+      tag.includes('@') || assets.some((a: any) => a.name?.startsWith(`${tag}_`) && a.name?.endsWith('.deb'));
     if (!isPkgRelease) continue;
 
     const pkg = tag.includes('@') ? tag.split('@')[0] : tag;
