@@ -35,6 +35,20 @@ export function getExpectedAssetFilenames(recipe: PackageRecipe): Set<string> {
   return expected;
 }
 
+export function identifyOrphanedReleases(releases: Array<Record<string, any>>, pkgsDir: string): string[] {
+  const orphaned: string[] = [];
+  for (const rel of releases) {
+    const tag = rel.tag_name || '';
+    if (!tag.includes('@')) continue;
+    const [pkg] = tag.split('@');
+    const recipePath = join(pkgsDir, pkg, 'recipe.ts');
+    if (!existsSync(recipePath)) {
+      orphaned.push(tag);
+    }
+  }
+  return orphaned;
+}
+
 export function identifyOutdatedAssets(
   assets: Array<Record<string, any>>,
   recipe?: PackageRecipe,
@@ -76,8 +90,9 @@ export async function pruneReleaseTags(): Promise<void> {
     return;
   }
 
-  const releasesRes = spawnSync('gh', ['api', `repos/${owner}/${repoName}/releases?per_page=100`], {
+  const releasesRes = spawnSync('gh', ['api', '--paginate', `repos/${owner}/${repoName}/releases`], {
     encoding: 'utf-8',
+    maxBuffer: 20 * 1024 * 1024,
   });
   if (releasesRes.status !== 0) {
     console.log(`Failed to fetch releases: ${releasesRes.stderr}`);
@@ -93,7 +108,7 @@ export async function pruneReleaseTags(): Promise<void> {
   }
 
   const deletionTasks: Array<{ tag: string; name: string; assetId: number }> = [];
-  const orphanedReleases: string[] = [];
+  const orphanedReleases = identifyOrphanedReleases(releases, pkgsDir);
 
   for (const rel of releases) {
     const tag = rel.tag_name || '';
@@ -115,8 +130,6 @@ export async function pruneReleaseTags(): Promise<void> {
       } catch (e) {
         console.log(`Could not parse recipe for ${pkg}: ${e}`);
       }
-    } else {
-      orphanedReleases.push(tag);
     }
   }
 
