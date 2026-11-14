@@ -3,7 +3,7 @@
 @@ -71,9 +71,14 @@
  int sem_trywait(sem_t* _Nonnull __sem);
  int sem_wait(sem_t* _Nonnull __sem);
-
+ 
 -/* These aren't actually implemented. */
 +#undef sem_open
 +#define sem_open libandroid_sem_open
@@ -14,5 +14,5 @@
 +#undef sem_unlink
 +#define sem_unlink libandroid_sem_unlink
  int sem_unlink(const char* _Nonnull __name);
-
+ 
  __END_DECLS

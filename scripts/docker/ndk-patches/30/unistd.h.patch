@@ -3,7 +3,7 @@
 @@ -375,6 +375,74 @@
  #undef _UNISTD_H_
  #endif
-
+ 
 +#if !defined GETPASS_H && !defined getpass && !defined HAVE_GETPASS && !defined HAS_GETPASS && !defined NO_INLINE_GETPASS
 +#define GETPASS_H 1
 +#define HAVE_GETPASS 1
@@ -73,5 +73,5 @@
 +#endif
 +
  __END_DECLS
-
+ 
  #include <android/legacy_unistd_inlines.h>

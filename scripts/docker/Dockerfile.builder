@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM ubuntu:26.04
 
-ARG TERMUX_NDK_VERSION=29
+ARG TERMUX_NDK_VERSION=30
 ARG SCCACHE_VERSION=v0.17.0
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -34,11 +34,11 @@ RUN curl -L -sS "https://github.com/mozilla/sccache/releases/download/${SCCACHE_
  && chmod +x /usr/local/bin/sccache \
  && rm -rf /tmp/sccache*
 
-# Install Official Google Android NDK r29
+# Install Official Google Android NDK r30
 RUN mkdir -p /opt \
- && curl -L -sS -o /tmp/ndk.zip "https://dl.google.com/android/repository/android-ndk-r29-linux.zip" \
+ && curl -L -sS -o /tmp/ndk.zip "https://dl.google.com/android/repository/android-ndk-r${TERMUX_NDK_VERSION}-linux.zip" \
  && unzip -q /tmp/ndk.zip -d /opt \
- && mv /opt/android-ndk-r29 ${NDK} \
+ && mv /opt/android-ndk-r${TERMUX_NDK_VERSION} ${NDK} \
  && rm -f /tmp/ndk.zip
 
 # Install Official Go Toolchain
