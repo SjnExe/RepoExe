@@ -4,7 +4,7 @@ diff -u -r /home/builder/lib/android-ndk-r28b/toolchains/llvm/prebuilt/linux-x86
 @@ -93,12 +93,14 @@
  /** Flag for splice(). */
  #define SPLICE_F_GIFT 8
-
+ 
 +#if __BIONIC_AVAILABILITY_GUARD(26)
  /** Flag for sync_file_range(). */
  #define SYNC_FILE_RANGE_WAIT_BEFORE 1
@@ -13,6 +13,6 @@ diff -u -r /home/builder/lib/android-ndk-r28b/toolchains/llvm/prebuilt/linux-x86
  /** Flag for sync_file_range(). */
  #define SYNC_FILE_RANGE_WAIT_AFTER 4
 +#endif
-
+ 
  /**
   * [creat(2)](https://man7.org/linux/man-pages/man2/creat.2.html)

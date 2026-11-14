@@ -4,7 +4,7 @@ diff -uNr sysroot.orig/usr/include/syslog.h sysroot/usr/include/syslog.h
 @@ -158,4 +158,22 @@
   */
  void vsyslog(int __priority, const char* __fmt, va_list __args) __printflike(2, 0);
-
+ 
 +static __inline__ void android_polyfill_syslog_r(int syslog_priority, void* d, const char* format, ...)
 +{
 +  (void) d;
