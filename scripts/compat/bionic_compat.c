@@ -65,7 +65,7 @@ extern "C" {
 
 #pragma GCC visibility push(hidden)
 
-extern char **environ;
+extern char **environ __attribute__((visibility("default")));
 __attribute__((weak, visibility("hidden"))) long __timezone = 0;
 __attribute__((weak, visibility("hidden"))) long timezone = 0;
 __attribute__((weak, visibility("hidden"))) int daylight = 0;
@@ -366,7 +366,7 @@ __attribute__((weak, visibility("hidden"))) int setdomainname(const char *name, 
 
 extern int *__errno(void);
 __attribute__((weak, visibility("hidden"))) int *__errno_location(void) { return __errno(); }
-extern int *__get_h_errno(void);
+extern int *__get_h_errno(void) __attribute__((visibility("default")));
 __attribute__((weak, visibility("hidden"))) int *__h_errno_location(void) { return __get_h_errno(); }
 
 __attribute__((weak, visibility("hidden"))) int __libc_start_main(
@@ -752,7 +752,7 @@ __attribute__((weak, visibility("hidden"))) void __once_proxy(void) {
 }
 
 /* --- Bun Runtime Stubs --- */
-extern void _ZN3WTF7RunLoop9TimerBase5firedEv(void *timer) __attribute__((weak));
+extern void _ZN3WTF7RunLoop9TimerBase5firedEv(void *timer) __attribute__((weak, visibility("default")));
 __attribute__((weak, visibility("hidden"))) void WTFTimer__fire(void *timer) {
     if (timer && _ZN3WTF7RunLoop9TimerBase5firedEv) {
         _ZN3WTF7RunLoop9TimerBase5firedEv(timer);
