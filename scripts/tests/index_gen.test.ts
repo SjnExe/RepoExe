@@ -35,25 +35,39 @@ test('prepareSite dereferences install script and generates tar-clean site', asy
   const testBase = join(tmpdir(), `repoexe-site-test-${Date.now()}`);
   const testSite = join(testBase, 'site');
   const testArt = join(testBase, 'artifacts');
+  const testStaging = join(testBase, 'apt_staging');
+  const testGpgHome = join(testBase, 'gnupg');
   mkdirSync(testSite, { recursive: true });
   mkdirSync(testArt, { recursive: true });
+  mkdirSync(testStaging, { recursive: true });
+  mkdirSync(testGpgHome, { recursive: true, mode: 0o700 });
 
-  await prepareSite(testSite, testArt, true);
+  const oldGpgHome = process.env.GNUPGHOME;
+  process.env.GNUPGHOME = testGpgHome;
 
-  const siteInstall = join(testSite, 'install');
-  expect(siteInstall).toBeDefined();
+  try {
+    await prepareSite(testSite, testArt, true, testStaging);
 
-  // Ensure site/install is a concrete regular file, never a dangling relative symlink
-  const lstat = lstatSync(siteInstall);
-  expect(lstat.isSymbolicLink()).toBeFalse();
-  expect(lstat.isFile()).toBeTrue();
-  const content = readFileSync(siteInstall, 'utf-8');
-  expect(content.length).toBeGreaterThan(0);
+    const siteInstall = join(testSite, 'install');
+    expect(siteInstall).toBeDefined();
 
-  // Tar upload test verification: tar must package site cleanly without exit code 1
-  const testTar = join(testBase, 'test_pages.tar.gz');
-  const tarRes = spawnSync('tar', ['-czf', testTar, '-C', testSite, '.']);
-  expect(tarRes.status).toBe(0);
+    // Ensure site/install is a concrete regular file, never a dangling relative symlink
+    const lstat = lstatSync(siteInstall);
+    expect(lstat.isSymbolicLink()).toBeFalse();
+    expect(lstat.isFile()).toBeTrue();
+    const content = readFileSync(siteInstall, 'utf-8');
+    expect(content.length).toBeGreaterThan(0);
 
-  rmSync(testBase, { recursive: true, force: true });
+    // Tar upload test verification: tar must package site cleanly without exit code 1
+    const testTar = join(testBase, 'test_pages.tar.gz');
+    const tarRes = spawnSync('tar', ['-czf', testTar, '-C', testSite, '.']);
+    expect(tarRes.status).toBe(0);
+  } finally {
+    if (oldGpgHome !== undefined) {
+      process.env.GNUPGHOME = oldGpgHome;
+    } else {
+      delete process.env.GNUPGHOME;
+    }
+    rmSync(testBase, { recursive: true, force: true });
+  }
 });

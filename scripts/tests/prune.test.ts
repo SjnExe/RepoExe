@@ -5,7 +5,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-test('getExpectedAssetFilenames returns native format filenames', () => {
+test('getExpectedAssetFilenames returns native format filenames', (): void => {
   const recipe = parseRecipe('pkg/aisleriot');
   const expected = getExpectedAssetFilenames(recipe);
 
@@ -18,7 +18,7 @@ test('getExpectedAssetFilenames returns native format filenames', () => {
   expect(Array.from(expected).some((f) => f.endsWith('.tgz'))).toBeFalse();
 });
 
-test('identifyOutdatedAssets filters unknown assets', () => {
+test('identifyOutdatedAssets filters unknown assets', (): void => {
   const recipe = parseRecipe('pkg/aisleriot');
   const assets = [
     { name: 'aisleriot_3.22.35_arm64.deb', id: 1 },
@@ -30,7 +30,7 @@ test('identifyOutdatedAssets filters unknown assets', () => {
   expect(outdated[0].id).toBe(2);
 });
 
-test('identifyOrphanedReleases detects deleted/missing recipes', () => {
+test('identifyOrphanedReleases detects deleted/missing recipes', (): void => {
   const tmpPkgDir = join(tmpdir(), `test-pkgs-${Date.now()}`);
   mkdirSync(join(tmpPkgDir, 'existing-pkg'), { recursive: true });
   writeFileSync(join(tmpPkgDir, 'existing-pkg', 'recipe.ts'), 'export default {};');
