@@ -71,12 +71,8 @@ function renderPackages() {
 
   grid.innerHTML = filtered
     .map((pkg) => {
-      const verStr = pkg.version
-        ? `v${pkg.version}${pkg.revision > 0 ? '-' + pkg.revision : ''}`
-        : pkg.channels && pkg.channels[0]
-          ? `v${pkg.channels[0].version}${pkg.channels[0].revision > 0 ? '-' + pkg.channels[0].revision : ''}`
-          : '';
-      const versionHtml = verStr ? `<span class="channel-badge">${verStr}</span>` : '';
+      const verStr = pkg.version ? `v${pkg.version}${pkg.revision > 0 ? '-' + pkg.revision : ''}` : '';
+      const versionHtml = verStr ? `<span class="version-badge">${verStr}</span>` : '';
 
       const formatsHtml = (pkg.formats || [])
         .map((fmt) => {
@@ -90,7 +86,7 @@ function renderPackages() {
                 <div>
                     <div class="card-header">
                         <span class="card-title">${pkg.name}</span>
-                        <div class="channels-container">${versionHtml}</div>
+                        <div class="versions-container">${versionHtml}</div>
                     </div>
                     <p class="card-desc">${pkg.description || 'RepoExe compiled package'}</p>
                 </div>

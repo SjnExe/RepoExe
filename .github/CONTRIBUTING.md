@@ -122,7 +122,7 @@ Concluding any feature, refactor, or recipe addition requires **2 consecutive ze
    ```
 2. **Stage 2 (Expanded Context Semantic Diff Audit):**
    Inspect all committed, staged, and working-tree changes against the PR target branch:
-   - Verify recipe YAML syntax, source URLs, checksums, and channel configurations.
+   - Verify recipe syntax, source URLs, and checksums.
    - Audit ELF and shebang sanitizer compatibility.
    - Ensure linear commit history without merge commits.
 3. **Reset Invariant:** Any code change during review resets the pass counter to 0.

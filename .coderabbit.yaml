@@ -57,7 +57,7 @@ reviews:
 
     - path: 'pkg/**/recipe.ts'
       instructions: |
-        - Recipe Schema: Ensure recipes conform to PackageRecipe schema with valid channels, formats (`apt`), explicit resource limits (`zram`, `swap`, `tmpfs`), and reproducible phases.
+        - Recipe Schema: Ensure recipes conform to PackageRecipe schema with valid formats (`apt`), explicit resource limits (`zram`, `swap`, `tmpfs`), and reproducible phases.
         - Native System Packages Only: Reject any Python wheels, npm packages, or non-system package recipes.
 
 chat:
