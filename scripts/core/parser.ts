@@ -33,6 +33,7 @@ export function computeStateHash(recipe: PackageRecipe, pkgDir?: string): string
     replaces: [...recipe.replaces].sort(),
     breaks: [...(recipe.breaks || [])].sort(),
     enhances: [...(recipe.enhances || [])].sort(),
+    maintainer_scripts: recipe.maintainer_scripts || null,
     patches: recipe.patches,
     cflags: recipe.cflags,
     cxxflags: recipe.cxxflags,
