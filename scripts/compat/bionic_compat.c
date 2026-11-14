@@ -1,5 +1,6 @@
 #define _GNU_SOURCE 1
 #define __USE_GNU 1
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
