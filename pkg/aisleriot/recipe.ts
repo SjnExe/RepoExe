@@ -24,22 +24,31 @@ export default defineRecipe({
   phases: {
     configure: `export SCCACHE_DISABLE=1
 mkdir -p "\${PREFIX}/bin"
-# Overwrite target aarch64 binaries with host x86_64 binaries so build-time generators run natively
+mkdir -p "\${PREFIX}/host-bin"
+# Bridge host build tools so build-time scheme compilation and resource generation succeed natively
 if [ -x /usr/bin/guile-3.0 ]; then
+  ln -sf /usr/bin/guile-3.0 "\${PREFIX}/host-bin/guile"
+  ln -sf /usr/bin/guile-3.0 "\${PREFIX}/host-bin/guile-3.0"
   ln -sf /usr/bin/guile-3.0 "\${PREFIX}/bin/guile"
   ln -sf /usr/bin/guile-3.0 "\${PREFIX}/bin/guile-3.0"
 elif [ -x /usr/bin/guile ]; then
+  ln -sf /usr/bin/guile "\${PREFIX}/host-bin/guile"
+  ln -sf /usr/bin/guile "\${PREFIX}/host-bin/guile-3.0"
   ln -sf /usr/bin/guile "\${PREFIX}/bin/guile"
   ln -sf /usr/bin/guile "\${PREFIX}/bin/guile-3.0"
 fi
 if [ -x /usr/bin/guild ]; then
+  ln -sf /usr/bin/guild "\${PREFIX}/host-bin/guild"
   ln -sf /usr/bin/guild "\${PREFIX}/bin/guild"
 elif [ -x /usr/bin/guild-3.0 ]; then
+  ln -sf /usr/bin/guild-3.0 "\${PREFIX}/host-bin/guild"
   ln -sf /usr/bin/guild-3.0 "\${PREFIX}/bin/guild"
 fi
 if command -v glib-compile-resources >/dev/null 2>&1; then
+  ln -sf "$(command -v glib-compile-resources)" "\${PREFIX}/host-bin/glib-compile-resources"
   ln -sf "$(command -v glib-compile-resources)" "\${PREFIX}/bin/glib-compile-resources"
 fi
+export PATH="\${PREFIX}/host-bin:\${PATH}"
 export CFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages \${CFLAGS:-}"
 export CXXFLAGS="-Wno-error -Wno-packed -Wno-deprecated-declarations -Wno-format-nonliteral -Wno-cast-function-type-mismatch -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-pragma-messages \${CXXFLAGS:-}"
 CROSS_FILE="/tmp/meson-cross.ini"
@@ -57,6 +66,8 @@ meson setup build \\
     make: `ninja -C build -j4 -k 0
 `,
     install: `DESTDIR="\${DESTDIR}" ninja -C build install
+rm -rf "\${PREFIX}/host-bin"
+rm -f "\${PREFIX}/bin/guile"* "\${PREFIX}/bin/guild"*
 rm -f "\${DESTDIR}\${PREFIX}/bin/guile"* "\${DESTDIR}\${PREFIX}/bin/guild"* "\${DESTDIR}\${PREFIX}/bin/glib-compile-resources"
 if command -v termux-elf-cleaner >/dev/null 2>&1; then
   termux-elf-cleaner "\${DESTDIR}\${PREFIX}/bin/sol" 2>/dev/null || true

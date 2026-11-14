@@ -475,8 +475,8 @@ jobs:
 
   publish-site:
     name: Deploy
-    needs: [generate-matrix, build]
-    if: needs.generate-matrix.outputs.should_publish == 'true' && !cancelled() && (needs.build.result == 'success' || (needs.build.result == 'skipped' && (inputs.skip_build || needs.generate-matrix.outputs.matrix == '[]')))
+    needs: [generate-matrix, lint-audit, test-suite, build]
+    if: needs.generate-matrix.outputs.should_publish == 'true' && !cancelled() && needs.lint-audit.result == 'success' && needs.test-suite.result == 'success' && (needs.build.result == 'success' || (needs.build.result == 'skipped' && (inputs.skip_build || needs.generate-matrix.outputs.matrix == '[]')))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
