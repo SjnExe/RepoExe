@@ -3,7 +3,7 @@ import { defineRecipe } from '@core/types.ts';
 export default defineRecipe({
   name: 'aisleriot',
   version: '3.22.35',
-  revision: 2,
+  revision: 3,
   auto_update: true,
   update_strategy: 'git_tag',
   arch: 'aarch64',
@@ -13,6 +13,7 @@ export default defineRecipe({
   maintainer: 'SjnExe',
   build_system: 'custom',
   source: 'https://gitlab.gnome.org/GNOME/aisleriot.git#{version}',
+  patches: ['patches/fix-guile-i18n-grouping.patch'],
   formats: ['apt'],
   build_deps: ['gtk3', 'guile', 'librsvg', 'libcanberra', 'libxml2', 'desktop-file-utils', 'shared-mime-info'],
   deps: ['gtk3', 'guile', 'librsvg', 'libcanberra', 'libxml2'],
