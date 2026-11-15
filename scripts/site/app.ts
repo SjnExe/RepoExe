@@ -174,7 +174,7 @@ function renderCatalog(): void {
           <div class="pkg-install-cmd">
             <code>pkg i ${escapeHtml(pkg.name)}</code>
             <div class="cmd-actions">
-              <button class="copy-mini" onclick="window.copyPkgInstall('${escapeHtml(pkg.name)}', this).catch(() => {})" title="Copy install command">
+              <button class="copy-mini" data-copy-pkg="${escapeHtml(pkg.name)}" title="Copy install command">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -298,7 +298,7 @@ function renderDetailPage(pkgName: string): void {
             <h3 class="section-title">Install Command</h3>
             <div class="pkg-install-cmd detail-cmd">
               <code>pkg i ${escapeHtml(pkg.name)}</code>
-              <button class="term-btn" onclick="window.copyPkgInstall('${escapeHtml(pkg.name)}', this).catch(() => {})" title="Copy install command">
+              <button class="term-btn" data-copy-pkg="${escapeHtml(pkg.name)}" title="Copy install command">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -433,18 +433,28 @@ if (searchEl) {
   });
 }
 
+// Delegated Copy Listener for Package Buttons
+document.addEventListener('click', (e) => {
+  const target = e.target as HTMLElement | null;
+  const copyBtn = target?.closest<HTMLElement>('[data-copy-pkg]');
+  if (copyBtn) {
+    const pkg = copyBtn.getAttribute('data-copy-pkg');
+    if (pkg) {
+      copyPkgInstall(pkg, copyBtn).catch(() => {});
+    }
+  }
+});
+
 // Keyboard shortcut '/' or 'Ctrl+K' to focus search
 window.addEventListener('keydown', (e: KeyboardEvent) => {
-  if (e.key === '/' && document.activeElement !== searchEl) {
+  const isSearchShortcut =
+    (e.key === '/' && document.activeElement !== searchEl) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k');
+
+  if (isSearchShortcut) {
     e.preventDefault();
     if (window.location.hash.startsWith('#/pkg/')) {
       window.location.hash = '';
-    }
-    searchEl?.focus();
-  } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault();
-    if (window.location.hash.startsWith('#/pkg/')) {
-      window.location.hash = '';
+      handleRoute(); // Synchronously show catalogView before focusing
     }
     searchEl?.focus();
   }

@@ -15,6 +15,9 @@ export function getExpectedAssetFilenames(recipe: PackageRecipe): Set<string> {
 
   expected.add(`${pkg}_${versionStrDeb}_arm64.deb`);
   expected.add(`${pkg}_${versionStrDeb}_aarch64.deb`);
+  expected.add(`${pkg}_${versionStrDeb}_arm.deb`);
+  expected.add(`${pkg}_${versionStrDeb}_x86_64.deb`);
+  expected.add(`${pkg}_${versionStrDeb}_i686.deb`);
   expected.add(`${pkg}_${versionStrDeb}_all.deb`);
 
   return expected;

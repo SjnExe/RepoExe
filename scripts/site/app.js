@@ -116,7 +116,7 @@ function renderCatalog() {
           <div class="pkg-install-cmd">
             <code>pkg i ${escapeHtml(pkg.name)}</code>
             <div class="cmd-actions">
-              <button class="copy-mini" onclick="window.copyPkgInstall('${escapeHtml(pkg.name)}', this).catch(() => {})" title="Copy install command">
+              <button class="copy-mini" data-copy-pkg="${escapeHtml(pkg.name)}" title="Copy install command">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -231,7 +231,7 @@ function renderDetailPage(pkgName) {
             <h3 class="section-title">Install Command</h3>
             <div class="pkg-install-cmd detail-cmd">
               <code>pkg i ${escapeHtml(pkg.name)}</code>
-              <button class="term-btn" onclick="window.copyPkgInstall('${escapeHtml(pkg.name)}', this).catch(() => {})" title="Copy install command">
+              <button class="term-btn" data-copy-pkg="${escapeHtml(pkg.name)}" title="Copy install command">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -354,17 +354,24 @@ if (searchEl) {
     renderCatalog();
   });
 }
-window.addEventListener('keydown', (e) => {
-  if (e.key === '/' && document.activeElement !== searchEl) {
-    e.preventDefault();
-    if (window.location.hash.startsWith('#/pkg/')) {
-      window.location.hash = '';
+document.addEventListener('click', (e) => {
+  const target = e.target;
+  const copyBtn = target?.closest('[data-copy-pkg]');
+  if (copyBtn) {
+    const pkg = copyBtn.getAttribute('data-copy-pkg');
+    if (pkg) {
+      copyPkgInstall(pkg, copyBtn).catch(() => {});
     }
-    searchEl?.focus();
-  } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+  }
+});
+window.addEventListener('keydown', (e) => {
+  const isSearchShortcut =
+    (e.key === '/' && document.activeElement !== searchEl) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k');
+  if (isSearchShortcut) {
     e.preventDefault();
     if (window.location.hash.startsWith('#/pkg/')) {
       window.location.hash = '';
+      handleRoute();
     }
     searchEl?.focus();
   }
