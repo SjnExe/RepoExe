@@ -19,7 +19,9 @@ import { getExpectedAssetFilenames } from './prune.ts';
 
 export function getExactPackageArtifacts(artPath: string, pkgName: string): string[] {
   const matching: string[] = [];
-  if (!existsSync(artPath)) return matching;
+  if (!existsSync(artPath)) {
+    return matching;
+  }
 
   const traverse = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -41,14 +43,18 @@ export function getExactPackageArtifacts(artPath: string, pkgName: string): stri
 export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Promise<Map<string, ReleaseAssetInfo[]>> {
   const assetMap = new Map<string, ReleaseAssetInfo[]>();
   const ghCheck = spawnSync('which', ['gh']);
-  if (ghCheck.status !== 0) return assetMap;
+  if (ghCheck.status !== 0) {
+    return assetMap;
+  }
 
   mkdirSync(artPath, { recursive: true });
   const repoRoot = resolve('.');
   const pkgsDir = join(repoRoot, 'pkg');
 
   const repoRes = spawnSync('gh', ['repo', 'view', '--json', 'name,owner'], { encoding: 'utf-8' });
-  if (repoRes.status !== 0) return assetMap;
+  if (repoRes.status !== 0) {
+    return assetMap;
+  }
 
   let owner: string;
   let repoName: string;
@@ -64,7 +70,9 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
     encoding: 'utf-8',
     maxBuffer: 20 * 1024 * 1024,
   });
-  if (releasesRes.status !== 0) return assetMap;
+  if (releasesRes.status !== 0) {
+    return assetMap;
+  }
 
   let releases: Array<Record<string, any>> = [];
   try {
@@ -75,7 +83,9 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
 
   for (const rel of releases) {
     const tag = rel.tag_name || '';
-    if (!tag || tag.includes('@')) continue;
+    if (!tag || tag.includes('@')) {
+      continue;
+    }
     const pkg = tag;
     const recipePath = join(pkgsDir, pkg, 'recipe.ts');
 
@@ -101,7 +111,9 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
     for (const asset of rel.assets || []) {
       const name = asset.name || '';
       const downloadUrl = asset.browser_download_url;
-      if (!name || !downloadUrl) continue;
+      if (!name || !downloadUrl) {
+        continue;
+      }
 
       if (!expectedFiles.has(name)) {
         continue;
@@ -160,8 +172,11 @@ export async function prepareSite(
     const findMetas = (dir: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const full = join(dir, entry.name);
-        if (entry.isDirectory()) findMetas(full);
-        else if (entry.name.endsWith('_metadata.json')) metaFiles.push(full);
+        if (entry.isDirectory()) {
+          findMetas(full);
+        } else if (entry.name.endsWith('_metadata.json')) {
+          metaFiles.push(full);
+        }
       }
     };
     findMetas(artPath);
@@ -236,8 +251,11 @@ export async function prepareSite(
     const arch = extractDebArch(f);
     if (arch !== 'unknown' && arch !== 'all') {
       arches.add(arch);
-      if (arch === 'arm64') arches.add('aarch64');
-      else if (arch === 'aarch64') arches.add('arm64');
+      if (arch === 'arm64') {
+        arches.add('aarch64');
+      } else if (arch === 'aarch64') {
+        arches.add('arm64');
+      }
     }
   }
   if (arches.size === 0) {

@@ -15,7 +15,9 @@ export class DependencyGraph {
   }
 
   loadRecipes(): void {
-    if (!existsSync(this.packagesDir)) return;
+    if (!existsSync(this.packagesDir)) {
+      return;
+    }
     const glob = new Bun.Glob('*/recipe.ts');
     for (const file of glob.scanSync({ cwd: this.packagesDir })) {
       const full = join(this.packagesDir, file);

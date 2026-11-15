@@ -13,7 +13,9 @@ export interface ReleaseAssetInfo {
 }
 
 export function formatBytes(bytes?: number): string {
-  if (!bytes || bytes <= 0) return '0 B';
+  if (!bytes || bytes <= 0) {
+    return '0 B';
+  }
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -38,8 +40,11 @@ export function generatePackagesJson(
     const collect = (dir: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const full = join(dir, entry.name);
-        if (entry.isDirectory()) collect(full);
-        else if (entry.isFile()) availableFiles.set(entry.name, full);
+        if (entry.isDirectory()) {
+          collect(full);
+        } else if (entry.isFile()) {
+          availableFiles.set(entry.name, full);
+        }
       }
     };
     collect(artPath);
@@ -71,7 +76,9 @@ export function generatePackagesJson(
 
           if (remoteAssets && remoteAssets.length > 0) {
             for (const asset of remoteAssets) {
-              if (!asset.name.endsWith('.deb')) continue;
+              if (!asset.name.endsWith('.deb')) {
+                continue;
+              }
               const arch = extractDebArch(asset.name);
               assetMap.set(asset.name, {
                 name: asset.name,

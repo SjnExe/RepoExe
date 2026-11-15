@@ -1,8 +1,10 @@
 import { defineRecipe } from '@core/types.ts';
 
+import { REPOEXE_VERSION } from '../../scripts/utils/properties.ts';
+
 export default defineRecipe({
   name: 'repoexe',
-  version: '1.0.0',
+  version: REPOEXE_VERSION,
   revision: 1,
   arch: 'all',
   description: 'Central RepoExe package repository management CLI',
@@ -27,7 +29,7 @@ mkdir -p "\${DESTDIR}\${PREFIX}/share/fish/vendor_completions.d"
 RECIPE_DIR="\${RECIPE_DIR:-pkg/repoexe}"
 REPO_ROOT="$(cd "\${RECIPE_DIR}/../.." 2>/dev/null && pwd || echo ".")"
 
-cp "\${RECIPE_DIR}/install" "\${DESTDIR}\${PREFIX}/bin/repoexe"
+sed "s/REPOEXE_VERSION_FALLBACK=\\"[^\\"]*\\"/REPOEXE_VERSION_FALLBACK=\\"\${REPOEXE_VERSION:-${REPOEXE_VERSION}}\\"/" "\${RECIPE_DIR}/install" > "\${DESTDIR}\${PREFIX}/bin/repoexe"
 chmod +x "\${DESTDIR}\${PREFIX}/bin/repoexe"
 
 echo "deb [signed-by=\${PREFIX}/etc/apt/trusted.gpg.d/repoexe.asc] https://sjnexe.github.io/RepoExe/apt stable main" > "\${DESTDIR}\${PREFIX}/etc/apt/sources.list.d/repoexe.list"

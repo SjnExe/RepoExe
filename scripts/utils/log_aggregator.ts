@@ -90,7 +90,9 @@ export function classifyLog(content: string): [string, string, boolean] {
 
 function findLogFiles(dir: string): string[] {
   const results: string[] = [];
-  if (!existsSync(dir)) return results;
+  if (!existsSync(dir)) {
+    return results;
+  }
 
   const entries = readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {

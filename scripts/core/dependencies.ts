@@ -53,8 +53,12 @@ export function parseSingleToken(raw: string): DependencyToken {
 
   let versionConstraint: VersionConstraint | undefined;
   if (opRaw && verRaw) {
-    if (opRaw === '<') opRaw = '<=';
-    if (opRaw === '>') opRaw = '>=';
+    if (opRaw === '<') {
+      opRaw = '<=';
+    }
+    if (opRaw === '>') {
+      opRaw = '>=';
+    }
     versionConstraint = {
       operator: opRaw as VersionOperator,
       version: verRaw.trim(),
@@ -81,8 +85,12 @@ export function parseSingleToken(raw: string): DependencyToken {
   }
 
   const result: DependencyToken = { name };
-  if (multiArch) result.multiArch = multiArch;
-  if (versionConstraint) result.versionConstraint = versionConstraint;
+  if (multiArch) {
+    result.multiArch = multiArch;
+  }
+  if (versionConstraint) {
+    result.versionConstraint = versionConstraint;
+  }
   if (architectures && architectures.length > 0) {
     result.architectures = architectures;
     result.negatedArch = negatedArch;
@@ -115,7 +123,9 @@ export function parseDependencyList(deps: string[] | string): DependencyClause[]
   const clauses: DependencyClause[] = [];
   for (const rc of rawClauses) {
     const trimmed = rc.trim();
-    if (!trimmed) continue;
+    if (!trimmed) {
+      continue;
+    }
     const clause = parseDependencyClause(trimmed);
     if (clause.length > 0) {
       clauses.push(clause);
@@ -127,8 +137,12 @@ export function parseDependencyList(deps: string[] | string): DependencyClause[]
 
 export function matchArchWildcard(pattern: string, normTarget: string): boolean {
   const normPattern = normalizeArch(pattern);
-  if (normPattern === 'any') return true;
-  if (normPattern === normTarget) return true;
+  if (normPattern === 'any') {
+    return true;
+  }
+  if (normPattern === normTarget) {
+    return true;
+  }
 
   if (pattern.includes('-')) {
     const parts = pattern.split('-');

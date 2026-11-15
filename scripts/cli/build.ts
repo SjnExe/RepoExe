@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { basename, join, relative, resolve } from 'node:path';
 
 import { ARCH_MAP, buildDeb, formatDebianFilenameVersion } from '../builders/debian.ts';
@@ -43,7 +44,9 @@ export function fetchAndPrepareSource(
   destdir: string,
   continueBuild: boolean = false,
 ): string {
-  if (!recipe.source) return pDir;
+  if (!recipe.source) {
+    return pDir;
+  }
 
   const srcUrl = recipe.source.replace(/\{version\}/g, recipe.version);
   const srcExtractDir = join(destdir, 'src');
@@ -78,15 +81,23 @@ export function fetchAndPrepareSource(
       const [repoUrl, ref] = srcUrl.split('#');
       if (ref.length === 40 && /^[0-9a-fA-F]+$/.test(ref)) {
         let res = spawnSync('git', ['init', srcExtractDir], { stdio: 'inherit' });
-        if (res.status !== 0) throw new Error(`git init failed for ${recipe.name}`);
+        if (res.status !== 0) {
+          throw new Error(`git init failed for ${recipe.name}`);
+        }
         res = spawnSync('git', ['-C', srcExtractDir, 'remote', 'add', 'origin', repoUrl], { stdio: 'inherit' });
-        if (res.status !== 0) throw new Error(`git remote add failed for ${recipe.name}`);
+        if (res.status !== 0) {
+          throw new Error(`git remote add failed for ${recipe.name}`);
+        }
         res = spawnSync('git', ['-C', srcExtractDir, 'fetch', '--depth', '1', 'origin', ref], { stdio: 'inherit' });
-        if (res.status !== 0) throw new Error(`git fetch failed for ${recipe.name}`);
+        if (res.status !== 0) {
+          throw new Error(`git fetch failed for ${recipe.name}`);
+        }
         res = spawnSync('git', ['-c', 'advice.detachedHead=false', '-C', srcExtractDir, 'checkout', 'FETCH_HEAD'], {
           stdio: 'inherit',
         });
-        if (res.status !== 0) throw new Error(`git checkout failed for ${recipe.name}`);
+        if (res.status !== 0) {
+          throw new Error(`git checkout failed for ${recipe.name}`);
+        }
       } else {
         const res = spawnSync(
           'git',
@@ -95,7 +106,9 @@ export function fetchAndPrepareSource(
             stdio: 'inherit',
           },
         );
-        if (res.status !== 0) throw new Error(`git clone failed for ${recipe.name} from ${repoUrl}`);
+        if (res.status !== 0) {
+          throw new Error(`git clone failed for ${recipe.name} from ${repoUrl}`);
+        }
       }
     } else {
       const res = spawnSync(
@@ -105,7 +118,9 @@ export function fetchAndPrepareSource(
           stdio: 'inherit',
         },
       );
-      if (res.status !== 0) throw new Error(`git clone failed for ${recipe.name} from ${srcUrl}`);
+      if (res.status !== 0) {
+        throw new Error(`git clone failed for ${recipe.name} from ${srcUrl}`);
+      }
     }
   } else {
     const archivePath = join(destdir, 'source_archive');
@@ -295,8 +310,12 @@ export function executeTest(
       const bPath = join(buildDir, b, 'stage', 'data', 'data', 'com.termux', 'files', 'usr');
       const binDir = join(bPath, 'bin');
       const libDir = join(bPath, 'lib');
-      if (existsSync(binDir)) siblingBins.push(binDir);
-      if (existsSync(libDir)) siblingLibs.push(libDir);
+      if (existsSync(binDir)) {
+        siblingBins.push(binDir);
+      }
+      if (existsSync(libDir)) {
+        siblingLibs.push(libDir);
+      }
     }
   }
 
@@ -318,7 +337,7 @@ export function executeTest(
 export async function simulateDryRun(
   recipe: PackageRecipe,
   pDir: string,
-  destdir: string,
+  _destdir: string,
   outputDir: string,
   command: string = 'build',
   force: boolean = false,
@@ -333,8 +352,12 @@ export async function simulateDryRun(
   console.log(`⏳ Epoch:         ${recipe.epoch}`);
   console.log(`🏛️ Architecture:  ${recipe.arch || 'aarch64'}`);
   console.log(`📁 Formats:       ${(recipe.formats || ['apt']).join(', ')}`);
-  if (recipe.description) console.log(`📝 Description:   ${recipe.description}`);
-  if (recipe.homepage) console.log(`🌐 Homepage:      ${recipe.homepage}`);
+  if (recipe.description) {
+    console.log(`📝 Description:   ${recipe.description}`);
+  }
+  if (recipe.homepage) {
+    console.log(`🌐 Homepage:      ${recipe.homepage}`);
+  }
 
   const stateHash = recipe.state_hash || '';
   console.log(`🔑 State Hash:    ${stateHash ? stateHash.slice(0, 16) + '...' : '(none)'}`);
@@ -362,7 +385,9 @@ export async function simulateDryRun(
   for (const pf of patchFolders) {
     if (existsSync(pf)) {
       for (const f of readdirSync(pf)) {
-        if (f.endsWith('.patch')) patchesToApply.push(f);
+        if (f.endsWith('.patch')) {
+          patchesToApply.push(f);
+        }
       }
     }
   }
@@ -477,6 +502,17 @@ async function main(): Promise<void> {
     }
 
     const VALID_FORMATS = new Set(['apt']);
+    const VALID_ARCHES = new Set(['aarch64', 'arm', 'x86_64', 'i686', 'all', 'arm64', 'amd64', 'i386']);
+    if (targetArch) {
+      const norm = targetArch.toLowerCase();
+      if (!VALID_ARCHES.has(norm)) {
+        console.error(
+          `Error: Unsupported target architecture '${targetArch}'. Must be one of: aarch64, arm, x86_64, i686, all.`,
+        );
+        process.exit(1);
+      }
+      targetArch = norm === 'arm64' ? 'aarch64' : norm === 'amd64' ? 'x86_64' : norm === 'i386' ? 'i686' : norm;
+    }
     let parsedFormats: string[] | undefined;
     if (formatOverride !== undefined) {
       const candidates = formatOverride
@@ -519,6 +555,7 @@ async function main(): Promise<void> {
 
       if (targetArch && recipe.arch !== 'all') {
         recipe.arch = targetArch;
+        recipe.arches = [targetArch];
       }
       if (parsedFormats) {
         recipe.formats = [...parsedFormats];
@@ -546,7 +583,9 @@ async function main(): Promise<void> {
           recipe.state_hash &&
           (await checkExistingReleaseHash(recipe.name, recipe.state_hash, recipe.arch))
         ) {
-          if (!quiet) console.log(`⏭️ Skipping ${recipe.name}: state_hash unchanged.`);
+          if (!quiet) {
+            console.log(`⏭️ Skipping ${recipe.name}: state_hash unchanged.`);
+          }
           continue;
         }
 
@@ -578,6 +617,7 @@ async function main(): Promise<void> {
 
         const env: Record<string, string> = {
           ...(process.env as Record<string, string>),
+          TMPDIR: process.env.TMPDIR || tmpdir(),
           TARGET_ARCH: recipe.arch,
           DESTDIR: stageDir,
           PREFIX: prefixDir,
@@ -595,7 +635,9 @@ async function main(): Promise<void> {
         for (const phase of ['prepare', 'configure', 'make', 'install']) {
           const cmd = recipe.phases[phase];
           if (cmd) {
-            if (!quiet) console.log(`[${recipe.name}] Running ${phase} phase...`);
+            if (!quiet) {
+              console.log(`[${recipe.name}] Running ${phase} phase...`);
+            }
             const res = spawnSync('sh', ['-c', cmd], { stdio: 'inherit', env, cwd: workDir });
             if (res.status !== 0) {
               throw new Error(`${phase} phase failed for ${recipe.name}`);
@@ -626,7 +668,9 @@ async function main(): Promise<void> {
         await executePack(recipe, pDir, destdir, outputDir);
       } else if (command === 'test') {
         if (!existsSync(stageDir) && !existsSync(join(outputDir, `${recipe.name}_metadata.json`))) {
-          if (!quiet) console.log(`Notice: Neither stage_dir nor package output exist for test (${recipe.name}).`);
+          if (!quiet) {
+            console.log(`Notice: Neither stage_dir nor package output exist for test (${recipe.name}).`);
+          }
           continue;
         }
         executeTest(recipe, destdir, outputDir);

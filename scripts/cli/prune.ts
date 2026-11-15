@@ -31,7 +31,9 @@ export function identifyOrphanedReleases(releases: Array<Record<string, any>>, p
     }
     const isPkgRelease =
       rel.assets && rel.assets.some((a: any) => a.name?.startsWith(`${tag}_`) && a.name?.endsWith('.deb'));
-    if (!isPkgRelease) continue;
+    if (!isPkgRelease) {
+      continue;
+    }
 
     const recipePath = join(pkgsDir, tag, 'recipe.ts');
     if (!existsSync(recipePath)) {
@@ -47,7 +49,9 @@ export function identifyOutdatedAssets(
   _pkgName?: string,
 ): Array<Record<string, any>> {
   const toDelete: Array<Record<string, any>> = [];
-  if (!recipe) return toDelete;
+  if (!recipe) {
+    return toDelete;
+  }
 
   const whitelist = getExpectedAssetFilenames(recipe);
 
@@ -104,10 +108,14 @@ export async function pruneReleaseTags(): Promise<void> {
 
   for (const rel of releases) {
     const tag = rel.tag_name || '';
-    if (tag.includes('@')) continue;
+    if (tag.includes('@')) {
+      continue;
+    }
     const assets = rel.assets || [];
     const isPkgRelease = assets.some((a: any) => a.name?.startsWith(`${tag}_`) && a.name?.endsWith('.deb'));
-    if (!isPkgRelease) continue;
+    if (!isPkgRelease) {
+      continue;
+    }
 
     const recipePath = join(pkgsDir, tag, 'recipe.ts');
 

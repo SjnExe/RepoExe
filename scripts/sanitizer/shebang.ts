@@ -15,7 +15,9 @@ const REPLACEMENTS: Record<string, string> = {
 };
 
 export function sanitizeShebangs(stageDir: string): void {
-  if (!stageDir || !existsSync(stageDir)) return;
+  if (!stageDir || !existsSync(stageDir)) {
+    return;
+  }
 
   const traverse = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -25,10 +27,14 @@ export function sanitizeShebangs(stageDir: string): void {
       } else if (entry.isFile() && !entry.isSymbolicLink()) {
         try {
           const stats = statSync(full);
-          if (stats.size > 2 * 1024 * 1024) continue;
+          if (stats.size > 2 * 1024 * 1024) {
+            continue;
+          }
 
           const content = readFileSync(full, 'utf-8');
-          if (!content.startsWith('#!')) continue;
+          if (!content.startsWith('#!')) {
+            continue;
+          }
 
           const firstLineEnd = content.indexOf('\n');
           const firstLine = (firstLineEnd !== -1 ? content.slice(0, firstLineEnd) : content).trim();

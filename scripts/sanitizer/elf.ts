@@ -18,9 +18,15 @@ export const DYNAMIC_TAGS_TO_NULLIFY = new Set([
 export function stripVerneedFromElf(elfPath: string): void {
   try {
     const buf = readFileSync(elfPath);
-    if (buf.length < 64) return;
-    if (buf[0] !== 0x7f || buf[1] !== 0x45 || buf[2] !== 0x4c || buf[3] !== 0x46) return;
-    if (buf[4] !== 2) return; // Only 64-bit ELF
+    if (buf.length < 64) {
+      return;
+    }
+    if (buf[0] !== 0x7f || buf[1] !== 0x45 || buf[2] !== 0x4c || buf[3] !== 0x46) {
+      return;
+    }
+    if (buf[4] !== 2) {
+      return;
+    } // Only 64-bit ELF
 
     const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
     const littleEndian = buf[5] === 1;
@@ -34,7 +40,9 @@ export function stripVerneedFromElf(elfPath: string): void {
 
     for (let i = 0; i < e_phnum; i++) {
       const phOffset = e_phoff + i * e_phentsize;
-      if (phOffset + 40 > buf.length) break;
+      if (phOffset + 40 > buf.length) {
+        break;
+      }
       const p_type = view.getUint32(phOffset, littleEndian);
       if (p_type === 2) {
         // PT_DYNAMIC
@@ -50,9 +58,13 @@ export function stripVerneedFromElf(elfPath: string): void {
 
       for (let j = 0; j < numEntries; j++) {
         const entryOffset = dynamicOffset + j * dynEntrySize;
-        if (entryOffset + 8 > buf.length) break;
+        if (entryOffset + 8 > buf.length) {
+          break;
+        }
         const d_tag = view.getBigInt64(entryOffset, littleEndian);
-        if (d_tag === 0n) break;
+        if (d_tag === 0n) {
+          break;
+        }
 
         const maskedTag = d_tag & 0xffffffffn;
         if (DYNAMIC_TAGS_TO_NULLIFY.has(d_tag) || DYNAMIC_TAGS_TO_NULLIFY.has(maskedTag)) {
@@ -119,7 +131,9 @@ export function sanitizeElfBinary(elfPath: string, prefix: string = PREFIX): voi
 }
 
 export function sanitizeStagingElfs(stageDir: string, prefix: string = PREFIX): void {
-  if (!stageDir || !existsSync(stageDir)) return;
+  if (!stageDir || !existsSync(stageDir)) {
+    return;
+  }
 
   const traverse = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {

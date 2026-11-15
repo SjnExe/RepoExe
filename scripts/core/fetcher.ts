@@ -37,20 +37,26 @@ export async function checkExistingReleaseHash(
   targetHash: string,
   targetArch?: string,
 ): Promise<boolean> {
-  if (!targetHash) return false;
+  if (!targetHash) {
+    return false;
+  }
   const repoSlug = process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
   const apiUrl = `https://api.github.com/repos/${repoSlug}/releases/tags/${pkgName}`;
 
   try {
     const resp = await fetch(apiUrl, { headers: getAuthHeaders(), signal: AbortSignal.timeout(5000) });
-    if (!resp.ok) return false;
+    if (!resp.ok) {
+      return false;
+    }
     const data = (await resp.json()) as {
       body?: string;
       assets?: Array<{ name: string; browser_download_url: string }>;
     };
 
     const debAssets = (data.assets || []).filter((a) => a.name.endsWith('.deb'));
-    if (debAssets.length === 0) return false;
+    if (debAssets.length === 0) {
+      return false;
+    }
 
     if (targetArch) {
       const normArch = targetArch === 'arm64' ? 'aarch64' : targetArch.toLowerCase();
@@ -63,7 +69,9 @@ export async function checkExistingReleaseHash(
                 (normArch === 'aarch64' && a.name.endsWith('_arm64.deb')) ||
                 a.name.endsWith('_all.deb'),
             );
-      if (!hasTargetArch) return false;
+      if (!hasTargetArch) {
+        return false;
+      }
     }
 
     const body = (data.body || '').trim();
@@ -81,7 +89,9 @@ export async function checkExistingReleaseHash(
         const assetResp = await fetch(asset.browser_download_url, { headers: getAuthHeaders() });
         if (assetResp.ok) {
           const meta = (await assetResp.json()) as { state_hash?: string };
-          if (meta.state_hash === targetHash) return true;
+          if (meta.state_hash === targetHash) {
+            return true;
+          }
         }
       }
     }
@@ -93,13 +103,17 @@ export async function checkExistingReleaseHash(
 export async function loadTermuxIndex(targetArch: string = 'aarch64'): Promise<Record<string, Record<string, string>>> {
   const normArch = targetArch === 'arm64' ? 'aarch64' : (targetArch || 'aarch64').toLowerCase();
   const repoArch = ['aarch64', 'arm', 'x86_64', 'i686'].includes(normArch) ? normArch : 'aarch64';
-  if (_PKG_INDICES[repoArch]) return _PKG_INDICES[repoArch];
+  if (_PKG_INDICES[repoArch]) {
+    return _PKG_INDICES[repoArch];
+  }
 
   const cacheFile = join(tmpdir(), `termux_apt_index_${repoArch}.json`);
   if (existsSync(cacheFile)) {
     try {
       _PKG_INDICES[repoArch] = JSON.parse(readFileSync(cacheFile, 'utf-8'));
-      if (_PKG_INDICES[repoArch]) return _PKG_INDICES[repoArch];
+      if (_PKG_INDICES[repoArch]) {
+        return _PKG_INDICES[repoArch];
+      }
     } catch {}
   }
 
@@ -109,7 +123,9 @@ export async function loadTermuxIndex(targetArch: string = 'aarch64'): Promise<R
       try {
         const url = `${baseUrl}/${relPath}${ext}`;
         const resp = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-        if (!resp.ok) continue;
+        if (!resp.ok) {
+          continue;
+        }
 
         const buf = Buffer.from(await resp.arrayBuffer());
         const text = ext === '.gz' ? new TextDecoder().decode(Bun.gunzipSync(buf)) : buf.toString('utf-8');
@@ -124,7 +140,9 @@ export async function loadTermuxIndex(targetArch: string = 'aarch64'): Promise<R
               if (currentPkg.Provides) {
                 for (const prov of currentPkg.Provides.split(',')) {
                   const pName = prov.trim().split(/\s+/)[0];
-                  if (pName && !index[pName]) index[pName] = currentPkg;
+                  if (pName && !index[pName]) {
+                    index[pName] = currentPkg;
+                  }
                 }
               }
             }
@@ -170,7 +188,9 @@ async function downloadFile(
   mkdirSync(dirname(destPath), { recursive: true });
   const headers = useAuth ? getAuthHeaders(extraHeaders) : { 'User-Agent': USER_AGENT, ...extraHeaders };
   const resp = await fetch(url, { headers });
-  if (!resp.ok) throw new Error(`Download failed with status ${resp.status}: ${url}`);
+  if (!resp.ok) {
+    throw new Error(`Download failed with status ${resp.status}: ${url}`);
+  }
   const arr = await resp.arrayBuffer();
   writeFileSync(destPath, Buffer.from(arr));
 }
@@ -213,7 +233,9 @@ export async function fetchSingleDep(
 ): Promise<boolean> {
   const [rawPkgName] = parseDepSpec(dep);
   const pkgName = rawPkgName.split(':')[0].trim();
-  if (fetched.has(pkgName)) return true;
+  if (fetched.has(pkgName)) {
+    return true;
+  }
 
   if (pkgName.endsWith('-static') || pkgName.endsWith('-doc') || pkgName.endsWith('-man')) {
     fetched.add(pkgName);
@@ -296,7 +318,9 @@ export async function fetchSingleDep(
     extractDebToPrefix(debDest, prefixRoot);
 
     fetched.add(pkgName);
-    if (pkgInfo.Package) fetched.add(pkgInfo.Package);
+    if (pkgInfo.Package) {
+      fetched.add(pkgInfo.Package);
+    }
 
     // Recursively resolve dependencies
     const dependsStr = pkgInfo.Depends || '';
@@ -330,18 +354,21 @@ export async function resolveAndFetchBuildDependencies(
   destdir: string,
   targetArch: string = 'aarch64',
 ): Promise<void> {
-  if (!buildDeps || buildDeps.length === 0) return;
-  console.log(`Resolving build dependencies [${targetArch}]: ${buildDeps.join(', ')}`);
+  if (!buildDeps || buildDeps.length === 0) {
+    return;
+  }
+  const concreteArch = targetArch === 'all' ? 'aarch64' : targetArch;
+  console.log(`Resolving build dependencies [${concreteArch}]: ${buildDeps.join(', ')}`);
   const fetched = new Set<string>();
 
   const clauses = parseDependencyList(buildDeps);
-  const filtered = filterDepsForArch(clauses, targetArch);
+  const filtered = filterDepsForArch(clauses, concreteArch);
 
   for (const branch of filtered) {
     let branchSatisfied = false;
     for (const token of branch) {
       const cleanName = token.name.split(':')[0].trim();
-      const success = await fetchSingleDep(cleanName, destdir, fetched, targetArch);
+      const success = await fetchSingleDep(cleanName, destdir, fetched, concreteArch);
       if (success) {
         branchSatisfied = true;
         break;
@@ -350,7 +377,7 @@ export async function resolveAndFetchBuildDependencies(
     if (!branchSatisfied) {
       const branchStr = branch.map((t) => t.name).join(' | ');
       console.error(
-        `::error:: Missing required build dependency '${branchStr}' for ${targetArch} and no artifact exists.`,
+        `::error:: Missing required build dependency '${branchStr}' for ${concreteArch} and no artifact exists.`,
       );
       process.exit(1);
     }
