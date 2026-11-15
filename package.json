@@ -10,7 +10,7 @@
     "shards": "bun scripts/cli/generate_shards.ts",
     "index": "bun scripts/cli/index_gen.ts",
     "prune": "bun scripts/cli/prune.ts",
-    "build:site": "bun build scripts/site/app.ts --outfile scripts/site/app.js --target browser",
+    "build:site": "bun build scripts/site/app.ts --outdir site --target browser",
     "test:watch": "bun test --parallel --watch",
     "pre-commit": "bun scripts/hooks/pre-commit.ts",
     "postinstall": "bun scripts/hooks/postinstall.ts"
