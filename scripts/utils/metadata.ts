@@ -88,7 +88,7 @@ export function generatePackagesJson(
           const expectedFilenames = getExpectedAssetFilenames(recipe);
 
           for (const [filename, fullPath] of availableFiles.entries()) {
-            if (expectedFilenames.has(filename) && !assetMap.has(filename)) {
+            if (filename.endsWith('.deb') && expectedFilenames.has(filename) && !assetMap.has(filename)) {
               const parts = filename.split('_');
               const arch = parts[parts.length - 1].replace('.deb', '');
               let size = 0;

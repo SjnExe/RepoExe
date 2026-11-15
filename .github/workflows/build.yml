@@ -155,6 +155,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 20
       matrix:
         include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
     steps:
@@ -169,11 +170,11 @@ jobs:
           sudo chmod -R 777 .
 
       - name: Free Disk Space
-        if: matrix.free_space
+        if: matrix.free_space || matrix.heavy
         uses: ./.github/actions/free-space
 
       - name: Setup Memory & Swap
-        if: matrix.zram > 0 || matrix.swap > 0
+        if: matrix.zram > 0 || matrix.swap > 0 || matrix.heavy
         uses: ./.github/actions/setup-memory
         with:
           zram: ${{ matrix.zram }}

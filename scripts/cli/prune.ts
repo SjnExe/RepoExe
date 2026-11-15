@@ -2,15 +2,13 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import { formatDebianFilenameVersion } from '../builders/debian.ts';
 import { parseRecipe } from '../core/parser.ts';
 import type { PackageRecipe } from '../core/types.ts';
 
 export function getExpectedAssetFilenames(recipe: PackageRecipe): Set<string> {
-  const ver = recipe.version;
-  const rev = recipe.revision;
   const pkg = recipe.name;
-
-  const versionStrDeb = rev > 0 ? `${ver}-${rev}` : ver;
+  const versionStrDeb = formatDebianFilenameVersion(recipe);
   const expected = new Set<string>(['metadata.json', `${pkg}_metadata.json`]);
 
   expected.add(`${pkg}_${versionStrDeb}_arm64.deb`);
