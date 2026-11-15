@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'nod
 import { dirname, join, resolve } from 'node:path';
 
 import { formatDebianVersion } from '../builders/debian.ts';
+import { getExpectedAssetFilenames } from '../cli/prune.ts';
 import { parseRecipe } from '../core/parser.ts';
 
 export interface ReleaseAssetInfo {
@@ -84,8 +85,10 @@ export function generatePackagesJson(
             }
           }
 
+          const expectedFilenames = getExpectedAssetFilenames(recipe);
+
           for (const [filename, fullPath] of availableFiles.entries()) {
-            if (filename.startsWith(`${recipe.name}_`) && filename.endsWith('.deb') && !assetMap.has(filename)) {
+            if (expectedFilenames.has(filename) && !assetMap.has(filename)) {
               const parts = filename.split('_');
               const arch = parts[parts.length - 1].replace('.deb', '');
               let size = 0;
