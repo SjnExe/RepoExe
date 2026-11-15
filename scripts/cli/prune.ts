@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { formatDebianFilenameVersion } from '../builders/debian.ts';
@@ -114,6 +114,17 @@ export async function pruneReleaseTags(): Promise<void> {
     if (existsSync(recipePath)) {
       try {
         const recipe = parseRecipe(recipePath);
+        const whitelist = getExpectedAssetFilenames(recipe);
+        const hasCurrentDebInRelease = assets.some((a: any) => whitelist.has(a.name || '') && a.name?.endsWith('.deb'));
+        const hasBuiltArtifact =
+          existsSync('artifacts') &&
+          readdirSync('artifacts').some((f) => f.startsWith(`${tag}_`) && f.endsWith('.deb'));
+
+        if (!hasCurrentDebInRelease && !hasBuiltArtifact) {
+          console.log(`Notice: Preserving existing assets for ${tag} until new build artifact is ready.`);
+          continue;
+        }
+
         const outdated = identifyOutdatedAssets(assets, recipe, tag);
         for (const asset of outdated) {
           if (asset.id && asset.name) {

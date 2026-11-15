@@ -56,13 +56,33 @@ if (copyBtn) {
     copyText(cmd, copyBtn).catch(() => {});
   });
 }
-function renderDependencyTag(depName) {
-  const cleanName = depName.trim();
-  const internalMatch = packagesData.find((p) => p.name === cleanName);
-  if (internalMatch) {
-    return `<a href="#/pkg/${encodeURIComponent(cleanName)}" class="dep-pill internal" title="RepoExe internal package">${escapeHtml(cleanName)}</a>`;
+function renderDependencyTag(depName, variant) {
+  const clean = depName.trim();
+  if (clean.includes('|')) {
+    return clean
+      .split('|')
+      .map((part) => renderDependencyTag(part.trim(), variant))
+      .join('<span class="dep-or"> | </span>');
   }
-  return `<a href="https://github.com/termux/termux-packages/tree/master/packages/${encodeURIComponent(cleanName)}" target="_blank" rel="noopener" class="dep-pill external" title="Official Termux upstream package">${escapeHtml(cleanName)} <span class="ext-arrow">↗</span></a>`;
+  if (variant === 'warning') {
+    return `<span class="dep-pill warning" title="Conflict or break package">${escapeHtml(clean)}</span>`;
+  }
+  const internalMatch = packagesData.find((p) => p.name === clean);
+  if (internalMatch) {
+    return `<a href="#/pkg/${encodeURIComponent(clean)}" class="dep-pill internal" title="RepoExe internal package">${escapeHtml(clean)}</a>`;
+  }
+  return `<a href="https://github.com/termux/termux-packages/tree/master/packages/${encodeURIComponent(clean)}" target="_blank" rel="noopener" class="dep-pill external" title="Official Termux upstream package">${escapeHtml(clean)} <span class="ext-arrow">↗</span></a>`;
+}
+function renderRelationSection(title, items, variant = 'internal') {
+  if (!items || items.length === 0) return '';
+  return `
+    <div class="relation-block">
+      <h4 class="relation-title">${escapeHtml(title)}</h4>
+      <div class="deps-container">
+        ${items.map((item) => renderDependencyTag(item, variant)).join('')}
+      </div>
+    </div>
+  `;
 }
 function renderCatalog() {
   const grid = document.getElementById('packageGrid');
@@ -93,14 +113,22 @@ function renderCatalog() {
   grid.innerHTML = filtered
     .map((pkg) => {
       const verStr = pkg.version ? `v${pkg.version}${pkg.revision && pkg.revision > 0 ? '-' + pkg.revision : ''}` : '';
-      const arch = pkg.arch || 'aarch64';
       const desc = pkg.description || 'RepoExe compiled Termux package';
       const downloads = pkg.total_downloads ?? 0;
-      const firstAsset = pkg.assets?.[0];
-      const downloadUrl =
-        firstAsset?.download_url ||
-        `https://github.com/SjnExe/RepoExe/releases/download/${pkg.name}/${pkg.name}_${pkg.version}_${arch}.deb`;
+      const assets = pkg.assets || [];
+      const hasMultiArch = assets.length > 1;
+      const archList = assets.length > 0 ? assets.map((a) => a.arch).join(', ') : pkg.arch || 'aarch64';
+      const firstAsset = assets[0];
+      const defaultArch = firstAsset?.arch || pkg.arch || 'aarch64';
       const sizeStr = firstAsset?.size_formatted || '';
+      const downloadActionUrl = hasMultiArch
+        ? `#/pkg/${encodeURIComponent(pkg.name)}`
+        : firstAsset?.download_url ||
+          `https://github.com/SjnExe/RepoExe/releases/download/${pkg.name}/${pkg.name}_${pkg.version}_${defaultArch}.deb`;
+      const downloadTitle = hasMultiArch
+        ? `Select Architecture (${archList})`
+        : `Download .deb (${defaultArch}${sizeStr && sizeStr !== 'Release Asset' ? ' - ' + sizeStr : ''})`;
+      const downloadAttrs = hasMultiArch ? '' : 'download';
       return `
         <article class="pkg-card">
           <div class="pkg-header">
@@ -122,7 +150,7 @@ function renderCatalog() {
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                 </svg>
               </button>
-              <a href="${escapeHtml(downloadUrl)}" class="download-mini" title="Download .deb (${escapeHtml(arch)}${sizeStr ? ' - ' + escapeHtml(sizeStr) : ''})" download>
+              <a href="${escapeHtml(downloadActionUrl)}" class="download-mini" title="${escapeHtml(downloadTitle)}" ${downloadAttrs}>
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <polyline points="7 10 12 15 17 10"></polyline>
@@ -134,11 +162,18 @@ function renderCatalog() {
 
           <div class="pkg-meta">
             <div class="pkg-meta-left">
-              <span class="pkg-arch">Arch: ${escapeHtml(arch)}</span>
-              ${sizeStr && sizeStr !== 'Release Asset' ? `<span class="pkg-size">${escapeHtml(sizeStr)}</span>` : ''}
+              <span class="pkg-arch" title="${escapeHtml(archList)}">Arch: ${escapeHtml(archList)}</span>
+              ${!hasMultiArch && sizeStr && sizeStr !== 'Release Asset' ? `<span class="pkg-size">${escapeHtml(sizeStr)}</span>` : ''}
             </div>
             <div class="pkg-meta-right">
-              ${downloads > 0 ? `<span class="pkg-downloads" title="Download count">↓ ${downloads}</span>` : ''}
+              <span class="pkg-downloads" title="Total downloads across all architectures">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                ${downloads}
+              </span>
               <a href="#/pkg/${encodeURIComponent(pkg.name)}" class="pkg-details-link">Details →</a>
             </div>
           </div>
@@ -184,7 +219,7 @@ function renderDetailPage(pkgName) {
         ];
   const depsHtml =
     Array.isArray(pkg.deps) && pkg.deps.length > 0
-      ? pkg.deps.map(renderDependencyTag).join('')
+      ? pkg.deps.map((d) => renderDependencyTag(d)).join('')
       : '<span class="text-muted">None</span>';
   detailView.innerHTML = `
     <div class="detail-container">
@@ -200,8 +235,7 @@ function renderDetailPage(pkgName) {
 
       <section class="term-window detail-card">
         <div class="term-titlebar">
-          <div class="term-title">Package: ${escapeHtml(pkg.name)}</div>
-          <span class="term-pill">${escapeHtml(pkg.license || 'License Unspecified')}</span>
+          <div class="term-title">Package Overview</div>
         </div>
         <div class="term-body">
           <div class="detail-header-row">
@@ -209,20 +243,14 @@ function renderDetailPage(pkgName) {
               <h1 class="detail-title">${escapeHtml(pkg.name)}</h1>
               <span class="detail-version">${escapeHtml(verStr)}</span>
             </div>
-            ${
-              pkg.total_downloads && pkg.total_downloads > 0
-                ? `
-              <div class="detail-downloads-badge">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                <span>${pkg.total_downloads} downloads</span>
-              </div>
-            `
-                : ''
-            }
+            <div class="detail-downloads-badge" title="Total downloads across all architectures">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>${pkg.total_downloads ?? 0} downloads</span>
+            </div>
           </div>
 
           <p class="detail-description">${escapeHtml(pkg.description || 'RepoExe compiled Termux package')}</p>
@@ -249,9 +277,21 @@ function renderDetailPage(pkgName) {
                   (ast) => `
                 <a href="${escapeHtml(ast.download_url)}" class="asset-download-btn" download>
                   <div class="asset-btn-content">
-                    <span class="asset-arch">${escapeHtml(ast.arch)}</span>
+                    <div class="asset-btn-header">
+                      <span class="asset-arch">${escapeHtml(ast.arch)}</span>
+                      ${ast.size_formatted && ast.size_formatted !== 'Release Asset' ? `<span class="asset-size">${escapeHtml(ast.size_formatted)}</span>` : ''}
+                    </div>
                     <span class="asset-name">${escapeHtml(ast.name)}</span>
-                    ${ast.size_formatted && ast.size_formatted !== 'Release Asset' ? `<span class="asset-size">${escapeHtml(ast.size_formatted)}</span>` : ''}
+                    <div class="asset-meta-row">
+                      <span class="asset-dl-count">
+                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="7 10 12 15 17 10"></polyline>
+                          <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        ${ast.download_count ?? 0} downloads
+                      </span>
+                    </div>
                   </div>
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -266,9 +306,20 @@ function renderDetailPage(pkgName) {
           </div>
 
           <div class="detail-section">
-            <h3 class="section-title">Dependencies</h3>
-            <div class="deps-container">
-              ${depsHtml}
+            <h3 class="section-title">Dependencies & Relations</h3>
+            <div class="relation-blocks-wrapper">
+              <div class="relation-block">
+                <h4 class="relation-title">Depends</h4>
+                <div class="deps-container">
+                  ${depsHtml}
+                </div>
+              </div>
+              ${renderRelationSection('Recommends', pkg.recommends)}
+              ${renderRelationSection('Suggests', pkg.suggests)}
+              ${renderRelationSection('Conflicts', pkg.conflicts, 'warning')}
+              ${renderRelationSection('Breaks', pkg.breaks, 'warning')}
+              ${renderRelationSection('Provides', pkg.provides)}
+              ${renderRelationSection('Replaces', pkg.replaces)}
             </div>
             <p class="deps-legend">
               <span class="legend-item"><span class="legend-dot internal"></span> RepoExe Package</span>
@@ -286,16 +337,16 @@ function renderDetailPage(pkgName) {
                 </span>
               </div>
               <div class="info-item">
+                <span class="info-label">License:</span>
+                <span class="info-val">${escapeHtml(pkg.license || 'Unknown')}</span>
+              </div>
+              <div class="info-item">
                 <span class="info-label">Maintainer:</span>
                 <span class="info-val">${formatUser(pkg.maintainer)}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">Uploaders:</span>
                 <span class="info-val">${uploadersHtml}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">License:</span>
-                <span class="info-val">${escapeHtml(pkg.license || 'Unknown')}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">Target Architecture:</span>

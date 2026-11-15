@@ -9,9 +9,21 @@ import { DependencyGraph } from '../utils/dag.ts';
 
 export function getGitDiffFiles(repoRoot: string): Set<string> {
   const baseRef = (process.env.GITHUB_BASE_REF || '').trim();
-  const diffCmd = baseRef
-    ? ['diff', '--name-only', `origin/${baseRef}...HEAD`]
-    : ['diff', '--name-only', 'HEAD~1', 'HEAD'];
+  const eventBefore = (process.env.GITHUB_EVENT_BEFORE || '').trim();
+
+  let diffCmd: string[];
+  if (baseRef) {
+    diffCmd = ['diff', '--name-only', `origin/${baseRef}...HEAD`];
+  } else if (eventBefore && eventBefore !== '0000000000000000000000000000000000000000') {
+    const verifyBefore = spawnSync('git', ['rev-parse', '--verify', eventBefore], { cwd: repoRoot });
+    if (verifyBefore.status === 0) {
+      diffCmd = ['diff', '--name-only', `${eventBefore}..HEAD`];
+    } else {
+      diffCmd = ['diff', '--name-only', 'HEAD~1', 'HEAD'];
+    }
+  } else {
+    diffCmd = ['diff', '--name-only', 'HEAD~1', 'HEAD'];
+  }
 
   let res = spawnSync('git', diffCmd, { cwd: repoRoot, encoding: 'utf-8' });
   if (res.status !== 0 || !res.stdout?.trim()) {
@@ -181,6 +193,43 @@ export async function buildMatrixLayer(
   return matrix;
 }
 
+export async function getMissingReleasePackages(dag: DependencyGraph, repoSlug?: string): Promise<string[]> {
+  const slug = repoSlug || process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
+  const apiUrl = `https://api.github.com/repos/${slug}/releases?per_page=100`;
+  const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+  const headers: Record<string, string> = { 'User-Agent': 'RepoExe-Matrix-Generator' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  try {
+    const resp = await fetch(apiUrl, { headers, signal: AbortSignal.timeout(5000) });
+    if (!resp.ok) return [];
+    const releases = (await resp.json()) as Array<{
+      tag_name?: string;
+      assets?: Array<{ name: string }>;
+    }>;
+    if (!Array.isArray(releases)) return [];
+
+    const validReleases = new Set<string>();
+    for (const rel of releases) {
+      const tag = rel.tag_name || '';
+      const hasDeb = Array.isArray(rel.assets) && rel.assets.some((a) => a.name?.endsWith('.deb'));
+      if (hasDeb) {
+        validReleases.add(tag);
+      }
+    }
+
+    const missing: string[] = [];
+    for (const pkgName of Object.keys(dag.recipes)) {
+      if (!validReleases.has(pkgName)) {
+        missing.push(pkgName);
+      }
+    }
+    return missing;
+  } catch {
+    return [];
+  }
+}
+
 async function main(): Promise<void> {
   const repoRoot = resolve('.');
   const pkgsDir = join(repoRoot, 'pkg');
@@ -195,8 +244,11 @@ async function main(): Promise<void> {
   if (!rawInput || rawInput === 'auto') {
     const diffFiles = getGitDiffFiles(repoRoot);
     const changedPkgs = Array.from(getChangedPackages(repoRoot, dag));
-    if (changedPkgs.length > 0) {
-      targetPkgs = parseTargetTokens(changedPkgs.join(' '), dag, pkgsDir);
+    const missingPkgs = await getMissingReleasePackages(dag);
+    const candidatePkgs = new Set<string>([...changedPkgs, ...missingPkgs]);
+
+    if (candidatePkgs.size > 0) {
+      targetPkgs = parseTargetTokens(Array.from(candidatePkgs).join(' '), dag, pkgsDir);
     } else if (diffFiles.size > 0) {
       targetPkgs = [];
     } else {
