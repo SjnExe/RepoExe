@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
-import { generateAptMetadata, generateReleaseFile } from '../builders/debian.ts';
+import { extractDebArch, generateAptMetadata, generateReleaseFile } from '../builders/debian.ts';
 import { parseRecipe } from '../core/parser.ts';
 import { generatePackagesJson, type ReleaseAssetInfo } from '../utils/metadata.ts';
 import { getExpectedAssetFilenames } from './prune.ts';
@@ -233,9 +233,8 @@ export async function prepareSite(
 
   const arches = new Set<string>();
   for (const f of debFiles) {
-    const parts = f.split('_');
-    const arch = parts[parts.length - 1].replace('.deb', '');
-    if (arch !== 'all') {
+    const arch = extractDebArch(f);
+    if (arch !== 'unknown' && arch !== 'all') {
       arches.add(arch);
       if (arch === 'arm64') arches.add('aarch64');
       else if (arch === 'aarch64') arches.add('arm64');

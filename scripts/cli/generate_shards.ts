@@ -144,10 +144,10 @@ export async function buildMatrixLayer(
         continue;
       }
 
-      let maxZram = r.resources.zram ?? (r.heavy_build ? 4 : 0);
-      let maxSwap = r.resources.swap ?? (r.heavy_build ? 8 : 0);
-      let maxFreeSpace = r.resources.free_space ?? (r.heavy_build ? true : false);
-      let maxTmpfs = Math.min(6, r.resources.tmpfs ?? 4);
+      let maxZram = Number(r.resources.zram ?? 0);
+      let maxSwap = Number(r.resources.swap ?? 0);
+      let maxFreeSpace = Boolean(r.resources.free_space ?? false);
+      let maxTmpfs = Math.min(6, Number(r.resources.tmpfs ?? 4));
 
       const buildDepClauses = parseDependencyList(r.build_deps);
       const cleanBuildDeps = extractAllPackageNames(buildDepClauses);
@@ -155,11 +155,10 @@ export async function buildMatrixLayer(
         const depRecipePath = join(pkgsDir, depName, 'recipe.ts');
         if (existsSync(depRecipePath)) {
           const dr = dag.recipes[depName] || parseRecipe(depRecipePath);
-          const depHeavy = dr.heavy_build ?? false;
-          maxZram = Math.max(maxZram, dr.resources.zram ?? (depHeavy ? 4 : 0));
-          maxSwap = Math.max(maxSwap, dr.resources.swap ?? (depHeavy ? 8 : 0));
-          maxFreeSpace = maxFreeSpace || (dr.resources.free_space ?? (depHeavy ? true : false));
-          maxTmpfs = Math.max(maxTmpfs, Math.min(6, dr.resources.tmpfs ?? 4));
+          maxZram = Math.max(maxZram, Number(dr.resources.zram ?? 0));
+          maxSwap = Math.max(maxSwap, Number(dr.resources.swap ?? 0));
+          maxFreeSpace = maxFreeSpace || Boolean(dr.resources.free_space ?? false);
+          maxTmpfs = Math.max(maxTmpfs, Math.min(6, Number(dr.resources.tmpfs ?? 4)));
         }
       }
 
