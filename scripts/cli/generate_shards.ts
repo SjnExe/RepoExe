@@ -144,9 +144,10 @@ export async function buildMatrixLayer(
         continue;
       }
 
-      let maxZram = r.resources.zram ?? 0;
-      let maxSwap = r.resources.swap ?? 0;
-      let maxFreeSpace = r.resources.free_space ?? false;
+      let maxZram = r.resources.zram ?? (r.heavy_build ? 4 : 0);
+      let maxSwap = r.resources.swap ?? (r.heavy_build ? 8 : 0);
+      let maxFreeSpace = r.resources.free_space ?? (r.heavy_build ? true : false);
+      let maxTmpfs = r.resources.tmpfs ?? (r.heavy_build ? 16 : 12);
 
       const buildDepClauses = parseDependencyList(r.build_deps);
       const cleanBuildDeps = extractAllPackageNames(buildDepClauses);
@@ -154,9 +155,11 @@ export async function buildMatrixLayer(
         const depRecipePath = join(pkgsDir, depName, 'recipe.ts');
         if (existsSync(depRecipePath)) {
           const dr = dag.recipes[depName] || parseRecipe(depRecipePath);
-          maxZram = Math.max(maxZram, dr.resources.zram ?? 0);
-          maxSwap = Math.max(maxSwap, dr.resources.swap ?? 0);
-          maxFreeSpace = maxFreeSpace || (dr.resources.free_space ?? false);
+          const depHeavy = dr.heavy_build ?? false;
+          maxZram = Math.max(maxZram, dr.resources.zram ?? (depHeavy ? 4 : 0));
+          maxSwap = Math.max(maxSwap, dr.resources.swap ?? (depHeavy ? 8 : 0));
+          maxFreeSpace = maxFreeSpace || (dr.resources.free_space ?? (depHeavy ? true : false));
+          maxTmpfs = Math.max(maxTmpfs, dr.resources.tmpfs ?? (depHeavy ? 16 : 12));
         }
       }
 
@@ -167,7 +170,7 @@ export async function buildMatrixLayer(
         zram: maxZram,
         swap: maxSwap,
         free_space: maxFreeSpace,
-        tmpfs: r.resources.tmpfs ?? 12,
+        tmpfs: maxTmpfs,
         force: forceRebuild,
       });
     } catch (err: any) {
