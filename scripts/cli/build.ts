@@ -83,16 +83,28 @@ export function fetchAndPrepareSource(
         if (res.status !== 0) throw new Error(`git remote add failed for ${recipe.name}`);
         res = spawnSync('git', ['-C', srcExtractDir, 'fetch', '--depth', '1', 'origin', ref], { stdio: 'inherit' });
         if (res.status !== 0) throw new Error(`git fetch failed for ${recipe.name}`);
-        res = spawnSync('git', ['-C', srcExtractDir, 'checkout', 'FETCH_HEAD'], { stdio: 'inherit' });
-        if (res.status !== 0) throw new Error(`git checkout failed for ${recipe.name}`);
-      } else {
-        const res = spawnSync('git', ['clone', '--depth', '1', '--branch', ref, repoUrl, srcExtractDir], {
+        res = spawnSync('git', ['-c', 'advice.detachedHead=false', '-C', srcExtractDir, 'checkout', 'FETCH_HEAD'], {
           stdio: 'inherit',
         });
+        if (res.status !== 0) throw new Error(`git checkout failed for ${recipe.name}`);
+      } else {
+        const res = spawnSync(
+          'git',
+          ['-c', 'advice.detachedHead=false', 'clone', '--depth', '1', '--branch', ref, repoUrl, srcExtractDir],
+          {
+            stdio: 'inherit',
+          },
+        );
         if (res.status !== 0) throw new Error(`git clone failed for ${recipe.name} from ${repoUrl}`);
       }
     } else {
-      const res = spawnSync('git', ['clone', '--depth', '1', srcUrl, srcExtractDir], { stdio: 'inherit' });
+      const res = spawnSync(
+        'git',
+        ['-c', 'advice.detachedHead=false', 'clone', '--depth', '1', srcUrl, srcExtractDir],
+        {
+          stdio: 'inherit',
+        },
+      );
       if (res.status !== 0) throw new Error(`git clone failed for ${recipe.name} from ${srcUrl}`);
     }
   } else {
@@ -217,7 +229,8 @@ export function executeTest(
     const targetDeb = `${recipe.name}_${filenameVer}_${debArch}.deb`;
     const escapedCmd = testCmd.replace(/'/g, "'\\''");
 
-    const archKey = `TESTER_IMAGE_${rawArch.toUpperCase()}`;
+    const testArch = rawArch === 'all' ? (process.env.TARGET_ARCH || 'aarch64').toLowerCase() : rawArch;
+    const archKey = `TESTER_IMAGE_${testArch.toUpperCase()}`;
     const testerImage = process.env[archKey] || process.env.TESTER_IMAGE || `ghcr.io/${owner}/repoexe-tester:latest`;
     const containerPkgDir = '/data/data/com.termux/files/usr/tmp/repoexe-pkg';
 
@@ -325,7 +338,7 @@ export async function simulateDryRun(
 
   const stateHash = recipe.state_hash || '';
   console.log(`🔑 State Hash:    ${stateHash ? stateHash.slice(0, 16) + '...' : '(none)'}`);
-  if (!force && stateHash && (await checkExistingReleaseHash(recipe.name, stateHash))) {
+  if (!force && stateHash && (await checkExistingReleaseHash(recipe.name, stateHash, recipe.arch))) {
     console.log(`⚡ Release State:  MATCHED EXISTING RELEASE (would skip without --force)`);
   } else {
     console.log(`⚡ Release State:  NEEDS BUILD (state hash differs or --force specified)`);
@@ -504,7 +517,7 @@ async function main(): Promise<void> {
       const pDir = existsSync(pkgPath) ? pkgPath : resolve(pkgName);
       const recipe = parseRecipe(pDir);
 
-      if (targetArch) {
+      if (targetArch && recipe.arch !== 'all') {
         recipe.arch = targetArch;
       }
       if (parsedFormats) {
@@ -528,7 +541,11 @@ async function main(): Promise<void> {
       }
 
       if (command === 'compile' || command === 'build') {
-        if (!force && recipe.state_hash && (await checkExistingReleaseHash(recipe.name, recipe.state_hash))) {
+        if (
+          !force &&
+          recipe.state_hash &&
+          (await checkExistingReleaseHash(recipe.name, recipe.state_hash, recipe.arch))
+        ) {
           if (!quiet) console.log(`⏭️ Skipping ${recipe.name}: state_hash unchanged.`);
           continue;
         }

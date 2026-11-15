@@ -30,7 +30,7 @@ mkdir -p "\${PREFIX}/host-bin"
 # Smart guild cross-compilation wrapper
 cat << 'EOF' > "\${PREFIX}/host-bin/guild"
 #!/bin/sh
-REAL_GUILD="$(which guild-3.0 2>/dev/null || which guild 2>/dev/null || echo /usr/bin/guild)"
+REAL_GUILD="$(PATH="/usr/bin:/usr/local/bin:/bin" which guild-3.0 2>/dev/null || PATH="/usr/bin:/usr/local/bin:/bin" which guild 2>/dev/null || echo /usr/bin/guild)"
 TARGET_TUPLE=""
 case "\${TARGET_ARCH:-aarch64}" in
   aarch64|arm64) TARGET_TUPLE="aarch64-linux-android" ;;

@@ -151,7 +151,7 @@ jobs:
         run: bun test --parallel
 
   build:
-    name: '${{ matrix.package }} (${{ matrix.arch }})'
+    name: ${{ matrix.name }}
     needs: [generate-matrix, lint-audit, test-suite]
     if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
     runs-on: ubuntu-latest
@@ -168,6 +168,7 @@ jobs:
 
       - name: Prepare Workspace Permissions
         run: |
+          git config --global advice.detachedHead false
           mkdir -p build output build_logs .sccache .gocache .gomodcache .cargoregistry .cargogit .cache
           sudo chmod -R 777 .
 

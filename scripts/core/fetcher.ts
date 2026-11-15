@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import { PREFIX } from '../utils/properties.ts';
+import { filterDepsForArch, parseDependencyList } from './dependencies.ts';
 
 export function getTermuxRepos(arch: string = 'aarch64'): Array<[string, string]> {
   const normArch = arch === 'arm64' ? 'aarch64' : (arch || 'aarch64').toLowerCase();
@@ -51,9 +52,17 @@ export async function checkExistingReleaseHash(
     const debAssets = (data.assets || []).filter((a) => a.name.endsWith('.deb'));
     if (debAssets.length === 0) return false;
 
-    if (targetArch && targetArch !== 'all') {
+    if (targetArch) {
       const normArch = targetArch === 'arm64' ? 'aarch64' : targetArch.toLowerCase();
-      const hasTargetArch = debAssets.some((a) => a.name.endsWith(`_${normArch}.deb`) || a.name.endsWith('_all.deb'));
+      const hasTargetArch =
+        normArch === 'all'
+          ? debAssets.some((a) => a.name.endsWith('_all.deb'))
+          : debAssets.some(
+              (a) =>
+                a.name.endsWith(`_${normArch}.deb`) ||
+                (normArch === 'aarch64' && a.name.endsWith('_arm64.deb')) ||
+                a.name.endsWith('_all.deb'),
+            );
       if (!hasTargetArch) return false;
     }
 
@@ -202,7 +211,8 @@ export async function fetchSingleDep(
   fetched: Set<string>,
   targetArch: string = 'aarch64',
 ): Promise<boolean> {
-  const [pkgName] = parseDepSpec(dep);
+  const [rawPkgName] = parseDepSpec(dep);
+  const pkgName = rawPkgName.split(':')[0].trim();
   if (fetched.has(pkgName)) return true;
 
   if (pkgName.endsWith('-static') || pkgName.endsWith('-doc') || pkgName.endsWith('-man')) {
@@ -222,7 +232,13 @@ export async function fetchSingleDep(
   const checkArtifacts = (dir: string) => {
     if (existsSync(dir)) {
       return readdirSync(dir)
-        .filter((f) => f.startsWith(pkgName) && (f.endsWith(`_${repoArch}.deb`) || f.endsWith('_all.deb')))
+        .filter(
+          (f) =>
+            f.startsWith(pkgName) &&
+            (f.endsWith(`_${repoArch}.deb`) ||
+              (repoArch === 'aarch64' && f.endsWith('_arm64.deb')) ||
+              f.endsWith('_all.deb')),
+        )
         .map((f) => join(dir, f));
     }
     return [];
@@ -249,7 +265,10 @@ export async function fetchSingleDep(
       const relData = (await resp.json()) as { assets?: ReleaseAsset[] };
       const debAsset = (relData.assets || []).find(
         (a): a is ReleaseAsset =>
-          typeof a?.name === 'string' && (a.name.endsWith(`_${repoArch}.deb`) || a.name.endsWith('_all.deb')),
+          typeof a?.name === 'string' &&
+          (a.name.endsWith(`_${repoArch}.deb`) ||
+            (repoArch === 'aarch64' && a.name.endsWith('_arm64.deb')) ||
+            a.name.endsWith('_all.deb')),
       );
       if (debAsset) {
         const debPath = join(destdir, debAsset.name);
@@ -282,14 +301,21 @@ export async function fetchSingleDep(
     // Recursively resolve dependencies
     const dependsStr = pkgInfo.Depends || '';
     if (dependsStr) {
-      for (const req of dependsStr.split(',')) {
-        const reqName = req.trim().split(/\s+/)[0].split(':')[0];
-        if (
-          reqName &&
-          !['dpkg', 'apt', 'bash', 'termux-tools', 'command-not-found'].includes(reqName) &&
-          !fetched.has(reqName)
-        ) {
-          await fetchSingleDep(reqName, destdir, fetched, targetArch);
+      const clauses = parseDependencyList(dependsStr);
+      const filtered = filterDepsForArch(clauses, repoArch);
+      for (const branch of filtered) {
+        for (const token of branch) {
+          const cleanTokenName = token.name.split(':')[0].trim();
+          if (['dpkg', 'apt', 'bash', 'termux-tools', 'command-not-found'].includes(cleanTokenName)) {
+            break;
+          }
+          if (fetched.has(cleanTokenName)) {
+            break;
+          }
+          const ok = await fetchSingleDep(cleanTokenName, destdir, fetched, targetArch);
+          if (ok) {
+            break;
+          }
         }
       }
     }
@@ -308,10 +334,24 @@ export async function resolveAndFetchBuildDependencies(
   console.log(`Resolving build dependencies [${targetArch}]: ${buildDeps.join(', ')}`);
   const fetched = new Set<string>();
 
-  for (const dep of buildDeps) {
-    const success = await fetchSingleDep(dep, destdir, fetched, targetArch);
-    if (!success) {
-      console.error(`::error:: Missing required build dependency '${dep}' for ${targetArch} and no artifact exists.`);
+  const clauses = parseDependencyList(buildDeps);
+  const filtered = filterDepsForArch(clauses, targetArch);
+
+  for (const branch of filtered) {
+    let branchSatisfied = false;
+    for (const token of branch) {
+      const cleanName = token.name.split(':')[0].trim();
+      const success = await fetchSingleDep(cleanName, destdir, fetched, targetArch);
+      if (success) {
+        branchSatisfied = true;
+        break;
+      }
+    }
+    if (!branchSatisfied) {
+      const branchStr = branch.map((t) => t.name).join(' | ');
+      console.error(
+        `::error:: Missing required build dependency '${branchStr}' for ${targetArch} and no artifact exists.`,
+      );
       process.exit(1);
     }
   }

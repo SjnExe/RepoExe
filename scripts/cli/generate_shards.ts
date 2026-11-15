@@ -150,7 +150,8 @@ export async function buildMatrixLayer(
 
     try {
       const r = dag.recipes[p] || parseRecipe(recipePath);
-      const targetArches = r.arches && r.arches.length > 0 ? r.arches : [r.arch || 'aarch64'];
+      const isArchAll = r.arch === 'all' || Boolean(r.arches && r.arches.includes('all'));
+      const targetArches = isArchAll ? ['aarch64'] : r.arches && r.arches.length > 0 ? r.arches : [r.arch || 'aarch64'];
 
       let maxZram = Number(r.resources.zram ?? 0);
       let maxSwap = Number(r.resources.swap ?? 0);
@@ -171,13 +172,15 @@ export async function buildMatrixLayer(
       }
 
       for (const targetArch of targetArches) {
+        const checkArch = isArchAll ? 'all' : targetArch;
         const stateHash = r.state_hash || '';
-        if (!forceRebuild && stateHash && (await checkExistingReleaseHash(p, stateHash, targetArch))) {
-          console.error(`Notice: Skipping matrix shard for ${p} [${targetArch}] (state_hash unchanged).`);
+        if (!forceRebuild && stateHash && (await checkExistingReleaseHash(p, stateHash, checkArch))) {
+          console.error(`Notice: Skipping matrix shard for ${p} [${checkArch}] (state_hash unchanged).`);
           continue;
         }
 
         matrix.push({
+          name: `${p}:${checkArch}`,
           package: p,
           arch: targetArch,
           heavy: r.heavy_build || maxSwap > 0 || maxZram > 0,
@@ -200,32 +203,43 @@ export async function buildMatrixLayer(
 
 export async function getMissingReleasePackages(dag: DependencyGraph, repoSlug?: string): Promise<string[]> {
   const slug = repoSlug || process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
-  const apiUrl = `https://api.github.com/repos/${slug}/releases?per_page=100`;
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
   const headers: Record<string, string> = { 'User-Agent': 'RepoExe-Matrix-Generator' };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   try {
-    const resp = await fetch(apiUrl, { headers, signal: AbortSignal.timeout(5000) });
-    if (!resp.ok) return [];
-    const releases = (await resp.json()) as Array<{
-      tag_name?: string;
-      assets?: Array<{ name: string }>;
-    }>;
-    if (!Array.isArray(releases)) return [];
-
     const releaseDebMap = new Map<string, Set<string>>();
-    for (const rel of releases) {
-      const tag = rel.tag_name || '';
-      const debSet = new Set<string>();
-      if (Array.isArray(rel.assets)) {
-        for (const a of rel.assets) {
-          if (typeof a?.name === 'string' && a.name.endsWith('.deb')) {
-            debSet.add(a.name);
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const apiUrl = `https://api.github.com/repos/${slug}/releases?per_page=100&page=${page}`;
+      const resp = await fetch(apiUrl, { headers, signal: AbortSignal.timeout(5000) });
+      if (!resp.ok) break;
+      const releases = (await resp.json()) as Array<{
+        tag_name?: string;
+        assets?: Array<{ name: string }>;
+      }>;
+      if (!Array.isArray(releases) || releases.length === 0) break;
+
+      for (const rel of releases) {
+        const tag = rel.tag_name || '';
+        const debSet = releaseDebMap.get(tag) || new Set<string>();
+        if (Array.isArray(rel.assets)) {
+          for (const a of rel.assets) {
+            if (typeof a?.name === 'string' && a.name.endsWith('.deb')) {
+              debSet.add(a.name);
+            }
           }
         }
+        releaseDebMap.set(tag, debSet);
       }
-      releaseDebMap.set(tag, debSet);
+
+      if (releases.length < 100) {
+        hasMore = false;
+      } else {
+        page++;
+      }
     }
 
     const missing: string[] = [];

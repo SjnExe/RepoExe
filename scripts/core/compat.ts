@@ -219,4 +219,9 @@ cpu = '${archConfig.cpu}'
 endian = 'little'
 `;
   writeFileSync(join(tempDir, 'meson-cross.ini'), mesonCross, 'utf-8');
+  if (tempDir !== '/tmp') {
+    try {
+      writeFileSync('/tmp/meson-cross.ini', mesonCross, 'utf-8');
+    } catch {}
+  }
 }
