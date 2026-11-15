@@ -28,13 +28,13 @@ fi
 show_help() {
   printf "${BOLD}RepoExe Management CLI v2.0.0${RESET}\n\n"
   printf "${BOLD}USAGE:${RESET}\n"
-  printf "  repoexe <command>\n\n"
-  printf "${BOLD}COMMANDS:${RESET}\n"
-  printf "  ${CYAN}status${RESET}     Check RepoExe APT repository integration status\n"
-  printf "  ${CYAN}enable${RESET}     Enable RepoExe APT repository source\n"
-  printf "  ${CYAN}disable${RESET}    Disable RepoExe APT repository source\n"
-  printf "  ${CYAN}--version${RESET}  Print version\n"
-  printf "  ${CYAN}--help${RESET}     Show this help menu\n"
+  printf "  repoexe <command> [options]\n\n"
+  printf "${BOLD}COMMANDS & OPTIONS:${RESET}\n"
+  printf "  ${CYAN}status, -s, --status${RESET}     Check RepoExe APT repository integration status\n"
+  printf "  ${CYAN}enable, -e, --enable${RESET}     Enable RepoExe APT repository source\n"
+  printf "  ${CYAN}disable, -d, --disable${RESET}   Disable RepoExe APT repository source\n"
+  printf "  ${CYAN}version, -v, --version${RESET}   Print CLI version\n"
+  printf "  ${CYAN}help, -h, --help${RESET}         Show this help menu\n"
 }
 
 check_status() {
@@ -86,13 +86,13 @@ disable_repo() {
 }
 
 case "$1" in
-  status)
+  status|-s|--status)
     check_status
     ;;
-  enable)
+  enable|-e|--enable)
     enable_repo
     ;;
-  disable)
+  disable|-d|--disable)
     disable_repo
     ;;
   version|-v|--version)
