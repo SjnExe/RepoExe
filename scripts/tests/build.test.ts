@@ -102,6 +102,7 @@ describe('build CLI helpers', (): void => {
       replaces: [],
       resources: {},
       heavy_build: false,
+      caching: false,
       auto_update: false,
       update_strategy: null,
       custom_update_cmd: null,

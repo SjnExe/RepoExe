@@ -33,6 +33,7 @@ export interface RecipeDefinition {
   maintainer_scripts?: Record<string, string>;
   resources?: ResourceConfig;
   heavy_build?: boolean;
+  caching?: boolean;
   auto_update?: boolean;
   update_strategy?: string | null;
   custom_update_cmd?: string | null;
@@ -79,6 +80,7 @@ export interface PackageRecipe {
   maintainer_scripts?: Record<string, string>;
   resources: ResourceConfig;
   heavy_build: boolean;
+  caching: boolean;
   auto_update: boolean;
   update_strategy: string | null;
   custom_update_cmd: string | null;

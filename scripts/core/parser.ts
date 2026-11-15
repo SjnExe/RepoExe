@@ -143,6 +143,7 @@ export function parseRecipe(recipePath: string): PackageRecipe {
         : undefined,
     resources,
     heavy_build: Boolean(rawData.heavy_build ?? false),
+    caching: rawData.caching !== undefined ? Boolean(rawData.caching) : Boolean(rawData.heavy_build ?? false),
     auto_update: Boolean(rawData.auto_update ?? false),
     update_strategy: rawData.update_strategy ? String(rawData.update_strategy) : null,
     custom_update_cmd: rawData.custom_update_cmd ? String(rawData.custom_update_cmd) : null,
