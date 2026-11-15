@@ -105,7 +105,7 @@ test('parseRecipe applies heavy_build resource defaults when unspecified', () =>
   }
 });
 
-test('parseRecipe defaults cache to false unless explicitly specified', () => {
+test('parseRecipe defaults cache to false unless explicitly specified', (): void => {
   const rRepoexe = parseRecipe('pkg/repoexe');
   expect(rRepoexe.cache).toBe(false);
 
