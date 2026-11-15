@@ -67,11 +67,15 @@ function renderDependencyTag(depName, variant) {
   if (variant === 'warning') {
     return `<span class="dep-pill warning" title="Conflict or break package">${escapeHtml(clean)}</span>`;
   }
-  const internalMatch = packagesData.find((p) => p.name === clean);
+  const packageName = clean
+    .replace(/\s*\(.*\)\s*$/, '')
+    .replace(/\s*\[.*\]\s*$/, '')
+    .trim();
+  const internalMatch = packagesData.find((p) => p.name === packageName);
   if (internalMatch) {
-    return `<a href="#/pkg/${encodeURIComponent(clean)}" class="dep-pill internal" title="RepoExe internal package">${escapeHtml(clean)}</a>`;
+    return `<a href="#/pkg/${encodeURIComponent(packageName)}" class="dep-pill internal" title="RepoExe internal package">${escapeHtml(clean)}</a>`;
   }
-  return `<a href="https://github.com/termux/termux-packages/tree/master/packages/${encodeURIComponent(clean)}" target="_blank" rel="noopener" class="dep-pill external" title="Official Termux upstream package">${escapeHtml(clean)} <span class="ext-arrow">↗</span></a>`;
+  return `<a href="https://github.com/termux/termux-packages/tree/master/packages/${encodeURIComponent(packageName)}" target="_blank" rel="noopener" class="dep-pill external" title="Official Termux upstream package">${escapeHtml(clean)} <span class="ext-arrow">↗</span></a>`;
 }
 function renderRelationSection(title, items, variant = 'internal') {
   if (!items || items.length === 0) return '';
