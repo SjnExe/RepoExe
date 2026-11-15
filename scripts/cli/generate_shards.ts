@@ -147,7 +147,7 @@ export async function buildMatrixLayer(
       let maxZram = r.resources.zram ?? (r.heavy_build ? 4 : 0);
       let maxSwap = r.resources.swap ?? (r.heavy_build ? 8 : 0);
       let maxFreeSpace = r.resources.free_space ?? (r.heavy_build ? true : false);
-      let maxTmpfs = r.resources.tmpfs ?? (r.heavy_build ? 16 : 12);
+      let maxTmpfs = Math.min(6, r.resources.tmpfs ?? 4);
 
       const buildDepClauses = parseDependencyList(r.build_deps);
       const cleanBuildDeps = extractAllPackageNames(buildDepClauses);
@@ -159,7 +159,7 @@ export async function buildMatrixLayer(
           maxZram = Math.max(maxZram, dr.resources.zram ?? (depHeavy ? 4 : 0));
           maxSwap = Math.max(maxSwap, dr.resources.swap ?? (depHeavy ? 8 : 0));
           maxFreeSpace = maxFreeSpace || (dr.resources.free_space ?? (depHeavy ? true : false));
-          maxTmpfs = Math.max(maxTmpfs, dr.resources.tmpfs ?? (depHeavy ? 16 : 12));
+          maxTmpfs = Math.max(maxTmpfs, Math.min(6, dr.resources.tmpfs ?? 4));
         }
       }
 

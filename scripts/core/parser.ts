@@ -101,7 +101,7 @@ export function parseRecipe(recipePath: string): PackageRecipe {
     zram: Number(rawData.resources?.zram ?? 0),
     swap: Number(rawData.resources?.swap ?? 0),
     free_space: Boolean(rawData.resources?.free_space ?? false),
-    tmpfs: Math.max(0, Math.min(12, Number(rawData.resources?.tmpfs ?? 12))),
+    tmpfs: Math.max(0, Math.min(6, Number(rawData.resources?.tmpfs ?? 4))),
   };
 
   const baseRecipe: PackageRecipe = {
