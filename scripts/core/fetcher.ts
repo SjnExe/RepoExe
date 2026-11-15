@@ -38,6 +38,9 @@ export async function checkExistingReleaseHash(pkgName: string, targetHash: stri
       assets?: Array<{ name: string; browser_download_url: string }>;
     };
 
+    const hasDebAssets = (data.assets || []).some((a) => a.name.endsWith('.deb'));
+    if (!hasDebAssets) return false;
+
     const body = (data.body || '').trim();
     if (body) {
       try {

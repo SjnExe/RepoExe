@@ -138,6 +138,7 @@ export function generatePackagesJson(
             recommends: recipe.recommends,
             suggests: recipe.suggests,
             conflicts: recipe.conflicts,
+            breaks: recipe.breaks,
             provides: recipe.provides,
             replaces: recipe.replaces,
             verified_built: Array.from(availableFiles.keys()).some((f) => f.includes(recipe.name)),

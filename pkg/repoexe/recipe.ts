@@ -3,6 +3,7 @@ import { defineRecipe } from '@core/types.ts';
 export default defineRecipe({
   name: 'repoexe',
   version: '1.0.0',
+  revision: 1,
   arch: 'all',
   description: 'Central RepoExe package repository management CLI',
   license: 'MIT',

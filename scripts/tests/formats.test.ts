@@ -43,7 +43,7 @@ test('generateControlFile evaluates architecture-specific and alternative depend
 });
 
 test('formatDebianVersion handles epoch and revision', () => {
-  const recipe = parseRecipe('pkg/repoexe');
+  const recipe = { ...parseRecipe('pkg/repoexe'), revision: 0, epoch: 0 };
   expect(formatDebianVersion(recipe)).toBe('1.0.0');
 
   recipe.revision = 1;

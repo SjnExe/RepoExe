@@ -88,6 +88,8 @@ jobs:
           TARGET_INPUT: ${{ inputs.packages || 'auto' }}
           FORCE_REBUILD: ${{ inputs.force }}
           GITHUB_BASE_REF: ${{ github.base_ref }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           JSON_OUT="$(bun run shards)"
           MATRIX="$(echo "$JSON_OUT" | jq -c '.matrix')"

@@ -26,7 +26,7 @@ else
 fi
 
 show_help() {
-  printf "${BOLD}RepoExe Management CLI v2.0.0${RESET}\n\n"
+  printf "${BOLD}RepoExe Management CLI v1.0.0${RESET}\n\n"
   printf "${BOLD}USAGE:${RESET}\n"
   printf "  repoexe <command> [options]\n\n"
   printf "${BOLD}COMMANDS & OPTIONS:${RESET}\n"
@@ -96,14 +96,25 @@ case "$1" in
     disable_repo
     ;;
   version|-v|--version)
-    printf "repoexe v2.0.0\n"
+    printf "repoexe v1.0.0\n"
     ;;
   help|-h|--help)
     show_help
     ;;
   "")
     enable_repo
-    printf "\n${BOLD}Run '${CYAN}apt update${RESET}${BOLD}' (or '${CYAN}pkg update${RESET}${BOLD}') to synchronize packages.${RESET}\n"
+    printf "\n${BOLD}Synchronizing APT package indexes...${RESET}\n"
+    if command -v apt-get >/dev/null 2>&1; then
+      apt-get update -o Acquire::Retries=3 -qq || apt-get update || true
+      printf "\n${BOLD}Installing RepoExe CLI helper...${RESET}\n"
+      apt-get install -y -o Acquire::Retries=3 repoexe 2>/dev/null || {
+        printf "${YELLOW}Notice: 'repoexe' package is not yet available in the repository.${RESET}\n"
+      }
+    elif command -v pkg >/dev/null 2>&1; then
+      pkg update -y 2>/dev/null || true
+      pkg install -y repoexe 2>/dev/null || true
+    fi
+    printf "\n${GREEN}✓ RepoExe repository configuration complete!${RESET}\n"
     printf "Install packages using: '${CYAN}pkg install <pkg>${RESET}'\n"
     ;;
   *)
