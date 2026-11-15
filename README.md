@@ -37,13 +37,23 @@ Install or re-sync the repository integration:
 curl -sL https://sjnexe.github.io/RepoExe/install | sh
 ```
 
+Install the CLI package:
+
+```bash
+pkg update && pkg install repoexe
+```
+
 Use the `repoexe` management CLI:
 
 ```bash
 # Check repository status
-repoexe status
+repoexe status          # or: repoexe -s, repoexe --status
 
 # Enable or disable repository integration
-repoexe enable
-repoexe disable
+repoexe enable          # or: repoexe -e, repoexe --enable
+repoexe disable         # or: repoexe -d, repoexe --disable
+
+# View version or help
+repoexe --version       # or: repoexe -v
+repoexe --help          # or: repoexe -h
 ```

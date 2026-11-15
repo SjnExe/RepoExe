@@ -563,6 +563,7 @@ async function main(): Promise<void> {
           ...(process.env as Record<string, string>),
           DESTDIR: stageDir,
           PREFIX: prefixDir,
+          RECIPE_DIR: resolve(pDir),
           RECIPE_VERSION: recipe.version,
           RECIPE_EPOCH: String(recipe.epoch),
           RECIPE_NDK: recipe.ndk || 'default',
