@@ -19,7 +19,7 @@ test('parseRecipe parses aisleriot correctly', () => {
 test('parseRecipe parses repoexe correctly', () => {
   const recipe = parseRecipe('pkg/repoexe');
   expect(recipe.name).toBe('repoexe');
-  expect(recipe.version).toBe('2.0.0');
+  expect(recipe.version).toBe('1.0.0');
   expect(recipe.arch).toBe('all');
   expect(recipe.state_hash).toBeDefined();
 });

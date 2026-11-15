@@ -64,8 +64,8 @@ export function generatePackagesJson(
               ? [recipe.uploaders]
               : [];
 
-          // Collect assets (from remote GitHub releases or local artifacts)
-          const assets: Array<Record<string, any>> = [];
+          // Collect assets (merging remote release assets and local build artifacts by filename)
+          const assetMap = new Map<string, Record<string, any>>();
           const remoteAssets = releaseAssetMap?.get(recipe.name);
 
           if (remoteAssets && remoteAssets.length > 0) {
@@ -73,7 +73,7 @@ export function generatePackagesJson(
               if (!asset.name.endsWith('.deb')) continue;
               const parts = asset.name.split('_');
               const arch = parts[parts.length - 1].replace('.deb', '');
-              assets.push({
+              assetMap.set(asset.name, {
                 name: asset.name,
                 arch,
                 size: asset.size,
@@ -84,32 +84,30 @@ export function generatePackagesJson(
             }
           }
 
-          if (assets.length === 0) {
-            for (const [filename, fullPath] of availableFiles.entries()) {
-              if (filename.startsWith(`${recipe.name}_`) && filename.endsWith('.deb')) {
-                const parts = filename.split('_');
-                const arch = parts[parts.length - 1].replace('.deb', '');
-                let size = 0;
-                try {
-                  size = statSync(fullPath).size;
-                } catch {}
-                assets.push({
-                  name: filename,
-                  arch,
-                  size,
-                  size_formatted: formatBytes(size),
-                  download_url: `https://github.com/SjnExe/RepoExe/releases/download/${recipe.name}/${filename}`,
-                  download_count: 0,
-                });
-              }
+          for (const [filename, fullPath] of availableFiles.entries()) {
+            if (filename.startsWith(`${recipe.name}_`) && filename.endsWith('.deb') && !assetMap.has(filename)) {
+              const parts = filename.split('_');
+              const arch = parts[parts.length - 1].replace('.deb', '');
+              let size = 0;
+              try {
+                size = statSync(fullPath).size;
+              } catch {}
+              assetMap.set(filename, {
+                name: filename,
+                arch,
+                size,
+                size_formatted: formatBytes(size),
+                download_url: `https://github.com/SjnExe/RepoExe/releases/download/${recipe.name}/${filename}`,
+                download_count: 0,
+              });
             }
           }
 
-          if (assets.length === 0) {
+          if (assetMap.size === 0) {
             const debArch = recipe.arch || 'aarch64';
             const verStr = formatDebianVersion(recipe);
             const defaultName = `${recipe.name}_${verStr}_${debArch}.deb`;
-            assets.push({
+            assetMap.set(defaultName, {
               name: defaultName,
               arch: debArch,
               size: 0,
@@ -118,6 +116,8 @@ export function generatePackagesJson(
               download_count: 0,
             });
           }
+
+          const assets = Array.from(assetMap.values());
 
           const totalDownloads = assets.reduce((acc, curr) => acc + (curr.download_count || 0), 0);
 
