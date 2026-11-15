@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+
 import { getMajorMinor, updateRecipeContent } from '../cli/update_recipe.ts';
 import { compareSemver, extractSemver } from '../cli/upstream_check.ts';
 

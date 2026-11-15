@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
-import { generateControlFile, formatDebianVersion } from '../builders/debian.ts';
+
+import { formatDebianVersion, generateControlFile } from '../builders/debian.ts';
 import { parseRecipe } from '../core/parser.ts';
 
 test('generateControlFile formats valid Debian control file', () => {

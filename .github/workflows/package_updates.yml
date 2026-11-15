@@ -27,7 +27,7 @@ jobs:
       - name: Run Upstream Version Check
         id: check
         run: |
-          bun run scripts/cli/upstream_check.ts > update_log.txt 2>&1 || true
+          bun scripts/cli/upstream_check.ts > update_log.txt 2>&1 || true
           cat update_log.txt
 
           grep "Update available for" update_log.txt > updates_to_process.txt || true
@@ -57,7 +57,7 @@ jobs:
               echo "Processing update for $PKG to $NEW"
               git checkout -b "$BRANCH_NAME"
 
-              bun run scripts/cli/update_recipe.ts "$PKG" "$NEW"
+              bun scripts/cli/update_recipe.ts "$PKG" "$NEW"
 
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"

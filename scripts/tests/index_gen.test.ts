@@ -1,9 +1,10 @@
 import { expect, test } from 'bun:test';
-import { getExactPackageArtifacts, prepareSite } from '../cli/index_gen.ts';
-import { lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { getExactPackageArtifacts, prepareSite } from '../cli/index_gen.ts';
 
 test('getExactPackageArtifacts prevents prefix collision', (): void => {
   const testDir = join(tmpdir(), `repoexe-test-artifacts-${Date.now()}`);

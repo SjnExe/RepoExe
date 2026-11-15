@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+
 import type { PackageRecipe, RecipeDefinition, ResourceConfig } from './types.ts';
 
 function canonicalJson(obj: unknown): string {

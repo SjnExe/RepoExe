@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+
 import { parseRecipe } from '../core/parser.ts';
 
 export function generatePackagesJson(pkgDir?: string, outputFile?: string, artifactsDir?: string): void {

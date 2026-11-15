@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+
 import { parseRecipe } from '../core/parser.ts';
 import type { PackageRecipe } from '../core/types.ts';
 
@@ -138,7 +139,7 @@ export async function checkPackageUpstream(recipe: PackageRecipe): Promise<strin
 
   const srcUrl = recipe.source || '';
   if (strategy === 'github_release' || strategy === 'github_tag') {
-    const match = srcUrl.match(/github\.com\/([^\/]+)\/([^\/\.#]+)/);
+    const match = srcUrl.match(/github\.com\/([^/]+)\/([^/.#]+)/);
     if (match) {
       const [, owner, repo] = match;
       if (strategy === 'github_release') return await fetchGithubRelease(owner, repo);

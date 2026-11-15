@@ -1,10 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+
+import { extractAllPackageNames, parseDependencyList } from '../core/dependencies.ts';
 import { checkExistingReleaseHash } from '../core/fetcher.ts';
 import { parseRecipe } from '../core/parser.ts';
 import { DependencyGraph } from '../utils/dag.ts';
-import { parseDependencyList, extractAllPackageNames } from '../core/dependencies.ts';
 
 export function getGitDiffFiles(repoRoot: string): Set<string> {
   const baseRef = (process.env.GITHUB_BASE_REF || '').trim();
@@ -134,7 +135,7 @@ export async function buildMatrixLayer(
     if (!existsSync(recipePath)) continue;
 
     try {
-      const r = parseRecipe(recipePath);
+      const r = dag.recipes[p] || parseRecipe(recipePath);
       const stateHash = r.state_hash || '';
 
       if (!forceRebuild && stateHash && (await checkExistingReleaseHash(p, stateHash))) {
@@ -151,7 +152,7 @@ export async function buildMatrixLayer(
       for (const depName of cleanBuildDeps) {
         const depRecipePath = join(pkgsDir, depName, 'recipe.ts');
         if (existsSync(depRecipePath)) {
-          const dr = parseRecipe(depRecipePath);
+          const dr = dag.recipes[depName] || parseRecipe(depRecipePath);
           maxZram = Math.max(maxZram, dr.resources.zram ?? 0);
           maxSwap = Math.max(maxSwap, dr.resources.swap ?? 0);
           maxFreeSpace = maxFreeSpace || (dr.resources.free_space ?? false);
@@ -178,7 +179,8 @@ export async function buildMatrixLayer(
 async function main(): Promise<void> {
   const repoRoot = resolve('.');
   const pkgsDir = join(repoRoot, 'pkg');
-  const rawInput = (process.env.TARGET_INPUT || '').trim();
+  const cliArgs = process.argv.slice(2).join(' ').trim();
+  const rawInput = (cliArgs || process.env.TARGET_INPUT || '').trim();
 
   const dag = new DependencyGraph(pkgsDir);
 

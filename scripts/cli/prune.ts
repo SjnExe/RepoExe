@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+
 import { parseRecipe } from '../core/parser.ts';
 import type { PackageRecipe } from '../core/types.ts';
 
@@ -42,7 +43,7 @@ export function identifyOrphanedReleases(releases: Array<Record<string, any>>, p
 export function identifyOutdatedAssets(
   assets: Array<Record<string, any>>,
   recipe?: PackageRecipe,
-  pkgName?: string,
+  _pkgName?: string,
 ): Array<Record<string, any>> {
   const toDelete: Array<Record<string, any>> = [];
   if (!recipe) return toDelete;

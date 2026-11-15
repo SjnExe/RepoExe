@@ -89,7 +89,7 @@ jobs:
           FORCE_REBUILD: ${{ inputs.force }}
           GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
-          JSON_OUT="$(bun run scripts/cli/generate_shards.ts)"
+          JSON_OUT="$(bun run shards)"
           MATRIX="$(echo "$JSON_OUT" | jq -c '.matrix')"
           echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
 
@@ -109,7 +109,11 @@ jobs:
         run: bun install --frozen-lockfile --silent
 
       - name: Code Quality & Health Audit
-        run: bun run check
+        run: |
+          bun fmt --check
+          bun check
+          bun run lint:check
+          bun run audit
 
       - name: Cache Actionlint Binary
         uses: actions/cache@v6
@@ -142,7 +146,7 @@ jobs:
         run: bun install --frozen-lockfile --silent
 
       - name: Execute Test Suite
-        run: bun test
+        run: bun test --parallel
 
   build:
     name: '${{ matrix.package }}'
@@ -285,7 +289,7 @@ jobs:
             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            bun run scripts/cli/build.ts compile "pkg/${PKG_NAME}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+            bun scripts/cli/build.ts compile "pkg/${PKG_NAME}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Profile Build Memory Peak
         if: always()
@@ -364,7 +368,7 @@ jobs:
             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            bun run scripts/cli/build.ts pack "pkg/${PKG_NAME}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+            bun scripts/cli/build.ts pack "pkg/${PKG_NAME}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Termux Docker Smoke Test
         id: test_step
@@ -391,7 +395,7 @@ jobs:
             --env SCCACHE_CACHE_SIZE="1G" \
             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            bun run scripts/cli/build.ts test "pkg/${PKG_NAME}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+            bun scripts/cli/build.ts test "pkg/${PKG_NAME}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Fix Cache Permissions Before Save
         if: always()
@@ -501,14 +505,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          bun run scripts/cli/prune.ts
+          bun run prune
 
       - name: Build Full Site & Repository Indexes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          bun run scripts/cli/index_gen.ts
+          bun run index
 
       - name: Verify Site Packaging & Symlink Integrity
         run: |

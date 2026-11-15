@@ -1,8 +1,9 @@
 import { expect, test } from 'bun:test';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseRecipe, computeStateHash } from '../core/parser.ts';
+
+import { parseRecipe } from '../core/parser.ts';
 
 test('parseRecipe parses aisleriot correctly', () => {
   const recipe = parseRecipe('pkg/aisleriot');

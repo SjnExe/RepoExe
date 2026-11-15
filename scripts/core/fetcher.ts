@@ -1,8 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
-import { gunzipSync } from 'node:zlib';
+
 import { PREFIX } from '../utils/properties.ts';
 
 export const TERMUX_REPOS: Array<[string, string]> = [
@@ -17,7 +17,7 @@ export const USER_AGENT =
 let _PKG_INDEX: Record<string, Record<string, string>> | null = null;
 
 function getAuthHeaders(headers?: Record<string, string>): Record<string, string> {
-  const res: Record<string, string> = { 'User-Agent': USER_AGENT, ...(headers || {}) };
+  const res: Record<string, string> = { 'User-Agent': USER_AGENT, ...headers };
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
   if (token && !res.Authorization) {
     res.Authorization = `Bearer ${token}`;
@@ -82,7 +82,7 @@ export async function loadTermuxIndex(): Promise<Record<string, Record<string, s
         if (!resp.ok) continue;
 
         const buf = Buffer.from(await resp.arrayBuffer());
-        const text = ext === '.gz' ? gunzipSync(buf).toString('utf-8') : buf.toString('utf-8');
+        const text = ext === '.gz' ? new TextDecoder().decode(Bun.gunzipSync(buf)) : buf.toString('utf-8');
 
         let currentPkg: Record<string, string> = {};
         for (const line of text.split('\n')) {
@@ -138,7 +138,7 @@ async function downloadFile(
   extraHeaders?: Record<string, string>,
 ): Promise<void> {
   mkdirSync(dirname(destPath), { recursive: true });
-  const headers = useAuth ? getAuthHeaders(extraHeaders) : { 'User-Agent': USER_AGENT, ...(extraHeaders || {}) };
+  const headers = useAuth ? getAuthHeaders(extraHeaders) : { 'User-Agent': USER_AGENT, ...extraHeaders };
   const resp = await fetch(url, { headers });
   if (!resp.ok) throw new Error(`Download failed with status ${resp.status}: ${url}`);
   const arr = await resp.arrayBuffer();

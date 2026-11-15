@@ -1,9 +1,9 @@
 # Design Specification: Multi-Architecture Smoke Test Runner
 
-* **Author:** Elephant Agent (Antigravity)
-* **Status:** Approved (Post-EGM Goldfish Review)
-* **Date:** 2026-11-13
-* **Target Components:** `scripts/cli/build.ts`, `scripts/docker/Dockerfile.tester`, `.github/workflows/build.yml`
+- **Author:** Elephant Agent (Antigravity)
+- **Status:** Approved (Post-EGM Goldfish Review)
+- **Date:** 2026-11-13
+- **Target Components:** `scripts/cli/build.ts`, `scripts/docker/Dockerfile.tester`, `.github/workflows/build.yml`
 
 ---
 
@@ -19,7 +19,7 @@ The initial draft was stress-tested by `egm-design` and `egm-implementation-read
 
 1. **Docker-outside-of-Docker (DooD) Host Path Resolution (Blocker Resolved):**
    When `build.ts` executes inside the builder container with `/var/run/docker.sock` mounted, sibling container mounts must resolve against the VM host runner path.
-   *Resolution:* Binds use `${process.env.GITHUB_WORKSPACE}/output:/tmp/repoexe-pkg:ro` rather than container-internal relative paths.
+   _Resolution:_ Binds use `${process.env.GITHUB_WORKSPACE}/output:/tmp/repoexe-pkg:ro` rather than container-internal relative paths.
 
 2. **Deterministic Package Targeting (Major Resolved):**
    Replaced unbounded wildcard globbing (`dpkg -i *.deb`) with deterministic filename resolution:
@@ -34,7 +34,7 @@ The initial draft was stress-tested by `egm-design` and `egm-implementation-read
 
 4. **Emulation Crash Trapping & Timeouts (Major Resolved):**
    QEMU user-mode emulation incurs 10x–30x execution overhead and potential threading deadlocks.
-   *Resolution:* All smoke test executions are bounded by `timeout: 120_000` ms with exit-code classification:
+   _Resolution:_ All smoke test executions are bounded by `timeout: 120_000` ms with exit-code classification:
    - Exit 124: Emulation Timeout
    - Exit 132/139: Architecture/QEMU Emulation Crash (SIGILL/SIGSEGV)
    - Non-zero: Package Smoke Test Failure

@@ -1,4 +1,5 @@
 import { delimiter, join } from 'node:path';
+
 import { $ } from 'bun';
 
 /** Ensures that Termux or custom environment PATH entries include PREFIX/bin. */
@@ -16,100 +17,69 @@ export function ensurePrefixPath(): void {
 export interface PreCommitOptions {
   stagedFiles?: string[];
   skipFormat?: boolean;
+  skipTypeCheck?: boolean;
+  skipLint?: boolean;
   skipHealthCheck?: boolean;
   skipTests?: boolean;
-  skipActionlint?: boolean;
   quiet?: boolean;
 }
 
 /**
- * Runs the pre-commit hook validation pipeline.
+ * Runs the pre-commit hook validation pipeline using Bun-native tools.
  *
- * @param options - Optional configuration overriding staged files or skipping verification stages.
+ * @param options - Optional configuration overriding stages.
  * @returns Resolves with true if all pre-commit checks pass, false otherwise.
  */
 export async function runPreCommitHook(options?: PreCommitOptions): Promise<boolean> {
   ensurePrefixPath();
 
   try {
-    let stagedFiles = options?.stagedFiles;
-    if (!stagedFiles) {
-      const stagedOutput = await $`git diff --cached --name-only -z --diff-filter=ACMR`.text();
-      stagedFiles = stagedOutput.split('\0').filter(Boolean);
-    }
-
     if (!options?.quiet) {
       console.log('🔍 Running RepoExe pre-commit verification...');
     }
 
-    // 1. Stage and format inspection
-    if (stagedFiles.length > 0 && !options?.skipFormat) {
-      const existingFiles: string[] = [];
-      for (const f of stagedFiles) {
-        if (await Bun.file(f).exists()) {
-          existingFiles.push(f);
-        }
+    // 1. Stage and format via native Bun formatter
+    if (!options?.skipFormat) {
+      if (!options?.quiet) {
+        console.log('🎨 Formatting staged files via bun fmt --staged...');
       }
+      await $`bun fmt --staged`.quiet();
+    }
 
-      const formattableFiles = existingFiles.filter(
-        (f) => /\.(js|ts|json|ya?ml|md)$/.test(f) && !f.includes('node_modules/') && !f.includes('.git/'),
-      );
-
-      if (formattableFiles.length > 0) {
-        const unstagedFiles = new Set<string>();
-        try {
-          const unstagedOutput = await $`git diff --name-only -z -- ${formattableFiles}`.quiet().text();
-          for (const f of unstagedOutput.split('\0').filter(Boolean)) {
-            unstagedFiles.add(f);
-          }
-        } catch (err) {
-          console.error('Failed to inspect unstaged changes:', err);
-          return false;
-        }
-
-        const fullyStagedFiles = formattableFiles.filter((f) => !unstagedFiles.has(f));
-        const partiallyStagedFiles = formattableFiles.filter((f) => unstagedFiles.has(f));
-
-        if (fullyStagedFiles.length > 0) {
-          if (!options?.quiet) {
-            console.log(`🎨 Formatting ${fullyStagedFiles.length} fully staged file(s)...`);
-          }
-          await $`bun fmt ${fullyStagedFiles}`.quiet();
-          await $`git add ${fullyStagedFiles}`.quiet();
-        }
-
-        if (partiallyStagedFiles.length > 0 && !options?.quiet) {
-          console.log(`ℹ️  Skipped re-staging for ${partiallyStagedFiles.length} partially staged file(s).`);
-        }
+    // 2. Incremental TypeScript type check via native bun check
+    if (!options?.skipTypeCheck) {
+      if (!options?.quiet) {
+        console.log('⚡ Running incremental type check via bun check...');
+      }
+      const checkTypes = await $`bun check`.nothrow().quiet();
+      if (checkTypes.exitCode !== 0) {
+        console.error(
+          `=== Type Check Failed (Exit: ${checkTypes.exitCode}) ===\n${checkTypes.stdout}${checkTypes.stderr}`,
+        );
+        console.error('\n❌ Pre-commit type checks failed.');
+        return false;
       }
     }
 
-    // 2. Actionlint validation (if workflow files are affected or actionlint is available)
-    if (!options?.skipActionlint) {
-      const hasWorkflowChanges = stagedFiles.some((f) => f.startsWith('.github/workflows/'));
-      const actionlintCmd = await $`which actionlint`.quiet().nothrow();
-      if (actionlintCmd.exitCode === 0) {
-        if (hasWorkflowChanges || stagedFiles.length === 0) {
-          if (!options?.quiet) {
-            console.log('📋 Linting GitHub Workflows with actionlint...');
-          }
-          const alResult = await $`actionlint`.nothrow();
-          if (alResult.exitCode !== 0) {
-            console.error(
-              `=== Actionlint Failed (Exit: ${alResult.exitCode}) ===\n${alResult.stderr || alResult.stdout}`,
-            );
-            return false;
-          }
-        }
+    // 3. Fast linting via Oxlint
+    if (!options?.skipLint) {
+      if (!options?.quiet) {
+        console.log('📋 Linting via oxlint...');
+      }
+      const lintRes = await $`bunx oxlint`.nothrow().quiet();
+      if (lintRes.exitCode !== 0) {
+        console.error(`=== Oxlint Check Failed (Exit: ${lintRes.exitCode}) ===\n${lintRes.stdout}${lintRes.stderr}`);
+        console.error('\n❌ Pre-commit lint checks failed.');
+        return false;
       }
     }
 
-    // 3. RepoExe orchestrator health check
+    // 4. RepoExe orchestrator health check
     if (!options?.skipHealthCheck) {
       if (!options?.quiet) {
         console.log('🏥 Running RepoExe build system & recipe health check...');
       }
-      const checkResult = await $`bun run scripts/cli/build.ts check`.nothrow();
+      const checkResult = await $`bun scripts/cli/build.ts check`.nothrow();
       if (checkResult.exitCode !== 0) {
         console.error(
           `=== Health Check Failed (Exit: ${checkResult.exitCode}) ===\n${checkResult.stdout}${checkResult.stderr}`,
@@ -119,7 +89,7 @@ export async function runPreCommitHook(options?: PreCommitOptions): Promise<bool
       }
     }
 
-    // 4. Unit test suite execution
+    // 5. Unit test suite execution
     if (!options?.skipTests) {
       if (!options?.quiet) {
         console.log('🧪 Running Bun unit test suite...');
@@ -148,9 +118,10 @@ if (import.meta.main) {
   const args = process.argv.slice(2);
   const options: PreCommitOptions = {
     skipFormat: args.includes('--skip-format'),
+    skipTypeCheck: args.includes('--skip-type-check'),
+    skipLint: args.includes('--skip-lint'),
     skipHealthCheck: args.includes('--skip-check'),
     skipTests: args.includes('--skip-tests'),
-    skipActionlint: args.includes('--skip-actionlint'),
   };
 
   const success = await runPreCommitHook(options);

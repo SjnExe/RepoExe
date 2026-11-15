@@ -1,5 +1,4 @@
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
   chmodSync,
   existsSync,
@@ -10,10 +9,10 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, join, relative, resolve } from 'node:path';
-import { gzipSync } from 'node:zlib';
+import { join, relative, resolve } from 'node:path';
+
+import { filterDepsForArch, formatDebianDependency, parseDependencyList } from '../core/dependencies.ts';
 import type { PackageRecipe } from '../core/types.ts';
-import { parseDependencyList, filterDepsForArch, formatDebianDependency } from '../core/dependencies.ts';
 import { sanitizeShebangs } from '../sanitizer/shebang.ts';
 
 export const ARCH_MAP: Record<string, string> = {
@@ -28,9 +27,13 @@ export function formatDebianVersion(recipe: PackageRecipe): string {
   return recipe.epoch > 0 ? `${recipe.epoch}:${verBody}` : verBody;
 }
 
-export function formatDebianFilenameVersion(recipe: PackageRecipe): string {
-  const verBody = recipe.revision > 0 ? `${recipe.version}-${recipe.revision}` : recipe.version;
-  return recipe.epoch > 0 ? `${recipe.epoch}_${verBody}` : verBody;
+export function formatDebianFilenameVersion(
+  recipe: Pick<PackageRecipe, 'version'> & Partial<Pick<PackageRecipe, 'epoch' | 'revision'>>,
+): string {
+  const revision = recipe.revision ?? 0;
+  const epoch = recipe.epoch ?? 0;
+  const verBody = revision > 0 ? `${recipe.version}-${revision}` : recipe.version;
+  return epoch > 0 ? `${epoch}_${verBody}` : verBody;
 }
 
 export function generateControlFile(recipe: PackageRecipe, installedSizeKib?: number): string {
@@ -245,15 +248,15 @@ export function generateAptMetadata(outputDir: string, component: string = 'main
       const controlInfo = res.stdout.trim();
       const content = readFileSync(debPath);
       const size = content.length;
-      const md5 = createHash('md5').update(content).digest('hex');
-      const sha256 = createHash('sha256').update(content).digest('hex');
+      const md5 = new Bun.CryptoHasher('md5').update(content).digest('hex');
+      const sha256 = new Bun.CryptoHasher('sha256').update(content).digest('hex');
       entries.push(`${controlInfo}\nFilename: ${debName}\nSize: ${size}\nMD5sum: ${md5}\nSHA256: ${sha256}\n\n`);
     }
   }
 
   const packagesContent = entries.join('');
   writeFileSync(packagesPath, packagesContent, 'utf-8');
-  writeFileSync(`${packagesPath}.gz`, gzipSync(Buffer.from(packagesContent, 'utf-8')));
+  writeFileSync(`${packagesPath}.gz`, Bun.gzipSync(Buffer.from(packagesContent, 'utf-8')));
 }
 
 export function generateReleaseFile(outputDir: string, suite: string = 'stable', component: string = 'main'): void {
@@ -277,7 +280,7 @@ export function generateReleaseFile(outputDir: string, suite: string = 'stable',
           }
         }
         const data = readFileSync(full);
-        const sha256 = createHash('sha256').update(data).digest('hex');
+        const sha256 = new Bun.CryptoHasher('sha256').update(data).digest('hex');
         fileEntries.push(` ${sha256} ${data.length} ${relPath}`);
       }
     }
