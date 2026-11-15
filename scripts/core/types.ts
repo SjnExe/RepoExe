@@ -10,7 +10,7 @@ export interface RecipeDefinition {
   version: string;
   epoch?: number;
   revision?: number;
-  arch?: string;
+  arch?: string | string[];
   description?: string;
   license?: string;
   homepage?: string;
@@ -58,6 +58,7 @@ export interface PackageRecipe {
   epoch: number;
   revision: number;
   arch: string;
+  arches?: string[];
   description: string;
   license: string;
   homepage: string;

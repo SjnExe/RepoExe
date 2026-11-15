@@ -105,17 +105,19 @@ export function generatePackagesJson(
           }
 
           if (assetMap.size === 0) {
-            const debArch = recipe.arch || 'aarch64';
+            const arches = recipe.arches && recipe.arches.length > 0 ? recipe.arches : [recipe.arch || 'aarch64'];
             const verStr = formatDebianVersion(recipe);
-            const defaultName = `${recipe.name}_${verStr}_${debArch}.deb`;
-            assetMap.set(defaultName, {
-              name: defaultName,
-              arch: debArch,
-              size: 0,
-              size_formatted: 'Release Asset',
-              download_url: `https://github.com/SjnExe/RepoExe/releases/download/${recipe.name}/${defaultName}`,
-              download_count: 0,
-            });
+            for (const debArch of arches) {
+              const defaultName = `${recipe.name}_${verStr}_${debArch}.deb`;
+              assetMap.set(defaultName, {
+                name: defaultName,
+                arch: debArch,
+                size: 0,
+                size_formatted: 'Release Asset',
+                download_url: `https://github.com/SjnExe/RepoExe/releases/download/${recipe.name}/${defaultName}`,
+                download_count: 0,
+              });
+            }
           }
 
           const assets = Array.from(assetMap.values());
@@ -128,7 +130,8 @@ export function generatePackagesJson(
             revision: recipe.revision,
             epoch: recipe.epoch,
             description: recipe.description || `${recipe.name} binary package`,
-            arch: recipe.arch || 'aarch64',
+            arch: recipe.arches && recipe.arches.length > 1 ? recipe.arches.join(', ') : recipe.arch || 'aarch64',
+            arches: recipe.arches || [recipe.arch || 'aarch64'],
             license: recipe.license || 'MIT',
             homepage: recipe.homepage || 'https://github.com/SjnExe/RepoExe',
             maintainer: recipe.maintainer || '@SjnExe',

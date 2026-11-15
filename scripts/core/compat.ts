@@ -51,8 +51,57 @@ export function resolveNdkTool(toolName: string): string {
   return toolName;
 }
 
-export function setupBionicCompat(): void {
-  const ndkClang = resolveNdkTool('aarch64-linux-android24-clang');
+interface NdkArchConfig {
+  clang: string;
+  clangxx: string;
+  cpu_family: string;
+  cpu: string;
+  extraFlags: string[];
+}
+
+const NDK_ARCH_CONFIGS: Record<string, NdkArchConfig> = {
+  aarch64: {
+    clang: 'aarch64-linux-android24-clang',
+    clangxx: 'aarch64-linux-android24-clang++',
+    cpu_family: 'aarch64',
+    cpu: 'armv8-a',
+    extraFlags: [],
+  },
+  arm64: {
+    clang: 'aarch64-linux-android24-clang',
+    clangxx: 'aarch64-linux-android24-clang++',
+    cpu_family: 'aarch64',
+    cpu: 'armv8-a',
+    extraFlags: [],
+  },
+  arm: {
+    clang: 'armv7a-linux-androideabi24-clang',
+    clangxx: 'armv7a-linux-androideabi24-clang++',
+    cpu_family: 'arm',
+    cpu: 'armv7-a',
+    extraFlags: ['-march=armv7-a', '-mfpu=neon', '-mfloat-abi=softfp'],
+  },
+  x86_64: {
+    clang: 'x86_64-linux-android24-clang',
+    clangxx: 'x86_64-linux-android24-clang++',
+    cpu_family: 'x86_64',
+    cpu: 'x86_64',
+    extraFlags: [],
+  },
+  i686: {
+    clang: 'i686-linux-android24-clang',
+    clangxx: 'i686-linux-android24-clang++',
+    cpu_family: 'x86',
+    cpu: 'i686',
+    extraFlags: ['-march=i686'],
+  },
+};
+
+export function setupBionicCompat(targetArch: string = 'aarch64'): void {
+  const normArch = (targetArch || 'aarch64').toLowerCase();
+  const archConfig = NDK_ARCH_CONFIGS[normArch] || NDK_ARCH_CONFIGS.aarch64;
+
+  const ndkClang = resolveNdkTool(archConfig.clang);
   let ndkAr = resolveNdkTool('llvm-ar');
   if (ndkAr === 'llvm-ar' && spawnSync('which', ['llvm-ar']).status !== 0) {
     ndkAr = resolveNdkTool('ar');
@@ -72,11 +121,11 @@ export function setupBionicCompat(): void {
   const cacheDir = join(repoRoot, '.cache', 'compat');
   mkdirSync(cacheDir, { recursive: true });
 
-  const cachedObj = join(cacheDir, `compat_${srcHash}.o`);
-  const cachedLib = join(cacheDir, `libcompat_${srcHash}.a`);
+  const cachedObj = join(cacheDir, `compat_${normArch}_${srcHash}.o`);
+  const cachedLib = join(cacheDir, `libcompat_${normArch}_${srcHash}.a`);
 
   if (!existsSync(cachedObj) || !existsSync(cachedLib)) {
-    console.log(`⚡ Compiling universal Bionic compat library (Hash: ${srcHash})...`);
+    console.log(`⚡ Compiling universal Bionic compat library for ${normArch} (Hash: ${srcHash})...`);
     const resCc = spawnSync(
       ndkClang,
       [
@@ -86,6 +135,7 @@ export function setupBionicCompat(): void {
         '-O2',
         '-Wno-error',
         '-Wno-ignored-attributes',
+        ...archConfig.extraFlags,
         '-c',
         compatSrc,
         '-o',
@@ -95,15 +145,15 @@ export function setupBionicCompat(): void {
     );
     if (resCc.status !== 0 || resCc.error) {
       const errDetail = resCc.error ? resCc.error.message : resCc.stderr || `exit code ${resCc.status}`;
-      throw new Error(`Failed to compile bionic_compat.c:\n${errDetail}`);
+      throw new Error(`Failed to compile bionic_compat.c for ${normArch}:\n${errDetail}`);
     }
 
     const resAr = spawnSync(ndkAr, ['rcs', cachedLib, cachedObj], { encoding: 'utf-8' });
     if (resAr.status !== 0 || resAr.error) {
       const errDetail = resAr.error ? resAr.error.message : resAr.stderr || `exit code ${resAr.status}`;
-      throw new Error(`Failed to create libcompat.a:\n${errDetail}`);
+      throw new Error(`Failed to create libcompat.a for ${normArch}:\n${errDetail}`);
     }
-    console.log('✓ Bionic compat library built and cached.');
+    console.log(`✓ Bionic compat library built and cached for ${normArch}.`);
   }
 
   const tempDir = process.env.TMPDIR || tmpdir();
@@ -118,7 +168,7 @@ export function setupBionicCompat(): void {
   mkdirSync(join(tempDir, 'icu-include'), { recursive: true });
   writeFileSync(join(tempDir, 'icu-include', 'android_lf.h'), '#pragma once\n#include <sys/types.h>\n', 'utf-8');
 
-  let ndkClangxx = resolveNdkTool('aarch64-linux-android24-clang++');
+  let ndkClangxx = resolveNdkTool(archConfig.clangxx);
   if (!ndkClangxx || !existsSync(ndkClangxx)) {
     ndkClangxx = ndkClang.replace('clang', 'clang++');
   }
@@ -132,6 +182,17 @@ export function setupBionicCompat(): void {
     '/usr/bin/glib-compile-resources';
 
   const stubH = join(tempDir, 'bionic_stub.h');
+  const extraCArgsStr = archConfig.extraFlags.map((f) => `'${f}'`).join(', ');
+  const cArgsList = [
+    "'-I/data/data/com.termux/files/usr/include'",
+    `'-I${tempDir}'`,
+    "'-include'",
+    `'${stubH}'`,
+    "'-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1'",
+    "'-fPIC'",
+    ...(extraCArgsStr ? [extraCArgsStr] : []),
+  ].join(', ');
+
   const mesonCross = `[binaries]
 c = '${ndkClang}'
 cpp = '${ndkClangxx}'
@@ -141,8 +202,8 @@ pkg-config = 'pkg-config'
 glib-compile-resources = '${hostGlibCompileResources}'
 
 [built-in options]
-c_args = ['-I/data/data/com.termux/files/usr/include', '-I${tempDir}', '-include', '${stubH}', '-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1', '-fPIC']
-cpp_args = ['-I/data/data/com.termux/files/usr/include', '-I${tempDir}', '-include', '${stubH}', '-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1', '-fPIC']
+c_args = [${cArgsList}]
+cpp_args = [${cArgsList}]
 c_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L${tempDir}', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
 cpp_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L${tempDir}', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
 
@@ -153,8 +214,8 @@ pkg_config_libdir = '/data/data/com.termux/files/usr/lib/pkgconfig:/data/data/co
 
 [host_machine]
 system = 'android'
-cpu_family = 'aarch64'
-cpu = 'aarch64'
+cpu_family = '${archConfig.cpu_family}'
+cpu = '${archConfig.cpu}'
 endian = 'little'
 `;
   writeFileSync(join(tempDir, 'meson-cross.ini'), mesonCross, 'utf-8');

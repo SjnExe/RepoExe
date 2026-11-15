@@ -151,7 +151,7 @@ jobs:
         run: bun test --parallel
 
   build:
-    name: '${{ matrix.package }}'
+    name: '${{ matrix.package }} (${{ matrix.arch }})'
     needs: [generate-matrix, lint-audit, test-suite]
     if: ${{ !inputs.skip_build && needs.generate-matrix.outputs.matrix != '[]' }}
     runs-on: ubuntu-latest
@@ -269,12 +269,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
+          TARGET_ARCH: ${{ matrix.arch }}
         run: |
           set -o pipefail
           OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
-          LOG_FILE="build_logs/${PKG_NAME}.log"
+          LOG_FILE="build_logs/${PKG_NAME}_${TARGET_ARCH}.log"
           mkdir -p build_logs
-          echo "=== STAGE: COMPILE ===" >> "${LOG_FILE}"
+          echo "=== STAGE: COMPILE (${TARGET_ARCH}) ===" >> "${LOG_FILE}"
 
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
@@ -294,7 +295,7 @@ jobs:
             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            bun scripts/cli/build.ts compile "pkg/${PKG_NAME}" ${{ (inputs.force || matrix.force) && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+            bun scripts/cli/build.ts compile "pkg/${PKG_NAME}" --arch "${TARGET_ARCH}" ${{ (inputs.force || matrix.force) && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Profile Build Memory Peak
         if: always()
@@ -349,11 +350,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
+          TARGET_ARCH: ${{ matrix.arch }}
         run: |
           set -o pipefail
           OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
-          LOG_FILE="build_logs/${PKG_NAME}.log"
-          echo "=== STAGE: PACK ===" >> "${LOG_FILE}"
+          LOG_FILE="build_logs/${PKG_NAME}_${TARGET_ARCH}.log"
+          echo "=== STAGE: PACK (${TARGET_ARCH}) ===" >> "${LOG_FILE}"
 
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
@@ -373,18 +375,19 @@ jobs:
             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            bun scripts/cli/build.ts pack "pkg/${PKG_NAME}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+            bun scripts/cli/build.ts pack "pkg/${PKG_NAME}" --arch "${TARGET_ARCH}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Termux Docker Smoke Test
         id: test_step
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
+          TARGET_ARCH: ${{ matrix.arch }}
         run: |
           set -o pipefail
           OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
-          LOG_FILE="build_logs/${PKG_NAME}.log"
-          echo "=== STAGE: TEST ===" >> "${LOG_FILE}"
+          LOG_FILE="build_logs/${PKG_NAME}_${TARGET_ARCH}.log"
+          echo "=== STAGE: TEST (${TARGET_ARCH}) ===" >> "${LOG_FILE}"
 
           sudo chmod 666 /var/run/docker.sock 2>/dev/null || true
 
@@ -400,7 +403,7 @@ jobs:
             --env SCCACHE_CACHE_SIZE="1G" \
             --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            bun scripts/cli/build.ts test "pkg/${PKG_NAME}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+            bun scripts/cli/build.ts test "pkg/${PKG_NAME}" --arch "${TARGET_ARCH}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Fix Cache Permissions Before Save
         if: matrix.cache && always()
@@ -421,13 +424,13 @@ jobs:
             .cargoregistry
             .cargogit
             .cache
-          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ github.sha }}
+          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.arch }}-${{ github.sha }}
 
       - name: Save Package Build Artifact
         if: success()
         uses: actions/upload-artifact@v7
         with:
-          name: 'package-artifact-${{ matrix.package }}'
+          name: 'package-artifact-${{ matrix.package }}-${{ matrix.arch }}'
           path: output/
           retention-days: 1
 
@@ -435,7 +438,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: 'build-log-${{ matrix.package }}'
+          name: 'build-log-${{ matrix.package }}-${{ matrix.arch }}'
           path: build_logs/
           retention-days: 1
 

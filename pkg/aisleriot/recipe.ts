@@ -3,10 +3,10 @@ import { defineRecipe } from '@core/types.ts';
 export default defineRecipe({
   name: 'aisleriot',
   version: '3.22.35',
-  revision: 0,
+  revision: 1,
   auto_update: true,
   update_strategy: 'git_tag',
-  arch: 'aarch64',
+  arch: ['aarch64', 'arm', 'x86_64', 'i686'],
   description: 'GNOME solitaire card game collection',
   license: 'GPL-3.0-or-later',
   homepage: 'https://wiki.gnome.org/Apps/AisleRiot',
@@ -26,7 +26,28 @@ export default defineRecipe({
     configure: `export SCCACHE_DISABLE=1
 mkdir -p "\${PREFIX}/bin"
 mkdir -p "\${PREFIX}/host-bin"
-# Bridge host build tools so build-time scheme compilation and resource generation succeed natively
+
+# Smart guild cross-compilation wrapper
+cat << 'EOF' > "\${PREFIX}/host-bin/guild"
+#!/bin/sh
+REAL_GUILD="$(which guild-3.0 2>/dev/null || which guild 2>/dev/null || echo /usr/bin/guild)"
+TARGET_TUPLE=""
+case "\${TARGET_ARCH:-aarch64}" in
+  aarch64|arm64) TARGET_TUPLE="aarch64-linux-android" ;;
+  arm) TARGET_TUPLE="arm-linux-androideabi" ;;
+  x86_64) TARGET_TUPLE="x86_64-linux-android" ;;
+  i686) TARGET_TUPLE="i686-linux-android" ;;
+esac
+
+if [ "$1" = "compile" ] && [ -n "$TARGET_TUPLE" ]; then
+  shift
+  exec "$REAL_GUILD" compile --target="$TARGET_TUPLE" "$@"
+fi
+exec "$REAL_GUILD" "$@"
+EOF
+chmod +x "\${PREFIX}/host-bin/guild"
+cp -f "\${PREFIX}/host-bin/guild" "\${PREFIX}/bin/guild"
+
 if [ -x /usr/bin/guile-3.0 ]; then
   ln -sf /usr/bin/guile-3.0 "\${PREFIX}/host-bin/guile"
   ln -sf /usr/bin/guile-3.0 "\${PREFIX}/host-bin/guile-3.0"
@@ -37,13 +58,6 @@ elif [ -x /usr/bin/guile ]; then
   ln -sf /usr/bin/guile "\${PREFIX}/host-bin/guile-3.0"
   ln -sf /usr/bin/guile "\${PREFIX}/bin/guile"
   ln -sf /usr/bin/guile "\${PREFIX}/bin/guile-3.0"
-fi
-if [ -x /usr/bin/guild ]; then
-  ln -sf /usr/bin/guild "\${PREFIX}/host-bin/guild"
-  ln -sf /usr/bin/guild "\${PREFIX}/bin/guild"
-elif [ -x /usr/bin/guild-3.0 ]; then
-  ln -sf /usr/bin/guild-3.0 "\${PREFIX}/host-bin/guild"
-  ln -sf /usr/bin/guild-3.0 "\${PREFIX}/bin/guild"
 fi
 if command -v glib-compile-resources >/dev/null 2>&1; then
   ln -sf "$(command -v glib-compile-resources)" "\${PREFIX}/host-bin/glib-compile-resources"
