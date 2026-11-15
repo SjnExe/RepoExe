@@ -181,6 +181,7 @@ jobs:
           swap: ${{ matrix.swap }}
 
       - name: Restore Toolchain & Build Caches
+        if: matrix.caching
         uses: actions/cache/restore@v6
         with:
           path: |
@@ -195,6 +196,7 @@ jobs:
             build-cache-${{ matrix.build_system }}-${{ matrix.package }}-
 
       - name: Fix Cache Permissions
+        if: matrix.caching
         run: |
           mkdir -p .sccache .gocache .gomodcache .cargoregistry .cargogit .cache
           # Prune temporary compiler object caches before committing to Actions cache
@@ -399,7 +401,7 @@ jobs:
             bun scripts/cli/build.ts test "pkg/${PKG_NAME}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Fix Cache Permissions Before Save
-        if: always()
+        if: matrix.caching && always()
         run: |
           # Prune temporary compiler object caches before committing to Actions cache
           rm -rf .cache/zig/z /tmp/* 2>/dev/null || true
@@ -408,7 +410,7 @@ jobs:
 
       - name: Save Toolchain & Build Caches
         uses: actions/cache/save@v6
-        if: always() && !cancelled()
+        if: matrix.caching && (github.ref == 'refs/heads/main' || github.event_name == 'push') && !cancelled()
         with:
           path: |
             .sccache

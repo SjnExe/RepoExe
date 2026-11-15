@@ -104,3 +104,47 @@ test('parseRecipe applies heavy_build resource defaults when unspecified', () =>
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('parseRecipe defaults caching based on heavy_build with explicit overrides', () => {
+  const rRepoexe = parseRecipe('pkg/repoexe');
+  expect(rRepoexe.caching).toBe(false);
+
+  const tmp = mkdtempSync(join(tmpdir(), 'caching-test-'));
+  try {
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'heavy-default-cache',
+        version: '1.0.0',
+        heavy_build: true,
+      };`,
+    );
+    const rHeavy = parseRecipe(tmp);
+    expect(rHeavy.caching).toBe(true);
+
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'explicit-cache-on',
+        version: '1.0.0',
+        caching: true,
+      };`,
+    );
+    const r1 = parseRecipe(tmp);
+    expect(r1.caching).toBe(true);
+
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'explicit-cache-off',
+        version: '1.0.0',
+        heavy_build: true,
+        caching: false,
+      };`,
+    );
+    const r2 = parseRecipe(tmp);
+    expect(r2.caching).toBe(false);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});

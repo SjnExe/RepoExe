@@ -165,6 +165,7 @@ export async function buildMatrixLayer(
       matrix.push({
         package: p,
         heavy: r.heavy_build || maxSwap > 0 || maxZram > 0,
+        caching: r.caching,
         build_system: r.build_system,
         zram: maxZram,
         swap: maxSwap,
