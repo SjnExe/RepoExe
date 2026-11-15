@@ -14,7 +14,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 import { generateAptMetadata, generateReleaseFile } from '../builders/debian.ts';
 import { parseRecipe } from '../core/parser.ts';
-import { generatePackagesJson } from '../utils/metadata.ts';
+import { generatePackagesJson, type ReleaseAssetInfo } from '../utils/metadata.ts';
 import { getExpectedAssetFilenames } from './prune.ts';
 
 export function getExactPackageArtifacts(artPath: string, pkgName: string): string[] {
@@ -38,16 +38,17 @@ export function getExactPackageArtifacts(artPath: string, pkgName: string): stri
   return Array.from(new Set(matching)).sort();
 }
 
-export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Promise<void> {
+export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Promise<Map<string, ReleaseAssetInfo[]>> {
+  const assetMap = new Map<string, ReleaseAssetInfo[]>();
   const ghCheck = spawnSync('which', ['gh']);
-  if (ghCheck.status !== 0) return;
+  if (ghCheck.status !== 0) return assetMap;
 
   mkdirSync(artPath, { recursive: true });
   const repoRoot = resolve('.');
   const pkgsDir = join(repoRoot, 'pkg');
 
   const repoRes = spawnSync('gh', ['repo', 'view', '--json', 'name,owner'], { encoding: 'utf-8' });
-  if (repoRes.status !== 0) return;
+  if (repoRes.status !== 0) return assetMap;
 
   let owner: string;
   let repoName: string;
@@ -56,20 +57,20 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
     owner = repoInfo.owner.login;
     repoName = repoInfo.name;
   } catch {
-    return;
+    return assetMap;
   }
 
   const releasesRes = spawnSync('gh', ['api', '--paginate', `repos/${owner}/${repoName}/releases`], {
     encoding: 'utf-8',
     maxBuffer: 20 * 1024 * 1024,
   });
-  if (releasesRes.status !== 0) return;
+  if (releasesRes.status !== 0) return assetMap;
 
   let releases: Array<Record<string, any>> = [];
   try {
     releases = JSON.parse(releasesRes.stdout);
   } catch {
-    return;
+    return assetMap;
   }
 
   for (const rel of releases) {
@@ -95,6 +96,8 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
       continue;
     }
 
+    const pkgAssets: ReleaseAssetInfo[] = [];
+
     for (const asset of rel.assets || []) {
       const name = asset.name || '';
       const downloadUrl = asset.browser_download_url;
@@ -103,6 +106,13 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
       if (!expectedFiles.has(name)) {
         continue;
       }
+
+      pkgAssets.push({
+        name,
+        size: typeof asset.size === 'number' ? asset.size : 0,
+        download_count: typeof asset.download_count === 'number' ? asset.download_count : 0,
+        browser_download_url: downloadUrl,
+      });
 
       const targetFile = join(artPath, name);
       if (!existsSync(targetFile)) {
@@ -116,7 +126,13 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
         } catch {}
       }
     }
+
+    if (pkgAssets.length > 0) {
+      assetMap.set(pkg, pkgAssets);
+    }
   }
+
+  return assetMap;
 }
 
 export async function prepareSite(
@@ -190,11 +206,12 @@ export async function prepareSite(
   }
 
   // 2. Fetch existing release assets
+  let releaseAssetMap = new Map<string, ReleaseAssetInfo[]>();
   if (!shouldSkipRemote) {
-    await fetchExistingReleaseAssetsToArtifacts(artPath);
+    releaseAssetMap = await fetchExistingReleaseAssetsToArtifacts(artPath);
   }
 
-  // 3. Copy accumulated artifacts to respective directories
+  // 3. Copy accumulated artifacts to aptStaging (site/apt/ only stores APT dists metadata; deb files are on GitHub Releases)
   if (existsSync(artPath)) {
     const copyArtifacts = (dir: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -204,7 +221,6 @@ export async function prepareSite(
         } else if (entry.isFile()) {
           if (entry.name.endsWith('.deb')) {
             copyFileSync(full, join(aptStaging, entry.name));
-            copyFileSync(full, join(sPath, 'apt', entry.name));
           }
         }
       }
@@ -212,7 +228,7 @@ export async function prepareSite(
     copyArtifacts(artPath);
   }
 
-  // 4. Generate APT Metadata and Release File
+  // 4. Generate APT Metadata and Release File with GitHub Release absolute URLs
   const debFiles = existsSync(aptStaging) ? readdirSync(aptStaging).filter((f) => f.endsWith('.deb')) : [];
 
   const arches = new Set<string>();
@@ -230,8 +246,9 @@ export async function prepareSite(
     arches.add('aarch64');
   }
 
+  const releaseBaseUrl = process.env.REPOEXE_RELEASE_BASE_URL || 'https://github.com/SjnExe/RepoExe/releases/download';
   for (const arch of arches) {
-    generateAptMetadata(aptStaging, 'main', arch);
+    generateAptMetadata(aptStaging, 'main', arch, releaseBaseUrl);
   }
   generateReleaseFile(aptStaging, 'stable', 'main');
 
@@ -242,12 +259,30 @@ export async function prepareSite(
 
   // 5. Generate packages.json Store Manifest
   const repoRoot = resolve('.');
-  generatePackagesJson(join(repoRoot, 'pkg'), join(sPath, 'packages.json'), artPath);
+  generatePackagesJson(join(repoRoot, 'pkg'), join(sPath, 'packages.json'), artPath, releaseAssetMap);
 
   // 6. Copy Frontend Source & Keyrings (dereferencing symlinks so site artifacts tarball cleanly)
   const siteSrcDir = join(repoRoot, 'scripts', 'site');
   if (existsSync(siteSrcDir)) {
     spawnSync('cp', ['-aL', `${siteSrcDir}/.`, `${sPath}/`]);
+  }
+
+  // Bundle scripts/site/app.ts using Bun into site/app.js
+  const appTs = join(siteSrcDir, 'app.ts');
+  if (existsSync(appTs)) {
+    try {
+      const buildRes = await Bun.build({
+        entrypoints: [appTs],
+        outdir: sPath,
+        target: 'browser',
+        minify: true,
+      });
+      if (!buildRes.success) {
+        console.warn('::warning:: Bun build error compiling app.ts:', buildRes.logs);
+      }
+    } catch (err: any) {
+      console.warn(`::warning:: Failed to bundle app.ts with Bun: ${err.message}`);
+    }
   }
 
   // Ensure site/install is a concrete file, never a dangling symlink

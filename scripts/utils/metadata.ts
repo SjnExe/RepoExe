@@ -1,9 +1,30 @@
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
+import { formatDebianVersion } from '../builders/debian.ts';
 import { parseRecipe } from '../core/parser.ts';
 
-export function generatePackagesJson(pkgDir?: string, outputFile?: string, artifactsDir?: string): void {
+export interface ReleaseAssetInfo {
+  name: string;
+  size: number;
+  download_count: number;
+  browser_download_url: string;
+}
+
+export function formatBytes(bytes?: number): string {
+  if (!bytes || bytes <= 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
+export function generatePackagesJson(
+  pkgDir?: string,
+  outputFile?: string,
+  artifactsDir?: string,
+  releaseAssetMap?: Map<string, ReleaseAssetInfo[]>,
+): void {
   const repoRoot = resolve('.');
   const pkgsPath = pkgDir ? resolve(pkgDir) : join(repoRoot, 'pkg');
   const outPath = outputFile ? resolve(outputFile) : join(repoRoot, 'site', 'packages.json');
@@ -11,13 +32,13 @@ export function generatePackagesJson(pkgDir?: string, outputFile?: string, artif
 
   mkdirSync(dirname(outPath), { recursive: true });
 
-  const availableFiles = new Set<string>();
+  const availableFiles = new Map<string, string>();
   if (existsSync(artPath)) {
     const collect = (dir: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const full = join(dir, entry.name);
         if (entry.isDirectory()) collect(full);
-        else if (entry.isFile()) availableFiles.add(entry.name);
+        else if (entry.isFile()) availableFiles.set(entry.name, full);
       }
     };
     collect(artPath);
@@ -37,6 +58,68 @@ export function generatePackagesJson(pkgDir?: string, outputFile?: string, artif
         try {
           const recipe = parseRecipe(recipeFile);
           const formats = recipe.formats || ['apt'];
+          const uploaders = Array.isArray(recipe.uploaders)
+            ? recipe.uploaders
+            : recipe.uploaders
+              ? [recipe.uploaders]
+              : [];
+
+          // Collect assets (from remote GitHub releases or local artifacts)
+          const assets: Array<Record<string, any>> = [];
+          const remoteAssets = releaseAssetMap?.get(recipe.name);
+
+          if (remoteAssets && remoteAssets.length > 0) {
+            for (const asset of remoteAssets) {
+              if (!asset.name.endsWith('.deb')) continue;
+              const parts = asset.name.split('_');
+              const arch = parts[parts.length - 1].replace('.deb', '');
+              assets.push({
+                name: asset.name,
+                arch,
+                size: asset.size,
+                size_formatted: formatBytes(asset.size),
+                download_url: asset.browser_download_url,
+                download_count: asset.download_count || 0,
+              });
+            }
+          }
+
+          if (assets.length === 0) {
+            for (const [filename, fullPath] of availableFiles.entries()) {
+              if (filename.startsWith(`${recipe.name}_`) && filename.endsWith('.deb')) {
+                const parts = filename.split('_');
+                const arch = parts[parts.length - 1].replace('.deb', '');
+                let size = 0;
+                try {
+                  size = statSync(fullPath).size;
+                } catch {}
+                assets.push({
+                  name: filename,
+                  arch,
+                  size,
+                  size_formatted: formatBytes(size),
+                  download_url: `https://github.com/SjnExe/RepoExe/releases/download/${recipe.name}/${filename}`,
+                  download_count: 0,
+                });
+              }
+            }
+          }
+
+          if (assets.length === 0) {
+            const debArch = recipe.arch || 'aarch64';
+            const verStr = formatDebianVersion(recipe);
+            const defaultName = `${recipe.name}_${verStr}_${debArch}.deb`;
+            assets.push({
+              name: defaultName,
+              arch: debArch,
+              size: 0,
+              size_formatted: 'Release Asset',
+              download_url: `https://github.com/SjnExe/RepoExe/releases/download/${recipe.name}/${defaultName}`,
+              download_count: 0,
+            });
+          }
+
+          const totalDownloads = assets.reduce((acc, curr) => acc + (curr.download_count || 0), 0);
 
           items.push({
             name: recipe.name,
@@ -47,8 +130,8 @@ export function generatePackagesJson(pkgDir?: string, outputFile?: string, artif
             arch: recipe.arch || 'aarch64',
             license: recipe.license || 'MIT',
             homepage: recipe.homepage || 'https://github.com/SjnExe/RepoExe',
-            maintainer: recipe.maintainer || 'SjnExe',
-            uploaders: recipe.uploaders || [],
+            maintainer: recipe.maintainer || '@SjnExe',
+            uploaders,
             formats: Array.from(new Set(formats)).sort(),
             deps: recipe.deps,
             recommends: recipe.recommends,
@@ -56,7 +139,9 @@ export function generatePackagesJson(pkgDir?: string, outputFile?: string, artif
             conflicts: recipe.conflicts,
             provides: recipe.provides,
             replaces: recipe.replaces,
-            verified_built: Array.from(availableFiles).some((f) => f.includes(recipe.name)),
+            verified_built: Array.from(availableFiles.keys()).some((f) => f.includes(recipe.name)),
+            assets,
+            total_downloads: totalDownloads,
           });
         } catch {}
       }
