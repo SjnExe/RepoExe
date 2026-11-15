@@ -20,7 +20,7 @@ export default defineRecipe({
   resources: {
     zram: 0,
     swap: 0,
-    tmpfs: 12,
+    tmpfs: 4,
   },
   phases: {
     configure: `export SCCACHE_DISABLE=1
