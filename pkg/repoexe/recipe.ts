@@ -17,8 +17,12 @@ export default defineRecipe({
   },
   phases: {
     install: `mkdir -p "\${DESTDIR}\${PREFIX}/bin"
+mkdir -p "\${DESTDIR}\${PREFIX}/etc/apt/sources.list.d"
+mkdir -p "\${DESTDIR}\${PREFIX}/etc/apt/trusted.gpg.d"
 cp "../../scripts/site/install" "\${DESTDIR}\${PREFIX}/bin/repoexe"
 chmod +x "\${DESTDIR}\${PREFIX}/bin/repoexe"
+echo "deb [signed-by=\${PREFIX}/etc/apt/trusted.gpg.d/repoexe.asc] https://sjnexe.github.io/RepoExe/apt stable main" > "\${DESTDIR}\${PREFIX}/etc/apt/sources.list.d/repoexe.list"
+cp "../../scripts/repoexe.gpg" "\${DESTDIR}\${PREFIX}/etc/apt/trusted.gpg.d/repoexe.asc"
 `,
     test: `repoexe --version
 `,

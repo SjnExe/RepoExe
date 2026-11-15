@@ -33,8 +33,6 @@ reviews:
     - '!build_logs/**'
     - '!.cache/**'
     - '!*.deb'
-    - '!*.pkg.tar.zst'
-    - '!*.apk'
 
   path_instructions:
     - path: 'scripts/**/*.ts'

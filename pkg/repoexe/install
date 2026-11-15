@@ -1,11 +1,12 @@
 #!/bin/sh
 set -e
 
-if [ -z "$PREFIX" ] && [ -d "/data/data/com.termux/files/usr" ]; then
-  PREFIX="/data/data/com.termux/files/usr"
-fi
-PREFIX="${PREFIX:-/usr/local}"
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 REPO_URL="https://sjnexe.github.io/RepoExe"
+SOURCES_DIR="$PREFIX/etc/apt/sources.list.d"
+KEYRING_DIR="$PREFIX/etc/apt/trusted.gpg.d"
+LIST_FILE="$SOURCES_DIR/repoexe.list"
+KEY_FILE="$KEYRING_DIR/repoexe.asc"
 
 # Terminal Colors
 if [ -t 1 ]; then
@@ -25,129 +26,74 @@ else
 fi
 
 show_help() {
-  printf "${BOLD}RepoExe Repository Management CLI v2.0.0${RESET}\n\n"
+  printf "${BOLD}RepoExe Management CLI v2.0.0${RESET}\n\n"
   printf "${BOLD}USAGE:${RESET}\n"
-  printf "  repoexe <command> [target1 target2 ...]\n\n"
+  printf "  repoexe <command>\n\n"
   printf "${BOLD}COMMANDS:${RESET}\n"
-  printf "  ${CYAN}status, -s${RESET}                  Check system repository integrations status\n"
-  printf "  ${CYAN}sync, -y${RESET}                    Re-sync all manager integrations from upstream\n"
-  printf "  ${CYAN}list, ls, -l${RESET}                List all available packages in RepoExe store\n"
-  printf "  ${CYAN}doctor${RESET}                      Run diagnostic health checks on repository setup\n"
-  printf "  ${CYAN}enable, -e <target...>${RESET}       Enable manager(s) (${BOLD}apt|all${RESET})\n"
-  printf "  ${CYAN}disable, -d <target...>${RESET}      Disable manager(s) (${BOLD}apt|all${RESET})\n"
-  printf "  ${CYAN}version, -v${RESET}                 Print CLI version\n"
-  printf "  ${CYAN}help, -h${RESET}                    Show this help menu\n"
+  printf "  ${CYAN}status${RESET}     Check RepoExe APT repository integration status\n"
+  printf "  ${CYAN}enable${RESET}     Enable RepoExe APT repository source\n"
+  printf "  ${CYAN}disable${RESET}    Disable RepoExe APT repository source\n"
+  printf "  ${CYAN}--version${RESET}  Print version\n"
+  printf "  ${CYAN}--help${RESET}     Show this help menu\n"
 }
 
 check_status() {
-  printf "${BOLD}=== RepoExe System Status ===${RESET}\n"
-
-  if [ -f "$PREFIX/etc/apt/sources.list.d/repoexe.list" ]; then
-    printf "  APT Repository:      [${GREEN}ENABLED${RESET}]\n"
+  printf "${BOLD}=== RepoExe Status ===${RESET}\n"
+  if [ -f "$LIST_FILE" ]; then
+    printf "  APT Source:   [${GREEN}ENABLED${RESET}]  (%s)\n" "$LIST_FILE"
   else
-    printf "  APT Repository:      [${RED}DISABLED${RESET}]\n"
+    printf "  APT Source:   [${RED}DISABLED${RESET}]\n"
+  fi
+
+  if [ -s "$KEY_FILE" ] && grep -q "BEGIN PGP PUBLIC KEY BLOCK" "$KEY_FILE" 2>/dev/null; then
+    printf "  Signing Key:  [${GREEN}OK${RESET}]       (%s)\n" "$KEY_FILE"
+  else
+    printf "  Signing Key:  [${YELLOW}MISSING${RESET}]\n"
   fi
 }
 
-list_packages() {
-  printf "${BOLD}Fetching available packages from RepoExe...${RESET}\n\n"
-  if command -v curl >/dev/null 2>&1; then
-    curl -sL "$REPO_URL/packages.json" | grep -E '"name"|"version"|"description"' | sed 's/[",]//g' | paste - - - 2>/dev/null || true
-  else
-    printf "${RED}curl is required to list remote packages.${RESET}\n"
-  fi
-}
-
-run_doctor() {
-  printf "${BOLD}=== RepoExe Health Doctor ===${RESET}\n"
-
-  if curl -sI "$REPO_URL/packages.json" | grep -q "200 OK"; then
-    printf "  Network Reachability: [${GREEN}OK${RESET}]\n"
-  else
-    printf "  Network Reachability: [${RED}FAILED${RESET}]\n"
-  fi
-
-  if [ -f "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc" ] || [ -f "$PREFIX/etc/apt/sources.list.d/repoexe.list" ]; then
-    printf "  APT Source Config:    [${GREEN}OK${RESET}]\n"
-  else
-    printf "  APT Source Config:    [${RED}MISSING${RESET}]\n"
-  fi
-}
-
-enable_single_manager() {
-  case "$1" in
-    apt|all)
-      mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/trusted.gpg.d"
-      echo "deb [signed-by=$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc] $REPO_URL/apt stable main" > "$PREFIX/etc/apt/sources.list.d/repoexe.list"
-      curl -sL "$REPO_URL/repoexe.gpg" -o "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc" 2>/dev/null || true
-      printf "${GREEN}✓ Enabled APT repository.${RESET}\n"
-      ;;
-    *)
-      printf "${RED}Error: Unknown target '$1'. Options: apt, all${RESET}\n"
-      return 1
-      ;;
-  esac
-}
-
-disable_single_manager() {
-  case "$1" in
-    apt|all)
-      rm -f "$PREFIX/etc/apt/sources.list.d/repoexe.list"
-      printf "${YELLOW}✓ Disabled APT repository.${RESET}\n"
-      ;;
-    *)
-      printf "${RED}Error: Unknown target '$1'. Options: apt, all${RESET}\n"
-      return 1
-      ;;
-  esac
-}
-
-enable_manager() {
-  for target in "$@"; do
-    if ! enable_single_manager "$target"; then
+enable_repo() {
+  mkdir -p "$SOURCES_DIR" "$KEYRING_DIR"
+  if [ ! -s "$KEY_FILE" ] || ! grep -q "BEGIN PGP PUBLIC KEY BLOCK" "$KEY_FILE" 2>/dev/null; then
+    if ! command -v curl >/dev/null 2>&1; then
+      printf "${RED}Error: 'curl' is required to fetch repository signing key.${RESET}\n" >&2
       exit 1
     fi
-  done
-}
-
-disable_manager() {
-  for target in "$@"; do
-    if ! disable_single_manager "$target"; then
+    TMP_KEY="${KEY_FILE}.tmp.$$"
+    trap 'rm -f "$TMP_KEY"' EXIT INT TERM
+    if ! curl -fsSL "$REPO_URL/repoexe.gpg" -o "$TMP_KEY"; then
+      rm -f "$TMP_KEY"
+      trap - EXIT INT TERM
+      printf "${RED}Error: Failed to download signing key from $REPO_URL/repoexe.gpg${RESET}\n" >&2
       exit 1
     fi
-  done
+    if ! grep -q "BEGIN PGP PUBLIC KEY BLOCK" "$TMP_KEY" 2>/dev/null; then
+      rm -f "$TMP_KEY"
+      trap - EXIT INT TERM
+      printf "${RED}Error: Downloaded signing key is invalid or corrupted.${RESET}\n" >&2
+      exit 1
+    fi
+    mv -f "$TMP_KEY" "$KEY_FILE"
+    trap - EXIT INT TERM
+  fi
+  echo "deb [signed-by=$KEY_FILE] $REPO_URL/apt stable main" > "$LIST_FILE"
+  printf "${GREEN}✓ RepoExe APT repository enabled.${RESET}\n"
 }
 
-# Main CLI dispatch
+disable_repo() {
+  rm -f "$LIST_FILE"
+  printf "${YELLOW}✓ RepoExe APT repository disabled.${RESET}\n"
+}
+
 case "$1" in
-  status|-s)
+  status)
     check_status
     ;;
-  sync|-y)
-    printf "${CYAN}Syncing RepoExe environment settings...${RESET}\n"
-    enable_manager all
+  enable)
+    enable_repo
     ;;
-  list|ls|-l)
-    list_packages
-    ;;
-  doctor)
-    run_doctor
-    ;;
-  enable|-e)
-    shift
-    if [ $# -eq 0 ]; then
-      printf "${RED}Usage: repoexe enable <apt|all...>${RESET}\n"
-      exit 1
-    fi
-    enable_manager "$@"
-    ;;
-  disable|-d)
-    shift
-    if [ $# -eq 0 ]; then
-      printf "${RED}Usage: repoexe disable <apt|all...>${RESET}\n"
-      exit 1
-    fi
-    disable_manager "$@"
+  disable)
+    disable_repo
     ;;
   version|-v|--version)
     printf "repoexe v2.0.0\n"
@@ -156,14 +102,12 @@ case "$1" in
     show_help
     ;;
   "")
-    enable_single_manager apt
+    enable_repo
+    printf "\n${BOLD}Run '${CYAN}apt update${RESET}${BOLD}' (or '${CYAN}pkg update${RESET}${BOLD}') to synchronize packages.${RESET}\n"
+    printf "Install packages using: '${CYAN}pkg install <pkg>${RESET}'\n"
     ;;
   *)
-    if [ "$1" = "--all" ]; then
-      enable_manager all
-    else
-      printf "${RED}Error: Unknown command or target '$1'. Run 'repoexe help' for usage.${RESET}\n"
-      exit 1
-    fi
+    printf "${RED}Error: Unknown command '$1'. Run 'repoexe --help' for usage.${RESET}\n"
+    exit 1
     ;;
 esac
