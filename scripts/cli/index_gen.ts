@@ -270,11 +270,9 @@ export async function prepareSite(
     copyFileSync(repoexeInstall, siteInstall);
   }
 
-  for (const key of ['scripts/repoexe.gpg', 'scripts/repoexe.rsa.pub']) {
-    const keyPath = join(repoRoot, key);
-    if (existsSync(keyPath)) {
-      copyFileSync(keyPath, join(sPath, basename(keyPath)));
-    }
+  const gpgKeyPath = join(repoRoot, 'scripts', 'repoexe.gpg');
+  if (existsSync(gpgKeyPath)) {
+    copyFileSync(gpgKeyPath, join(sPath, 'repoexe.gpg'));
   }
 
   writeFileSync(join(sPath, '.nojekyll'), '', 'utf-8');

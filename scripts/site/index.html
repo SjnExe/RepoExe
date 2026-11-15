@@ -3,55 +3,117 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RepoExe Package Store</title>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <meta name="theme-color" content="#070a0f" />
+    <meta name="description" content="Official RepoExe APT Package Repository for Android Termux." />
+    <title>RepoExe • Termux APT Repository</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <header>
-      <div class="header-container">
-        <h1><span class="material-icons">local_shipping</span> RepoExe Store</h1>
-        <p>Custom Android & Termux Binary Repository</p>
-      </div>
-    </header>
+    <div class="terminal-container">
+      <header class="term-window">
+        <div class="term-titlebar">
+          <div class="term-controls">
+            <span class="control-dot close"></span>
+            <span class="control-dot minimize"></span>
+            <span class="control-dot maximize"></span>
+          </div>
+          <div class="term-title">termux@localhost: ~/RepoExe</div>
+        </div>
+        <div class="term-body hero-body">
+          <div class="hero-prompt">
+            <span class="prompt-user">termux@localhost</span>:<span class="prompt-path">~</span>$
+            <span class="prompt-cmd">repoexe --status</span>
+          </div>
+          <h1 class="hero-heading">>_ RepoExe</h1>
+          <p class="hero-subtitle">
+            High-performance Debian APT package repository exclusively built for Android Termux.
+          </p>
+          <div class="hero-badges">
+            <span class="term-pill"><span class="pill-dot"></span>APT (.deb)</span>
+            <span class="term-pill">Bionic libc</span>
+            <span class="term-pill">Signed Keyring</span>
+            <span class="term-pill">Zero Root Required</span>
+          </div>
+        </div>
+      </header>
 
-    <main class="container">
-      <section class="install-box">
-        <div class="install-header">
-          <h3><span class="material-icons">terminal</span> Quick Install & Configuration</h3>
-          <button id="copyBtn" class="copy-btn" title="Copy command">
-            <span class="material-icons">content_copy</span>
+      <section class="term-window install-window">
+        <div class="term-titlebar">
+          <div class="term-controls">
+            <span class="control-dot close"></span>
+            <span class="control-dot minimize"></span>
+            <span class="control-dot maximize"></span>
+          </div>
+          <div class="term-title">sh - quick installation</div>
+          <button id="copyBtn" class="term-btn" title="Copy installation command">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
             <span id="copyText">Copy</span>
           </button>
         </div>
-
-        <div class="target-selector">
-          <span class="selector-label">Repository Registry:</span>
-          <div class="checkbox-group">
-            <label class="checkbox-label" for="cb-apt"
-              ><input type="checkbox" id="cb-apt" class="target-cb" value="apt" checked disabled /> APT (.deb)</label
-            >
+        <div class="term-body install-body">
+          <div class="code-wrapper">
+            <span class="code-prompt">$</span>
+            <code id="installCmd">curl -sL https://sjnexe.github.io/RepoExe/install | sh</code>
+          </div>
+          <div class="install-hint">
+            <span class="hint-bullet">↳</span> Configures <span class="term-hl">repoexe.list</span> and imports the
+            repository signing key.
           </div>
         </div>
-
-        <code id="installCmd">curl -sL https://sjnexe.github.io/RepoExe/install | sh -s -- enable apt</code>
       </section>
 
-      <section class="search-section">
+      <section class="search-window">
         <div class="search-bar">
-          <span class="material-icons">search</span>
-          <input type="text" id="searchInput" placeholder="Search packages (e.g. tsc, ruff, pydantic)..." />
-        </div>
-        <div class="filters">
-          <button class="filter-btn active" data-format="all">All</button>
-          <button class="filter-btn" data-format="apt">APT (.deb)</button>
+          <span class="search-prompt">~ $ search</span>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Search packages by name, description, architecture..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <span id="pkgCount" class="pkg-count">0 packages</span>
         </div>
       </section>
 
       <section id="packageGrid" class="package-grid">
-        <p class="loading">Loading packages...</p>
+        <div class="term-loading">
+          <span class="spinner"></span>
+          <p>Fetching packages from repository manifest...</p>
+        </div>
       </section>
-    </main>
+
+      <footer class="term-footer">
+        <div class="footer-prompt">
+          <span class="prompt-user">termux@localhost</span>:<span class="prompt-path">~/RepoExe</span>$
+          <span class="cursor-blink">█</span>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/SjnExe/RepoExe" target="_blank" rel="noopener">GitHub</a>
+          <span class="sep">•</span>
+          <a href="https://sjnexe.github.io/RepoExe/install" target="_blank" rel="noopener">Install Script</a>
+          <span class="sep">•</span>
+          <a href="https://github.com/SjnExe/RepoExe/issues" target="_blank" rel="noopener">Report Issue</a>
+        </div>
+      </footer>
+    </div>
 
     <script src="app.js"></script>
   </body>

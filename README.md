@@ -43,9 +43,7 @@ Use the `repoexe` management CLI:
 # Check repository status
 repoexe status
 
-# Run diagnostic health check
-repoexe doctor
-
-# Sync repository lists
-repoexe sync
+# Enable or disable repository integration
+repoexe enable
+repoexe disable
 ```
