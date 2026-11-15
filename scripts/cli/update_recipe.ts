@@ -23,19 +23,27 @@ export function findMatchingBrace(str: string, openBraceIdx: number): number {
     const prev = i > 0 ? str[i - 1] : '';
 
     if (inLineComment) {
-      if (char === '\n') inLineComment = false;
+      if (char === '\n') {
+        inLineComment = false;
+      }
       continue;
     }
     if (inBlockComment) {
-      if (char === '/' && prev === '*') inBlockComment = false;
+      if (char === '/' && prev === '*') {
+        inBlockComment = false;
+      }
       continue;
     }
     if (inSingleQuote) {
-      if (char === "'" && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) inSingleQuote = false;
+      if (char === "'" && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) {
+        inSingleQuote = false;
+      }
       continue;
     }
     if (inDoubleQuote) {
-      if (char === '"' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) inDoubleQuote = false;
+      if (char === '"' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) {
+        inDoubleQuote = false;
+      }
       continue;
     }
     if (inTemplate) {
@@ -94,7 +102,9 @@ export function findMatchingBrace(str: string, openBraceIdx: number): number {
       count++;
     } else if (char === '}') {
       count--;
-      if (count === 0) return i;
+      if (count === 0) {
+        return i;
+      }
     }
   }
   return -1;
@@ -113,19 +123,27 @@ function findSyntaxMatch(content: string, pattern: RegExp): number {
     const prev = i > 0 ? content[i - 1] : '';
 
     if (inLineComment) {
-      if (char === '\n') inLineComment = false;
+      if (char === '\n') {
+        inLineComment = false;
+      }
       continue;
     }
     if (inBlockComment) {
-      if (char === '/' && prev === '*') inBlockComment = false;
+      if (char === '/' && prev === '*') {
+        inBlockComment = false;
+      }
       continue;
     }
     if (inSingleQuote) {
-      if (char === "'" && (prev !== '\\' || (i > 1 && content[i - 2] === '\\'))) inSingleQuote = false;
+      if (char === "'" && (prev !== '\\' || (i > 1 && content[i - 2] === '\\'))) {
+        inSingleQuote = false;
+      }
       continue;
     }
     if (inDoubleQuote) {
-      if (char === '"' && (prev !== '\\' || (i > 1 && content[i - 2] === '\\'))) inDoubleQuote = false;
+      if (char === '"' && (prev !== '\\' || (i > 1 && content[i - 2] === '\\'))) {
+        inDoubleQuote = false;
+      }
       continue;
     }
     if (inTemplate) {
@@ -143,8 +161,11 @@ function findSyntaxMatch(content: string, pattern: RegExp): number {
           templateBraceStack[templateBraceStack.length - 1]++;
         } else if (char === '}') {
           const top = templateBraceStack[templateBraceStack.length - 1];
-          if (top === 0) templateBraceStack.pop();
-          else templateBraceStack[templateBraceStack.length - 1]--;
+          if (top === 0) {
+            templateBraceStack.pop();
+          } else {
+            templateBraceStack[templateBraceStack.length - 1]--;
+          }
         }
       }
       continue;
@@ -253,19 +274,27 @@ export function updateDirectObjectProperties(
     const prev = i > 0 ? str[i - 1] : '';
 
     if (inLineComment) {
-      if (char === '\n') inLineComment = false;
+      if (char === '\n') {
+        inLineComment = false;
+      }
       continue;
     }
     if (inBlockComment) {
-      if (char === '/' && prev === '*') inBlockComment = false;
+      if (char === '/' && prev === '*') {
+        inBlockComment = false;
+      }
       continue;
     }
     if (inSingleQuote) {
-      if (char === "'" && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) inSingleQuote = false;
+      if (char === "'" && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) {
+        inSingleQuote = false;
+      }
       continue;
     }
     if (inDoubleQuote) {
-      if (char === '"' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) inDoubleQuote = false;
+      if (char === '"' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) {
+        inDoubleQuote = false;
+      }
       continue;
     }
     if (inTemplate) {
@@ -319,7 +348,9 @@ export function updateDirectObjectProperties(
               const quote = str[valPos];
               let endVal = valPos + 1;
               while (endVal < str.length && str[endVal] !== quote) {
-                if (str[endVal] === '\\') endVal++;
+                if (str[endVal] === '\\') {
+                  endVal++;
+                }
                 endVal++;
               }
               if (endVal < str.length && str[endVal] === quote) {
@@ -357,23 +388,31 @@ export function updateDirectObjectProperties(
 
     if (char === "'") {
       inSingleQuote = true;
-      if (count === 1) lastSignificantToken = "'";
+      if (count === 1) {
+        lastSignificantToken = "'";
+      }
       continue;
     }
     if (char === '"') {
       inDoubleQuote = true;
-      if (count === 1) lastSignificantToken = '"';
+      if (count === 1) {
+        lastSignificantToken = '"';
+      }
       continue;
     }
     if (char === '`') {
       inTemplate = true;
-      if (count === 1) lastSignificantToken = '`';
+      if (count === 1) {
+        lastSignificantToken = '`';
+      }
       continue;
     }
 
     if (char === '{') {
       count++;
-      if (count === 1) lastSignificantToken = '{';
+      if (count === 1) {
+        lastSignificantToken = '{';
+      }
     } else if (char === '}') {
       count--;
       if (count === 0) {

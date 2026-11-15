@@ -19,20 +19,26 @@ export function resolveNdkTool(toolName: string): string {
       try {
         for (const host of readdirSync(prebuiltDir)) {
           const candidate = join(prebuiltDir, host, 'bin', toolName);
-          if (existsSync(candidate)) return candidate;
+          if (existsSync(candidate)) {
+            return candidate;
+          }
         }
       } catch {}
     }
 
     // 2. Fallback bounded search if located in alternative subdirectories
     const findInNdk = (dir: string, depth: number = 0): string | null => {
-      if (depth > 4) return null;
+      if (depth > 4) {
+        return null;
+      }
       try {
         for (const entry of readdirSync(dir, { withFileTypes: true })) {
           const full = join(dir, entry.name);
           if (entry.isDirectory()) {
             const res = findInNdk(full, depth + 1);
-            if (res) return res;
+            if (res) {
+              return res;
+            }
           } else if (entry.name === toolName) {
             return full;
           }
@@ -41,7 +47,9 @@ export function resolveNdkTool(toolName: string): string {
       return null;
     };
     const found = findInNdk(ndkPath);
-    if (found) return found;
+    if (found) {
+      return found;
+    }
   }
 
   const whichRes = spawnSync('which', [toolName], { encoding: 'utf-8' });
@@ -219,9 +227,4 @@ cpu = '${archConfig.cpu}'
 endian = 'little'
 `;
   writeFileSync(join(tempDir, 'meson-cross.ini'), mesonCross, 'utf-8');
-  if (tempDir !== '/tmp') {
-    try {
-      writeFileSync('/tmp/meson-cross.ini', mesonCross, 'utf-8');
-    } catch {}
-  }
 }

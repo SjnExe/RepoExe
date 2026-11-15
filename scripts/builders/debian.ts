@@ -42,7 +42,9 @@ export function extractDebArch(filename: string): string {
     return match[1] === 'arm64' ? 'aarch64' : match[1];
   }
   const stripped = filename.endsWith('.deb') ? filename.slice(0, -4) : filename;
-  if (stripped.endsWith('_x86_64')) return 'x86_64';
+  if (stripped.endsWith('_x86_64')) {
+    return 'x86_64';
+  }
   const lastUnderscore = stripped.lastIndexOf('_');
   return lastUnderscore !== -1 ? stripped.slice(lastUnderscore + 1) : 'unknown';
 }
@@ -62,31 +64,51 @@ export function generateControlFile(recipe: PackageRecipe, installedSizeKib?: nu
   if (installedSizeKib !== undefined) {
     lines.push(`Installed-Size: ${installedSizeKib}`);
   }
-  if (recipe.homepage) lines.push(`Homepage: ${recipe.homepage}`);
+  if (recipe.homepage) {
+    lines.push(`Homepage: ${recipe.homepage}`);
+  }
 
   const formatDepField = (rawList: string[]): string => {
-    if (!rawList || rawList.length === 0) return '';
+    if (!rawList || rawList.length === 0) {
+      return '';
+    }
     const clauses = parseDependencyList(rawList);
     const filtered = filterDepsForArch(clauses, debArch);
     return formatDebianDependency(filtered);
   };
 
   const depends = formatDepField(recipe.deps);
-  if (depends) lines.push(`Depends: ${depends}`);
+  if (depends) {
+    lines.push(`Depends: ${depends}`);
+  }
   const recommends = formatDepField(recipe.recommends);
-  if (recommends) lines.push(`Recommends: ${recommends}`);
+  if (recommends) {
+    lines.push(`Recommends: ${recommends}`);
+  }
   const suggests = formatDepField(recipe.suggests);
-  if (suggests) lines.push(`Suggests: ${suggests}`);
+  if (suggests) {
+    lines.push(`Suggests: ${suggests}`);
+  }
   const conflicts = formatDepField(recipe.conflicts);
-  if (conflicts) lines.push(`Conflicts: ${conflicts}`);
+  if (conflicts) {
+    lines.push(`Conflicts: ${conflicts}`);
+  }
   const provides = formatDepField(recipe.provides);
-  if (provides) lines.push(`Provides: ${provides}`);
+  if (provides) {
+    lines.push(`Provides: ${provides}`);
+  }
   const replaces = formatDepField(recipe.replaces);
-  if (replaces) lines.push(`Replaces: ${replaces}`);
+  if (replaces) {
+    lines.push(`Replaces: ${replaces}`);
+  }
   const breaks = formatDepField(recipe.breaks || []);
-  if (breaks) lines.push(`Breaks: ${breaks}`);
+  if (breaks) {
+    lines.push(`Breaks: ${breaks}`);
+  }
   const enhances = formatDepField(recipe.enhances || []);
-  if (enhances) lines.push(`Enhances: ${enhances}`);
+  if (enhances) {
+    lines.push(`Enhances: ${enhances}`);
+  }
 
   return lines.join('\n') + '\n';
 }
@@ -210,7 +232,9 @@ export function buildDeb(
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name !== 'DEBIAN') countBytes(full);
+        if (entry.name !== 'DEBIAN') {
+          countBytes(full);
+        }
       } else if (entry.isFile() && !entry.isSymbolicLink()) {
         totalBytes += statSync(full).size;
       }
@@ -330,7 +354,9 @@ export function generateReleaseFile(outputDir: string, suite: string = 'stable',
     spawnSync('gpg', ['--import'], { input: gpgPrivKey, encoding: 'utf-8' });
   } else {
     let keyPath = 'scripts/repoexe.gpg';
-    if (!existsSync(keyPath)) keyPath = 'repoexe.gpg';
+    if (!existsSync(keyPath)) {
+      keyPath = 'repoexe.gpg';
+    }
     if (existsSync(keyPath)) {
       spawnSync('gpg', ['--import', keyPath]);
     }

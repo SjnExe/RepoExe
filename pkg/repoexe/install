@@ -7,6 +7,8 @@ SOURCES_DIR="$PREFIX/etc/apt/sources.list.d"
 KEYRING_DIR="$PREFIX/etc/apt/trusted.gpg.d"
 LIST_FILE="$SOURCES_DIR/repoexe.list"
 KEY_FILE="$KEYRING_DIR/repoexe.asc"
+REPOEXE_VERSION_FALLBACK="1.0.0"
+REPOEXE_VERSION="$(dpkg-query -W -f='${Version}' repoexe 2>/dev/null || echo "$REPOEXE_VERSION_FALLBACK")"
 
 # Terminal Colors
 if [ -t 1 ]; then
@@ -26,7 +28,7 @@ else
 fi
 
 show_help() {
-  printf "${BOLD}RepoExe Management CLI v1.0.0${RESET}\n\n"
+  printf "${BOLD}RepoExe Management CLI v%s${RESET}\n\n" "$REPOEXE_VERSION"
   printf "${BOLD}USAGE:${RESET}\n"
   printf "  repoexe <command> [options]\n\n"
   printf "${BOLD}COMMANDS & OPTIONS:${RESET}\n"
@@ -96,7 +98,7 @@ case "$1" in
     disable_repo
     ;;
   version|-v|--version)
-    printf "repoexe v1.0.0\n"
+    printf "repoexe v%s\n" "$REPOEXE_VERSION"
     ;;
   help|-h|--help)
     show_help

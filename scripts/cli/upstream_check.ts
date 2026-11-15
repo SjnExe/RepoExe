@@ -30,12 +30,20 @@ export function compareSemver(a: string, b: string): number {
   for (let i = 0; i < maxLen; i++) {
     const na = pa.num[i] || 0;
     const nb = pb.num[i] || 0;
-    if (na !== nb) return na - nb;
+    if (na !== nb) {
+      return na - nb;
+    }
   }
 
-  if (!pa.pre && pb.pre) return 1;
-  if (pa.pre && !pb.pre) return -1;
-  if (!pa.pre && !pb.pre) return 0;
+  if (!pa.pre && pb.pre) {
+    return 1;
+  }
+  if (pa.pre && !pb.pre) {
+    return -1;
+  }
+  if (!pa.pre && !pb.pre) {
+    return 0;
+  }
 
   const preA = pa.pre.split('.');
   const preB = pb.pre.split('.');
@@ -44,23 +52,33 @@ export function compareSemver(a: string, b: string): number {
   for (let i = 0; i < preLen; i++) {
     const partA = preA[i];
     const partB = preB[i];
-    if (partA === undefined) return -1;
-    if (partB === undefined) return 1;
-    if (partA === partB) continue;
+    if (partA === undefined) {
+      return -1;
+    }
+    if (partB === undefined) {
+      return 1;
+    }
+    if (partA === partB) {
+      continue;
+    }
 
     const isNumA = /^\d+$/.test(partA);
     const isNumB = /^\d+$/.test(partB);
 
     if (isNumA && isNumB) {
       const diff = parseInt(partA, 10) - parseInt(partB, 10);
-      if (diff !== 0) return diff;
+      if (diff !== 0) {
+        return diff;
+      }
     } else if (isNumA && !isNumB) {
       return -1;
     } else if (!isNumA && isNumB) {
       return 1;
     } else {
       const cmp = partA.localeCompare(partB);
-      if (cmp !== 0) return cmp;
+      if (cmp !== 0) {
+        return cmp;
+      }
     }
   }
 
@@ -90,11 +108,15 @@ export async function fetchGithubTag(owner: string, repo: string): Promise<strin
       for (const t of data) {
         const rawName = t.name || '';
         const ver = extractSemver(rawName);
-        if (!ver) continue;
+        if (!ver) {
+          continue;
+        }
         const dashIdx = ver.indexOf('-');
         if (dashIdx !== -1) {
           const pre = ver.slice(dashIdx + 1);
-          if (/(alpha|beta|rc|dev|test)/i.test(pre)) continue;
+          if (/(alpha|beta|rc|dev|test)/i.test(pre)) {
+            continue;
+          }
         }
         versions.push(ver);
       }
@@ -114,14 +136,20 @@ export function fetchGitTag(gitUrl: string): string | null {
     const lines = res.stdout.trim().split('\n');
     const versions: string[] = [];
     for (const line of lines) {
-      if (line.includes('^{}')) continue;
+      if (line.includes('^{}')) {
+        continue;
+      }
       const tag = line.split('/').pop() || '';
       const ver = extractSemver(tag);
-      if (!ver) continue;
+      if (!ver) {
+        continue;
+      }
       const dashIdx = ver.indexOf('-');
       if (dashIdx !== -1) {
         const pre = ver.slice(dashIdx + 1);
-        if (/(alpha|beta|rc|dev|test)/i.test(pre)) continue;
+        if (/(alpha|beta|rc|dev|test)/i.test(pre)) {
+          continue;
+        }
       }
       versions.push(ver);
     }
@@ -135,15 +163,21 @@ export function fetchGitTag(gitUrl: string): string | null {
 
 export async function checkPackageUpstream(recipe: PackageRecipe): Promise<string | null> {
   const strategy = recipe.update_strategy;
-  if (!strategy || !recipe.auto_update) return null;
+  if (!strategy || !recipe.auto_update) {
+    return null;
+  }
 
   const srcUrl = recipe.source || '';
   if (strategy === 'github_release' || strategy === 'github_tag') {
     const match = srcUrl.match(/github\.com\/([^/]+)\/([^/.#]+)/);
     if (match) {
       const [, owner, repo] = match;
-      if (strategy === 'github_release') return await fetchGithubRelease(owner, repo);
-      if (strategy === 'github_tag') return await fetchGithubTag(owner, repo);
+      if (strategy === 'github_release') {
+        return await fetchGithubRelease(owner, repo);
+      }
+      if (strategy === 'github_tag') {
+        return await fetchGithubTag(owner, repo);
+      }
     }
   } else if (strategy === 'git_tag') {
     return fetchGitTag(srcUrl);

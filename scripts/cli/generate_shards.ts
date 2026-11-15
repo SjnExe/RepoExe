@@ -95,7 +95,9 @@ export function parseTargetTokens(rawInput: string, dag: DependencyGraph, _pkgsD
 
   for (let token of tokens) {
     const isExclude = token.startsWith('!');
-    if (isExclude) token = token.slice(1);
+    if (isExclude) {
+      token = token.slice(1);
+    }
 
     const targetPart = token;
 
@@ -103,19 +105,27 @@ export function parseTargetTokens(rawInput: string, dag: DependencyGraph, _pkgsD
     if (targetPart.startsWith('type:') || targetPart.startsWith('format:')) {
       const targetFmt = targetPart.split(':')[1];
       for (const [p, r] of Object.entries(dag.recipes)) {
-        if (r.formats.includes(targetFmt)) matchedPkgs.add(p);
+        if (r.formats.includes(targetFmt)) {
+          matchedPkgs.add(p);
+        }
       }
     } else if (targetPart === 'all') {
-      for (const p of allPkgs) matchedPkgs.add(p);
+      for (const p of allPkgs) {
+        matchedPkgs.add(p);
+      }
     } else if (allPkgs.has(targetPart)) {
       matchedPkgs.add(targetPart);
     }
 
     if (isExclude) {
-      for (const p of matchedPkgs) excludedPkgs.add(p);
+      for (const p of matchedPkgs) {
+        excludedPkgs.add(p);
+      }
     } else {
       hasPositiveSelection = true;
-      for (const p of matchedPkgs) selectedPkgs.add(p);
+      for (const p of matchedPkgs) {
+        selectedPkgs.add(p);
+      }
     }
   }
 
@@ -146,12 +156,15 @@ export async function buildMatrixLayer(
 
   for (const p of pkgsList) {
     const recipePath = join(pkgsDir, p, 'recipe.ts');
-    if (!existsSync(recipePath)) continue;
+    if (!existsSync(recipePath)) {
+      continue;
+    }
 
     try {
       const r = dag.recipes[p] || parseRecipe(recipePath);
-      const isArchAll = r.arch === 'all' || Boolean(r.arches && r.arches.includes('all'));
-      const targetArches = isArchAll ? ['aarch64'] : r.arches && r.arches.length > 0 ? r.arches : [r.arch || 'aarch64'];
+      const isArchAll = r.arch === 'all' || (Array.isArray(r.arches) && r.arches.length === 1 && r.arches[0] === 'all');
+      const concreteArches = (r.arches || [r.arch || 'aarch64']).filter((a) => a !== 'all');
+      const targetArches = isArchAll ? ['aarch64'] : concreteArches.length > 0 ? concreteArches : ['aarch64'];
 
       let maxZram = Number(r.resources.zram ?? 0);
       let maxSwap = Number(r.resources.swap ?? 0);
@@ -205,7 +218,9 @@ export async function getMissingReleasePackages(dag: DependencyGraph, repoSlug?:
   const slug = repoSlug || process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
   const headers: Record<string, string> = { 'User-Agent': 'RepoExe-Matrix-Generator' };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   try {
     const releaseDebMap = new Map<string, Set<string>>();
@@ -215,12 +230,16 @@ export async function getMissingReleasePackages(dag: DependencyGraph, repoSlug?:
     while (hasMore) {
       const apiUrl = `https://api.github.com/repos/${slug}/releases?per_page=100&page=${page}`;
       const resp = await fetch(apiUrl, { headers, signal: AbortSignal.timeout(5000) });
-      if (!resp.ok) break;
+      if (!resp.ok) {
+        break;
+      }
       const releases = (await resp.json()) as Array<{
         tag_name?: string;
         assets?: Array<{ name: string }>;
       }>;
-      if (!Array.isArray(releases) || releases.length === 0) break;
+      if (!Array.isArray(releases) || releases.length === 0) {
+        break;
+      }
 
       for (const rel of releases) {
         const tag = rel.tag_name || '';
@@ -250,7 +269,11 @@ export async function getMissingReleasePackages(dag: DependencyGraph, repoSlug?:
         continue;
       }
 
-      const requiredArches = recipe.arches && recipe.arches.length > 0 ? recipe.arches : [recipe.arch || 'aarch64'];
+      const isArchAll =
+        recipe.arch === 'all' ||
+        (Array.isArray(recipe.arches) && recipe.arches.length === 1 && recipe.arches[0] === 'all');
+      const concreteArches = (recipe.arches || [recipe.arch || 'aarch64']).filter((a) => a !== 'all');
+      const requiredArches = isArchAll ? ['all'] : concreteArches.length > 0 ? concreteArches : ['aarch64'];
       const isMissingArch = requiredArches.some((reqArch) => {
         if (reqArch === 'all') {
           return !Array.from(debs).some((d) => d.endsWith('_all.deb'));

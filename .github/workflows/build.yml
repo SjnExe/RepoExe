@@ -194,9 +194,9 @@ jobs:
             .cargoregistry
             .cargogit
             .cache
-          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ github.sha }}
+          key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.arch }}-${{ github.sha }}
           restore-keys: |
-            build-cache-${{ matrix.build_system }}-${{ matrix.package }}-
+            build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.arch }}-
 
       - name: Fix Cache Permissions
         if: matrix.cache
@@ -338,7 +338,7 @@ jobs:
           fi
 
           {
-            echo "### 📊 Memory & Resource Telemetry (${{ matrix.package }})"
+            echo "### 📊 Memory & Resource Telemetry (${{ matrix.name || matrix.package }})"
             echo "| Metric | Consumption | Target Limit |"
             echo "| :--- | :--- | :--- |"
             echo "| **Peak RAM Usage** | \`${RAM_STR}\` | 16.00 GB Physical |"
