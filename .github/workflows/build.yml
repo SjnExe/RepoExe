@@ -148,6 +148,16 @@ jobs:
       - name: Execute Test Suite
         run: bun test --parallel
 
+  benchmark-memory:
+    name: ZRAM vs NVMe Swap Benchmark (Temporary)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Run Memory Architecture Benchmark
+        run: bash scripts/benchmarks/zram_vs_swap.sh
+
   build:
     name: '${{ matrix.package }}'
     needs: [generate-matrix, lint-audit, test-suite]
