@@ -538,14 +538,14 @@ async function main(): Promise<void> {
 
         // 1. Setup bionic compat if available
         try {
-          setupBionicCompat();
+          setupBionicCompat(recipe.arch);
         } catch (err) {
           console.error(`Warning: setupBionicCompat failed: ${err instanceof Error ? err.message : String(err)}`);
         }
 
         // 2. Fetch build dependencies
         if (!skipDeps && recipe.build_deps && recipe.build_deps.length > 0) {
-          await resolveAndFetchBuildDependencies(recipe.build_deps, destdir);
+          await resolveAndFetchBuildDependencies(recipe.build_deps, destdir, recipe.arch);
         }
 
         // 3. Fetch source and apply patches
@@ -561,6 +561,7 @@ async function main(): Promise<void> {
 
         const env: Record<string, string> = {
           ...(process.env as Record<string, string>),
+          TARGET_ARCH: recipe.arch,
           DESTDIR: stageDir,
           PREFIX: prefixDir,
           RECIPE_DIR: resolve(pDir),

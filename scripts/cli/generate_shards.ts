@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import { ARCH_MAP } from '../builders/debian.ts';
 import { extractAllPackageNames, parseDependencyList } from '../core/dependencies.ts';
 import { checkExistingReleaseHash } from '../core/fetcher.ts';
 import { parseRecipe } from '../core/parser.ts';
@@ -149,12 +150,7 @@ export async function buildMatrixLayer(
 
     try {
       const r = dag.recipes[p] || parseRecipe(recipePath);
-      const stateHash = r.state_hash || '';
-
-      if (!forceRebuild && stateHash && (await checkExistingReleaseHash(p, stateHash))) {
-        console.error(`Notice: Skipping matrix shard for ${p} (state_hash unchanged).`);
-        continue;
-      }
+      const targetArches = r.arches && r.arches.length > 0 ? r.arches : [r.arch || 'aarch64'];
 
       let maxZram = Number(r.resources.zram ?? 0);
       let maxSwap = Number(r.resources.swap ?? 0);
@@ -174,17 +170,26 @@ export async function buildMatrixLayer(
         }
       }
 
-      matrix.push({
-        package: p,
-        heavy: r.heavy_build || maxSwap > 0 || maxZram > 0,
-        cache: r.cache,
-        build_system: r.build_system,
-        zram: maxZram,
-        swap: maxSwap,
-        free_space: maxFreeSpace,
-        tmpfs: maxTmpfs,
-        force: forceRebuild,
-      });
+      for (const targetArch of targetArches) {
+        const stateHash = r.state_hash || '';
+        if (!forceRebuild && stateHash && (await checkExistingReleaseHash(p, stateHash, targetArch))) {
+          console.error(`Notice: Skipping matrix shard for ${p} [${targetArch}] (state_hash unchanged).`);
+          continue;
+        }
+
+        matrix.push({
+          package: p,
+          arch: targetArch,
+          heavy: r.heavy_build || maxSwap > 0 || maxZram > 0,
+          cache: r.cache,
+          build_system: r.build_system,
+          zram: maxZram,
+          swap: maxSwap,
+          free_space: maxFreeSpace,
+          tmpfs: maxTmpfs,
+          force: forceRebuild,
+        });
+      }
     } catch (err: any) {
       console.error(`Notice: Failed to build matrix layer for ${p}: ${err.message}`);
     }
@@ -209,18 +214,38 @@ export async function getMissingReleasePackages(dag: DependencyGraph, repoSlug?:
     }>;
     if (!Array.isArray(releases)) return [];
 
-    const validReleases = new Set<string>();
+    const releaseDebMap = new Map<string, Set<string>>();
     for (const rel of releases) {
       const tag = rel.tag_name || '';
-      const hasDeb = Array.isArray(rel.assets) && rel.assets.some((a) => a.name?.endsWith('.deb'));
-      if (hasDeb) {
-        validReleases.add(tag);
+      const debSet = new Set<string>();
+      if (Array.isArray(rel.assets)) {
+        for (const a of rel.assets) {
+          if (typeof a?.name === 'string' && a.name.endsWith('.deb')) {
+            debSet.add(a.name);
+          }
+        }
       }
+      releaseDebMap.set(tag, debSet);
     }
 
     const missing: string[] = [];
-    for (const pkgName of Object.keys(dag.recipes)) {
-      if (!validReleases.has(pkgName)) {
+    for (const [pkgName, recipe] of Object.entries(dag.recipes)) {
+      const debs = releaseDebMap.get(pkgName);
+      if (!debs || debs.size === 0) {
+        missing.push(pkgName);
+        continue;
+      }
+
+      const requiredArches = recipe.arches && recipe.arches.length > 0 ? recipe.arches : [recipe.arch || 'aarch64'];
+      const isMissingArch = requiredArches.some((reqArch) => {
+        if (reqArch === 'all') {
+          return !Array.from(debs).some((d) => d.endsWith('_all.deb'));
+        }
+        const norm = ARCH_MAP[reqArch] || (reqArch === 'arm64' ? 'aarch64' : reqArch);
+        return !Array.from(debs).some((d) => d.endsWith(`_${norm}.deb`) || d.endsWith('_all.deb'));
+      });
+
+      if (isMissingArch) {
         missing.push(pkgName);
       }
     }

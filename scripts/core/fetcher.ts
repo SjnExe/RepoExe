@@ -5,16 +5,22 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 import { PREFIX } from '../utils/properties.ts';
 
-export const TERMUX_REPOS: Array<[string, string]> = [
-  ['https://packages-cf.termux.dev/apt/termux-main', 'dists/stable/main/binary-aarch64/Packages'],
-  ['https://packages-cf.termux.dev/apt/termux-x11', 'dists/x11/main/binary-aarch64/Packages'],
-  ['https://packages-cf.termux.dev/apt/termux-root', 'dists/root/stable/binary-aarch64/Packages'],
-];
+export function getTermuxRepos(arch: string = 'aarch64'): Array<[string, string]> {
+  const normArch = arch === 'arm64' ? 'aarch64' : (arch || 'aarch64').toLowerCase();
+  const repoArch = ['aarch64', 'arm', 'x86_64', 'i686'].includes(normArch) ? normArch : 'aarch64';
+  return [
+    ['https://packages-cf.termux.dev/apt/termux-main', `dists/stable/main/binary-${repoArch}/Packages`],
+    ['https://packages-cf.termux.dev/apt/termux-x11', `dists/x11/main/binary-${repoArch}/Packages`],
+    ['https://packages-cf.termux.dev/apt/termux-root', `dists/root/stable/binary-${repoArch}/Packages`],
+  ];
+}
+
+export const TERMUX_REPOS: Array<[string, string]> = getTermuxRepos('aarch64');
 
 export const USER_AGENT =
   'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-let _PKG_INDEX: Record<string, Record<string, string>> | null = null;
+const _PKG_INDICES: Record<string, Record<string, Record<string, string>>> = {};
 
 function getAuthHeaders(headers?: Record<string, string>): Record<string, string> {
   const res: Record<string, string> = { 'User-Agent': USER_AGENT, ...headers };
@@ -25,7 +31,11 @@ function getAuthHeaders(headers?: Record<string, string>): Record<string, string
   return res;
 }
 
-export async function checkExistingReleaseHash(pkgName: string, targetHash: string): Promise<boolean> {
+export async function checkExistingReleaseHash(
+  pkgName: string,
+  targetHash: string,
+  targetArch?: string,
+): Promise<boolean> {
   if (!targetHash) return false;
   const repoSlug = process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
   const apiUrl = `https://api.github.com/repos/${repoSlug}/releases/tags/${pkgName}`;
@@ -38,8 +48,14 @@ export async function checkExistingReleaseHash(pkgName: string, targetHash: stri
       assets?: Array<{ name: string; browser_download_url: string }>;
     };
 
-    const hasDebAssets = (data.assets || []).some((a) => a.name.endsWith('.deb'));
-    if (!hasDebAssets) return false;
+    const debAssets = (data.assets || []).filter((a) => a.name.endsWith('.deb'));
+    if (debAssets.length === 0) return false;
+
+    if (targetArch && targetArch !== 'all') {
+      const normArch = targetArch === 'arm64' ? 'aarch64' : targetArch.toLowerCase();
+      const hasTargetArch = debAssets.some((a) => a.name.endsWith(`_${normArch}.deb`) || a.name.endsWith('_all.deb'));
+      if (!hasTargetArch) return false;
+    }
 
     const body = (data.body || '').trim();
     if (body) {
@@ -65,19 +81,21 @@ export async function checkExistingReleaseHash(pkgName: string, targetHash: stri
   return false;
 }
 
-export async function loadTermuxIndex(): Promise<Record<string, Record<string, string>>> {
-  if (_PKG_INDEX) return _PKG_INDEX;
+export async function loadTermuxIndex(targetArch: string = 'aarch64'): Promise<Record<string, Record<string, string>>> {
+  const normArch = targetArch === 'arm64' ? 'aarch64' : (targetArch || 'aarch64').toLowerCase();
+  const repoArch = ['aarch64', 'arm', 'x86_64', 'i686'].includes(normArch) ? normArch : 'aarch64';
+  if (_PKG_INDICES[repoArch]) return _PKG_INDICES[repoArch];
 
-  const cacheFile = join(tmpdir(), 'termux_apt_index.json');
+  const cacheFile = join(tmpdir(), `termux_apt_index_${repoArch}.json`);
   if (existsSync(cacheFile)) {
     try {
-      _PKG_INDEX = JSON.parse(readFileSync(cacheFile, 'utf-8'));
-      if (_PKG_INDEX) return _PKG_INDEX;
+      _PKG_INDICES[repoArch] = JSON.parse(readFileSync(cacheFile, 'utf-8'));
+      if (_PKG_INDICES[repoArch]) return _PKG_INDICES[repoArch];
     } catch {}
   }
 
   const index: Record<string, Record<string, string>> = {};
-  for (const [baseUrl, relPath] of TERMUX_REPOS) {
+  for (const [baseUrl, relPath] of getTermuxRepos(repoArch)) {
     for (const ext of ['.gz', '']) {
       try {
         const url = `${baseUrl}/${relPath}${ext}`;
@@ -116,11 +134,11 @@ export async function loadTermuxIndex(): Promise<Record<string, Record<string, s
     }
   }
 
-  _PKG_INDEX = index;
+  _PKG_INDICES[repoArch] = index;
   try {
     writeFileSync(cacheFile, JSON.stringify(index), 'utf-8');
   } catch {}
-  return _PKG_INDEX;
+  return _PKG_INDICES[repoArch];
 }
 
 export function parseDepSpec(depSpec: string): [string, string | null] {
@@ -178,7 +196,12 @@ function extractDebToPrefix(debPath: string, prefixRoot: string): void {
   }
 }
 
-export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<string>): Promise<boolean> {
+export async function fetchSingleDep(
+  dep: string,
+  destdir: string,
+  fetched: Set<string>,
+  targetArch: string = 'aarch64',
+): Promise<boolean> {
   const [pkgName] = parseDepSpec(dep);
   if (fetched.has(pkgName)) return true;
 
@@ -186,6 +209,9 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
     fetched.add(pkgName);
     return true;
   }
+
+  const normArch = targetArch === 'arm64' ? 'aarch64' : (targetArch || 'aarch64').toLowerCase();
+  const repoArch = ['aarch64', 'arm', 'x86_64', 'i686'].includes(normArch) ? normArch : 'aarch64';
 
   const prefixRoot = PREFIX;
   mkdirSync(prefixRoot, { recursive: true });
@@ -196,7 +222,7 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
   const checkArtifacts = (dir: string) => {
     if (existsSync(dir)) {
       return readdirSync(dir)
-        .filter((f) => f.startsWith(pkgName) && f.endsWith('.deb'))
+        .filter((f) => f.startsWith(pkgName) && (f.endsWith(`_${repoArch}.deb`) || f.endsWith('_all.deb')))
         .map((f) => join(dir, f));
     }
     return [];
@@ -222,7 +248,8 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
       }
       const relData = (await resp.json()) as { assets?: ReleaseAsset[] };
       const debAsset = (relData.assets || []).find(
-        (a): a is ReleaseAsset => typeof a?.name === 'string' && a.name.endsWith('.deb'),
+        (a): a is ReleaseAsset =>
+          typeof a?.name === 'string' && (a.name.endsWith(`_${repoArch}.deb`) || a.name.endsWith('_all.deb')),
       );
       if (debAsset) {
         const debPath = join(destdir, debAsset.name);
@@ -237,7 +264,7 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
   } catch {}
 
   // 3. Official Termux Upstream Mirrors
-  const index = await loadTermuxIndex();
+  const index = await loadTermuxIndex(repoArch);
   const pkgInfo = index[pkgName] || index[`lib${pkgName}`] || index[pkgName.replace(/^lib/, '')];
 
   if (pkgInfo) {
@@ -245,7 +272,7 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
     const debFilename = basename(pkgInfo.Filename);
     const debUrl = `${baseUrl}/${pkgInfo.Filename}`;
     const debDest = join(destdir, debFilename);
-    console.log(`⚡ Fetching Termux upstream dependency '${pkgName}' from ${debUrl}...`);
+    console.log(`⚡ Fetching Termux upstream dependency '${pkgName}' [${repoArch}] from ${debUrl}...`);
     await downloadFile(debUrl, debDest);
     extractDebToPrefix(debDest, prefixRoot);
 
@@ -262,7 +289,7 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
           !['dpkg', 'apt', 'bash', 'termux-tools', 'command-not-found'].includes(reqName) &&
           !fetched.has(reqName)
         ) {
-          await fetchSingleDep(reqName, destdir, fetched);
+          await fetchSingleDep(reqName, destdir, fetched, targetArch);
         }
       }
     }
@@ -272,15 +299,19 @@ export async function fetchSingleDep(dep: string, destdir: string, fetched: Set<
   return false;
 }
 
-export async function resolveAndFetchBuildDependencies(buildDeps: string[], destdir: string): Promise<void> {
+export async function resolveAndFetchBuildDependencies(
+  buildDeps: string[],
+  destdir: string,
+  targetArch: string = 'aarch64',
+): Promise<void> {
   if (!buildDeps || buildDeps.length === 0) return;
-  console.log(`Resolving build dependencies: ${buildDeps.join(', ')}`);
+  console.log(`Resolving build dependencies [${targetArch}]: ${buildDeps.join(', ')}`);
   const fetched = new Set<string>();
 
   for (const dep of buildDeps) {
-    const success = await fetchSingleDep(dep, destdir, fetched);
+    const success = await fetchSingleDep(dep, destdir, fetched, targetArch);
     if (!success) {
-      console.error(`::error:: Missing required build dependency '${dep}' and no artifact exists.`);
+      console.error(`::error:: Missing required build dependency '${dep}' for ${targetArch} and no artifact exists.`);
       process.exit(1);
     }
   }

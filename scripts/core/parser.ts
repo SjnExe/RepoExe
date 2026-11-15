@@ -105,12 +105,33 @@ export function parseRecipe(recipePath: string): PackageRecipe {
     tmpfs: Math.max(0, Math.min(6, Number(rawData.resources?.tmpfs ?? (isHeavy ? 6 : 4)))),
   };
 
+  const rawArch = rawData.arch;
+  let resolvedArches: string[];
+  if (Array.isArray(rawArch)) {
+    resolvedArches = rawArch.map((s) => String(s).trim()).filter(Boolean);
+  } else if (typeof rawArch === 'string') {
+    if (rawArch === 'any') {
+      resolvedArches = ['aarch64', 'arm', 'x86_64', 'i686'];
+    } else if (rawArch.includes(',') || rawArch.includes(' ')) {
+      resolvedArches = rawArch
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    } else {
+      resolvedArches = [rawArch.trim() || 'aarch64'];
+    }
+  } else {
+    resolvedArches = ['aarch64'];
+  }
+  const primaryArch = resolvedArches[0] || 'aarch64';
+
   const baseRecipe: PackageRecipe = {
     name: String(rawData.name || ''),
     version: String(rawData.version || ''),
     epoch: Number(rawData.epoch ?? 0),
     revision: Number(rawData.revision ?? 0),
-    arch: String(rawData.arch || 'aarch64'),
+    arch: primaryArch,
+    arches: resolvedArches,
     description: String(rawData.description || ''),
     license: String(rawData.license || 'MIT'),
     homepage: String(rawData.homepage || ''),
