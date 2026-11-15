@@ -126,9 +126,10 @@ export async function buildMatrixLayer(
   pkgsList: string[],
   pkgsDir: string,
   dag: DependencyGraph,
+  isExplicitTarget: boolean = false,
 ): Promise<Array<Record<string, any>>> {
   const matrix: Array<Record<string, any>> = [];
-  const forceRebuild = ['true', '1'].includes((process.env.FORCE_REBUILD || '').toLowerCase());
+  const forceRebuild = ['true', '1'].includes((process.env.FORCE_REBUILD || '').toLowerCase()) || isExplicitTarget;
 
   for (const p of pkgsList) {
     const recipePath = join(pkgsDir, p, 'recipe.ts');
@@ -167,6 +168,7 @@ export async function buildMatrixLayer(
         swap: maxSwap,
         free_space: maxFreeSpace,
         tmpfs: r.resources.tmpfs ?? 12,
+        force: forceRebuild,
       });
     } catch (err: any) {
       console.error(`Notice: Failed to build matrix layer for ${p}: ${err.message}`);
@@ -185,6 +187,8 @@ async function main(): Promise<void> {
   const dag = new DependencyGraph(pkgsDir);
 
   let targetPkgs: string[];
+  let isExplicit = false;
+
   if (!rawInput || rawInput === 'auto') {
     const diffFiles = getGitDiffFiles(repoRoot);
     const changedPkgs = Array.from(getChangedPackages(repoRoot, dag));
@@ -197,9 +201,12 @@ async function main(): Promise<void> {
     }
   } else {
     targetPkgs = parseTargetTokens(rawInput, dag, pkgsDir);
+    if (rawInput !== 'all' && rawInput !== 'all@all') {
+      isExplicit = true;
+    }
   }
 
-  const matrix = await buildMatrixLayer(targetPkgs, pkgsDir, dag);
+  const matrix = await buildMatrixLayer(targetPkgs, pkgsDir, dag, isExplicit);
   console.log(JSON.stringify({ matrix }));
 }
 

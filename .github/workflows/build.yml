@@ -289,7 +289,7 @@ jobs:
             --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
             --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
             "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            bun scripts/cli/build.ts compile "pkg/${PKG_NAME}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+            bun scripts/cli/build.ts compile "pkg/${PKG_NAME}" ${{ (inputs.force || matrix.force) && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
 
       - name: Profile Build Memory Peak
         if: always()
