@@ -1,32 +1,10 @@
 # RepoExe Agent Guidelines
 
-## 🛠️ Environment Setup
-
-To properly interact with and test the `RepoExe` repository, execute the following setup commands to install required dependencies.
-
-```bash
-# Update and install system utilities
-sudo apt-get update
-sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
-
-# Install 'bun' for high-performance TypeScript orchestration & testing
-curl -fsSL https://bun.sh/install | bash
-export PATH="$HOME/.bun/bin:$PATH"
-
-# Install actionlint for GitHub Actions validation
-bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-sudo mv actionlint /usr/local/bin/
-
-# Sync dependencies
-bun install --silent
-```
-
 ## 🧪 Testing Commands
 
 - **Unit Tests (Bun Test):** `bun test`
 - **Health Checks:** `bun run check` (or `bun run scripts/cli/build.ts check`)
 - **Generate Shards:** `bun run shards`
-- **Actionlint:** `actionlint .github/workflows/*.yml`
 
 ## 🏗️ Architectural Constraints
 
