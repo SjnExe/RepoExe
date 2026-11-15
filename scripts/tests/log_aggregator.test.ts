@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+
 import { classifyLog } from '../utils/log_aggregator.ts';
 
 test('classifyLog detects smoke test failure correctly', (): void => {
@@ -23,7 +24,7 @@ test('classifyLog detects emulation timeout and qemu crash', (): void => {
 === STAGE: TEST ===
 Error: Smoke test timed out after 120s under emulation for aisleriot
 `;
-  const [status, detail, isFail] = classifyLog(timeoutLog);
+  const [status, _detail, isFail] = classifyLog(timeoutLog);
   expect(isFail).toBeTrue();
   expect(status).toBe('❌ STATUS: TEST FAILURE');
 

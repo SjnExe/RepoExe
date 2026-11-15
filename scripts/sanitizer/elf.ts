@@ -1,15 +1,10 @@
-import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
-import { PREFIX } from "../utils/properties.ts";
+import { spawnSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 
-export const GLIBC_LIBS = new Set([
-  "libc.so.6",
-  "libpthread.so.0",
-  "librt.so.1",
-  "libdl.so.2",
-  "libm.so.6",
-]);
+import { PREFIX } from '../utils/properties.ts';
+
+export const GLIBC_LIBS = new Set(['libc.so.6', 'libpthread.so.0', 'librt.so.1', 'libdl.so.2', 'libm.so.6']);
 
 export const DYNAMIC_TAGS_TO_NULLIFY = new Set([
   0x6ffffffen, // DT_VERNEED
@@ -17,7 +12,7 @@ export const DYNAMIC_TAGS_TO_NULLIFY = new Set([
   0x6ffffff0n, // DT_VERSYM
   0x6ffffffcn, // DT_VERDEF
   0x6ffffffdn, // DT_VERDEFNUM
-  15n,         // DT_RPATH
+  15n, // DT_RPATH
 ]);
 
 export function stripVerneedFromElf(elfPath: string): void {
@@ -80,14 +75,14 @@ export function sanitizeElfBinary(elfPath: string, prefix: string = PREFIX): voi
     }
 
     // 0. STRICT BIONIC VALIDATOR
-    const res = spawnSync("readelf", ["-d", elfPath], { encoding: "utf-8" });
+    const res = spawnSync('readelf', ['-d', elfPath], { encoding: 'utf-8' });
     if (res.status === 0 && res.stdout) {
-      for (const line of res.stdout.split("\n")) {
-        if (line.includes("(NEEDED)")) {
+      for (const line of res.stdout.split('\n')) {
+        if (line.includes('(NEEDED)')) {
           for (const glibcLib of GLIBC_LIBS) {
             if (line.includes(`[${glibcLib}]`)) {
               throw new Error(
-                `Strict Bionic Enforcement Failed: '${basename(elfPath)}' linked against glibc library '${glibcLib}'. Native Android builds must not use glibc.`
+                `Strict Bionic Enforcement Failed: '${basename(elfPath)}' linked against glibc library '${glibcLib}'. Native Android builds must not use glibc.`,
               );
             }
           }
@@ -98,14 +93,26 @@ export function sanitizeElfBinary(elfPath: string, prefix: string = PREFIX): voi
     // 1. Zero out DT_VERNEED / DT_VERSYM
     stripVerneedFromElf(elfPath);
 
-    // 2. Set dynamic interpreter and enforce RPATH
-    spawnSync("patchelf", ["--set-interpreter", "/system/bin/linker64", elfPath]);
-    spawnSync("patchelf", ["--set-rpath", `${prefix}/lib`, elfPath]);
+    // 2. Enforce RPATH on every ELF binary (shared libraries and executables)
+    const rpathRes = spawnSync('patchelf', ['--set-rpath', `${prefix}/lib`, elfPath]);
+    if (rpathRes.status !== 0 && rpathRes.stderr?.length) {
+      console.warn(
+        `[ELF Sanitizer] Warning: Failed to set RPATH on ${basename(elfPath)}: ${rpathRes.stderr.toString().trim()}`,
+      );
+    }
 
-    // 3. Clean remaining version tags
-    stripVerneedFromElf(elfPath);
-  } catch (err: any) {
-    if (err.message?.includes("Strict Bionic Enforcement Failed")) {
+    // 3. Set dynamic interpreter only on executables with an INTERP program header
+    const phdrs = spawnSync('readelf', ['-l', elfPath], { encoding: 'utf-8' });
+    if (phdrs.status === 0 && phdrs.stdout?.includes('INTERP')) {
+      const interpRes = spawnSync('patchelf', ['--set-interpreter', '/system/bin/linker64', elfPath]);
+      if (interpRes.status !== 0 && interpRes.stderr?.length) {
+        console.warn(
+          `[ELF Sanitizer] Warning: Failed to set interpreter on ${basename(elfPath)}: ${interpRes.stderr.toString().trim()}`,
+        );
+      }
+    }
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes('Strict Bionic Enforcement Failed')) {
       throw err;
     }
   }

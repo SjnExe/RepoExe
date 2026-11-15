@@ -47,7 +47,7 @@ async function loadPackages() {
     const rawData = await response.json();
     packagesData = Array.isArray(rawData) ? rawData : [];
     renderPackages();
-  } catch (e) {
+  } catch {
     document.getElementById('packageGrid').innerHTML = "<p class='loading'>No packages metadata available yet.</p>";
   }
 }

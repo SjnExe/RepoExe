@@ -9,22 +9,19 @@
     "noEmit": true,
     "composite": true,
     "strict": true,
-    "downlevelIteration": true,
     "skipLibCheck": true,
     "jsx": "preserve",
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "allowJs": true,
-    "types": ["bun-types"],
-    "baseUrl": ".",
     "paths": {
-      "@core/*": ["scripts/core/*"],
-      "@builders/*": ["scripts/builders/*"],
-      "@sanitizer/*": ["scripts/sanitizer/*"],
-      "@docker/*": ["scripts/docker/*"],
-      "@cli/*": ["scripts/cli/*"],
-      "@utils/*": ["scripts/utils/*"],
-      "@repoexe/*": ["scripts/*"]
+      "@core/*": ["./scripts/core/*"],
+      "@builders/*": ["./scripts/builders/*"],
+      "@sanitizer/*": ["./scripts/sanitizer/*"],
+      "@docker/*": ["./scripts/docker/*"],
+      "@cli/*": ["./scripts/cli/*"],
+      "@utils/*": ["./scripts/utils/*"],
+      "@repoexe/*": ["./scripts/*"]
     }
   },
   "include": ["scripts/**/*", "pkg/**/*"]

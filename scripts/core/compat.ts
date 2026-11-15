@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -68,7 +67,7 @@ export function setupBionicCompat(): void {
   }
 
   const srcData = Buffer.concat([readFileSync(compatSrc), readFileSync(stubSrc)]);
-  const srcHash = createHash('sha256').update(srcData).digest('hex').slice(0, 16);
+  const srcHash = new Bun.CryptoHasher('sha256').update(srcData).digest('hex').slice(0, 16);
 
   const cacheDir = join(repoRoot, '.cache', 'compat');
   mkdirSync(cacheDir, { recursive: true });

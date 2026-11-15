@@ -1,9 +1,13 @@
 # RepoExe Agent Guidelines
 
-## 🧪 Testing Commands
+## 🧪 Testing & Verification Commands
 
-- **Unit Tests (Bun Test):** `bun test`
-- **Health Checks:** `bun run check` (or `bun run scripts/cli/build.ts check`)
+- **Unit Tests (Bun Test):** `bun test --parallel`
+- **Type Check (Bun Check):** `bun check`
+- **Lint (Oxlint):** `bun run lint:check` (or `bun lint`)
+- **Code Formatter (Bun Format):** `bun fmt --check` (or `bun fmt --staged`)
+- **Recipe & Health Audit:** `bun run audit`
+- **Build CLI:** `bun run build`
 - **Generate Shards:** `bun run shards`
 
 ## 🏗️ Architectural Constraints

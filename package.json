@@ -3,18 +3,19 @@
   "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "test": "bun test scripts/tests/",
-    "check": "bun run scripts/cli/build.ts check",
-    "build": "bun run scripts/cli/build.ts",
-    "shards": "bun run scripts/cli/generate_shards.ts",
-    "index": "bun run scripts/cli/index_gen.ts",
-    "prune": "bun run scripts/cli/prune.ts",
+    "build": "bun scripts/cli/build.ts",
+    "audit": "bun scripts/cli/build.ts check",
+    "lint": "oxlint --fix",
+    "lint:check": "oxlint",
+    "shards": "bun scripts/cli/generate_shards.ts",
+    "index": "bun scripts/cli/index_gen.ts",
+    "prune": "bun scripts/cli/prune.ts",
+    "test:watch": "bun test --parallel --watch",
     "pre-commit": "bun scripts/hooks/pre-commit.ts",
     "postinstall": "bun scripts/hooks/postinstall.ts"
   },
-  "dependencies": {
+  "devDependencies": {
     "@types/bun": "latest",
-    "yaml": "latest",
-    "zod": "latest"
+    "oxlint": "latest"
   }
 }

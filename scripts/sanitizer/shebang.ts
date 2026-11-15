@@ -1,5 +1,6 @@
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, chmodSync } from 'node:fs';
+import { chmodSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+
 import { PREFIX } from '../utils/properties.ts';
 
 const REPLACEMENTS: Record<string, string> = {
@@ -27,6 +28,8 @@ export function sanitizeShebangs(stageDir: string): void {
           if (stats.size > 2 * 1024 * 1024) continue;
 
           const content = readFileSync(full, 'utf-8');
+          if (!content.startsWith('#!')) continue;
+
           const firstLineEnd = content.indexOf('\n');
           const firstLine = (firstLineEnd !== -1 ? content.slice(0, firstLineEnd) : content).trim();
 

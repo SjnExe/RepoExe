@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 import { postinstallTask, resolveGitDir } from '../hooks/postinstall.ts';
 import { runPreCommitHook } from '../hooks/pre-commit.ts';
 
@@ -56,7 +57,6 @@ describe('pre-commit and postinstall hooks', () => {
       skipFormat: true,
       skipHealthCheck: false,
       skipTests: true, // Avoid recursive test spawning inside test runner
-      skipActionlint: true,
       quiet: true,
     });
     expect(success).toBe(true);

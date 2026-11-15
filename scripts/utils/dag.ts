@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { extractAllPackageNames, filterDepsForArch, parseDependencyList } from '../core/dependencies.ts';
 import { parseRecipe } from '../core/parser.ts';
 import type { PackageRecipe } from '../core/types.ts';
-import { parseDependencyList, filterDepsForArch, extractAllPackageNames } from '../core/dependencies.ts';
 
 export class DependencyGraph {
   packagesDir: string;

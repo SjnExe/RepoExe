@@ -86,7 +86,7 @@ See [AGENTS.md](AGENTS.md) for full architectural guidelines and agent operation
    - Follow Conventional Commits (`feat(pkg): ...`, `fix(builder): ...`, `refactor(core): ...`).
 3. **Verify Locally:** Run the automated quality gate before opening a PR:
    ```bash
-   bun run check && bun test
+   bun check && bun run lint:check && bun test --parallel && bun run audit
    ```
 4. **Submit PR:** Open a PR against `main` using the provided Pull Request Template.
 
@@ -107,7 +107,7 @@ See [AGENTS.md](AGENTS.md) for full architectural guidelines and agent operation
 We welcome contributions developed with the assistance of AI tools (e.g., Claude, Antigravity, Copilot, ChatGPT). Contributors must adhere to the following principles:
 
 - **Full Human Authorship & Responsibility:** You are 100% accountable for every line of code or recipe configuration you submit. Blindly copying raw LLM output is strictly prohibited.
-- **Mandatory Local Verification:** All recipes and scripts must be verified locally with `bun run check && bun test` before submitting a PR.
+- **Mandatory Local Verification:** All recipes and scripts must be verified locally with `bun check && bun run lint:check && bun test --parallel && bun run audit` before submitting a PR.
 - **Strict Bionic Enforcement:** Verify that newly packaged binaries compile with NDK Clang against Android API levels without unresolved glibc symbols.
 
 ---
@@ -118,7 +118,7 @@ Concluding any feature, refactor, or recipe addition requires **2 consecutive ze
 
 1. **Stage 1 (Automated Validation & Snapshot Coherence):**
    ```bash
-   bun run check && bun test
+   bun check && bun run lint:check && bun test --parallel && bun run audit
    ```
 2. **Stage 2 (Expanded Context Semantic Diff Audit):**
    Inspect all committed, staged, and working-tree changes against the PR target branch:

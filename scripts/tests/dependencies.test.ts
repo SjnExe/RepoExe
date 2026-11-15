@@ -1,10 +1,11 @@
 import { expect, test } from 'bun:test';
+
 import {
-  parseDependencyList,
-  filterDepsForArch,
-  formatDebianDependency,
   extractAllPackageNames,
   extractPrimaryPackageNames,
+  filterDepsForArch,
+  formatDebianDependency,
+  parseDependencyList,
 } from '../core/dependencies.ts';
 
 test('parses simple dependencies', () => {

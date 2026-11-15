@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 import { computeSourceIdentity, executePack, fetchAndPrepareSource, simulateDryRun } from '../cli/build.ts';
 import type { PackageRecipe } from '../core/types.ts';
 
@@ -120,7 +121,7 @@ describe('build CLI helpers', (): void => {
 
     let logCalled = false;
     const originalLog = console.log;
-    console.log = (...args: any[]) => {
+    console.log = (..._args: any[]) => {
       logCalled = true;
     };
 

@@ -1,4 +1,6 @@
 import { expect, test } from 'bun:test';
+
+import type { PackageRecipe } from '../core/types.ts';
 import { DependencyGraph } from '../utils/dag.ts';
 
 test('DependencyGraph loads recipes and resolves layers', () => {
@@ -41,7 +43,7 @@ test('DependencyGraph getDependents returns dependent packages', () => {
     phases: {},
     env: {},
     resources: { zram: 0, swap: 0, free_space: false, tmpfs: 12 },
-  };
+  } as unknown as PackageRecipe;
   dag.recipes['apptest'] = {
     name: 'apptest',
     version: '1.0',
@@ -59,7 +61,7 @@ test('DependencyGraph getDependents returns dependent packages', () => {
     phases: {},
     env: {},
     resources: { zram: 0, swap: 0, free_space: false, tmpfs: 12 },
-  };
+  } as unknown as PackageRecipe;
 
   const dependents = dag.getDependents('libtest');
   expect(dependents.has('apptest')).toBeTrue();

@@ -1,9 +1,10 @@
 import { expect, test } from 'bun:test';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { getExpectedAssetFilenames, identifyOrphanedReleases, identifyOutdatedAssets } from '../cli/prune.ts';
 import { parseRecipe } from '../core/parser.ts';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 
 test('getExpectedAssetFilenames returns native format filenames', (): void => {
   const recipe = parseRecipe('pkg/aisleriot');

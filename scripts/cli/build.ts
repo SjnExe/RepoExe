@@ -1,16 +1,16 @@
-import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, relative, resolve } from 'node:path';
-import { checkExistingReleaseHash, resolveAndFetchBuildDependencies } from '../core/fetcher.ts';
+import { basename, join, relative, resolve } from 'node:path';
+
+import { ARCH_MAP, buildDeb, formatDebianFilenameVersion } from '../builders/debian.ts';
 import { setupBionicCompat } from '../core/compat.ts';
-import { parseRecipe, computeStateHash } from '../core/parser.ts';
+import { checkExistingReleaseHash, resolveAndFetchBuildDependencies } from '../core/fetcher.ts';
+import { computeStateHash, parseRecipe } from '../core/parser.ts';
 import type { PackageRecipe } from '../core/types.ts';
-import { auditRepositoryHealth } from '../utils/health.ts';
-import { buildDeb, ARCH_MAP, formatDebianFilenameVersion } from '../builders/debian.ts';
 import { sanitizeStagingElfs } from '../sanitizer/elf.ts';
 import { sanitizeShebangs } from '../sanitizer/shebang.ts';
-import { spawnSync } from 'node:child_process';
 import { DependencyGraph } from '../utils/dag.ts';
+import { auditRepositoryHealth } from '../utils/health.ts';
 
 export type SourceIdentityInput = Partial<Pick<PackageRecipe, 'source' | 'sha256'>> & {
   version: string;
@@ -23,7 +23,7 @@ export function computeSourceIdentity(recipe: SourceIdentityInput, pDir: string)
     for (const f of readdirSync(pf).sort()) {
       if (f.endsWith('.patch')) {
         const patchContent = readFileSync(join(pf, f));
-        patches.push(`${f}:${createHash('sha256').update(patchContent).digest('hex')}`);
+        patches.push(`${f}:${new Bun.CryptoHasher('sha256').update(patchContent).digest('hex')}`);
       }
     }
   }
@@ -34,7 +34,7 @@ export function computeSourceIdentity(recipe: SourceIdentityInput, pDir: string)
     sha256: String(recipe.sha256 || ''),
     patches,
   };
-  return createHash('sha256').update(JSON.stringify(identityData)).digest('hex');
+  return new Bun.CryptoHasher('sha256').update(JSON.stringify(identityData)).digest('hex');
 }
 
 export function fetchAndPrepareSource(
@@ -105,7 +105,7 @@ export function fetchAndPrepareSource(
     }
 
     if (recipe.sha256) {
-      const digest = createHash('sha256').update(readFileSync(archivePath)).digest('hex');
+      const digest = new Bun.CryptoHasher('sha256').update(readFileSync(archivePath)).digest('hex');
       if (digest.toLowerCase() !== recipe.sha256.toLowerCase()) {
         throw new Error(`sha256 mismatch for ${recipe.name}: expected ${recipe.sha256}, got ${digest}`);
       }
@@ -211,7 +211,9 @@ export function executeTest(
     const owner = (process.env.REPO_OWNER || 'sjnexe').toLowerCase();
     const rawArch = (recipe.arch || 'aarch64').toLowerCase();
     const debArch = ARCH_MAP[rawArch] || rawArch;
-    const filenameVer = formatDebianFilenameVersion(recipe);
+    const filenameVer = recipe.version
+      ? formatDebianFilenameVersion({ version: recipe.version, revision: recipe.revision, epoch: recipe.epoch })
+      : 'unknown';
     const targetDeb = `${recipe.name}_${filenameVer}_${debArch}.deb`;
     const escapedCmd = testCmd.replace(/'/g, "'\\''");
 
@@ -384,7 +386,15 @@ export async function simulateDryRun(
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const command = args[0];
+  let command = args[0];
+  let startIndex = 1;
+
+  if (!command || command === '-h' || command === '--help' || command === 'help') {
+    console.log('RepoExe Build System CLI (Bun/TypeScript)');
+    console.log('Usage: bun run build [command] <package...> [options]');
+    console.log('Commands: build (default), compile, pack, test, check, info');
+    return;
+  }
 
   const pkgDir = resolve('pkg');
 
@@ -393,7 +403,13 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (['build', 'compile', 'pack', 'test', 'info'].includes(command)) {
+  const KNOWN_COMMANDS = new Set(['build', 'compile', 'pack', 'test', 'info']);
+  if (!KNOWN_COMMANDS.has(command)) {
+    command = 'build';
+    startIndex = 0;
+  }
+
+  if (KNOWN_COMMANDS.has(command)) {
     const rawTargets: string[] = [];
     let force = false;
     let dryRun = false;
@@ -405,7 +421,7 @@ async function main(): Promise<void> {
     let formatOverride: string | undefined = undefined;
     let quiet = false;
 
-    for (let i = 1; i < args.length; i++) {
+    for (let i = startIndex; i < args.length; i++) {
       const arg = args[i];
       if ((arg === '-a' || arg === '--arch') && args[i + 1]) {
         targetArch = args[++i];

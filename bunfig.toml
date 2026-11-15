@@ -18,3 +18,16 @@ onlyFailures = true
 isolate = false
 randomize = true
 timeout = 5000
+
+[fmt]
+tabWidth = 2
+useTabs = false
+semi = true
+singleQuote = true
+quoteProps = "as-needed"
+trailingComma = "all"
+printWidth = 120
+endOfLine = "lf"
+sortImports = true
+sortPackageJson = true
+jsdoc = true
