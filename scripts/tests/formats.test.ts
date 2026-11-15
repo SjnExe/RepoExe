@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { formatDebianVersion, generateControlFile } from '../builders/debian.ts';
+import { extractDebArch, formatDebianVersion, generateControlFile } from '../builders/debian.ts';
 import { parseRecipe } from '../core/parser.ts';
 
 test('generateControlFile formats valid Debian control file', () => {
@@ -51,4 +51,13 @@ test('formatDebianVersion handles epoch and revision', () => {
 
   recipe.epoch = 2;
   expect(formatDebianVersion(recipe)).toBe('2:1.0.0-1');
+});
+
+test('extractDebArch handles all supported architectures including underscores', () => {
+  expect(extractDebArch('aisleriot_3.22.35_x86_64.deb')).toBe('x86_64');
+  expect(extractDebArch('aisleriot_3.22.35_aarch64.deb')).toBe('aarch64');
+  expect(extractDebArch('aisleriot_3.22.35_arm64.deb')).toBe('aarch64');
+  expect(extractDebArch('aisleriot_3.22.35_arm.deb')).toBe('arm');
+  expect(extractDebArch('aisleriot_3.22.35_i686.deb')).toBe('i686');
+  expect(extractDebArch('repoexe_1.0.0_all.deb')).toBe('all');
 });

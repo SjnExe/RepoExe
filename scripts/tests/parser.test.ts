@@ -68,3 +68,39 @@ test('parseRecipe normalizes uploaders array and string formats', () => {
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('parseRecipe applies heavy_build resource defaults when unspecified', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'heavy-test-'));
+  try {
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'heavy-test',
+        version: '1.0.0',
+        heavy_build: true,
+      };`,
+    );
+    const r1 = parseRecipe(tmp);
+    expect(r1.resources.zram).toBe(4);
+    expect(r1.resources.swap).toBe(8);
+    expect(r1.resources.free_space).toBe(true);
+    expect(r1.resources.tmpfs).toBe(6);
+
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'heavy-override',
+        version: '1.0.0',
+        heavy_build: true,
+        resources: { swap: 0, tmpfs: 2 }
+      };`,
+    );
+    const r2 = parseRecipe(tmp);
+    expect(r2.resources.zram).toBe(4);
+    expect(r2.resources.swap).toBe(0);
+    expect(r2.resources.free_space).toBe(true);
+    expect(r2.resources.tmpfs).toBe(2);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-import { formatDebianVersion } from '../builders/debian.ts';
+import { extractDebArch, formatDebianVersion } from '../builders/debian.ts';
 import { getExpectedAssetFilenames } from '../cli/prune.ts';
 import { parseRecipe } from '../core/parser.ts';
 
@@ -72,8 +72,7 @@ export function generatePackagesJson(
           if (remoteAssets && remoteAssets.length > 0) {
             for (const asset of remoteAssets) {
               if (!asset.name.endsWith('.deb')) continue;
-              const parts = asset.name.split('_');
-              const arch = parts[parts.length - 1].replace('.deb', '');
+              const arch = extractDebArch(asset.name);
               assetMap.set(asset.name, {
                 name: asset.name,
                 arch,
@@ -89,8 +88,7 @@ export function generatePackagesJson(
 
           for (const [filename, fullPath] of availableFiles.entries()) {
             if (filename.endsWith('.deb') && expectedFilenames.has(filename) && !assetMap.has(filename)) {
-              const parts = filename.split('_');
-              const arch = parts[parts.length - 1].replace('.deb', '');
+              const arch = extractDebArch(filename);
               let size = 0;
               try {
                 size = statSync(fullPath).size;

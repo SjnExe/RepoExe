@@ -97,11 +97,12 @@ export function parseRecipe(recipePath: string): PackageRecipe {
     throw new Error(`Invalid recipe export in ${p}: expected default export or object.`);
   }
 
+  const isHeavy = Boolean(rawData.heavy_build ?? false);
   const resources: ResourceConfig = {
-    zram: Number(rawData.resources?.zram ?? 0),
-    swap: Number(rawData.resources?.swap ?? 0),
-    free_space: Boolean(rawData.resources?.free_space ?? false),
-    tmpfs: Math.max(0, Math.min(6, Number(rawData.resources?.tmpfs ?? 4))),
+    zram: rawData.resources?.zram !== undefined ? Number(rawData.resources.zram) : isHeavy ? 4 : 0,
+    swap: rawData.resources?.swap !== undefined ? Number(rawData.resources.swap) : isHeavy ? 8 : 0,
+    free_space: rawData.resources?.free_space !== undefined ? Boolean(rawData.resources.free_space) : isHeavy,
+    tmpfs: Math.max(0, Math.min(6, Number(rawData.resources?.tmpfs ?? (isHeavy ? 6 : 4)))),
   };
 
   const baseRecipe: PackageRecipe = {

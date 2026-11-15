@@ -36,6 +36,17 @@ export function formatDebianFilenameVersion(
   return epoch > 0 ? `${epoch}_${verBody}` : verBody;
 }
 
+export function extractDebArch(filename: string): string {
+  const match = filename.match(/_(aarch64|arm64|x86_64|arm|i686|all)\.deb$/);
+  if (match) {
+    return match[1] === 'arm64' ? 'aarch64' : match[1];
+  }
+  const stripped = filename.endsWith('.deb') ? filename.slice(0, -4) : filename;
+  if (stripped.endsWith('_x86_64')) return 'x86_64';
+  const lastUnderscore = stripped.lastIndexOf('_');
+  return lastUnderscore !== -1 ? stripped.slice(lastUnderscore + 1) : 'unknown';
+}
+
 export function generateControlFile(recipe: PackageRecipe, installedSizeKib?: number): string {
   const versionStr = formatDebianVersion(recipe);
   const debArch = ARCH_MAP[recipe.arch] || recipe.arch;
