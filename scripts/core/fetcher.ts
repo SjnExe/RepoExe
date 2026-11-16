@@ -230,10 +230,14 @@ export async function fetchSingleDep(
   destdir: string,
   fetched: Set<string>,
   targetArch: string = 'aarch64',
+  resolving: Set<string> = new Set<string>(),
 ): Promise<boolean> {
   const [rawPkgName] = parseDepSpec(dep);
   const pkgName = rawPkgName.split(':')[0].trim();
   if (fetched.has(pkgName)) {
+    return true;
+  }
+  if (resolving.has(pkgName)) {
     return true;
   }
 
@@ -305,11 +309,17 @@ export async function fetchSingleDep(
   } catch {}
 
   // 3. Official Termux Upstream Mirrors
+  const snapshotFetched = new Set(fetched);
+  resolving.add(pkgName);
+
   try {
     const index = await loadTermuxIndex(repoArch);
     const pkgInfo = index[pkgName] || index[`lib${pkgName}`] || index[pkgName.replace(/^lib/, '')];
 
     if (pkgInfo) {
+      if (pkgInfo.Package) {
+        resolving.add(pkgInfo.Package);
+      }
       const baseUrl = pkgInfo.BaseUrl;
       const debFilename = basename(pkgInfo.Filename);
       const debUrl = `${baseUrl}/${pkgInfo.Filename}`;
@@ -317,11 +327,6 @@ export async function fetchSingleDep(
       console.log(`⚡ Fetching Termux upstream dependency '${pkgName}' [${repoArch}] from ${debUrl}...`);
       await downloadFile(debUrl, debDest);
       extractDebToPrefix(debDest, prefixRoot);
-
-      fetched.add(pkgName);
-      if (pkgInfo.Package) {
-        fetched.add(pkgInfo.Package);
-      }
 
       // Recursively resolve dependencies
       const dependsStr = pkgInfo.Depends || '';
@@ -336,12 +341,12 @@ export async function fetchSingleDep(
               branchSatisfied = true;
               break;
             }
-            if (fetched.has(cleanTokenName)) {
+            if (fetched.has(cleanTokenName) || resolving.has(cleanTokenName)) {
               branchSatisfied = true;
               break;
             }
             try {
-              const ok = await fetchSingleDep(cleanTokenName, destdir, fetched, targetArch);
+              const ok = await fetchSingleDep(cleanTokenName, destdir, fetched, targetArch, resolving);
               if (ok) {
                 branchSatisfied = true;
                 break;
@@ -351,13 +356,26 @@ export async function fetchSingleDep(
             }
           }
           if (!branchSatisfied) {
-            fetched.delete(pkgName);
+            resolving.delete(pkgName);
             if (pkgInfo.Package) {
-              fetched.delete(pkgInfo.Package);
+              resolving.delete(pkgInfo.Package);
+            }
+            fetched.clear();
+            for (const p of snapshotFetched) {
+              fetched.add(p);
             }
             return false;
           }
         }
+      }
+
+      resolving.delete(pkgName);
+      if (pkgInfo.Package) {
+        resolving.delete(pkgInfo.Package);
+      }
+      fetched.add(pkgName);
+      if (pkgInfo.Package) {
+        fetched.add(pkgInfo.Package);
       }
       return true;
     }
@@ -366,6 +384,11 @@ export async function fetchSingleDep(
     console.warn(`Warning: Failed to fetch upstream dependency '${pkgName}' [${repoArch}]: ${reason}`);
   }
 
+  resolving.delete(pkgName);
+  fetched.clear();
+  for (const p of snapshotFetched) {
+    fetched.add(p);
+  }
   return false;
 }
 
