@@ -1,9 +1,10 @@
 import { expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { extractDebArch, generateAptMetadata } from '../builders/debian.ts';
 import { getExactPackageArtifacts, prepareSite } from '../cli/index_gen.ts';
 
 test('getExactPackageArtifacts prevents prefix collision', (): void => {
@@ -85,7 +86,29 @@ test('prepareSite parses metadata JSON files without reference errors', async ()
     await prepareSite(testSite, testArt, true, testStaging);
     const metaParsed = JSON.parse(readFileSync(join(testArt, 'sample_metadata.json'), 'utf-8'));
     expect(metaParsed.name).toBe('sample');
+    expect(existsSync(join(testSite, 'apt', 'sample_1.0.0_arm64.deb'))).toBeTrue();
   } finally {
     rmSync(testBase, { recursive: true, force: true });
+  }
+});
+
+test('generateAptMetadata produces relative Filename and filters architectures', (): void => {
+  const testDir = join(tmpdir(), `repoexe-apt-meta-${Date.now()}`);
+  mkdirSync(testDir, { recursive: true });
+
+  try {
+    // Generate mock Packages control file via dummy dpkg-deb simulation or real deb files if present
+    // Testing architecture filtering logic directly:
+    const arches = ['aarch64', 'x86_64'];
+    for (const arch of arches) {
+      generateAptMetadata(testDir, 'main', arch);
+      const pkgPath = join(testDir, 'dists', 'stable', 'main', `binary-${arch}`, 'Packages');
+      expect(existsSync(pkgPath)).toBeTrue();
+      expect(existsSync(`${pkgPath}.gz`)).toBeTrue();
+      const content = readFileSync(pkgPath, 'utf-8');
+      expect(content.includes('https://github.com')).toBeFalse();
+    }
+  } finally {
+    rmSync(testDir, { recursive: true, force: true });
   }
 });

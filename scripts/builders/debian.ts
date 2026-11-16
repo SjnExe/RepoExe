@@ -265,12 +265,7 @@ export function buildDeb(
   return debPath;
 }
 
-export function generateAptMetadata(
-  outputDir: string,
-  component: string = 'main',
-  arch: string = 'aarch64',
-  releaseBaseUrl?: string,
-): void {
+export function generateAptMetadata(outputDir: string, component: string = 'main', arch: string = 'aarch64'): void {
   const binaryDir = join(outputDir, 'dists', 'stable', component, `binary-${arch}`);
   mkdirSync(binaryDir, { recursive: true });
 
@@ -282,17 +277,38 @@ export function generateAptMetadata(
     .sort();
 
   for (const debName of debFiles) {
+    const debArch = extractDebArch(debName);
+    const matchesArch =
+      debArch === 'all' ||
+      debArch === arch ||
+      (arch === 'aarch64' && debArch === 'arm64') ||
+      (arch === 'arm64' && debArch === 'aarch64');
+    if (!matchesArch && debArch !== 'unknown') {
+      continue;
+    }
+
     const debPath = join(outputDir, debName);
     const res = spawnSync('dpkg-deb', ['-f', debPath], { encoding: 'utf-8' });
     if (res.status === 0 && res.stdout) {
       const controlInfo = res.stdout.trim();
+      if (debArch === 'unknown') {
+        const archMatch = controlInfo.match(/^Architecture:\s*(.+)$/m);
+        const pkgArch = archMatch ? archMatch[1].trim() : '';
+        const matchesPkgArch =
+          pkgArch === 'all' ||
+          pkgArch === arch ||
+          (arch === 'aarch64' && pkgArch === 'arm64') ||
+          (arch === 'arm64' && pkgArch === 'aarch64');
+        if (!matchesPkgArch) {
+          continue;
+        }
+      }
+
       const content = readFileSync(debPath);
       const size = content.length;
       const md5 = new Bun.CryptoHasher('md5').update(content).digest('hex');
       const sha256 = new Bun.CryptoHasher('sha256').update(content).digest('hex');
-      const pkgName = debName.split('_')[0];
-      const filename = releaseBaseUrl ? `${releaseBaseUrl.replace(/\/+$/, '')}/${pkgName}/${debName}` : debName;
-      entries.push(`${controlInfo}\nFilename: ${filename}\nSize: ${size}\nMD5sum: ${md5}\nSHA256: ${sha256}\n\n`);
+      entries.push(`${controlInfo}\nFilename: ${debName}\nSize: ${size}\nMD5sum: ${md5}\nSHA256: ${sha256}\n\n`);
     }
   }
 

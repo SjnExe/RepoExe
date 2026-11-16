@@ -130,7 +130,18 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
       if (!existsSync(targetFile)) {
         console.log(`⚡ Downloading existing published asset for index accumulation: ${name}...`);
         try {
-          const resp = await fetch(downloadUrl);
+          const ghToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+          let resp: Response;
+          if (ghToken && asset.url) {
+            resp = await fetch(asset.url, {
+              headers: {
+                Authorization: `Bearer ${ghToken}`,
+                Accept: 'application/octet-stream',
+              },
+            });
+          } else {
+            resp = await fetch(downloadUrl);
+          }
           if (resp.ok) {
             const buf = Buffer.from(await resp.arrayBuffer());
             writeFileSync(targetFile, buf);
@@ -226,7 +237,7 @@ export async function prepareSite(
     releaseAssetMap = await fetchExistingReleaseAssetsToArtifacts(artPath);
   }
 
-  // 3. Copy accumulated artifacts to aptStaging (site/apt/ only stores APT dists metadata; deb files are on GitHub Releases)
+  // 3. Copy accumulated artifacts to aptStaging and site/apt/
   if (existsSync(artPath)) {
     const copyArtifacts = (dir: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -236,6 +247,7 @@ export async function prepareSite(
         } else if (entry.isFile()) {
           if (entry.name.endsWith('.deb')) {
             copyFileSync(full, join(aptStaging, entry.name));
+            copyFileSync(full, join(sPath, 'apt', entry.name));
           }
         }
       }
@@ -243,7 +255,7 @@ export async function prepareSite(
     copyArtifacts(artPath);
   }
 
-  // 4. Generate APT Metadata and Release File with GitHub Release absolute URLs
+  // 4. Generate APT Metadata and Release File
   const debFiles = existsSync(aptStaging) ? readdirSync(aptStaging).filter((f) => f.endsWith('.deb')) : [];
 
   const arches = new Set<string>();
@@ -263,9 +275,8 @@ export async function prepareSite(
     arches.add('aarch64');
   }
 
-  const releaseBaseUrl = process.env.REPOEXE_RELEASE_BASE_URL || 'https://github.com/SjnExe/RepoExe/releases/download';
   for (const arch of arches) {
-    generateAptMetadata(aptStaging, 'main', arch, releaseBaseUrl);
+    generateAptMetadata(aptStaging, 'main', arch);
   }
   generateReleaseFile(aptStaging, 'stable', 'main');
 
