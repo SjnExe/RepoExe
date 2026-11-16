@@ -5,7 +5,8 @@ import { join, resolve } from 'node:path';
 import { ARCH_MAP } from '../builders/debian.ts';
 import { extractAllPackageNames, parseDependencyList } from '../core/dependencies.ts';
 import { checkExistingReleaseHash } from '../core/fetcher.ts';
-import { parseRecipe } from '../core/parser.ts';
+import { computeStateHash, parseRecipe } from '../core/parser.ts';
+import type { PackageRecipe } from '../core/types.ts';
 import { DependencyGraph } from '../utils/dag.ts';
 
 export function getGitDiffFiles(repoRoot: string): Set<string> {
@@ -186,7 +187,16 @@ export async function buildMatrixLayer(
 
       for (const targetArch of targetArches) {
         const checkArch = isArchAll ? 'all' : targetArch;
-        const stateHash = r.state_hash || '';
+        let stateHash = r.state_hash || '';
+        if (!isArchAll) {
+          const recipeDir = join(pkgsDir, p);
+          const shardRecipe: PackageRecipe = {
+            ...r,
+            arch: targetArch,
+            arches: [targetArch],
+          };
+          stateHash = computeStateHash(shardRecipe, recipeDir);
+        }
         if (!forceRebuild && stateHash && (await checkExistingReleaseHash(p, stateHash, checkArch))) {
           console.error(`Notice: Skipping matrix shard for ${p} [${checkArch}] (state_hash unchanged).`);
           continue;

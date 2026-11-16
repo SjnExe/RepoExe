@@ -1,5 +1,5 @@
-import pkg from '../../package.json';
+import { REPOEXE_VERSION } from '../../pkg/repoexe/recipe.ts';
 
-export const REPOEXE_VERSION = pkg.version;
+export { REPOEXE_VERSION };
 export const PREFIX = process.env.PREFIX || '/data/data/com.termux/files/usr';
 export const HOME = process.env.HOME || '/data/data/com.termux/files/home';

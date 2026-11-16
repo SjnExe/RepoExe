@@ -109,12 +109,16 @@ case "$1" in
     if command -v apt-get >/dev/null 2>&1; then
       apt-get update -o Acquire::Retries=3 -qq || apt-get update || true
       printf "\n${BOLD}Installing RepoExe CLI helper...${RESET}\n"
-      apt-get install -y -o Acquire::Retries=3 repoexe 2>/dev/null || {
-        printf "${YELLOW}Notice: 'repoexe' package is not yet available in the repository.${RESET}\n"
-      }
+      if ! apt-get install -y -o Acquire::Retries=3 repoexe; then
+        printf "${RED}Error: Failed to install 'repoexe' package.${RESET}\n" >&2
+        exit 1
+      fi
     elif command -v pkg >/dev/null 2>&1; then
-      pkg update -y 2>/dev/null || true
-      pkg install -y repoexe 2>/dev/null || true
+      pkg update -y || true
+      if ! pkg install -y repoexe; then
+        printf "${RED}Error: Failed to install 'repoexe' package via pkg.${RESET}\n" >&2
+        exit 1
+      fi
     fi
     printf "\n${GREEN}✓ RepoExe repository configuration complete!${RESET}\n"
     printf "Install packages using: '${CYAN}pkg install <pkg>${RESET}'\n"

@@ -305,45 +305,53 @@ export async function fetchSingleDep(
   } catch {}
 
   // 3. Official Termux Upstream Mirrors
-  const index = await loadTermuxIndex(repoArch);
-  const pkgInfo = index[pkgName] || index[`lib${pkgName}`] || index[pkgName.replace(/^lib/, '')];
+  try {
+    const index = await loadTermuxIndex(repoArch);
+    const pkgInfo = index[pkgName] || index[`lib${pkgName}`] || index[pkgName.replace(/^lib/, '')];
 
-  if (pkgInfo) {
-    const baseUrl = pkgInfo.BaseUrl;
-    const debFilename = basename(pkgInfo.Filename);
-    const debUrl = `${baseUrl}/${pkgInfo.Filename}`;
-    const debDest = join(destdir, debFilename);
-    console.log(`⚡ Fetching Termux upstream dependency '${pkgName}' [${repoArch}] from ${debUrl}...`);
-    await downloadFile(debUrl, debDest);
-    extractDebToPrefix(debDest, prefixRoot);
+    if (pkgInfo) {
+      const baseUrl = pkgInfo.BaseUrl;
+      const debFilename = basename(pkgInfo.Filename);
+      const debUrl = `${baseUrl}/${pkgInfo.Filename}`;
+      const debDest = join(destdir, debFilename);
+      console.log(`⚡ Fetching Termux upstream dependency '${pkgName}' [${repoArch}] from ${debUrl}...`);
+      await downloadFile(debUrl, debDest);
+      extractDebToPrefix(debDest, prefixRoot);
 
-    fetched.add(pkgName);
-    if (pkgInfo.Package) {
-      fetched.add(pkgInfo.Package);
-    }
+      fetched.add(pkgName);
+      if (pkgInfo.Package) {
+        fetched.add(pkgInfo.Package);
+      }
 
-    // Recursively resolve dependencies
-    const dependsStr = pkgInfo.Depends || '';
-    if (dependsStr) {
-      const clauses = parseDependencyList(dependsStr);
-      const filtered = filterDepsForArch(clauses, repoArch);
-      for (const branch of filtered) {
-        for (const token of branch) {
-          const cleanTokenName = token.name.split(':')[0].trim();
-          if (['dpkg', 'apt', 'bash', 'termux-tools', 'command-not-found'].includes(cleanTokenName)) {
-            break;
-          }
-          if (fetched.has(cleanTokenName)) {
-            break;
-          }
-          const ok = await fetchSingleDep(cleanTokenName, destdir, fetched, targetArch);
-          if (ok) {
-            break;
+      // Recursively resolve dependencies
+      const dependsStr = pkgInfo.Depends || '';
+      if (dependsStr) {
+        const clauses = parseDependencyList(dependsStr);
+        const filtered = filterDepsForArch(clauses, repoArch);
+        for (const branch of filtered) {
+          for (const token of branch) {
+            const cleanTokenName = token.name.split(':')[0].trim();
+            if (['dpkg', 'apt', 'bash', 'termux-tools', 'command-not-found'].includes(cleanTokenName)) {
+              break;
+            }
+            if (fetched.has(cleanTokenName)) {
+              break;
+            }
+            try {
+              const ok = await fetchSingleDep(cleanTokenName, destdir, fetched, targetArch);
+              if (ok) {
+                break;
+              }
+            } catch {
+              // Try next alternative in dependency branch
+            }
           }
         }
       }
+      return true;
     }
-    return true;
+  } catch (err: any) {
+    console.warn(`Warning: Failed to fetch upstream dependency '${pkgName}' [${repoArch}]: ${err?.message || err}`);
   }
 
   return false;
@@ -368,7 +376,12 @@ export async function resolveAndFetchBuildDependencies(
     let branchSatisfied = false;
     for (const token of branch) {
       const cleanName = token.name.split(':')[0].trim();
-      const success = await fetchSingleDep(cleanName, destdir, fetched, concreteArch);
+      let success = false;
+      try {
+        success = await fetchSingleDep(cleanName, destdir, fetched, concreteArch);
+      } catch (err: any) {
+        console.warn(`Warning: Error resolving dependency '${cleanName}' for ${concreteArch}: ${err?.message || err}`);
+      }
       if (success) {
         branchSatisfied = true;
         break;

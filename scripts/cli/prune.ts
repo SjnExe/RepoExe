@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { formatDebianFilenameVersion } from '../builders/debian.ts';
+import { extractDebArch, formatDebianFilenameVersion } from '../builders/debian.ts';
 import { parseRecipe } from '../core/parser.ts';
 import type { PackageRecipe } from '../core/types.ts';
 
@@ -47,6 +47,7 @@ export function identifyOutdatedAssets(
   assets: Array<Record<string, any>>,
   recipe?: PackageRecipe,
   _pkgName?: string,
+  localArtifacts: string[] = [],
 ): Array<Record<string, any>> {
   const toDelete: Array<Record<string, any>> = [];
   if (!recipe) {
@@ -54,10 +55,37 @@ export function identifyOutdatedAssets(
   }
 
   const whitelist = getExpectedAssetFilenames(recipe);
+  const currentArchesWithReplacement = new Set<string>();
 
   for (const asset of assets) {
     const name = asset.name || '';
-    if (!whitelist.has(name)) {
+    if (whitelist.has(name) && name.endsWith('.deb')) {
+      const arch = extractDebArch(name);
+      currentArchesWithReplacement.add(arch);
+    }
+  }
+
+  for (const file of localArtifacts) {
+    if (whitelist.has(file) && file.endsWith('.deb')) {
+      const arch = extractDebArch(file);
+      currentArchesWithReplacement.add(arch);
+    }
+  }
+
+  const hasAllReplacement = currentArchesWithReplacement.has('all');
+
+  for (const asset of assets) {
+    const name = asset.name || '';
+    if (whitelist.has(name)) {
+      continue;
+    }
+
+    if (name.endsWith('.deb')) {
+      const arch = extractDebArch(name);
+      if (hasAllReplacement || currentArchesWithReplacement.has(arch)) {
+        toDelete.push(asset);
+      }
+    } else {
       toDelete.push(asset);
     }
   }
@@ -124,16 +152,16 @@ export async function pruneReleaseTags(): Promise<void> {
         const recipe = parseRecipe(recipePath);
         const whitelist = getExpectedAssetFilenames(recipe);
         const hasCurrentDebInRelease = assets.some((a: any) => whitelist.has(a.name || '') && a.name?.endsWith('.deb'));
-        const hasBuiltArtifact =
-          existsSync('artifacts') &&
-          readdirSync('artifacts').some((f) => f.startsWith(`${tag}_`) && f.endsWith('.deb'));
+        const validLocalArtifacts = existsSync('artifacts')
+          ? readdirSync('artifacts').filter((f) => whitelist.has(f) && f.endsWith('.deb'))
+          : [];
 
-        if (!hasCurrentDebInRelease && !hasBuiltArtifact) {
+        if (!hasCurrentDebInRelease && validLocalArtifacts.length === 0) {
           console.log(`Notice: Preserving existing assets for ${tag} until new build artifact is ready.`);
           continue;
         }
 
-        const outdated = identifyOutdatedAssets(assets, recipe, tag);
+        const outdated = identifyOutdatedAssets(assets, recipe, tag, validLocalArtifacts);
         for (const asset of outdated) {
           if (asset.id && asset.name) {
             deletionTasks.push({ tag, name: asset.name, assetId: asset.id });
