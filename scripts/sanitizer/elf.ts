@@ -18,57 +18,83 @@ export const DYNAMIC_TAGS_TO_NULLIFY = new Set([
 export function stripVerneedFromElf(elfPath: string): void {
   try {
     const buf = readFileSync(elfPath);
-    if (buf.length < 64) {
+    if (buf.length < 52) {
       return;
     }
     if (buf[0] !== 0x7f || buf[1] !== 0x45 || buf[2] !== 0x4c || buf[3] !== 0x46) {
       return;
     }
-    if (buf[4] !== 2) {
+    const is32Bit = buf[4] === 1;
+    const is64Bit = buf[4] === 2;
+    if (!is32Bit && !is64Bit) {
       return;
-    } // Only 64-bit ELF
+    }
 
     const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
     const littleEndian = buf[5] === 1;
 
-    const e_phoff = Number(view.getBigUint64(32, littleEndian));
-    const e_phentsize = view.getUint16(54, littleEndian);
-    const e_phnum = view.getUint16(56, littleEndian);
+    let e_phoff = 0;
+    let e_phentsize = 0;
+    let e_phnum = 0;
+
+    if (is64Bit) {
+      if (buf.length < 64) {
+        return;
+      }
+      e_phoff = Number(view.getBigUint64(32, littleEndian));
+      e_phentsize = view.getUint16(54, littleEndian);
+      e_phnum = view.getUint16(56, littleEndian);
+    } else {
+      e_phoff = view.getUint32(28, littleEndian);
+      e_phentsize = view.getUint16(42, littleEndian);
+      e_phnum = view.getUint16(44, littleEndian);
+    }
 
     let dynamicOffset = 0;
     let dynamicFilesz = 0;
 
     for (let i = 0; i < e_phnum; i++) {
       const phOffset = e_phoff + i * e_phentsize;
-      if (phOffset + 40 > buf.length) {
+      if (phOffset + (is64Bit ? 40 : 20) > buf.length) {
         break;
       }
       const p_type = view.getUint32(phOffset, littleEndian);
       if (p_type === 2) {
         // PT_DYNAMIC
-        dynamicOffset = Number(view.getBigUint64(phOffset + 8, littleEndian));
-        dynamicFilesz = Number(view.getBigUint64(phOffset + 32, littleEndian));
+        if (is64Bit) {
+          dynamicOffset = Number(view.getBigUint64(phOffset + 8, littleEndian));
+          dynamicFilesz = Number(view.getBigUint64(phOffset + 32, littleEndian));
+        } else {
+          dynamicOffset = view.getUint32(phOffset + 4, littleEndian);
+          dynamicFilesz = view.getUint32(phOffset + 16, littleEndian);
+        }
         break;
       }
     }
 
     if (dynamicOffset > 0 && dynamicFilesz > 0) {
-      const dynEntrySize = 16;
+      const dynEntrySize = is64Bit ? 16 : 8;
       const numEntries = Math.floor(dynamicFilesz / dynEntrySize);
 
       for (let j = 0; j < numEntries; j++) {
         const entryOffset = dynamicOffset + j * dynEntrySize;
-        if (entryOffset + 8 > buf.length) {
+        if (entryOffset + dynEntrySize > buf.length) {
           break;
         }
-        const d_tag = view.getBigInt64(entryOffset, littleEndian);
+        const d_tag = is64Bit
+          ? view.getBigInt64(entryOffset, littleEndian)
+          : BigInt(view.getInt32(entryOffset, littleEndian));
         if (d_tag === 0n) {
           break;
         }
 
         const maskedTag = d_tag & 0xffffffffn;
         if (DYNAMIC_TAGS_TO_NULLIFY.has(d_tag) || DYNAMIC_TAGS_TO_NULLIFY.has(maskedTag)) {
-          view.setBigInt64(entryOffset, 0n, littleEndian);
+          if (is64Bit) {
+            view.setBigInt64(entryOffset, 0n, littleEndian);
+          } else {
+            view.setInt32(entryOffset, 0, littleEndian);
+          }
         }
       }
 
@@ -116,7 +142,9 @@ export function sanitizeElfBinary(elfPath: string, prefix: string = PREFIX): voi
     // 3. Set dynamic interpreter only on executables with an INTERP program header
     const phdrs = spawnSync('readelf', ['-l', elfPath], { encoding: 'utf-8' });
     if (phdrs.status === 0 && phdrs.stdout?.includes('INTERP')) {
-      const interpRes = spawnSync('patchelf', ['--set-interpreter', '/system/bin/linker64', elfPath]);
+      const is32Bit = buf.length >= 5 && buf[4] === 1;
+      const linker = is32Bit ? '/system/bin/linker' : '/system/bin/linker64';
+      const interpRes = spawnSync('patchelf', ['--set-interpreter', linker, elfPath]);
       if (interpRes.status !== 0 && interpRes.stderr?.length) {
         console.warn(
           `[ELF Sanitizer] Warning: Failed to set interpreter on ${basename(elfPath)}: ${interpRes.stderr.toString().trim()}`,

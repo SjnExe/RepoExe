@@ -1,6 +1,6 @@
 import { defineRecipe } from '@core/types.ts';
 
-import { REPOEXE_VERSION } from '../../scripts/utils/properties.ts';
+export const REPOEXE_VERSION = '1.0.0';
 
 export default defineRecipe({
   name: 'repoexe',
