@@ -317,7 +317,7 @@ export async function prepareSite(
   } catch {}
 
   const repoexeInstall = join(repoRoot, 'pkg', 'repoexe', 'install');
-  if (!existsSync(siteInstall) && existsSync(repoexeInstall)) {
+  if (existsSync(repoexeInstall)) {
     rmSync(siteInstall, { force: true });
     copyFileSync(repoexeInstall, siteInstall);
   }

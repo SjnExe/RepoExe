@@ -6,6 +6,7 @@ _repoexe() {
         'status:Check RepoExe APT repository status'
         'enable:Enable RepoExe APT repository'
         'disable:Disable RepoExe APT repository'
+        'remove:Remove RepoExe repository configuration'
         'version:Print CLI version'
         'help:Show help menu'
     )
@@ -14,6 +15,7 @@ _repoexe() {
         '(-s --status status)'{-s,--status}'[Check RepoExe APT repository status]' \
         '(-e --enable enable)'{-e,--enable}'[Enable RepoExe APT repository]' \
         '(-d --disable disable)'{-d,--disable}'[Disable RepoExe APT repository]' \
+        '(-r --remove remove)'{-r,--remove}'[Remove RepoExe repository configuration]' \
         '(-v --version version)'{-v,--version}'[Print CLI version]' \
         '(-h --help help)'{-h,--help}'[Show help menu]' \
         '1:command:->cmd' \
