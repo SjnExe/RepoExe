@@ -10,7 +10,7 @@ To install the RepoExe repository on your Termux device, run:
 curl -sL https://sjnexe.github.io/RepoExe/install | sh
 ```
 
-This script configures the RepoExe APT repository and imports the repository signing key.
+This script configures the RepoExe Deb822 repository (`repoexe.sources`) with an inlined PGP signing key.
 
 ## Features
 
@@ -21,13 +21,13 @@ This script configures the RepoExe APT repository and imports the repository sig
 
 ## Contributing
 
-Please read `CONTRIBUTING.md` for details on our code of conduct and the process for submitting pull requests to us.
+Please read [CONTRIBUTING.md](.github/CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests to us.
 
-If you are an AI agent or maintainer looking to modify the build infrastructure, please refer to `AGENTS.md` first.
+If you are an AI agent or maintainer looking to modify the build infrastructure, please refer to [AGENTS.md](AGENTS.md) first.
 
 ## Security
 
-If you discover a security vulnerability within RepoExe, please refer to our Security Policy in `SECURITY.md`.
+If you discover a security vulnerability within RepoExe, please refer to our Security Policy in [SECURITY.md](.github/SECURITY.md).
 
 ## 🚀 Installation & Management
 
@@ -52,6 +52,9 @@ repoexe status          # or: repoexe -s, repoexe --status
 # Enable or disable repository integration
 repoexe enable          # or: repoexe -e, repoexe --enable
 repoexe disable         # or: repoexe -d, repoexe --disable
+
+# Completely remove repository integration
+repoexe remove          # or: repoexe -r, repoexe --remove
 
 # View version or help
 repoexe --version       # or: repoexe -v
