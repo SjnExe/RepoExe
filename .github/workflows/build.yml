@@ -510,18 +510,18 @@ jobs:
           sudo apt-get install -y dpkg-dev libarchive-tools zip unzip jq gh gpg
           bun install --frozen-lockfile --silent
 
-      - name: Prune Outdated Release Assets & Tags
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          bun run prune
-
       - name: Build Full Site & Repository Indexes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           bun run index
+
+      - name: Prune Outdated Release Assets & Tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bun run prune
 
       - name: Verify Site Packaging & Symlink Integrity
         run: |

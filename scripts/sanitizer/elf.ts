@@ -76,29 +76,94 @@ export function stripVerneedFromElf(elfPath: string): void {
       const dynEntrySize = is64Bit ? 16 : 8;
       const numEntries = Math.floor(dynamicFilesz / dynEntrySize);
 
-      for (let j = 0; j < numEntries; j++) {
-        const entryOffset = dynamicOffset + j * dynEntrySize;
-        if (entryOffset + dynEntrySize > buf.length) {
-          break;
+      if (is64Bit) {
+        interface DynEntry64 {
+          tag: bigint;
+          val: bigint;
         }
-        const d_tag = is64Bit
-          ? view.getBigInt64(entryOffset, littleEndian)
-          : BigInt(view.getInt32(entryOffset, littleEndian));
-        if (d_tag === 0n) {
-          break;
-        }
+        const retained: DynEntry64[] = [];
+        let modified = false;
 
-        const maskedTag = d_tag & 0xffffffffn;
-        if (DYNAMIC_TAGS_TO_NULLIFY.has(d_tag) || DYNAMIC_TAGS_TO_NULLIFY.has(maskedTag)) {
-          if (is64Bit) {
-            view.setBigInt64(entryOffset, 0n, littleEndian);
+        for (let j = 0; j < numEntries; j++) {
+          const entryOffset = dynamicOffset + j * dynEntrySize;
+          if (entryOffset + dynEntrySize > buf.length) {
+            break;
+          }
+          const d_tag = view.getBigInt64(entryOffset, littleEndian);
+          if (d_tag === 0n) {
+            break;
+          }
+          const d_val = view.getBigInt64(entryOffset + 8, littleEndian);
+          const maskedTag = d_tag & 0xffffffffn;
+
+          if (DYNAMIC_TAGS_TO_NULLIFY.has(d_tag) || DYNAMIC_TAGS_TO_NULLIFY.has(maskedTag)) {
+            modified = true;
           } else {
-            view.setInt32(entryOffset, 0, littleEndian);
+            retained.push({ tag: d_tag, val: d_val });
           }
         }
-      }
 
-      writeFileSync(elfPath, buf);
+        if (modified) {
+          for (let j = 0; j < numEntries; j++) {
+            const entryOffset = dynamicOffset + j * dynEntrySize;
+            if (entryOffset + dynEntrySize > buf.length) {
+              break;
+            }
+            if (j < retained.length) {
+              view.setBigInt64(entryOffset, retained[j].tag, littleEndian);
+              view.setBigInt64(entryOffset + 8, retained[j].val, littleEndian);
+            } else {
+              view.setBigInt64(entryOffset, 0n, littleEndian);
+              view.setBigInt64(entryOffset + 8, 0n, littleEndian);
+            }
+          }
+          writeFileSync(elfPath, buf);
+        }
+      } else {
+        interface DynEntry32 {
+          tag: number;
+          val: number;
+        }
+        const retained: DynEntry32[] = [];
+        let modified = false;
+
+        for (let j = 0; j < numEntries; j++) {
+          const entryOffset = dynamicOffset + j * dynEntrySize;
+          if (entryOffset + dynEntrySize > buf.length) {
+            break;
+          }
+          const d_tag = view.getInt32(entryOffset, littleEndian);
+          if (d_tag === 0) {
+            break;
+          }
+          const d_val = view.getInt32(entryOffset + 4, littleEndian);
+          const bigTag = BigInt(d_tag);
+          const maskedTag = bigTag & 0xffffffffn;
+
+          if (DYNAMIC_TAGS_TO_NULLIFY.has(bigTag) || DYNAMIC_TAGS_TO_NULLIFY.has(maskedTag)) {
+            modified = true;
+          } else {
+            retained.push({ tag: d_tag, val: d_val });
+          }
+        }
+
+        if (modified) {
+          for (let j = 0; j < numEntries; j++) {
+            const entryOffset = dynamicOffset + j * dynEntrySize;
+            if (entryOffset + dynEntrySize > buf.length) {
+              break;
+            }
+            if (j < retained.length) {
+              view.setInt32(entryOffset, retained[j].tag, littleEndian);
+              view.setInt32(entryOffset + 4, retained[j].val, littleEndian);
+            } else {
+              view.setInt32(entryOffset, 0, littleEndian);
+              view.setInt32(entryOffset + 4, 0, littleEndian);
+            }
+          }
+          writeFileSync(elfPath, buf);
+        }
+      }
     }
   } catch {
     // Ignore invalid files

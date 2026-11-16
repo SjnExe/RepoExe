@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { extractDebArch, formatDebianFilenameVersion } from '../builders/debian.ts';
@@ -47,7 +47,6 @@ export function identifyOutdatedAssets(
   assets: Array<Record<string, any>>,
   recipe?: PackageRecipe,
   _pkgName?: string,
-  localArtifacts: string[] = [],
 ): Array<Record<string, any>> {
   const toDelete: Array<Record<string, any>> = [];
   if (!recipe) {
@@ -61,13 +60,6 @@ export function identifyOutdatedAssets(
     const name = asset.name || '';
     if (whitelist.has(name) && name.endsWith('.deb')) {
       const arch = extractDebArch(name);
-      currentArchesWithReplacement.add(arch);
-    }
-  }
-
-  for (const file of localArtifacts) {
-    if (whitelist.has(file) && file.endsWith('.deb')) {
-      const arch = extractDebArch(file);
       currentArchesWithReplacement.add(arch);
     }
   }
@@ -152,16 +144,13 @@ export async function pruneReleaseTags(): Promise<void> {
         const recipe = parseRecipe(recipePath);
         const whitelist = getExpectedAssetFilenames(recipe);
         const hasCurrentDebInRelease = assets.some((a: any) => whitelist.has(a.name || '') && a.name?.endsWith('.deb'));
-        const validLocalArtifacts = existsSync('artifacts')
-          ? readdirSync('artifacts').filter((f) => whitelist.has(f) && f.endsWith('.deb'))
-          : [];
 
-        if (!hasCurrentDebInRelease && validLocalArtifacts.length === 0) {
-          console.log(`Notice: Preserving existing assets for ${tag} until new build artifact is ready.`);
+        if (!hasCurrentDebInRelease) {
+          console.log(`Notice: Preserving existing assets for ${tag} until replacement is confirmed on release.`);
           continue;
         }
 
-        const outdated = identifyOutdatedAssets(assets, recipe, tag, validLocalArtifacts);
+        const outdated = identifyOutdatedAssets(assets, recipe, tag);
         for (const asset of outdated) {
           if (asset.id && asset.name) {
             deletionTasks.push({ tag, name: asset.name, assetId: asset.id });
