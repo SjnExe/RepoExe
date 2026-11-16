@@ -329,29 +329,41 @@ export async function fetchSingleDep(
         const clauses = parseDependencyList(dependsStr);
         const filtered = filterDepsForArch(clauses, repoArch);
         for (const branch of filtered) {
+          let branchSatisfied = false;
           for (const token of branch) {
             const cleanTokenName = token.name.split(':')[0].trim();
             if (['dpkg', 'apt', 'bash', 'termux-tools', 'command-not-found'].includes(cleanTokenName)) {
+              branchSatisfied = true;
               break;
             }
             if (fetched.has(cleanTokenName)) {
+              branchSatisfied = true;
               break;
             }
             try {
               const ok = await fetchSingleDep(cleanTokenName, destdir, fetched, targetArch);
               if (ok) {
+                branchSatisfied = true;
                 break;
               }
             } catch {
               // Try next alternative in dependency branch
             }
           }
+          if (!branchSatisfied) {
+            fetched.delete(pkgName);
+            if (pkgInfo.Package) {
+              fetched.delete(pkgInfo.Package);
+            }
+            return false;
+          }
         }
       }
       return true;
     }
-  } catch (err: any) {
-    console.warn(`Warning: Failed to fetch upstream dependency '${pkgName}' [${repoArch}]: ${err?.message || err}`);
+  } catch (err: unknown) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.warn(`Warning: Failed to fetch upstream dependency '${pkgName}' [${repoArch}]: ${reason}`);
   }
 
   return false;
@@ -379,8 +391,9 @@ export async function resolveAndFetchBuildDependencies(
       let success = false;
       try {
         success = await fetchSingleDep(cleanName, destdir, fetched, concreteArch);
-      } catch (err: any) {
-        console.warn(`Warning: Error resolving dependency '${cleanName}' for ${concreteArch}: ${err?.message || err}`);
+      } catch (err: unknown) {
+        const reason = err instanceof Error ? err.message : String(err);
+        console.warn(`Warning: Error resolving dependency '${cleanName}' for ${concreteArch}: ${reason}`);
       }
       if (success) {
         branchSatisfied = true;

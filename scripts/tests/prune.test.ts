@@ -35,10 +35,10 @@ test('identifyOutdatedAssets filters unknown assets', (): void => {
   expect(outdated[0].id).toBe(2);
 });
 
-test('identifyOutdatedAssets only prunes architectures with current replacements', (): void => {
+test('identifyOutdatedAssets only prunes architectures with current replacements on release', (): void => {
   const recipe = parseRecipe('pkg/aisleriot');
   const debVer = recipe.revision > 0 ? `${recipe.version}-${recipe.revision}` : recipe.version;
-  const assets = [
+  const assets1 = [
     { name: `aisleriot_${debVer}_aarch64.deb`, id: 1 },
     { name: 'aisleriot_3.20.0_aarch64.deb', id: 2 },
     { name: 'aisleriot_3.20.0_arm.deb', id: 3 },
@@ -46,11 +46,12 @@ test('identifyOutdatedAssets only prunes architectures with current replacements
   ];
 
   // Only aarch64 has a replacement in assets
-  const outdated1 = identifyOutdatedAssets(assets, recipe, 'aisleriot');
+  const outdated1 = identifyOutdatedAssets(assets1, recipe, 'aisleriot');
   expect(outdated1.map((a) => a.id)).toEqual([2]);
 
-  // With a local arm artifact ready
-  const outdated2 = identifyOutdatedAssets(assets, recipe, 'aisleriot', [`aisleriot_${debVer}_arm.deb`]);
+  // When arm replacement is also published to release
+  const assets2 = [...assets1, { name: `aisleriot_${debVer}_arm.deb`, id: 5 }];
+  const outdated2 = identifyOutdatedAssets(assets2, recipe, 'aisleriot');
   expect(outdated2.map((a) => a.id)).toEqual([2, 3]);
 });
 
