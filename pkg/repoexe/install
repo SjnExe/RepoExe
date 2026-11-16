@@ -32,7 +32,7 @@ Suites: stable
 Components: main
 Signed-By:
  -----BEGIN PGP PUBLIC KEY BLOCK-----
-
+ .
  mQGNBGnsIOMBDADS6Qqh3IvtrtvoMCTMS8F/lB2tZoVD5G3Byaim0Y/me8reL7KS
  oTZ70FbtXm4rt2OsWfAgKEfH2hdEYqxL4MgwjWvyi7BNtIUVhP+UnU5EYPuexGXa
  44WyYpatGI90mKf9CTnvmOkjTbR272UAmfvsDkDxAUrdEpCyZzzZDssPLbSr1Zw7
@@ -113,6 +113,8 @@ check_status() {
     else
       printf "  APT Source:   [${GREEN}ENABLED${RESET}]  (Deb822: %s)\n" "$SOURCES_FILE"
     fi
+  elif [ -f "$SOURCES_DIR/repoexe.list" ]; then
+    printf "  APT Source:   [${YELLOW}LEGACY${RESET}]    (%s)\n" "$SOURCES_DIR/repoexe.list"
   else
     printf "  APT Source:   [${RED}NOT CONFIGURED${RESET}]\n"
   fi
@@ -130,13 +132,21 @@ enable_repo() {
 }
 
 disable_repo() {
+  local disabled=0
   if [ -f "$SOURCES_FILE" ]; then
     if grep -q "^Enabled:" "$SOURCES_FILE"; then
       sed -i 's/^Enabled:.*/Enabled: no/' "$SOURCES_FILE"
     else
       sed -i '1s/^/Enabled: no\n/' "$SOURCES_FILE"
     fi
-    printf "${YELLOW}✓ RepoExe APT repository disabled (Enabled: no).${RESET}\n"
+    disabled=1
+  fi
+  if [ -f "$SOURCES_DIR/repoexe.list" ]; then
+    rm -f "$SOURCES_DIR/repoexe.list"
+    disabled=1
+  fi
+  if [ "$disabled" -eq 1 ]; then
+    printf "${YELLOW}✓ RepoExe APT repository disabled.${RESET}\n"
   else
     printf "${YELLOW}Notice: RepoExe repository is not configured.${RESET}\n"
   fi

@@ -48,7 +48,7 @@ Components: main
 Signed-By:
 EOF
 if [ -n "$GPG_KEY" ] && [ -f "$GPG_KEY" ]; then
-  sed 's/^/ /' "$GPG_KEY" >> "\${DESTDIR}\${PREFIX}/etc/apt/sources.list.d/repoexe.sources"
+  sed 's/^[[:space:]]*$/./; s/^/ /' "$GPG_KEY" >> "\${DESTDIR}\${PREFIX}/etc/apt/sources.list.d/repoexe.sources"
 fi
 
 if [ -d "\${RECIPE_DIR}/completions" ]; then
