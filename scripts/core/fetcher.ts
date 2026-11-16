@@ -225,12 +225,26 @@ function extractDebToPrefix(debPath: string, prefixRoot: string): void {
   }
 }
 
+function recordOrExtractDeb(
+  pkgName: string,
+  debPath: string,
+  prefixRoot: string,
+  pendingDebs?: Map<string, string>,
+): void {
+  if (pendingDebs) {
+    pendingDebs.set(pkgName, debPath);
+  } else {
+    extractDebToPrefix(debPath, prefixRoot);
+  }
+}
+
 export async function fetchSingleDep(
   dep: string,
   destdir: string,
   fetched: Set<string>,
   targetArch: string = 'aarch64',
   resolving: Set<string> = new Set<string>(),
+  pendingDebs?: Map<string, string>,
 ): Promise<boolean> {
   const [rawPkgName] = parseDepSpec(dep);
   const pkgName = rawPkgName.split(':')[0].trim();
@@ -272,7 +286,7 @@ export async function fetchSingleDep(
   const localArts = [...checkArtifacts('artifacts'), ...checkArtifacts(outputDir)];
   if (localArts.length > 0) {
     console.log(`✓ Found local artifact for dependency '${pkgName}': ${basename(localArts[0])}`);
-    extractDebToPrefix(localArts[0], prefixRoot);
+    recordOrExtractDeb(pkgName, localArts[0], prefixRoot, pendingDebs);
     fetched.add(pkgName);
     return true;
   }
@@ -301,7 +315,7 @@ export async function fetchSingleDep(
         const downloadUrl = debAsset.url || debAsset.browser_download_url;
         const extraHeaders = debAsset.url ? { Accept: 'application/octet-stream' } : undefined;
         await downloadFile(downloadUrl, debPath, true, extraHeaders);
-        extractDebToPrefix(debPath, prefixRoot);
+        recordOrExtractDeb(pkgName, debPath, prefixRoot, pendingDebs);
         fetched.add(pkgName);
         return true;
       }
@@ -310,6 +324,8 @@ export async function fetchSingleDep(
 
   // 3. Official Termux Upstream Mirrors
   const snapshotFetched = new Set(fetched);
+  const snapshotPending = pendingDebs ? new Map(pendingDebs) : null;
+  let canonicalName: string | undefined;
   resolving.add(pkgName);
 
   try {
@@ -317,8 +333,9 @@ export async function fetchSingleDep(
     const pkgInfo = index[pkgName] || index[`lib${pkgName}`] || index[pkgName.replace(/^lib/, '')];
 
     if (pkgInfo) {
-      if (pkgInfo.Package) {
-        resolving.add(pkgInfo.Package);
+      if (pkgInfo.Package && pkgInfo.Package !== pkgName) {
+        canonicalName = pkgInfo.Package;
+        resolving.add(canonicalName);
       }
       const baseUrl = pkgInfo.BaseUrl;
       const debFilename = basename(pkgInfo.Filename);
@@ -326,7 +343,10 @@ export async function fetchSingleDep(
       const debDest = join(destdir, debFilename);
       console.log(`⚡ Fetching Termux upstream dependency '${pkgName}' [${repoArch}] from ${debUrl}...`);
       await downloadFile(debUrl, debDest);
-      extractDebToPrefix(debDest, prefixRoot);
+      recordOrExtractDeb(pkgName, debDest, prefixRoot, pendingDebs);
+      if (canonicalName) {
+        recordOrExtractDeb(canonicalName, debDest, prefixRoot, pendingDebs);
+      }
 
       // Recursively resolve dependencies
       const dependsStr = pkgInfo.Depends || '';
@@ -346,7 +366,7 @@ export async function fetchSingleDep(
               break;
             }
             try {
-              const ok = await fetchSingleDep(cleanTokenName, destdir, fetched, targetArch, resolving);
+              const ok = await fetchSingleDep(cleanTokenName, destdir, fetched, targetArch, resolving, pendingDebs);
               if (ok) {
                 branchSatisfied = true;
                 break;
@@ -356,39 +376,48 @@ export async function fetchSingleDep(
             }
           }
           if (!branchSatisfied) {
-            resolving.delete(pkgName);
-            if (pkgInfo.Package) {
-              resolving.delete(pkgInfo.Package);
-            }
+            // Rollback all provisional dependants recorded during this failed closure
             fetched.clear();
             for (const p of snapshotFetched) {
               fetched.add(p);
+            }
+            if (snapshotPending && pendingDebs) {
+              pendingDebs.clear();
+              for (const [k, v] of snapshotPending) {
+                pendingDebs.set(k, v);
+              }
             }
             return false;
           }
         }
       }
 
-      resolving.delete(pkgName);
-      if (pkgInfo.Package) {
-        resolving.delete(pkgInfo.Package);
-      }
       fetched.add(pkgName);
-      if (pkgInfo.Package) {
-        fetched.add(pkgInfo.Package);
+      if (canonicalName) {
+        fetched.add(canonicalName);
       }
       return true;
     }
   } catch (err: unknown) {
     const reason = err instanceof Error ? err.message : String(err);
     console.warn(`Warning: Failed to fetch upstream dependency '${pkgName}' [${repoArch}]: ${reason}`);
+    fetched.clear();
+    for (const p of snapshotFetched) {
+      fetched.add(p);
+    }
+    if (snapshotPending && pendingDebs) {
+      pendingDebs.clear();
+      for (const [k, v] of snapshotPending) {
+        pendingDebs.set(k, v);
+      }
+    }
+  } finally {
+    resolving.delete(pkgName);
+    if (canonicalName) {
+      resolving.delete(canonicalName);
+    }
   }
 
-  resolving.delete(pkgName);
-  fetched.clear();
-  for (const p of snapshotFetched) {
-    fetched.add(p);
-  }
   return false;
 }
 
@@ -412,13 +441,21 @@ export async function resolveAndFetchBuildDependencies(
     for (const token of branch) {
       const cleanName = token.name.split(':')[0].trim();
       let success = false;
+      const branchDebs = new Map<string, string>();
       try {
-        success = await fetchSingleDep(cleanName, destdir, fetched, concreteArch);
+        success = await fetchSingleDep(cleanName, destdir, fetched, concreteArch, new Set(), branchDebs);
       } catch (err: unknown) {
         const reason = err instanceof Error ? err.message : String(err);
         console.warn(`Warning: Error resolving dependency '${cleanName}' for ${concreteArch}: ${reason}`);
       }
       if (success) {
+        const extracted = new Set<string>();
+        for (const debPath of branchDebs.values()) {
+          if (!extracted.has(debPath)) {
+            extracted.add(debPath);
+            extractDebToPrefix(debPath, PREFIX);
+          }
+        }
         branchSatisfied = true;
         break;
       }
