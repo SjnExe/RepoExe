@@ -4,11 +4,8 @@ set -e
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 REPO_URL="https://sjnexe.github.io/RepoExe"
 SOURCES_DIR="$PREFIX/etc/apt/sources.list.d"
-KEYRING_DIR="$PREFIX/etc/apt/trusted.gpg.d"
-LIST_FILE="$SOURCES_DIR/repoexe.list"
-KEY_FILE="$KEYRING_DIR/repoexe.asc"
-REPOEXE_VERSION_FALLBACK="1.0.0"
-REPOEXE_VERSION="$(dpkg-query -W -f='${Version}' repoexe 2>/dev/null || echo "$REPOEXE_VERSION_FALLBACK")"
+SOURCES_FILE="$SOURCES_DIR/repoexe.sources"
+REPOEXE_VERSION="$(dpkg-query -W -f='${Version}' repoexe 2>/dev/null || echo "1.0.0")"
 
 # Terminal Colors
 if [ -t 1 ]; then
@@ -27,6 +24,74 @@ else
   RESET=''
 fi
 
+write_sources_file() {
+  cat << 'EOF' > "$SOURCES_FILE"
+Types: deb
+URIs: https://sjnexe.github.io/RepoExe/apt
+Suites: stable
+Components: main
+Signed-By:
+ -----BEGIN PGP PUBLIC KEY BLOCK-----
+
+ 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
+ =asmP
+ -----END PGP PUBLIC KEY BLOCK-----
+EOF
+}
+
+cleanup_legacy() {
+  rm -f "$SOURCES_DIR/repoexe.list" \
+        "$PREFIX/etc/apt/trusted.gpg.d/repoexe.asc" \
+        "$PREFIX/etc/apt/keyrings/repoexe.gpg" \
+        "$PREFIX/etc/apt/keyrings/repoexe.asc"
+}
+
 show_help() {
   printf "${BOLD}RepoExe Management CLI v%s${RESET}\n\n" "$REPOEXE_VERSION"
   printf "${BOLD}USAGE:${RESET}\n"
@@ -35,56 +100,52 @@ show_help() {
   printf "  ${CYAN}status, -s, --status${RESET}     Check RepoExe APT repository integration status\n"
   printf "  ${CYAN}enable, -e, --enable${RESET}     Enable RepoExe APT repository source\n"
   printf "  ${CYAN}disable, -d, --disable${RESET}   Disable RepoExe APT repository source\n"
+  printf "  ${CYAN}remove, -r, --remove${RESET}     Remove RepoExe repository configuration\n"
   printf "  ${CYAN}version, -v, --version${RESET}   Print CLI version\n"
   printf "  ${CYAN}help, -h, --help${RESET}         Show this help menu\n"
 }
 
 check_status() {
   printf "${BOLD}=== RepoExe Status ===${RESET}\n"
-  if [ -f "$LIST_FILE" ]; then
-    printf "  APT Source:   [${GREEN}ENABLED${RESET}]  (%s)\n" "$LIST_FILE"
+  if [ -f "$SOURCES_FILE" ]; then
+    if grep -q "^Enabled:[[:space:]]*no" "$SOURCES_FILE" 2>/dev/null; then
+      printf "  APT Source:   [${YELLOW}DISABLED${RESET}] (Enabled: no in %s)\n" "$SOURCES_FILE"
+    else
+      printf "  APT Source:   [${GREEN}ENABLED${RESET}]  (Deb822: %s)\n" "$SOURCES_FILE"
+    fi
   else
-    printf "  APT Source:   [${RED}DISABLED${RESET}]\n"
-  fi
-
-  if [ -s "$KEY_FILE" ] && grep -q "BEGIN PGP PUBLIC KEY BLOCK" "$KEY_FILE" 2>/dev/null; then
-    printf "  Signing Key:  [${GREEN}OK${RESET}]       (%s)\n" "$KEY_FILE"
-  else
-    printf "  Signing Key:  [${YELLOW}MISSING${RESET}]\n"
+    printf "  APT Source:   [${RED}NOT CONFIGURED${RESET}]\n"
   fi
 }
 
 enable_repo() {
-  mkdir -p "$SOURCES_DIR" "$KEYRING_DIR"
-  if [ ! -s "$KEY_FILE" ] || ! grep -q "BEGIN PGP PUBLIC KEY BLOCK" "$KEY_FILE" 2>/dev/null; then
-    if ! command -v curl >/dev/null 2>&1; then
-      printf "${RED}Error: 'curl' is required to fetch repository signing key.${RESET}\n" >&2
-      exit 1
-    fi
-    TMP_KEY="${KEY_FILE}.tmp.$$"
-    trap 'rm -f "$TMP_KEY"' EXIT INT TERM
-    if ! curl -fsSL "$REPO_URL/repoexe.gpg" -o "$TMP_KEY"; then
-      rm -f "$TMP_KEY"
-      trap - EXIT INT TERM
-      printf "${RED}Error: Failed to download signing key from $REPO_URL/repoexe.gpg${RESET}\n" >&2
-      exit 1
-    fi
-    if ! grep -q "BEGIN PGP PUBLIC KEY BLOCK" "$TMP_KEY" 2>/dev/null; then
-      rm -f "$TMP_KEY"
-      trap - EXIT INT TERM
-      printf "${RED}Error: Downloaded signing key is invalid or corrupted.${RESET}\n" >&2
-      exit 1
-    fi
-    mv -f "$TMP_KEY" "$KEY_FILE"
-    trap - EXIT INT TERM
+  mkdir -p "$SOURCES_DIR"
+  cleanup_legacy
+  if [ -f "$SOURCES_FILE" ] && grep -q "^Enabled:[[:space:]]*no" "$SOURCES_FILE"; then
+    sed -i '/^Enabled:[[:space:]]*no/d' "$SOURCES_FILE"
+  elif [ ! -f "$SOURCES_FILE" ]; then
+    write_sources_file
   fi
-  echo "deb [signed-by=$KEY_FILE] $REPO_URL/apt stable main" > "$LIST_FILE"
-  printf "${GREEN}✓ RepoExe APT repository enabled.${RESET}\n"
+  printf "${GREEN}✓ RepoExe APT repository enabled (Deb822).${RESET}\n"
 }
 
 disable_repo() {
-  rm -f "$LIST_FILE"
-  printf "${YELLOW}✓ RepoExe APT repository disabled.${RESET}\n"
+  if [ -f "$SOURCES_FILE" ]; then
+    if grep -q "^Enabled:" "$SOURCES_FILE"; then
+      sed -i 's/^Enabled:.*/Enabled: no/' "$SOURCES_FILE"
+    else
+      sed -i '1s/^/Enabled: no\n/' "$SOURCES_FILE"
+    fi
+    printf "${YELLOW}✓ RepoExe APT repository disabled (Enabled: no).${RESET}\n"
+  else
+    printf "${YELLOW}Notice: RepoExe repository is not configured.${RESET}\n"
+  fi
+}
+
+remove_repo() {
+  cleanup_legacy
+  rm -f "$SOURCES_FILE"
+  printf "${GREEN}✓ RepoExe repository configuration removed.${RESET}\n"
 }
 
 case "$1" in
@@ -96,6 +157,9 @@ case "$1" in
     ;;
   disable|-d|--disable)
     disable_repo
+    ;;
+  remove|-r|--remove)
+    remove_repo
     ;;
   version|-v|--version)
     printf "repoexe v%s\n" "$REPOEXE_VERSION"
