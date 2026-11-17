@@ -129,8 +129,8 @@ export function setupBionicCompat(targetArch: string = 'aarch64'): void {
   const cacheDir = join(repoRoot, '.cache', 'compat');
   mkdirSync(cacheDir, { recursive: true });
 
-  const cachedObj = join(cacheDir, `compat_${normArch}_${srcHash}.o`);
-  const cachedLib = join(cacheDir, `libcompat_${normArch}_${srcHash}.a`);
+  const cachedObj = join(cacheDir, `compat_${normArch}_${srcHash}_rcsD.o`);
+  const cachedLib = join(cacheDir, `libcompat_${normArch}_${srcHash}_rcsD.a`);
 
   if (!existsSync(cachedObj) || !existsSync(cachedLib)) {
     console.log(`⚡ Compiling universal Bionic compat library for ${normArch} (Hash: ${srcHash})...`);
@@ -156,7 +156,10 @@ export function setupBionicCompat(targetArch: string = 'aarch64'): void {
       throw new Error(`Failed to compile bionic_compat.c for ${normArch}:\n${errDetail}`);
     }
 
-    const resAr = spawnSync(ndkAr, ['rcs', cachedLib, cachedObj], { encoding: 'utf-8' });
+    const resAr = spawnSync(ndkAr, ['rcsD', cachedLib, cachedObj], {
+      encoding: 'utf-8',
+      env: { ...process.env, ZERO_AR_DATE: '1' },
+    });
     if (resAr.status !== 0 || resAr.error) {
       const errDetail = resAr.error ? resAr.error.message : resAr.stderr || `exit code ${resAr.status}`;
       throw new Error(`Failed to create libcompat.a for ${normArch}:\n${errDetail}`);
@@ -189,31 +192,42 @@ export function setupBionicCompat(targetArch: string = 'aarch64'): void {
     spawnSync('which', ['glib-compile-resources'], { encoding: 'utf-8' }).stdout?.trim() ||
     '/usr/bin/glib-compile-resources';
 
+  const escapeMeson = (str: string): string => str.replace(/'/g, "\\'");
+
   const stubH = join(tempDir, 'bionic_stub.h');
-  const extraCArgsStr = archConfig.extraFlags.map((f) => `'${f}'`).join(', ');
+  const extraCArgsStr = archConfig.extraFlags.map((f) => `'${escapeMeson(f)}'`).join(', ');
+  const prefixMapArgs = Array.from(
+    new Set([
+      "'-ffile-prefix-map=/data/data/com.termux/files=.'",
+      "'-ffile-prefix-map=/home/builder/RepoExe=.'",
+      `'-ffile-prefix-map=${escapeMeson(repoRoot)}=.'`,
+    ]),
+  );
   const cArgsList = [
     "'-I/data/data/com.termux/files/usr/include'",
-    `'-I${tempDir}'`,
+    `'-I${escapeMeson(tempDir)}'`,
     "'-include'",
-    `'${stubH}'`,
+    `'${escapeMeson(stubH)}'`,
     "'-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__=1'",
     "'-fPIC'",
+    ...prefixMapArgs,
+    "'-Wno-error=date-time'",
     ...(extraCArgsStr ? [extraCArgsStr] : []),
   ].join(', ');
 
   const mesonCross = `[binaries]
-c = '${ndkClang}'
-cpp = '${ndkClangxx}'
-ar = '${ndkAr}'
-strip = '${ndkStrip}'
+c = '${escapeMeson(ndkClang)}'
+cpp = '${escapeMeson(ndkClangxx)}'
+ar = '${escapeMeson(ndkAr)}'
+strip = '${escapeMeson(ndkStrip)}'
 pkg-config = 'pkg-config'
-glib-compile-resources = '${hostGlibCompileResources}'
+glib-compile-resources = '${escapeMeson(hostGlibCompileResources)}'
 
 [built-in options]
 c_args = [${cArgsList}]
 cpp_args = [${cArgsList}]
-c_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L${tempDir}', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
-cpp_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L${tempDir}', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
+c_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L${escapeMeson(tempDir)}', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
+cpp_link_args = ['-L/data/data/com.termux/files/usr/lib', '-L${escapeMeson(tempDir)}', '-lbionic_compat', '-lm', '-Wl,-rpath=/data/data/com.termux/files/usr/lib', '-Wl,-rpath-link=/data/data/com.termux/files/usr/lib']
 
 [properties]
 needs_exe_wrapper = true

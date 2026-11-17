@@ -13,15 +13,43 @@ import {
 import { basename, dirname, join, resolve } from 'node:path';
 
 import { extractDebArch, generateAptMetadata, generateReleaseFile } from '../builders/debian.ts';
+import { filterDepsForArch, normalizeArch, parseDependencyList } from '../core/dependencies.ts';
+import { parseFilenameDebVersion } from '../core/fetcher.ts';
 import { parseRecipe } from '../core/parser.ts';
+import { getSubpackageNames } from '../core/subpkg.ts';
+import type { PackageRecipe } from '../core/types.ts';
+import { satisfiesVersionConstraint } from '../core/version.ts';
+import { DependencyGraph } from '../utils/dag.ts';
 import { generatePackagesJson, type ReleaseAssetInfo } from '../utils/metadata.ts';
-import { getExpectedAssetFilenames } from './prune.ts';
+import { getExpectedAssetFilenames, identifyOutdatedAssets, type ReleaseAssetRecord } from './prune.ts';
 
-export function getExactPackageArtifacts(artPath: string, pkgName: string): string[] {
+export function getRetainedReleaseAssetFilenames(
+  recipe: PackageRecipe,
+  assets: ReleaseAssetRecord[] = [],
+  allRecipes?: Record<string, PackageRecipe>,
+): Set<string> {
+  const expectedFiles = getExpectedAssetFilenames(recipe);
+  const outdatedNames = new Set(identifyOutdatedAssets(assets, recipe, recipe.name, allRecipes).map((a) => a.name));
+  const validNames = new Set([recipe.name, ...getSubpackageNames(recipe)]);
+  for (const asset of assets) {
+    const name = asset.name || '';
+    if (name.endsWith('.deb') && !outdatedNames.has(name)) {
+      const pkg = name.split('_')[0];
+      if (validNames.has(pkg)) {
+        expectedFiles.add(name);
+      }
+    }
+  }
+  return expectedFiles;
+}
+
+export function getExactPackageArtifacts(artPath: string, pkgName: string, subpkgNames: string[] = []): string[] {
   const matching: string[] = [];
   if (!existsSync(artPath)) {
     return matching;
   }
+
+  const allNames = [pkgName, ...subpkgNames];
 
   const traverse = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -30,14 +58,160 @@ export function getExactPackageArtifacts(artPath: string, pkgName: string): stri
         traverse(full);
       } else if (entry.isFile()) {
         const name = entry.name;
-        if (name.startsWith(`${pkgName}_`) && name.endsWith('.deb')) {
-          matching.push(full);
+        for (const p of allNames) {
+          if (name.startsWith(`${p}_`) && name.endsWith('.deb')) {
+            matching.push(full);
+            break;
+          }
         }
       }
     }
   };
   traverse(artPath);
   return Array.from(new Set(matching)).sort();
+}
+
+function getDebDepends(debPath: string): string | null {
+  try {
+    const res = spawnSync('dpkg-deb', ['-f', debPath, 'Depends'], { encoding: 'utf-8' });
+    if (res.status === 0) {
+      return (res.stdout || '').trim();
+    }
+  } catch {}
+  return null;
+}
+
+export function filterPublishableArtifacts(
+  matchingFiles: string[],
+  artPath: string,
+  repoRoot: string = resolve('.'),
+): string[] {
+  const dag = new DependencyGraph(join(repoRoot, 'pkg'));
+
+  let availableDebs: Array<{ name: string; ver: string; arch: string; path: string }> = [];
+  const scanDir = (dir: string): void => {
+    if (!existsSync(dir)) {
+      return;
+    }
+    for (const ent of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, ent.name);
+      if (ent.isDirectory()) {
+        scanDir(full);
+      } else if (ent.isFile() && ent.name.endsWith('.deb')) {
+        const pkg = ent.name.split('_')[0];
+        const arch = extractDebArch(ent.name);
+        const ver = parseFilenameDebVersion(ent.name);
+        availableDebs.push({ name: pkg, ver, arch, path: full });
+      }
+    }
+  };
+  scanDir(artPath);
+
+  // Pre-filter unreadable files (Thread #11)
+  const initialFiles: string[] = [];
+  const unreadableFiles = new Set<string>();
+  for (const file of matchingFiles) {
+    if (!file.endsWith('.deb')) {
+      initialFiles.push(file);
+      continue;
+    }
+    const depStr = getDebDepends(file);
+    if (depStr === null) {
+      console.warn(`::warning:: Unreadable control data in archive '${basename(file)}'; withholding from publication.`);
+      unreadableFiles.add(file);
+      continue;
+    }
+    initialFiles.push(file);
+  }
+
+  // Fixpoint iteration to eliminate candidates that depend on withheld archives (Thread #13)
+  let currentEligible = [...initialFiles];
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    const nextEligible: string[] = [];
+
+    // Filter availableDebs to only those currently eligible or retained
+    availableDebs = availableDebs.filter(
+      (d) => !unreadableFiles.has(d.path) && (!initialFiles.includes(d.path) || currentEligible.includes(d.path)),
+    );
+
+    for (const file of currentEligible) {
+      if (!file.endsWith('.deb')) {
+        nextEligible.push(file);
+        continue;
+      }
+      const debArch = extractDebArch(basename(file));
+      const depStr = getDebDepends(file);
+      if (!depStr) {
+        nextEligible.push(file);
+        continue;
+      }
+
+      const clauses = parseDependencyList([depStr]);
+      const filtered = filterDepsForArch(clauses, debArch);
+      let allClausesSatisfiable = true;
+
+      for (const clause of filtered) {
+        // For debArch === 'all', check across served architectures (Thread #14)
+        const targetArchesToCheck = debArch === 'all' ? ['aarch64', 'arm', 'x86_64', 'i686'] : [normalizeArch(debArch)];
+
+        const isClauseSatisfied = targetArchesToCheck.every((reqArch) =>
+          clause.some((tok) => {
+            const depPkg = tok.name.split(':')[0].trim();
+            // Resolve subpackage to canonical parent owner before checking external (Thread #12)
+            const ownerPkg = dag.recipes[depPkg] ? depPkg : dag.subpackageMap[depPkg];
+            if (!ownerPkg && !existsSync(join(repoRoot, 'pkg', depPkg))) {
+              return true;
+            }
+            const releaseTag = ownerPkg || depPkg;
+
+            const localCands = availableDebs
+              .filter((d) => d.name === depPkg)
+              .map((d) => ({ arch: d.arch, ver: d.ver }));
+
+            let remoteCands: Array<{ arch: string; ver: string }> = [];
+            try {
+              const ghRes = spawnSync('gh', ['release', 'view', releaseTag, '--json', 'assets'], {
+                encoding: 'utf-8',
+              });
+              if (ghRes.status === 0 && ghRes.stdout) {
+                const data = JSON.parse(ghRes.stdout);
+                const assets: Array<{ name: string }> = data.assets || [];
+                remoteCands = assets
+                  .filter((a) => a.name.endsWith('.deb') && a.name.startsWith(`${depPkg}_`))
+                  .map((a) => ({ arch: extractDebArch(a.name), ver: parseFilenameDebVersion(a.name) }));
+              }
+            } catch {}
+
+            const allCands = [...localCands, ...remoteCands];
+            return allCands.some((cand) => {
+              const archMatches = cand.arch === 'all' || normalizeArch(cand.arch) === reqArch;
+              return archMatches && satisfiesVersionConstraint(cand.ver, tok.versionConstraint);
+            });
+          }),
+        );
+
+        if (!isClauseSatisfied) {
+          allClausesSatisfiable = false;
+          break;
+        }
+      }
+
+      if (allClausesSatisfiable) {
+        nextEligible.push(file);
+      } else {
+        console.warn(
+          `::warning:: Withholding ${basename(file)} from publication: unsatisfied dependency in current candidate set.`,
+        );
+        changed = true;
+      }
+    }
+    currentEligible = nextEligible;
+  }
+
+  return currentEligible;
 }
 
 export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Promise<Map<string, ReleaseAssetInfo[]>> {
@@ -81,6 +255,16 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
     return assetMap;
   }
 
+  let allRecipes: Record<string, PackageRecipe> | undefined;
+  if (existsSync(pkgsDir)) {
+    try {
+      const dag = new DependencyGraph(pkgsDir);
+      allRecipes = dag.recipes;
+    } catch {
+      // ignore
+    }
+  }
+
   for (const rel of releases) {
     const tag = rel.tag_name || '';
     if (!tag || tag.includes('@')) {
@@ -97,7 +281,7 @@ export async function fetchExistingReleaseAssetsToArtifacts(artPath: string): Pr
     let expectedFiles = new Set<string>();
     try {
       const recipe = parseRecipe(recipePath);
-      expectedFiles = getExpectedAssetFilenames(recipe);
+      expectedFiles = getRetainedReleaseAssetFilenames(recipe, rel.assets || [], allRecipes);
     } catch {
       continue;
     }
@@ -165,6 +349,7 @@ export async function prepareSite(
   stagingDir?: string,
 ): Promise<void> {
   const sPath = resolve(siteDir);
+  const repoRoot = resolve('.');
   const artPath = resolve(artifactsDir);
   const shouldSkipRemote = skipRemote || process.env.REPOEXE_SKIP_REMOTE === '1';
 
@@ -198,13 +383,34 @@ export async function prepareSite(
         const pkgName = meta.name;
         const tag = pkgName;
 
-        const matchingFiles = getExactPackageArtifacts(artPath, pkgName);
+        let subpkgNames: string[] = [];
+        const recipePath = join('pkg', pkgName);
+        if (existsSync(recipePath)) {
+          try {
+            const recipe = parseRecipe(recipePath);
+            subpkgNames = getSubpackageNames(recipe);
+          } catch (e: any) {
+            console.log(
+              `::warning:: Could not read subpackages for ${pkgName}; subpackage debs will not be published: ${e?.message || e}`,
+            );
+          }
+        }
+
+        const rawMatchingFiles = getExactPackageArtifacts(artPath, pkgName, subpkgNames);
+        const matchingFiles = filterPublishableArtifacts(rawMatchingFiles, artPath, repoRoot);
+        const withheldFiles = rawMatchingFiles.filter((f) => !matchingFiles.includes(f));
+        for (const w of withheldFiles) {
+          if (existsSync(w)) {
+            rmSync(w, { force: true });
+          }
+        }
         if (matchingFiles.length === 0) {
-          console.log(`Notice: No artifact files matched for tag ${tag}`);
+          console.log(`Notice: No publishable artifact files matched for tag ${tag}`);
           continue;
         }
 
-        const notesBody = JSON.stringify(meta, null, 2);
+        const effectiveMeta = withheldFiles.length > 0 ? { ...meta, state_hash: undefined, partial: true } : meta;
+        const notesBody = JSON.stringify(effectiveMeta, null, 2);
 
         spawnSync('gh', ['release', 'view', tag]);
         const res = spawnSync(
@@ -286,7 +492,6 @@ export async function prepareSite(
   }
 
   // 5. Generate packages.json Store Manifest
-  const repoRoot = resolve('.');
   generatePackagesJson(join(repoRoot, 'pkg'), join(sPath, 'packages.json'), artPath, releaseAssetMap);
 
   // 6. Copy Frontend Source & Keyrings (dereferencing symlinks so site artifacts tarball cleanly)

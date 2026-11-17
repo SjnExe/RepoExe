@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { parseRecipe } from '../core/parser.ts';
+import { normalizeRecipe, parseRecipe } from '../core/parser.ts';
 
 test('parseRecipe parses aisleriot correctly', () => {
   const recipe = parseRecipe('pkg/aisleriot');
@@ -146,4 +146,71 @@ test('parseRecipe defaults cache to false unless explicitly specified', (): void
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('parseRecipe throws on invalid object-form subpackage entries', (): void => {
+  const tmp = mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'recipe-subpkg-err-'));
+  try {
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'invalid-subpkg',
+        version: '1.0.0',
+        subpackages: {
+          bad: 42,
+        },
+      };`,
+    );
+    expect(() => parseRecipe(tmp)).toThrow(/Invalid subpackage 'bad'/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('parseRecipe throws when subpackage name collides with parent or another subpackage', (): void => {
+  const tmp = mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'recipe-subpkg-collision-'));
+  try {
+    // 1. Collides with parent
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'colliding-pkg',
+        version: '1.0.0',
+        subpackages: {
+          child: { name: 'colliding-pkg', include: ['bin/**'] },
+        },
+      };`,
+    );
+    expect(() => parseRecipe(tmp)).toThrow(/collides with the parent or another subpackage/);
+
+    // 2. Collides with another subpackage
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'colliding-pkg',
+        version: '1.0.0',
+        subpackages: {
+          sub1: { name: 'dup-name', include: ['bin/**'] },
+          sub2: { name: 'dup-name', include: ['lib/**'] },
+        },
+      };`,
+    );
+    expect(() => parseRecipe(tmp)).toThrow(/collides with the parent or another subpackage/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('normalizeRecipe preserves __proto__ as an internal record key', (): void => {
+  const normalized = normalizeRecipe({
+    name: 'sample',
+    version: '1.0.0',
+    subpackages: {
+      ['__proto__']: { name: 'sample-tools', include: ['bin/tool'] },
+    },
+  });
+
+  expect(normalized.subpackages).toBeDefined();
+  expect(Object.prototype.hasOwnProperty.call(normalized.subpackages, '__proto__')).toBeTrue();
+  expect(normalized.subpackages!['__proto__']?.name).toBe('sample-tools');
 });

@@ -146,18 +146,59 @@ export function parseTargetTokens(rawInput: string, dag: DependencyGraph, _pkgsD
   return finalRequested;
 }
 
+export interface MatrixShard {
+  name: string;
+  package: string;
+  packages: string;
+  arch: string;
+  heavy: boolean;
+  cache: boolean;
+  build_system: string;
+  zram: number;
+  swap: number;
+  free_space: boolean;
+  tmpfs: number;
+  force: boolean;
+  is_indep?: boolean;
+}
+
 export async function buildMatrixLayer(
   pkgsList: string[],
   pkgsDir: string,
   dag: DependencyGraph,
   isExplicitTarget: boolean = false,
-): Promise<Array<Record<string, any>>> {
-  const matrix: Array<Record<string, any>> = [];
+  maxConcurrency: number = 20,
+): Promise<Array<MatrixShard>> {
   const forceRebuild = ['true', '1'].includes((process.env.FORCE_REBUILD || '').toLowerCase()) || isExplicitTarget;
+
+  interface Candidate {
+    pkg: string;
+    targetArch: string;
+    checkArch: string;
+    isArchAll: boolean;
+    heavy: boolean;
+    cache: boolean;
+    buildSystem: string;
+    zram: number;
+    swap: number;
+    freeSpace: boolean;
+    tmpfs: number;
+    force: boolean;
+    priority: number;
+  }
+
+  if (pkgsList.length === 0) {
+    return [];
+  }
+
+  const candidates: Candidate[] = [];
+  const buildOrder = dag.resolveBuildOrder(pkgsList);
+  const orderMap = new Map<string, number>();
+  buildOrder.forEach((name, idx) => orderMap.set(name, idx));
 
   for (const p of pkgsList) {
     const recipePath = join(pkgsDir, p, 'recipe.ts');
-    if (!existsSync(recipePath)) {
+    if (!dag.recipes[p] && !existsSync(recipePath)) {
       continue;
     }
 
@@ -167,12 +208,12 @@ export async function buildMatrixLayer(
       const concreteArches = (r.arches || [r.arch || 'aarch64']).filter((a) => a !== 'all');
       const targetArches = isArchAll ? ['aarch64'] : concreteArches.length > 0 ? concreteArches : ['aarch64'];
 
-      let maxZram = Number(r.resources.zram ?? 0);
-      let maxSwap = Number(r.resources.swap ?? 0);
-      let maxFreeSpace = Boolean(r.resources.free_space ?? false);
-      let maxTmpfs = Math.min(6, Number(r.resources.tmpfs ?? 4));
+      let maxZram = Number(r.resources?.zram ?? 0);
+      let maxSwap = Number(r.resources?.swap ?? 0);
+      let maxFreeSpace = Boolean(r.resources?.free_space ?? false);
+      let maxTmpfs = Math.min(6, Number(r.resources?.tmpfs ?? 4));
 
-      const buildDepClauses = parseDependencyList(r.build_deps);
+      const buildDepClauses = parseDependencyList(r.build_deps || []);
       const cleanBuildDeps = extractAllPackageNames(buildDepClauses);
       for (const depName of cleanBuildDeps) {
         const depRecipePath = join(pkgsDir, depName, 'recipe.ts');
@@ -189,7 +230,7 @@ export async function buildMatrixLayer(
         const checkArch = isArchAll ? 'all' : targetArch;
         let stateHash = r.state_hash || '';
         if (!isArchAll) {
-          const recipeDir = join(pkgsDir, p);
+          const recipeDir = existsSync(join(pkgsDir, p)) ? join(pkgsDir, p) : undefined;
           const shardRecipe: PackageRecipe = {
             ...r,
             arch: targetArch,
@@ -202,18 +243,20 @@ export async function buildMatrixLayer(
           continue;
         }
 
-        matrix.push({
-          name: `${p}:${checkArch}`,
-          package: p,
-          arch: targetArch,
-          heavy: r.heavy_build || maxSwap > 0 || maxZram > 0,
-          cache: r.cache,
-          build_system: r.build_system,
+        candidates.push({
+          pkg: p,
+          targetArch,
+          checkArch,
+          isArchAll,
+          heavy: Boolean(r.heavy_build || maxSwap > 0 || maxZram > 0),
+          cache: Boolean(r.cache),
+          buildSystem: r.build_system || 'custom',
           zram: maxZram,
           swap: maxSwap,
-          free_space: maxFreeSpace,
+          freeSpace: maxFreeSpace,
           tmpfs: maxTmpfs,
           force: forceRebuild,
+          priority: orderMap.get(p) ?? 999,
         });
       }
     } catch (err: any) {
@@ -221,7 +264,83 @@ export async function buildMatrixLayer(
     }
   }
 
-  return matrix;
+  const heavyCandidates = candidates.filter((c) => c.heavy);
+  const lightCandidates = candidates.filter((c) => !c.heavy);
+
+  const shards: MatrixShard[] = [];
+  for (const h of heavyCandidates) {
+    shards.push({
+      name: `${h.pkg}:${h.checkArch}`,
+      package: h.pkg,
+      packages: h.pkg,
+      arch: h.targetArch,
+      heavy: true,
+      cache: h.cache,
+      build_system: h.buildSystem,
+      zram: h.zram,
+      swap: h.swap,
+      free_space: h.freeSpace,
+      tmpfs: h.tmpfs,
+      force: h.force,
+      is_indep: h.isArchAll,
+    });
+  }
+
+  const lightGroups = new Map<string, Candidate[]>();
+  for (const c of lightCandidates) {
+    const key = `${c.targetArch}:${c.isArchAll ? 'all' : 'arch'}`;
+    const grp = lightGroups.get(key) || [];
+    grp.push(c);
+    lightGroups.set(key, grp);
+  }
+
+  const remainingSlots = Math.max(1, maxConcurrency - shards.length);
+  let batchSize = 4;
+  const countJobs = (size: number): number => {
+    let total = 0;
+    for (const group of lightGroups.values()) {
+      total += Math.ceil(group.length / size);
+    }
+    return total;
+  };
+
+  const maxGroupLen = Math.max(1, ...Array.from(lightGroups.values()).map((g) => g.length));
+  while (countJobs(batchSize) > remainingSlots && batchSize < maxGroupLen) {
+    batchSize++;
+  }
+
+  for (const [, group] of lightGroups) {
+    // Topological sort by DAG priority ensures dependencies are built before consumers.
+    // In CI, packages in each shard batch are compiled and packed sequentially so local
+    // archives are published into output/ before dependent siblings start.
+    group.sort((a, b) => a.priority - b.priority);
+
+    for (let i = 0; i < group.length; i += batchSize) {
+      const batch = group.slice(i, i + batchSize);
+      const pkgs = batch.map((b) => b.pkg);
+      const first = batch[0];
+      const displayName =
+        pkgs.length === 1 ? `${first.pkg}:${first.checkArch}` : `${first.pkg}+${pkgs.length - 1}:${first.checkArch}`;
+
+      shards.push({
+        name: displayName,
+        package: first.pkg,
+        packages: pkgs.join(' '),
+        arch: first.targetArch,
+        heavy: false,
+        cache: batch.some((b) => b.cache),
+        build_system: batch.every((b) => b.buildSystem === first.buildSystem) ? first.buildSystem : 'custom',
+        zram: Math.max(...batch.map((b) => b.zram)),
+        swap: Math.max(...batch.map((b) => b.swap)),
+        free_space: batch.some((b) => b.freeSpace),
+        tmpfs: Math.max(...batch.map((b) => b.tmpfs)),
+        force: batch.some((b) => b.force),
+        is_indep: first.isArchAll,
+      });
+    }
+  }
+
+  return shards;
 }
 
 export async function getMissingReleasePackages(dag: DependencyGraph, repoSlug?: string): Promise<string[]> {

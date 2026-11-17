@@ -1,8 +1,9 @@
-export type VersionOperator = '<<' | '<=' | '=' | '>=' | '>>';
+export type VersionOperator = '<<' | '<=' | '=' | '>=' | '>>' | '';
 
 export interface VersionConstraint {
   operator: VersionOperator;
   version: string;
+  source?: string;
 }
 
 export interface DependencyToken {

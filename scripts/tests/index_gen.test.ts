@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { extractDebArch, generateAptMetadata } from '../builders/debian.ts';
-import { getExactPackageArtifacts, prepareSite } from '../cli/index_gen.ts';
+import { getExactPackageArtifacts, getRetainedReleaseAssetFilenames, prepareSite } from '../cli/index_gen.ts';
+import { createRecipe } from './fixtures.ts';
 
 test('getExactPackageArtifacts prevents prefix collision', (): void => {
   const testDir = join(tmpdir(), `repoexe-test-artifacts-${Date.now()}`);
@@ -111,4 +112,73 @@ test('generateAptMetadata produces relative Filename and filters architectures',
   } finally {
     rmSync(testDir, { recursive: true, force: true });
   }
+});
+
+test('getRetainedReleaseAssetFilenames includes retained child subpackage and pinned parent archives', (): void => {
+  const recipe = createRecipe({
+    name: 'parent',
+    version: '2.0.0',
+    revision: 0,
+    epoch: 0,
+    arch: 'aarch64',
+    subpackages: {
+      dev: { name: 'parent-dev', include: ['include/**'] },
+    },
+  });
+
+  const assets = [
+    // Current replacement for parent
+    { name: 'parent_2.0.0_aarch64.deb' },
+    // Current x86_64 parent without child to test that older parent_1.0.0_x86_64 is retained by child pin
+    { name: 'parent_2.0.0_x86_64.deb' },
+    // Retained older child subpackage on x86_64
+    { name: 'parent-dev_1.0.0_x86_64.deb' },
+    // Retained pinned parent required by older child
+    { name: 'parent_1.0.0_x86_64.deb' },
+    // Outdated parent on aarch64 (replaced by 2.0.0)
+    { name: 'parent_1.0.0_aarch64.deb' },
+    // Unrelated package accidentally in release
+    { name: 'unrelated_1.0.0_all.deb' },
+  ];
+
+  const retained = getRetainedReleaseAssetFilenames(recipe, assets);
+  expect(retained.has('parent_2.0.0_aarch64.deb')).toBeTrue();
+  expect(retained.has('parent_2.0.0_x86_64.deb')).toBeTrue();
+  expect(retained.has('parent-dev_1.0.0_x86_64.deb')).toBeTrue();
+  expect(retained.has('parent_1.0.0_x86_64.deb')).toBeTrue();
+  expect(retained.has('parent_1.0.0_aarch64.deb')).toBeFalse();
+  expect(retained.has('unrelated_1.0.0_all.deb')).toBeFalse();
+});
+
+test('getRetainedReleaseAssetFilenames retains :all child and parent during partial aarch64-only publication', (): void => {
+  const recipe = createRecipe({
+    name: 'foo',
+    version: '2',
+    revision: 0,
+    epoch: 0,
+    arch: 'aarch64',
+    subpackages: {
+      doc: {
+        name: 'foo-doc',
+        arch: 'all',
+        include: ['share/doc/**'],
+      },
+    },
+  });
+
+  const assets = [
+    // Pre-existing release contains arm parent and older all child
+    { name: 'foo_1_arm.deb' },
+    { name: 'foo-doc_1_all.deb' },
+    // Only aarch64 build succeeds and publishes version 2 parent and all child
+    { name: 'foo_2_aarch64.deb' },
+    { name: 'foo-doc_2_all.deb' },
+  ];
+
+  const retained = getRetainedReleaseAssetFilenames(recipe, assets);
+  // Both current aarch64 artifacts and retained older arm/all pair must be retained
+  expect(retained.has('foo_2_aarch64.deb')).toBeTrue();
+  expect(retained.has('foo-doc_2_all.deb')).toBeTrue();
+  expect(retained.has('foo_1_arm.deb')).toBeTrue();
+  expect(retained.has('foo-doc_1_all.deb')).toBeTrue();
 });

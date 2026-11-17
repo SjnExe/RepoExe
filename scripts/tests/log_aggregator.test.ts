@@ -86,3 +86,15 @@ Executing container smoke test...
   expect(probeFail).toBeFalse();
   expect(probeStatus).toBe('✓ STATUS: SUCCESS');
 });
+
+test('classifyLog preserves compile failure when both failure and success coexist (Thread #31)', (): void => {
+  const mixedLog = `
+=== STAGE: COMPILE ===
+::error:: Compilation failed for beta
+=== STAGE: TEST ===
+✓ Smoke test passed in container for alpha
+`;
+  const [status, , isFail] = classifyLog(mixedLog);
+  expect(isFail).toBeTrue();
+  expect(status).toBe('❌ STATUS: BUILD FAILURE');
+});

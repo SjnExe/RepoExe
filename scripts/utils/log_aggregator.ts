@@ -5,6 +5,12 @@ export function classifyLog(content: string): [string, string, boolean] {
   const lines = content.split(/\r?\n/);
   const hasSubcommandFailed =
     content.includes('ninja: build stopped: subcommand failed') || content.includes('cgo: C compiler');
+  const hasCompileFailure =
+    hasSubcommandFailed ||
+    content.includes('::error:: Compilation failed') ||
+    content.includes('::error:: Build or pack failed') ||
+    content.includes('Compilation failed for') ||
+    content.includes('Pack failed:');
   const hasSmokeTestFailure =
     content.includes('Smoke test failed') ||
     content.includes('Smoke test timed out') ||
@@ -12,11 +18,38 @@ export function classifyLog(content: string): [string, string, boolean] {
     content.includes('❌ STATUS: TEST FAILURE') ||
     /Smoke test.*failed/i.test(content);
   const hasSmokeTestPass = content.includes('Smoke test passed') || content.includes('✓ [');
-  const hasPackStage = content.includes('=== STAGE: PACK ===');
-  const hasTestStage = content.includes('=== STAGE: TEST ===');
   const hasException = content.includes('error:') || content.includes('Error:') || content.includes('fatal error:');
 
-  if (hasSmokeTestFailure || (hasTestStage && !hasSmokeTestPass && hasException)) {
+  if (hasCompileFailure) {
+    const errorSnippets: string[] = [];
+    const errorKeywords = ['error:', 'Error:', 'fatal error:', 'panic:', 'FAILED:', 'undefined reference to'];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (errorKeywords.some((kw) => line.includes(kw)) && !line.trim().startsWith('note:')) {
+        const start = Math.max(0, i - 2);
+        const end = Math.min(lines.length, i + 4);
+        errorSnippets.push(...lines.slice(start, end));
+        errorSnippets.push('---');
+      }
+    }
+
+    let detail = '';
+    if (errorSnippets.length > 0) {
+      const deduped: string[] = [];
+      for (const item of errorSnippets) {
+        if (deduped.length === 0 || item !== deduped[deduped.length - 1]) {
+          deduped.push(item);
+        }
+      }
+      detail = deduped.slice(0, 50).join('\n');
+    } else {
+      detail = lines.slice(-30).join('\n');
+    }
+    return ['❌ STATUS: BUILD FAILURE', detail, true];
+  }
+
+  if (hasSmokeTestFailure || (content.includes('=== STAGE: TEST') && !hasSmokeTestPass)) {
     const failureIndices: number[] = [];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -48,10 +81,9 @@ export function classifyLog(content: string): [string, string, boolean] {
     return ['✓ STATUS: SUCCESS', '', false];
   }
 
-  if (hasSubcommandFailed || hasException) {
+  if (hasException) {
     const errorSnippets: string[] = [];
-    const errorKeywords = ['error:', 'fatal error:', 'panic:', 'FAILED:', 'undefined reference to'];
-
+    const errorKeywords = ['error:', 'Error:', 'fatal error:', 'panic:', 'FAILED:'];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (errorKeywords.some((kw) => line.includes(kw)) && !line.trim().startsWith('note:')) {
@@ -61,28 +93,8 @@ export function classifyLog(content: string): [string, string, boolean] {
         errorSnippets.push('---');
       }
     }
-
-    let detail = '';
-    if (errorSnippets.length > 0) {
-      const deduped: string[] = [];
-      for (const item of errorSnippets) {
-        if (deduped.length === 0 || item !== deduped[deduped.length - 1]) {
-          deduped.push(item);
-        }
-      }
-      detail = deduped.slice(0, 50).join('\n');
-    } else {
-      detail = lines.slice(-30).join('\n');
-    }
+    const detail = errorSnippets.length > 0 ? errorSnippets.slice(0, 50).join('\n') : lines.slice(-30).join('\n');
     return ['❌ STATUS: BUILD FAILURE', detail, true];
-  }
-
-  if (hasTestStage && !hasSmokeTestPass) {
-    return ['❌ STATUS: TEST FAILURE', lines.slice(-25).join('\n'), true];
-  }
-
-  if (hasSmokeTestPass || hasPackStage) {
-    return ['✓ STATUS: SUCCESS', '', false];
   }
 
   return ['✓ STATUS: SUCCESS', '', false];

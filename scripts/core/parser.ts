@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-import type { PackageRecipe, RecipeDefinition, ResourceConfig } from './types.ts';
+import type { PackageRecipe, RecipeDefinition, ResourceConfig, SubpackageDefinition } from './types.ts';
 
 function canonicalJson(obj: unknown): string {
   if (obj === null || typeof obj !== 'object') {
@@ -25,17 +25,18 @@ export function computeStateHash(recipe: PackageRecipe, pkgDir?: string): string
     build_system: recipe.build_system,
     source: recipe.source,
     sha256: recipe.sha256,
-    formats: [...recipe.formats].sort(),
-    deps: [...recipe.deps].sort(),
-    recommends: [...recipe.recommends].sort(),
-    suggests: [...recipe.suggests].sort(),
-    conflicts: [...recipe.conflicts].sort(),
-    provides: [...recipe.provides].sort(),
-    replaces: [...recipe.replaces].sort(),
+    formats: [...(recipe.formats || [])].sort(),
+    deps: [...(recipe.deps || [])].sort(),
+    recommends: [...(recipe.recommends || [])].sort(),
+    suggests: [...(recipe.suggests || [])].sort(),
+    conflicts: [...(recipe.conflicts || [])].sort(),
+    provides: [...(recipe.provides || [])].sort(),
+    replaces: [...(recipe.replaces || [])].sort(),
     breaks: [...(recipe.breaks || [])].sort(),
     enhances: [...(recipe.enhances || [])].sort(),
+    ...(recipe.subpackages ? { subpackages: Object.entries(recipe.subpackages) } : {}),
     maintainer_scripts: recipe.maintainer_scripts || null,
-    patches: recipe.patches,
+    patches: recipe.patches ? [...recipe.patches] : [],
     cflags: recipe.cflags,
     cxxflags: recipe.cxxflags,
     ldflags: recipe.ldflags,
@@ -95,6 +96,14 @@ export function parseRecipe(recipePath: string): PackageRecipe {
 
   if (!rawData || typeof rawData !== 'object') {
     throw new Error(`Invalid recipe export in ${p}: expected default export or object.`);
+  }
+
+  return normalizeRecipe(rawData, pkgDir);
+}
+
+export function normalizeRecipe(rawData: RecipeDefinition, pkgDir?: string): PackageRecipe {
+  if (!rawData || typeof rawData !== 'object') {
+    throw new Error('Invalid recipe definition: expected default export or object.');
   }
 
   const isHeavy = Boolean(rawData.heavy_build ?? false);
@@ -158,6 +167,7 @@ export function parseRecipe(recipePath: string): PackageRecipe {
     replaces: Array.isArray(rawData.replaces) ? rawData.replaces : [],
     breaks: Array.isArray(rawData.breaks) ? rawData.breaks : [],
     enhances: Array.isArray(rawData.enhances) ? rawData.enhances : [],
+    subpackages: undefined,
     maintainer_scripts:
       rawData.maintainer_scripts && typeof rawData.maintainer_scripts === 'object'
         ? rawData.maintainer_scripts
@@ -182,6 +192,112 @@ export function parseRecipe(recipePath: string): PackageRecipe {
 
   if (baseRecipe.ndk && baseRecipe.ndk !== '30' && baseRecipe.ndk !== '23c') {
     throw new Error(`Unsupported NDK version: ${baseRecipe.ndk}. Supported versions: '30', '23c'.`);
+  }
+
+  if (rawData.subpackages) {
+    const normSubpkgs: Record<string, SubpackageDefinition> = Object.create(null);
+    if (Array.isArray(rawData.subpackages)) {
+      for (const item of rawData.subpackages) {
+        if (item === 'auto:dev') {
+          const key = `${baseRecipe.name}-dev`;
+          normSubpkgs[key] = {
+            name: key,
+            description: `${baseRecipe.name} development files`,
+            include: ['include/**', 'lib/pkgconfig/**', 'lib/*.a', 'share/pkgconfig/**'],
+            deps: [],
+            parent_dep: 'exact',
+          };
+        } else if (item === 'auto:doc') {
+          const key = `${baseRecipe.name}-doc`;
+          normSubpkgs[key] = {
+            name: key,
+            description: `${baseRecipe.name} documentation`,
+            arch: 'all',
+            include: ['share/doc/**', 'share/man/**', 'share/info/**'],
+            deps: [],
+            parent_dep: 'exact',
+          };
+        } else if (item && typeof item === 'object' && item.name) {
+          const filesAlias = (item as { files?: string[] }).files;
+          normSubpkgs[item.name] = {
+            ...item,
+            include: Array.isArray(item.include) ? item.include : Array.isArray(filesAlias) ? filesAlias : [],
+            deps: Array.isArray(item.deps) ? item.deps : [],
+            parent_dep: item.parent_dep || 'exact',
+          };
+        } else {
+          throw new Error(
+            `Invalid subpackage entry in ${baseRecipe.name}: expected 'auto:dev', 'auto:doc', or object with 'name'.`,
+          );
+        }
+      }
+    } else if (typeof rawData.subpackages === 'object') {
+      for (const [key, val] of Object.entries(rawData.subpackages)) {
+        if (val === 'auto:dev') {
+          normSubpkgs[key] = {
+            name: `${baseRecipe.name}-dev`,
+            description: `${baseRecipe.name} development files`,
+            include: ['include/**', 'lib/pkgconfig/**', 'lib/*.a', 'share/pkgconfig/**'],
+            deps: [],
+            parent_dep: 'exact',
+          };
+        } else if (val === 'auto:doc') {
+          normSubpkgs[key] = {
+            name: `${baseRecipe.name}-doc`,
+            description: `${baseRecipe.name} documentation`,
+            arch: 'all',
+            include: ['share/doc/**', 'share/man/**', 'share/info/**'],
+            deps: [],
+            parent_dep: 'exact',
+          };
+        } else if (val && typeof val === 'object') {
+          normSubpkgs[key] = {
+            name: (val as SubpackageDefinition).name || key,
+            description: (val as SubpackageDefinition).description || `${key} subpackage for ${baseRecipe.name}`,
+            arch: (val as SubpackageDefinition).arch,
+            include: Array.isArray((val as SubpackageDefinition).include) ? (val as SubpackageDefinition).include : [],
+            deps: Array.isArray((val as SubpackageDefinition).deps) ? (val as SubpackageDefinition).deps : [],
+            parent_dep: (val as SubpackageDefinition).parent_dep || 'exact',
+            recommends: Array.isArray((val as SubpackageDefinition).recommends)
+              ? (val as SubpackageDefinition).recommends
+              : [],
+            suggests: Array.isArray((val as SubpackageDefinition).suggests)
+              ? (val as SubpackageDefinition).suggests
+              : [],
+            conflicts: Array.isArray((val as SubpackageDefinition).conflicts)
+              ? (val as SubpackageDefinition).conflicts
+              : [],
+            provides: Array.isArray((val as SubpackageDefinition).provides)
+              ? (val as SubpackageDefinition).provides
+              : [],
+            replaces: Array.isArray((val as SubpackageDefinition).replaces)
+              ? (val as SubpackageDefinition).replaces
+              : [],
+          };
+        } else {
+          throw new Error(
+            `Invalid subpackage '${key}' in ${baseRecipe.name}: expected 'auto:dev', 'auto:doc', or an object with 'include'.`,
+          );
+        }
+      }
+    }
+    const emittedNames = new Set<string>();
+    const debPkgNameRegex = /^[a-z0-9][a-z0-9+.-]+$/;
+    for (const sub of Object.values(normSubpkgs)) {
+      const sName = sub.name || '';
+      if (!debPkgNameRegex.test(sName)) {
+        throw new Error(
+          `Invalid subpackage name '${sName}' in ${baseRecipe.name}: must match Debian package naming rules (lowercase letters, numbers, plus, minus, dots).`,
+        );
+      }
+      if (sName === baseRecipe.name || emittedNames.has(sName)) {
+        throw new Error(
+          `Subpackage name '${sName}' in ${baseRecipe.name} collides with the parent or another subpackage.`,
+        );
+      }
+      emittedNames.add(sName);
+    }
+    baseRecipe.subpackages = normSubpkgs;
   }
 
   const verStr = String(baseRecipe.version);

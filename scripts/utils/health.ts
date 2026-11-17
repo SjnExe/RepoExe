@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { parseRecipe } from '../core/parser.ts';
@@ -46,6 +46,46 @@ export function auditRepositoryHealth(packagesDir: string): HealthReport {
                 throw new Error(`Shell syntax error in phase '${phaseName}': ${err}`);
               }
             }
+          }
+        }
+
+        // Validate patch naming and strict 4-digit zero-padded numbering
+        const declaredPatches = Array.isArray(recipe.patches)
+          ? recipe.patches.map((p) => (p.startsWith('patches/') ? p.slice(8) : p))
+          : [];
+        const patchDir = join(pkgDir, 'patches');
+        for (const dec of declaredPatches) {
+          const patchPath = join(patchDir, dec);
+          if (!existsSync(patchPath) || !statSync(patchPath).isFile()) {
+            throw new Error(`Declared patch '${dec}' does not exist in '${patchDir}'.`);
+          }
+        }
+        const patchEntries = existsSync(patchDir) ? readdirSync(patchDir) : [];
+        for (const entryName of patchEntries) {
+          const entryPath = join(patchDir, entryName);
+          if (
+            (entryName.endsWith('.patch') || entryName.endsWith('.diff')) &&
+            (!existsSync(entryPath) || !statSync(entryPath).isFile())
+          ) {
+            throw new Error(`Patch entry '${entryName}' in '${patchDir}' is not a regular file.`);
+          }
+        }
+        const patchFiles = patchEntries
+          .filter((name) => {
+            const entryPath = join(patchDir, name);
+            return (
+              existsSync(entryPath) &&
+              statSync(entryPath).isFile() &&
+              (name.endsWith('.patch') || name.endsWith('.diff') || declaredPatches.includes(name))
+            );
+          })
+          .sort();
+        const allPatches = Array.from(new Set([...declaredPatches, ...patchFiles]));
+        for (const patch of allPatches) {
+          if (!/^\d{4}-[\w.-]+\.(patch|diff)$/.test(patch)) {
+            throw new Error(
+              `Invalid patch filename '${patch}' in '${pkgName}'. Patches must follow strict 4-digit zero-padded numbering (e.g. '0001-fix.patch').`,
+            );
           }
         }
 
