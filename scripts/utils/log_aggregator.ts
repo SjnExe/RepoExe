@@ -3,8 +3,19 @@ import { join, resolve } from 'node:path';
 
 export function classifyLog(content: string): [string, string, boolean] {
   const lines = content.split(/\r?\n/);
-  const hasSubcommandFailed =
-    content.includes('ninja: build stopped: subcommand failed') || content.includes('cgo: C compiler');
+  const explicitFailurePatterns = [
+    '::error:: Compilation failed',
+    '::error:: Build or pack failed',
+    '] Build failed:',
+    '] Pack failed:',
+    '] Failed to restore stage directory:',
+    'has no usable published candidate.',
+  ];
+  const isExplicitFailureLine = (line: string): boolean => {
+    const trimmed = line.trimStart();
+    return trimmed.startsWith('::error:: ') && explicitFailurePatterns.some((kw) => trimmed.includes(kw));
+  };
+  const hasExplicitCompileFailure = lines.some(isExplicitFailureLine);
   const hasSmokeTestFailure =
     content.includes('Smoke test failed') ||
     content.includes('Smoke test timed out') ||
@@ -12,46 +23,52 @@ export function classifyLog(content: string): [string, string, boolean] {
     content.includes('❌ STATUS: TEST FAILURE') ||
     /Smoke test.*failed/i.test(content);
   const hasSmokeTestPass = content.includes('Smoke test passed') || content.includes('✓ [');
-  const hasPackStage = content.includes('=== STAGE: PACK ===');
-  const hasTestStage = content.includes('=== STAGE: TEST ===');
-  const hasException = content.includes('error:') || content.includes('Error:') || content.includes('fatal error:');
+  const hasSmokeTestSkipped =
+    content.includes('Neither stage_dir nor package output exist for test') ||
+    content.includes('Notice: Neither stage_dir nor package output exist') ||
+    content.includes('[SMOKE_TEST_SKIPPED]');
+  const stageHeaderRegex = /^=== STAGE:\s+([A-Z_ &]+?)(?:\s+(?:\(.*\)|\[.*\]))?\s+===$/;
+  const testStageIdx = lines.findIndex((l) => {
+    const m = l.trim().match(stageHeaderRegex);
+    return m?.[1] === 'TEST';
+  });
+  const hasTestStage = testStageIdx !== -1;
+  const hasSubcommandFailedInCompile = lines.some((line, idx) => {
+    if (hasTestStage && idx >= testStageIdx) {
+      return false;
+    }
+    return line.includes('ninja: build stopped: subcommand failed') || line.includes('cgo: C compiler');
+  });
+  const hasCompileFailure =
+    hasExplicitCompileFailure ||
+    (!hasSmokeTestPass && !hasSmokeTestSkipped && !hasSmokeTestFailure && hasSubcommandFailedInCompile);
+  const hasException =
+    content.includes('error:') ||
+    content.includes('Error:') ||
+    content.includes('fatal error:') ||
+    content.includes('panic:');
 
-  if (hasSmokeTestFailure || (hasTestStage && !hasSmokeTestPass && hasException)) {
-    const failureIndices: number[] = [];
+  if (hasCompileFailure) {
+    const errorKeywords = ['error:', 'Error:', 'fatal error:', 'panic:', 'FAILED:', 'undefined reference to'];
+    const markerLines: string[] = [];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (
-        line.includes('Smoke test failed') ||
-        line.includes('Smoke test timed out') ||
-        line.includes('QEMU emulation crash') ||
-        line.includes('STDERR:') ||
-        line.includes('STDOUT:') ||
-        line.includes('error:') ||
-        line.includes('Error:')
+        isExplicitFailureLine(line) ||
+        line.includes('ninja: build stopped: subcommand failed') ||
+        line.includes('cgo: C compiler')
       ) {
-        failureIndices.push(i);
+        const start = Math.max(0, i - 2);
+        const end = Math.min(lines.length, i + 4);
+        for (let j = start; j < end; j++) {
+          if (!markerLines.includes(lines[j])) {
+            markerLines.push(lines[j]);
+          }
+        }
       }
     }
-    let detail = '';
-    if (failureIndices.length > 0) {
-      const firstIdx = failureIndices[0];
-      const start = Math.max(0, firstIdx - 5);
-      const end = Math.min(lines.length, start + 40);
-      detail = lines.slice(start, end).join('\n');
-    } else {
-      detail = lines.slice(-25).join('\n');
-    }
-    return ['❌ STATUS: TEST FAILURE', detail, true];
-  }
 
-  if (hasSmokeTestPass && !hasSmokeTestFailure && !hasSubcommandFailed) {
-    return ['✓ STATUS: SUCCESS', '', false];
-  }
-
-  if (hasSubcommandFailed || hasException) {
     const errorSnippets: string[] = [];
-    const errorKeywords = ['error:', 'fatal error:', 'panic:', 'FAILED:', 'undefined reference to'];
-
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (errorKeywords.some((kw) => line.includes(kw)) && !line.trim().startsWith('note:')) {
@@ -62,27 +79,191 @@ export function classifyLog(content: string): [string, string, boolean] {
       }
     }
 
-    let detail = '';
-    if (errorSnippets.length > 0) {
-      const deduped: string[] = [];
-      for (const item of errorSnippets) {
-        if (deduped.length === 0 || item !== deduped[deduped.length - 1]) {
-          deduped.push(item);
+    const dedupedErrors: string[] = [];
+    for (const item of errorSnippets) {
+      if (dedupedErrors.length === 0 || item !== dedupedErrors[dedupedErrors.length - 1]) {
+        dedupedErrors.push(item);
+      }
+    }
+
+    const explicitFailureLines: string[] = [];
+    for (const line of lines) {
+      if (isExplicitFailureLine(line)) {
+        if (!explicitFailureLines.includes(line)) {
+          explicitFailureLines.push(line);
         }
       }
-      detail = deduped.slice(0, 50).join('\n');
+    }
+
+    let detail = '';
+    const totalBudget = 50;
+    const cappedExplicitLines = explicitFailureLines.slice(0, totalBudget);
+    const remainingMarkerCap = Math.min(
+      Math.max(0, 15 - cappedExplicitLines.length),
+      Math.max(0, totalBudget - cappedExplicitLines.length),
+    );
+    const contextualMarkerLines = markerLines
+      .filter((l) => !cappedExplicitLines.includes(l))
+      .slice(0, remainingMarkerCap);
+    const reservedMarkerLines = [...cappedExplicitLines, ...contextualMarkerLines];
+    const remainingCap = Math.max(0, totalBudget - reservedMarkerLines.length);
+    const selectedErrors = dedupedErrors.slice(0, remainingCap);
+    const combined = [...reservedMarkerLines, ...selectedErrors];
+
+    if (combined.length > 0) {
+      detail = combined.join('\n');
     } else {
       detail = lines.slice(-30).join('\n');
     }
     return ['❌ STATUS: BUILD FAILURE', detail, true];
   }
 
-  if (hasTestStage && !hasSmokeTestPass) {
+  const testSectionIndices: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].trim().match(stageHeaderRegex);
+    if (m && m[1] === 'TEST') {
+      testSectionIndices.push(i);
+    }
+  }
+
+  interface TestSectionOutcome {
+    headerIdx: number;
+    header: string;
+    status: 'pass' | 'skip' | 'fail';
+    detail: string;
+  }
+
+  const testOutcomes: TestSectionOutcome[] = [];
+  for (let s = 0; s < testSectionIndices.length; s++) {
+    const startIdx = testSectionIndices[s];
+    const nextStageIdx = lines.findIndex(
+      (l, idx) =>
+        idx > startIdx &&
+        (stageHeaderRegex.test(l.trim()) || (s + 1 < testSectionIndices.length && idx === testSectionIndices[s + 1])),
+    );
+    const endIdx = nextStageIdx !== -1 ? nextStageIdx : lines.length;
+    const secLines = lines.slice(startIdx, endIdx);
+    const secContent = secLines.join('\n');
+
+    const secHasFail =
+      secContent.includes('Smoke test failed') ||
+      secContent.includes('Smoke test timed out') ||
+      secContent.includes('QEMU emulation crash') ||
+      secContent.includes('❌ STATUS: TEST FAILURE') ||
+      /Smoke test.*failed/i.test(secContent);
+    const secHasPass =
+      secContent.includes('Smoke test passed') ||
+      secContent.includes('Stage-only smoke test passed') ||
+      secContent.includes('Smoke test passed in container') ||
+      secContent.includes('Smoke test passed locally');
+    const secHasSkip =
+      secContent.includes('Neither stage_dir nor package output exist for test') ||
+      secContent.includes('Notice: Neither stage_dir nor package output exist') ||
+      secContent.includes('[SMOKE_TEST_SKIPPED]');
+    const secHasInterruption =
+      !secHasPass &&
+      !secHasSkip &&
+      (secContent.includes('fatal error:') ||
+        secContent.includes('panic:') ||
+        secContent.includes('error:') ||
+        secContent.includes('Error:'));
+
+    if (secHasFail || secHasInterruption) {
+      const failureIndices: number[] = [];
+      for (let i = 0; i < secLines.length; i++) {
+        const l = secLines[i];
+        if (
+          l.includes('Smoke test failed') ||
+          l.includes('Smoke test timed out') ||
+          l.includes('QEMU emulation crash') ||
+          l.includes('STDERR:') ||
+          l.includes('STDOUT:') ||
+          l.includes('fatal error:') ||
+          l.includes('panic:') ||
+          l.includes('error:') ||
+          l.includes('Error:')
+        ) {
+          failureIndices.push(i);
+        }
+      }
+      let secDetail = '';
+      if (failureIndices.length > 0) {
+        let terminalIdx = -1;
+        for (let i = secLines.length - 1; i >= 0; i--) {
+          const l = secLines[i];
+          if (
+            l.includes('Smoke test failed') ||
+            l.includes('Smoke test timed out') ||
+            l.includes('QEMU emulation crash') ||
+            l.includes('❌ STATUS: TEST FAILURE')
+          ) {
+            terminalIdx = i;
+            break;
+          }
+        }
+
+        const maxLines = 40;
+        let dStart: number;
+        let dEnd: number;
+
+        if (terminalIdx !== -1) {
+          const first = failureIndices[0];
+          if (terminalIdx - first < maxLines - 5) {
+            dStart = Math.max(0, first - 3);
+            dEnd = Math.min(secLines.length, dStart + maxLines);
+          } else {
+            dEnd = Math.min(secLines.length, terminalIdx + 3);
+            dStart = Math.max(0, dEnd - maxLines);
+          }
+        } else {
+          const first = failureIndices[0];
+          dStart = Math.max(0, first - 5);
+          dEnd = Math.min(secLines.length, dStart + maxLines);
+        }
+        secDetail = secLines.slice(dStart, dEnd).join('\n');
+      } else {
+        secDetail =
+          secLines.length <= 25 ? secLines.join('\n') : [secLines[0], '...', ...secLines.slice(-24)].join('\n');
+      }
+      testOutcomes.push({ headerIdx: startIdx, header: lines[startIdx], status: 'fail', detail: secDetail });
+    } else if (secHasPass) {
+      testOutcomes.push({ headerIdx: startIdx, header: lines[startIdx], status: 'pass', detail: '' });
+    } else if (secHasSkip) {
+      testOutcomes.push({ headerIdx: startIdx, header: lines[startIdx], status: 'skip', detail: '' });
+    } else {
+      const secDetail =
+        secLines.length <= 25 ? secLines.join('\n') : [secLines[0], '...', ...secLines.slice(-24)].join('\n');
+      testOutcomes.push({ headerIdx: startIdx, header: lines[startIdx], status: 'fail', detail: secDetail });
+    }
+  }
+
+  const failingOutcome = testOutcomes.find((o) => o.status === 'fail');
+  if (testSectionIndices.length > 0) {
+    if (failingOutcome) {
+      return ['❌ STATUS: TEST FAILURE', failingOutcome.detail, true];
+    }
+  } else if (hasSmokeTestFailure) {
     return ['❌ STATUS: TEST FAILURE', lines.slice(-25).join('\n'), true];
   }
 
-  if (hasSmokeTestPass || hasPackStage) {
+  if (testOutcomes.length > 0 && testOutcomes.every((o) => o.status === 'pass' || o.status === 'skip')) {
     return ['✓ STATUS: SUCCESS', '', false];
+  }
+
+  if (hasException) {
+    const errorSnippets: string[] = [];
+    const errorKeywords = ['error:', 'Error:', 'fatal error:', 'panic:', 'FAILED:'];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (errorKeywords.some((kw) => line.includes(kw)) && !line.trim().startsWith('note:')) {
+        const start = Math.max(0, i - 2);
+        const end = Math.min(lines.length, i + 4);
+        errorSnippets.push(...lines.slice(start, end));
+        errorSnippets.push('---');
+      }
+    }
+    const detail = errorSnippets.length > 0 ? errorSnippets.slice(0, 50).join('\n') : lines.slice(-30).join('\n');
+    return ['❌ STATUS: BUILD FAILURE', detail, true];
   }
 
   return ['✓ STATUS: SUCCESS', '', false];

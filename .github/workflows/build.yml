@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: 'Target specs (e.g. "aisleriot bun", "all@all", "type:npm !tsc")'
+        description: 'Target specs (e.g. "aisleriot bun", "all@all", "type:npm !tsc"). Same-run dependencies resolve newly compiled local archives from output/ in topological DAG order when producer and consumer are in the same shard; version constraints must be satisfied by the current shard batch or release/upstream packages.'
         required: false
         type: string
         default: 'all@all'
@@ -101,6 +101,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -138,6 +140,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -270,33 +274,51 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
+          PKG_NAMES: ${{ matrix.packages || matrix.package }}
           TARGET_ARCH: ${{ matrix.arch }}
+          BUILD_FORCE: ${{ (inputs.force || matrix.force) && '--force' || '' }}
         run: |
           set -o pipefail
           OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
-          LOG_FILE="build_logs/${PKG_NAME}_${TARGET_ARCH}.log"
           mkdir -p build_logs
-          echo "=== STAGE: COMPILE (${TARGET_ARCH}) ===" >> "${LOG_FILE}"
 
-          docker run --rm \
-            --volume /var/run/docker.sock:/var/run/docker.sock \
-            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
-            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
-            --workdir /home/builder/RepoExe \
-            --env GH_TOKEN="${GH_TOKEN}" \
-            --env REPO_OWNER="${OWNER}" \
-            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
-            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
-            --env SCCACHE_CACHE_SIZE="1G" \
-            --env GOCACHE="/home/builder/.cache/go-build" \
-            --env GOMODCACHE="/home/builder/go/pkg/mod" \
-            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
-            "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            bun scripts/cli/build.ts compile "pkg/${PKG_NAME}" --arch "${TARGET_ARCH}" ${{ (inputs.force || matrix.force) && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+          read -r -a PKG_LIST <<< "${PKG_NAMES}"
+          EXTRA_ARGS=()
+          if [ -n "${BUILD_FORCE}" ]; then
+            EXTRA_ARGS+=("${BUILD_FORCE}")
+          fi
+
+          BUILD_FAILED=0
+          for p in "${PKG_LIST[@]}"; do
+            PKG_LOG="build_logs/${p}_${TARGET_ARCH}.log"
+            echo "=== STAGE: COMPILE & PACK (${p} [${TARGET_ARCH}]) ===" >> "${PKG_LOG}"
+            echo "--- Compiling & Packing ${p} [${TARGET_ARCH}] ---" | tee -a "${PKG_LOG}"
+            if ! docker run --rm \
+              --volume /var/run/docker.sock:/var/run/docker.sock \
+              --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
+              --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+              --workdir /home/builder/RepoExe \
+              --env GH_TOKEN="${GH_TOKEN}" \
+              --env REPO_OWNER="${OWNER}" \
+              --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+              --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+              --env SCCACHE_CACHE_SIZE="1G" \
+              --env GOCACHE="/home/builder/.cache/go-build" \
+              --env GOMODCACHE="/home/builder/go/pkg/mod" \
+              --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+              --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
+              --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
+              --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
+              --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
+              "ghcr.io/${OWNER}/repoexe-builder:latest" \
+              sh -c 'pkg="$1"; arch="$2"; shift 2; bun scripts/cli/build.ts compile "pkg/${pkg}" --arch "${arch}" "$@" && bun scripts/cli/build.ts pack "pkg/${pkg}" --arch "${arch}" "$@"' -- "${p}" "${TARGET_ARCH}" "${EXTRA_ARGS[@]}" 2>&1 | tee -a "${PKG_LOG}"; then
+              printf '\n::error:: Build or pack failed for %s\n' "${p}" | tee -a "${PKG_LOG}"
+              BUILD_FAILED=1
+            fi
+          done
+          if [ "${BUILD_FAILED}" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Profile Build Memory Peak
         if: always()
@@ -347,64 +369,51 @@ jobs:
             echo "| **Page Cache / tmpfs** | \`${CACHE_STR}\` | ${{ matrix.tmpfs }}GB tmpfs Max |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Assemble Package Archives
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PKG_NAME: ${{ matrix.package }}
-          TARGET_ARCH: ${{ matrix.arch }}
-        run: |
-          set -o pipefail
-          OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
-          LOG_FILE="build_logs/${PKG_NAME}_${TARGET_ARCH}.log"
-          echo "=== STAGE: PACK (${TARGET_ARCH}) ===" >> "${LOG_FILE}"
-
-          docker run --rm \
-            --volume /var/run/docker.sock:/var/run/docker.sock \
-            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
-            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
-            --workdir /home/builder/RepoExe \
-            --env GH_TOKEN="${GH_TOKEN}" \
-            --env REPO_OWNER="${OWNER}" \
-            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
-            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
-            --env SCCACHE_CACHE_SIZE="1G" \
-            --env GOCACHE="/home/builder/.cache/go-build" \
-            --env GOMODCACHE="/home/builder/go/pkg/mod" \
-            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            --volume "${{ github.workspace }}/.gocache:/home/builder/.cache/go-build" \
-            --volume "${{ github.workspace }}/.gomodcache:/home/builder/go/pkg/mod" \
-            --volume "${{ github.workspace }}/.cargoregistry:/home/builder/.cargo/registry" \
-            --volume "${{ github.workspace }}/.cargogit:/home/builder/.cargo/git" \
-            "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            bun scripts/cli/build.ts pack "pkg/${PKG_NAME}" --arch "${TARGET_ARCH}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
-
       - name: Termux Docker Smoke Test
         id: test_step
+        if: '!cancelled()'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_NAME: ${{ matrix.package }}
+          PKG_NAMES: ${{ matrix.packages || matrix.package }}
           TARGET_ARCH: ${{ matrix.arch }}
+          BUILD_FORCE: ${{ (inputs.force || matrix.force) && '--force' || '' }}
         run: |
           set -o pipefail
           OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
-          LOG_FILE="build_logs/${PKG_NAME}_${TARGET_ARCH}.log"
-          echo "=== STAGE: TEST (${TARGET_ARCH}) ===" >> "${LOG_FILE}"
-
           sudo chmod 666 /var/run/docker.sock 2>/dev/null || true
 
-          docker run --rm \
-            --volume /var/run/docker.sock:/var/run/docker.sock \
-            --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
-            --volume "${{ github.workspace }}:/home/builder/RepoExe" \
-            --workdir /home/builder/RepoExe \
-            --env GH_TOKEN="${GH_TOKEN}" \
-            --env REPO_OWNER="${OWNER}" \
-            --env GITHUB_WORKSPACE="${{ github.workspace }}" \
-            --env SCCACHE_DIR="/home/builder/.cache/sccache" \
-            --env SCCACHE_CACHE_SIZE="1G" \
-            --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
-            "ghcr.io/${OWNER}/repoexe-builder:latest" \
-            bun scripts/cli/build.ts test "pkg/${PKG_NAME}" --arch "${TARGET_ARCH}" ${{ inputs.force && '--force' || '' }} 2>&1 | tee -a "${LOG_FILE}"
+          read -r -a PKG_LIST <<< "${PKG_NAMES}"
+          EXTRA_ARGS=()
+          if [ -n "${BUILD_FORCE}" ]; then
+            EXTRA_ARGS+=("${BUILD_FORCE}")
+          fi
+
+          TEST_FAILED=0
+          for p in "${PKG_LIST[@]}"; do
+            PKG_LOG="build_logs/${p}_${TARGET_ARCH}.log"
+            echo "=== STAGE: TEST (${p} [${TARGET_ARCH}]) ===" >> "${PKG_LOG}"
+            echo "--- Smoke Testing ${p} [${TARGET_ARCH}] ---" | tee -a "${PKG_LOG}"
+            if ! docker run --rm \
+              --volume /var/run/docker.sock:/var/run/docker.sock \
+              --tmpfs /tmp:exec,mode=1777,size=${{ matrix.tmpfs }}g \
+              --volume "${{ github.workspace }}:/home/builder/RepoExe" \
+              --workdir /home/builder/RepoExe \
+              --env GH_TOKEN="${GH_TOKEN}" \
+              --env REPO_OWNER="${OWNER}" \
+              --env GITHUB_WORKSPACE="${{ github.workspace }}" \
+              --env SCCACHE_DIR="/home/builder/.cache/sccache" \
+              --env SCCACHE_CACHE_SIZE="1G" \
+              --volume "${{ github.workspace }}/.sccache:/home/builder/.cache/sccache" \
+              "ghcr.io/${OWNER}/repoexe-builder:latest" \
+              bun scripts/cli/build.ts test "pkg/${p}" --arch "${TARGET_ARCH}" "${EXTRA_ARGS[@]}" 2>&1 | tee -a "${PKG_LOG}"; then
+              echo "::error:: Smoke test failed for ${p}" | tee -a "${PKG_LOG}"
+              TEST_FAILED=1
+            fi
+          done
+          if [ "${TEST_FAILED}" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Fix Cache Permissions Before Save
         if: matrix.cache && always()
@@ -428,12 +437,13 @@ jobs:
           key: build-cache-${{ matrix.build_system }}-${{ matrix.package }}-${{ matrix.arch }}-${{ github.sha }}
 
       - name: Save Package Build Artifact
-        if: success()
+        if: '!cancelled()'
         uses: actions/upload-artifact@v7
         with:
           name: 'package-artifact-${{ matrix.package }}-${{ matrix.arch }}'
-          path: output/
+          path: output_validated/
           retention-days: 1
+          if-no-files-found: ignore
 
       - name: Save Build Log Artifact
         if: always()
@@ -485,7 +495,10 @@ jobs:
   publish-site:
     name: Deploy
     needs: [generate-matrix, lint-audit, test-suite, build]
-    if: needs.generate-matrix.outputs.should_publish == 'true' && !cancelled() && needs.lint-audit.result == 'success' && needs.test-suite.result == 'success' && (needs.build.result == 'success' || (needs.build.result == 'skipped' && (inputs.skip_build || needs.generate-matrix.outputs.matrix == '[]')))
+    if: needs.generate-matrix.outputs.should_publish == 'true' && !cancelled() && needs.lint-audit.result == 'success' && needs.test-suite.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'failure' || (needs.build.result == 'skipped' && (inputs.skip_build || needs.generate-matrix.outputs.matrix == '[]')))
+    concurrency:
+      group: release-inventory-publish
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -514,6 +527,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          REQUIRE_APT_SIGNING: 'true'
         run: |
           bun run index
 
@@ -523,8 +537,15 @@ jobs:
         run: |
           bun run prune
 
-      - name: Verify Site Packaging & Symlink Integrity
+      - name: Verify Site Packaging & Cryptographic Integrity
         run: |
+          # Verify APT repository cryptographic signatures
+          if [ ! -f "site/apt/dists/stable/InRelease" ] && [ ! -f "site/apt/dists/stable/Release.gpg" ]; then
+            echo "::error:: Unsigned APT feed detected! InRelease or Release.gpg is strictly required before deploying to GitHub Pages."
+            exit 1
+          fi
+          echo "✓ Verified APT repository cryptographic signatures."
+
           # Pre-flight tar check ensuring zero broken symlinks or missing files
           tar -czf /dev/null -C site .
           echo "✓ Site artifact packaging integrity verified."
