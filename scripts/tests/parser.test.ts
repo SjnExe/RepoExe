@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { parseRecipe } from '../core/parser.ts';
+import { normalizeRecipe, parseRecipe } from '../core/parser.ts';
 
 test('parseRecipe parses aisleriot correctly', () => {
   const recipe = parseRecipe('pkg/aisleriot');
@@ -146,4 +146,191 @@ test('parseRecipe defaults cache to false unless explicitly specified', (): void
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('parseRecipe throws on invalid object-form subpackage entries', (): void => {
+  const tmp = mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'recipe-subpkg-err-'));
+  try {
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'invalid-subpkg',
+        version: '1.0.0',
+        subpackages: {
+          bad: 42,
+        },
+      };`,
+    );
+    expect(() => parseRecipe(tmp)).toThrow(/Invalid subpackage 'bad'/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('parseRecipe throws when subpackage name collides with parent or another subpackage', (): void => {
+  const tmp = mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'recipe-subpkg-collision-'));
+  try {
+    // 1. Collides with parent
+    writeFileSync(
+      join(tmp, 'recipe.ts'),
+      `export default {
+        name: 'colliding-pkg',
+        version: '1.0.0',
+        subpackages: {
+          child: { name: 'colliding-pkg', include: ['bin/**'] },
+        },
+      };`,
+    );
+    expect(() => parseRecipe(tmp)).toThrow(/collides with the parent or another subpackage/);
+
+    // 2. Collides with another subpackage
+    writeFileSync(
+      join(tmp, 'dup-child.ts'),
+      `export default {
+        name: 'colliding-pkg',
+        version: '1.0.0',
+        subpackages: {
+          sub1: { name: 'dup-name', include: ['bin/**'] },
+          sub2: { name: 'dup-name', include: ['lib/**'] },
+        },
+      };`,
+    );
+    expect(() => parseRecipe(join(tmp, 'dup-child.ts'))).toThrow(/collides with the parent or another subpackage/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('normalizeRecipe preserves __proto__ as an internal record key', (): void => {
+  const normalized = normalizeRecipe({
+    name: 'sample',
+    version: '1.0.0',
+    subpackages: {
+      ['__proto__']: { name: 'sample-tools', include: ['bin/tool'] },
+    },
+  });
+
+  expect(normalized.subpackages).toBeDefined();
+  expect(Object.prototype.hasOwnProperty.call(normalized.subpackages, '__proto__')).toBeTrue();
+  expect(normalized.subpackages!['__proto__']?.name).toBe('sample-tools');
+});
+
+test('normalizeRecipe canonicalizes arches preserving order and rejects alternatives in Provides', (): void => {
+  const normalized = normalizeRecipe({
+    name: 'canon-arch',
+    version: '1.0.0',
+    arches: ['arm64', 'amd64', 'i386'],
+    provides: ['sdk-a, sdk-b (= 2)'],
+  });
+  expect(normalized.arch).toBe('aarch64');
+  expect(normalized.arches).toEqual(['aarch64', 'x86_64', 'i686']);
+
+  expect(() =>
+    normalizeRecipe({
+      name: 'bad-prov-alt',
+      version: '1.0.0',
+      provides: ['sdk-a | sdk-b'],
+    }),
+  ).toThrow(/does not permit alternatives/);
+});
+
+test('validateProvidesList rejects empty version in versioned Provides', (): void => {
+  expect(() =>
+    normalizeRecipe({
+      name: 'bad-prov-ver',
+      version: '1.0.0',
+      provides: ['sdk-api (= )'],
+    }),
+  ).toThrow(/requires a version/);
+});
+
+test('normalizeRecipe rejects architecture list mixing all and native targets', (): void => {
+  expect(() =>
+    normalizeRecipe({
+      name: 'bad-mixed-arch',
+      version: '1.0.0',
+      arches: ['arm', 'all'],
+    }),
+  ).toThrow(/cannot mix architecture 'all' with native architectures/);
+});
+
+test('normalizeSubpkgDef rejects non-array include or files selector', (): void => {
+  expect(() =>
+    normalizeRecipe({
+      name: 'bad-subpkg-include',
+      version: '1.0.0',
+      subpackages: {
+        tool: { include: 'bin/tool' as unknown as string[] },
+      },
+    }),
+  ).toThrow(/must be an array of strings/);
+
+  expect(() =>
+    normalizeRecipe({
+      name: 'bad-subpkg-files',
+      version: '1.0.0',
+      subpackages: {
+        tool: { files: 'bin/tool' as unknown as string[] },
+      },
+    }),
+  ).toThrow(/must be an array of strings/);
+});
+
+test('normalizeSubpkgDef validates and preserves producer_arch', (): void => {
+  const normalized = normalizeRecipe({
+    name: 'multi-producer',
+    version: '1.0.0',
+    arches: ['aarch64', 'arm'],
+    subpackages: {
+      doc: { arch: 'all', producer_arch: 'arm' },
+    },
+  });
+  expect(normalized.subpackages?.doc.producer_arch).toBe('arm');
+
+  expect(() =>
+    normalizeRecipe({
+      name: 'invalid-producer',
+      version: '1.0.0',
+      arches: ['aarch64', 'arm'],
+      subpackages: {
+        doc: { arch: 'all', producer_arch: 'x86_64' },
+      },
+    }),
+  ).toThrow(/not in parent recipe architectures/);
+
+  expect(() =>
+    normalizeRecipe({
+      name: 'all-parent-native-producer',
+      version: '1.0.0',
+      arch: 'all',
+      subpackages: {
+        doc: { arch: 'all', producer_arch: 'arm' },
+      },
+    }),
+  ).toThrow(/has architecture 'all' and cannot designate a native producer architecture/);
+});
+
+test('validateProvidesList rejects empty string and blank entries', (): void => {
+  expect(() =>
+    normalizeRecipe({
+      name: 'blank-provides',
+      version: '1.0.0',
+      provides: [''],
+    }),
+  ).toThrow(/empty or blank capability is not permitted/);
+
+  expect(() =>
+    normalizeRecipe({
+      name: 'whitespace-provides',
+      version: '1.0.0',
+      provides: ['   '],
+    }),
+  ).toThrow(/empty or blank capability is not permitted/);
+
+  const valid = normalizeRecipe({
+    name: 'valid-provides',
+    version: '1.0.0',
+    provides: ['cap1', 'cap2 (= 1.0)'],
+  });
+  expect(valid.provides).toEqual(['cap1', 'cap2 (= 1.0)']);
 });

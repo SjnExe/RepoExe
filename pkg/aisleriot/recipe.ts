@@ -3,7 +3,7 @@ import { defineRecipe } from '@core/types.ts';
 export default defineRecipe({
   name: 'aisleriot',
   version: '3.22.35',
-  revision: 1,
+  revision: 2,
   auto_update: true,
   update_strategy: 'git_tag',
   arch: ['aarch64', 'arm', 'x86_64', 'i686'],
@@ -13,7 +13,6 @@ export default defineRecipe({
   maintainer: '@SjnExe',
   build_system: 'custom',
   source: 'https://gitlab.gnome.org/GNOME/aisleriot.git#{version}',
-  patches: ['patches/fix-guile-i18n-grouping.patch'],
   formats: ['apt'],
   build_deps: ['gtk3', 'guile', 'librsvg', 'libcanberra', 'libxml2', 'desktop-file-utils', 'shared-mime-info'],
   deps: ['gtk3', 'guile', 'librsvg', 'libcanberra', 'libxml2'],
@@ -27,10 +26,7 @@ export default defineRecipe({
 mkdir -p "\${PREFIX}/bin"
 mkdir -p "\${PREFIX}/host-bin"
 
-# Smart guild cross-compilation wrapper
-cat << 'EOF' > "\${PREFIX}/host-bin/guild"
-#!/bin/sh
-REAL_GUILD="$(PATH="/usr/bin:/usr/local/bin:/bin" which guild-3.0 2>/dev/null || PATH="/usr/bin:/usr/local/bin:/bin" which guild 2>/dev/null || echo /usr/bin/guild)"
+# Cross-compilation target tuple setup for Guile Scheme bytecode compiler
 TARGET_TUPLE=""
 case "\${TARGET_ARCH:-aarch64}" in
   aarch64|arm64) TARGET_TUPLE="aarch64-linux-android" ;;
@@ -38,15 +34,14 @@ case "\${TARGET_ARCH:-aarch64}" in
   x86_64) TARGET_TUPLE="x86_64-linux-android" ;;
   i686) TARGET_TUPLE="i686-linux-android" ;;
 esac
-
-if [ "$1" = "compile" ] && [ -n "$TARGET_TUPLE" ]; then
-  shift
-  exec "$REAL_GUILD" compile --target="$TARGET_TUPLE" "$@"
+if [ -n "$TARGET_TUPLE" ]; then
+  if [ ! -f games/guile-compile ] || \
+     ! sed -i "s|^TARGET_PLATFORM=.*|TARGET_PLATFORM='\${TARGET_TUPLE}'|" games/guile-compile || \
+     ! grep -qx "TARGET_PLATFORM='\${TARGET_TUPLE}'" games/guile-compile; then
+    echo "Error: Failed to patch TARGET_PLATFORM in games/guile-compile" >&2
+    exit 1
+  fi
 fi
-exec "$REAL_GUILD" "$@"
-EOF
-chmod +x "\${PREFIX}/host-bin/guild"
-cp -f "\${PREFIX}/host-bin/guild" "\${PREFIX}/bin/guild"
 
 if [ -x /usr/bin/guile-3.0 ]; then
   ln -sf /usr/bin/guile-3.0 "\${PREFIX}/host-bin/guile"
