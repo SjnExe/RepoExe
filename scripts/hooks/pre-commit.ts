@@ -1,6 +1,22 @@
-import { delimiter, join } from 'node:path';
+import { accessSync, constants, existsSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { basename, delimiter, dirname, join, relative } from 'node:path';
 
 import { $ } from 'bun';
+
+/** Resolves the actionlint executable, preferring ~/.local/bin/actionlint if executable. */
+export function resolveActionlintBinary(): string | null {
+  const localActionlint = join(homedir(), '.local', 'bin', 'actionlint');
+  if (existsSync(localActionlint)) {
+    try {
+      if (statSync(localActionlint).isFile()) {
+        accessSync(localActionlint, constants.X_OK);
+        return localActionlint;
+      }
+    } catch {}
+  }
+  return Bun.which('actionlint');
+}
 
 /** Ensures that Termux or custom environment PATH entries include PREFIX/bin. */
 export function ensurePrefixPath(): void {
@@ -20,9 +36,13 @@ export interface PreCommitOptions {
   skipTypeCheck?: boolean;
   skipLint?: boolean;
   skipHealthCheck?: boolean;
+  skipActionlint?: boolean;
   skipTests?: boolean;
   quiet?: boolean;
 }
+
+import { getStagedWorkflowsSnapshot, validateWorkflowScripts } from './workflow_lint.ts';
+export * from './workflow_lint.ts';
 
 /**
  * Runs the pre-commit hook validation pipeline using Bun-native tools.
@@ -89,7 +109,67 @@ export async function runPreCommitHook(options?: PreCommitOptions): Promise<bool
       }
     }
 
-    // 5. Unit test suite execution
+    // 5. GitHub Actions workflow validation via actionlint
+    if (!options?.skipActionlint) {
+      const isTermux = Boolean(process.env.TERMUX_VERSION) || (process.env.PREFIX || '').includes('com.termux');
+      const actionlintBin = resolveActionlintBinary();
+
+      const hasShellcheck = Bun.which('shellcheck') !== null;
+      const willRunWorkflows = Boolean(actionlintBin || (isTermux && hasShellcheck));
+
+      if (willRunWorkflows) {
+        const stagedWorkflowDir = getStagedWorkflowsSnapshot('.github/workflows');
+        try {
+          if (actionlintBin) {
+            if (!options?.quiet) {
+              console.log('🐙 Validating GitHub Actions workflows via actionlint...');
+            }
+            const tmpRoot =
+              basename(dirname(stagedWorkflowDir)) === '.github'
+                ? dirname(dirname(stagedWorkflowDir))
+                : dirname(stagedWorkflowDir);
+            const workflowFiles = existsSync(stagedWorkflowDir)
+              ? readdirSync(stagedWorkflowDir)
+                  .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
+                  .map((f) => relative(tmpRoot, join(stagedWorkflowDir, f)))
+              : [];
+
+            if (workflowFiles.length > 0) {
+              const args = isTermux ? ['-shellcheck=', ...workflowFiles] : workflowFiles;
+              const res = await $`${actionlintBin} ${args}`.cwd(tmpRoot).nothrow().quiet();
+
+              if (res.exitCode !== 0) {
+                console.error(`=== Actionlint Check Failed (Exit: ${res.exitCode}) ===\n${res.stdout}${res.stderr}`);
+                console.error('\n❌ Workflow checks failed.');
+                return false;
+              }
+            }
+          }
+
+          // On Termux, actionlint requires -shellcheck="" to prevent SIGSYS (faccessat2) crashes.
+          // Validate embedded workflow scripts via native Termux shellcheck for parity with CI.
+          // Always run on Termux even when actionlint is absent, as long as shellcheck is available.
+          if (isTermux && hasShellcheck) {
+            const scRes = await validateWorkflowScripts(stagedWorkflowDir);
+            if (!scRes.ok) {
+              console.error(`=== Workflow Shellcheck Failed ===\n${scRes.errors.join('\n\n')}`);
+              console.error('\n❌ Workflow shellcheck checks failed.');
+              return false;
+            }
+          }
+        } finally {
+          if (stagedWorkflowDir !== '.github/workflows' && existsSync(stagedWorkflowDir)) {
+            const tmpRoot =
+              basename(dirname(stagedWorkflowDir)) === '.github'
+                ? dirname(dirname(stagedWorkflowDir))
+                : dirname(stagedWorkflowDir);
+            rmSync(tmpRoot, { recursive: true, force: true });
+          }
+        }
+      }
+    }
+
+    // 6. Unit test suite execution
     if (!options?.skipTests) {
       if (!options?.quiet) {
         console.log('🧪 Running Bun unit test suite...');
@@ -121,6 +201,7 @@ if (import.meta.main) {
     skipTypeCheck: args.includes('--skip-type-check'),
     skipLint: args.includes('--skip-lint'),
     skipHealthCheck: args.includes('--skip-check'),
+    skipActionlint: args.includes('--skip-actionlint'),
     skipTests: args.includes('--skip-tests'),
   };
 
