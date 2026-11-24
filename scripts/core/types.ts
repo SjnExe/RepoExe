@@ -5,12 +5,36 @@ export interface ResourceConfig {
   tmpfs?: number;
 }
 
+export interface SubpackageDefinition {
+  name?: string;
+  description?: string;
+  arch?: string;
+  include?: string[];
+  files?: string[];
+  auto?: 'dev' | 'doc' | 'static';
+  type?: 'auto:dev' | 'auto:doc' | 'auto:static';
+  deps?: string[];
+  parent_dep?: 'exact' | 'same-version' | 'none' | string;
+  recommends?: string[];
+  suggests?: string[];
+  conflicts?: string[];
+  provides?: string[];
+  replaces?: string[];
+  producer_arch?: string;
+  multiarch?: string;
+}
+
+export interface NamedSubpackageDefinition extends SubpackageDefinition {
+  name: string;
+}
+
 export interface RecipeDefinition {
   name: string;
   version: string;
   epoch?: number;
   revision?: number;
   arch?: string | string[];
+  arches?: string[];
   description?: string;
   license?: string;
   homepage?: string;
@@ -18,7 +42,9 @@ export interface RecipeDefinition {
   uploaders?: string[] | string;
   component?: string;
   build_system?: string;
-  source?: string | null;
+  source?: string | string[] | null;
+  sources?: string[] | null;
+  mirrors?: string[] | null;
   sha256?: string | null;
   formats?: string[];
   build_deps?: string[];
@@ -30,6 +56,10 @@ export interface RecipeDefinition {
   replaces?: string[];
   breaks?: string[];
   enhances?: string[];
+  multiarch?: string;
+  subpackages?:
+    | Record<string, SubpackageDefinition | 'auto:dev' | 'auto:doc' | 'auto:static'>
+    | Array<NamedSubpackageDefinition | 'auto:dev' | 'auto:doc' | 'auto:static'>;
   maintainer_scripts?: Record<string, string>;
   resources?: ResourceConfig;
   heavy_build?: boolean;
@@ -67,6 +97,8 @@ export interface PackageRecipe {
   component: string;
   build_system: string;
   source: string | null;
+  sources?: string[];
+  mirrors?: string[];
   sha256: string | null;
   formats: string[];
   build_deps: string[];
@@ -78,6 +110,8 @@ export interface PackageRecipe {
   replaces: string[];
   breaks?: string[];
   enhances?: string[];
+  multiarch?: string;
+  subpackages?: Record<string, SubpackageDefinition>;
   maintainer_scripts?: Record<string, string>;
   resources: ResourceConfig;
   heavy_build: boolean;
@@ -95,4 +129,5 @@ export interface PackageRecipe {
   toolchains: Record<string, string>;
   state_hash: string;
   ndk?: '30' | '23c' | string;
+  producer_arch?: string;
 }

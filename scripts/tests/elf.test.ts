@@ -136,3 +136,34 @@ test('stripVerneedFromElf compacts retained entries in 64-bit ELF', () => {
 
   unlinkSync(tmpFile);
 });
+
+test('stripVerneedFromElf throws security violation on ELF containing DT_TEXTREL', () => {
+  const buf = Buffer.alloc(120);
+  buf[0] = 0x7f;
+  buf[1] = 0x45;
+  buf[2] = 0x4c;
+  buf[3] = 0x46;
+  buf[4] = 1; // 32-bit
+  buf[5] = 1; // little-endian
+  buf[6] = 1;
+
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  view.setUint32(28, 52, true); // e_phoff = 52
+  view.setUint16(42, 32, true); // e_phentsize = 32
+  view.setUint16(44, 1, true); // e_phnum = 1
+
+  // Program header (PT_DYNAMIC = 2)
+  view.setUint32(52, 2, true);
+  view.setUint32(56, 84, true);
+  view.setUint32(68, 16, true);
+
+  // Dynamic entry: DT_TEXTREL = 22
+  view.setInt32(84, 22, true);
+  view.setInt32(88, 0, true);
+
+  const tmpFile = join(tmpdir(), `test_textrel_${Date.now()}.bin`);
+  writeFileSync(tmpFile, buf);
+
+  expect(() => stripVerneedFromElf(tmpFile)).toThrow(/contains DT_TEXTREL/);
+  unlinkSync(tmpFile);
+});

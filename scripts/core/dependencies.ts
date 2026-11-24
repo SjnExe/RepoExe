@@ -1,8 +1,10 @@
-export type VersionOperator = '<<' | '<=' | '=' | '>=' | '>>';
+export type VersionOperator = '<<' | '<=' | '=' | '>=' | '>>' | '';
 
 export interface VersionConstraint {
   operator: VersionOperator;
   version: string;
+  source?: string;
+  multiArch?: string;
 }
 
 export interface DependencyToken {
@@ -28,9 +30,32 @@ export const ARCH_ALIASES: Record<string, string> = {
   i686: 'i686',
 };
 
+export const CANONICAL_ARCHES = new Set(['aarch64', 'arm', 'x86_64', 'i686', 'all']);
+
 export function normalizeArch(arch: string): string {
   const clean = arch.trim().toLowerCase();
   return ARCH_ALIASES[clean] || clean;
+}
+
+export function isDebArchCompatible(fileOrArch: string, targetArch: string): boolean {
+  const normTarget = normalizeArch(targetArch);
+  let arch = fileOrArch;
+  if (fileOrArch.endsWith('.deb')) {
+    const match = fileOrArch.match(/_(aarch64|arm64|x86_64|amd64|arm|armhf|armel|armv7|i686|i386|all)\.deb$/i);
+    if (match) {
+      arch = match[1];
+    } else {
+      const stripped = fileOrArch.slice(0, -4);
+      if (stripped.endsWith('_x86_64')) {
+        arch = 'x86_64';
+      } else {
+        const lastUnderscore = stripped.lastIndexOf('_');
+        arch = lastUnderscore !== -1 ? stripped.slice(lastUnderscore + 1) : stripped;
+      }
+    }
+  }
+  const normArch = normalizeArch(arch);
+  return normArch === 'all' || normArch === normTarget;
 }
 
 export function parseSingleToken(raw: string): DependencyToken {
@@ -188,7 +213,8 @@ export function formatDebianDependency(clauses: DependencyClause[]): string {
     .map((branch) =>
       branch
         .map((t) => {
-          const ma = t.multiArch ? `:${t.multiArch}` : '';
+          const maArch = t.multiArch === 'x86_64' ? 'amd64' : t.multiArch;
+          const ma = maArch ? `:${maArch}` : '';
           const ver = t.versionConstraint ? ` (${t.versionConstraint.operator} ${t.versionConstraint.version})` : '';
           return `${t.name}${ma}${ver}`;
         })
