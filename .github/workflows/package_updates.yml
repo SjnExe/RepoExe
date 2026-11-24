@@ -2,8 +2,12 @@ name: Package Updates
 
 on:
   schedule:
-    - cron: '0 */4 * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
+
+concurrency:
+  group: package-updates
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -26,13 +30,14 @@ jobs:
 
       - name: Run Upstream Version Check
         id: check
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
-          bun scripts/cli/upstream_check.ts > update_log.txt 2>&1 || true
-          cat update_log.txt
-
-          grep "Update available for" update_log.txt > updates_to_process.txt || true
-
-          if [ -s updates_to_process.txt ]; then
+          bun scripts/cli/upstream_check.ts --json > updates.json || echo "[]" > updates.json
+          cat updates.json
+          COUNT=$(jq 'length' updates.json)
+          if [ "$COUNT" -gt 0 ]; then
             echo "updates_found=true" >> "$GITHUB_OUTPUT"
           else
             echo "updates_found=false" >> "$GITHUB_OUTPUT"
@@ -40,52 +45,84 @@ jobs:
 
       - name: Process Updates
         if: steps.check.outputs.updates_found == 'true'
-        run: |
-          while read -r line; do
-            if [[ "$line" =~ Update\ available\ for\ ([^:]+):\ ([^\ ]+)\ -\>\ (.+) ]]; then
-              PKG="${BASH_REMATCH[1]}"
-              OLD="${BASH_REMATCH[2]}"
-              NEW="${BASH_REMATCH[3]}"
-
-              BRANCH_NAME="update/${PKG}/${NEW}"
-
-              if git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
-                echo "Branch $BRANCH_NAME already exists, skipping."
-                continue
-              fi
-
-              echo "Processing update for $PKG to $NEW"
-              git checkout -b "$BRANCH_NAME"
-
-              bun scripts/cli/update_recipe.ts "$PKG" "$NEW"
-
-              git config user.name "github-actions[bot]"
-              git config user.email "github-actions[bot]@users.noreply.github.com"
-              git add "pkg/$PKG/recipe.ts"
-              git commit -m "feat($PKG): update to $NEW"
-
-              git push origin "$BRANCH_NAME"
-
-              CC_LIST=$(bun -e '
-                import { parseRecipe } from "./scripts/core/parser.ts";
-                try {
-                  const r = parseRecipe("pkg/'"$PKG"'");
-                  const people = [r.maintainer, ...(r.uploaders || [])]
-                    .filter(Boolean)
-                    .map(m => m.trim())
-                    .map(m => m.startsWith("@") ? m : (m.includes("<") ? null : "@" + m))
-                    .filter(Boolean);
-                  const unique = Array.from(new Set(people));
-                  if (unique.length > 0) console.log("\n\nCC: " + unique.join(" "));
-                } catch {}
-              ')
-
-              PR_URL=$(gh pr create --title "feat($PKG): update to $NEW" --body "Automated update from $OLD to $NEW$CC_LIST" --base main --head "$BRANCH_NAME" 2>&1 || true)
-              echo "$PR_URL"
-              gh pr merge "$BRANCH_NAME" --auto --squash || true
-
-              git checkout main
-            fi
-          done < updates_to_process.txt
         env:
           GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 1. Fast Lane: batch all non-heavy updates into one PR so they share one CI run
+          LIGHT_COUNT=$(jq '[.[] | select(.heavy == false)] | length' updates.json)
+          if [ "$LIGHT_COUNT" -gt 0 ]; then
+            BULK_BRANCH="update/bulk-$(date -u +%Y%m%d-%H%M)"
+            OPEN_BULK=$(gh pr list --state open --search "in:title [auto-update] bulk" --json number --jq 'length' || echo "0")
+            if [ "$OPEN_BULK" -eq 0 ] && ! git ls-remote --exit-code --heads origin "$BULK_BRANCH" >/dev/null 2>&1; then
+              git checkout -b "$BULK_BRANCH" main
+              UPDATED_COUNT=0
+              BODY_LINES=""
+              while IFS= read -r item; do
+                PKG=$(echo "$item" | jq -r '.name')
+                OLD=$(echo "$item" | jq -r '.oldVersion')
+                NEW=$(echo "$item" | jq -r '.newVersion')
+                if ! bun scripts/cli/update_recipe.ts "$PKG" "$NEW"; then
+                  echo "::warning:: Skipping $PKG ($NEW) in bulk lane: update_recipe.ts failed."
+                  git checkout -- "pkg/$PKG/recipe.ts" 2>/dev/null || true
+                  continue
+                fi
+                git add "pkg/$PKG/recipe.ts"
+                UPDATED_COUNT=$((UPDATED_COUNT + 1))
+                BODY_LINES="${BODY_LINES}- \`${PKG}\`: \`${OLD}\` -> \`${NEW}\`\n"
+              done < <(jq -c '.[] | select(.heavy == false)' updates.json)
+
+              if [ "$UPDATED_COUNT" -gt 0 ] && ! git diff --cached --quiet; then
+                git commit -m "chore(auto-update): bulk update (${UPDATED_COUNT} packages)"
+                git push -q origin "$BULK_BRANCH"
+                gh pr create \
+                  --title "chore(auto-update): [auto-update] bulk update (${UPDATED_COUNT} packages)" \
+                  --body "$(printf "Automated fast-lane package updates:\n\n%b" "$BODY_LINES")" \
+                  --base main \
+                  --head "$BULK_BRANCH" || true
+                gh pr merge "$BULK_BRANCH" --auto --squash || true
+              fi
+              git checkout main
+            else
+              echo "An open bulk auto-update PR already exists; skipping duplicate bulk PR."
+            fi
+          fi
+
+          # 2. Heavy Lane: isolate each heavy package in its own PR so it never blocks fast updates
+          while IFS= read -r item; do
+            PKG=$(echo "$item" | jq -r '.name')
+            OLD=$(echo "$item" | jq -r '.oldVersion')
+            NEW=$(echo "$item" | jq -r '.newVersion')
+            BRANCH_NAME="update/heavy-${PKG}-${NEW}"
+
+            if git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+              echo "Branch $BRANCH_NAME already exists, skipping."
+              continue
+            fi
+
+            git checkout -b "$BRANCH_NAME" main
+            if ! bun scripts/cli/update_recipe.ts "$PKG" "$NEW"; then
+              echo "::warning:: Skipping heavy update for $PKG ($NEW): update_recipe.ts failed."
+              git checkout -- "pkg/$PKG/recipe.ts" 2>/dev/null || true
+              git checkout main
+              continue
+            fi
+            git add "pkg/$PKG/recipe.ts"
+            if git diff --cached --quiet; then
+              echo "::warning:: No changes produced for heavy package $PKG ($NEW); skipping."
+              git checkout main
+              continue
+            fi
+            git commit -m "feat($PKG): [auto-update] update to $NEW"
+            git push -q origin "$BRANCH_NAME"
+
+            gh pr create \
+              --title "feat($PKG): [auto-update] update to $NEW" \
+              --body "Automated heavy-lane update from \`$OLD\` to \`$NEW\`." \
+              --base main \
+              --head "$BRANCH_NAME" || true
+            gh pr merge "$BRANCH_NAME" --auto --squash || true
+            git checkout main
+          done < <(jq -c '.[] | select(.heavy == true)' updates.json)
