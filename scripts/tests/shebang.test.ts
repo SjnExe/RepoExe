@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -9,10 +18,18 @@ describe('Shebang Sanitizer (scripts/sanitizer/shebang.ts)', () => {
   const defaultPrefix = '/data/data/com.termux/files/usr';
 
   test('rewriteShebangLine rewrites standard shells and interpreters', () => {
-    expect(rewriteShebangLine('#!/bin/sh', defaultPrefix)).toBe('#!/data/data/com.termux/files/usr/bin/sh');
-    expect(rewriteShebangLine('#!/bin/bash', defaultPrefix)).toBe('#!/data/data/com.termux/files/usr/bin/bash');
-    expect(rewriteShebangLine('#!/usr/bin/env sh', defaultPrefix)).toBe('#!/data/data/com.termux/files/usr/bin/sh');
-    expect(rewriteShebangLine('#!/usr/bin/env bash', defaultPrefix)).toBe('#!/data/data/com.termux/files/usr/bin/bash');
+    expect(rewriteShebangLine('#!/bin/sh', defaultPrefix)).toBe(
+      '#!/data/data/com.termux/files/usr/bin/sh',
+    );
+    expect(rewriteShebangLine('#!/bin/bash', defaultPrefix)).toBe(
+      '#!/data/data/com.termux/files/usr/bin/bash',
+    );
+    expect(rewriteShebangLine('#!/usr/bin/env sh', defaultPrefix)).toBe(
+      '#!/data/data/com.termux/files/usr/bin/sh',
+    );
+    expect(rewriteShebangLine('#!/usr/bin/env bash', defaultPrefix)).toBe(
+      '#!/data/data/com.termux/files/usr/bin/bash',
+    );
     expect(rewriteShebangLine('#!/usr/bin/env python', defaultPrefix)).toBe(
       '#!/data/data/com.termux/files/usr/bin/python3',
     );
@@ -66,8 +83,12 @@ describe('Shebang Sanitizer (scripts/sanitizer/shebang.ts)', () => {
 
       sanitizeShebangs(tmp, '/data/data/com.termux/files/usr');
 
-      expect(readFileSync(f1, 'utf-8')).toBe('#!/data/data/com.termux/files/usr/bin/sh -e\necho 1\n');
-      expect(readFileSync(f2, 'utf-8')).toBe('#!/data/data/com.termux/files/usr/bin/python3\nprint(1)\n');
+      expect(readFileSync(f1, 'utf-8')).toBe(
+        '#!/data/data/com.termux/files/usr/bin/sh -e\necho 1\n',
+      );
+      expect(readFileSync(f2, 'utf-8')).toBe(
+        '#!/data/data/com.termux/files/usr/bin/python3\nprint(1)\n',
+      );
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
@@ -82,7 +103,9 @@ describe('Shebang Sanitizer (scripts/sanitizer/shebang.ts)', () => {
       const f2 = join(tmp, 'custom.pl');
 
       // Shebang followed by non-UTF-8 byte sequence (e.g. 0xff, 0xfe)
-      const latin1Body = Buffer.from([0x23, 0x21, 0x2f, 0x62, 0x69, 0x6e, 0x2f, 0x73, 0x68, 0x0a, 0xff, 0xfe, 0xfa]);
+      const latin1Body = Buffer.from([
+        0x23, 0x21, 0x2f, 0x62, 0x69, 0x6e, 0x2f, 0x73, 0x68, 0x0a, 0xff, 0xfe, 0xfa,
+      ]);
       writeFileSync(f1, latin1Body);
 
       // Non-legacy shebang with mode 0700
@@ -97,7 +120,9 @@ describe('Shebang Sanitizer (scripts/sanitizer/shebang.ts)', () => {
       );
       expect(readF1.subarray(readF1.indexOf(0x0a) + 1)).toEqual(Buffer.from([0xff, 0xfe, 0xfa]));
 
-      expect(readFileSync(f2, 'utf-8').split('\n')[0]).toBe('#!/data/data/com.termux/files/usr/bin/perl');
+      expect(readFileSync(f2, 'utf-8').split('\n')[0]).toBe(
+        '#!/data/data/com.termux/files/usr/bin/perl',
+      );
       const st2 = statSync(f2);
       expect(st2.mode & 0o7777).toBe(0o700);
     } finally {

@@ -61,7 +61,9 @@ export function maskGitHubExpressions(script: string): string {
       const openingQuote = statusArgMatch?.[1] ?? '';
       const isWholeStatusArg =
         Boolean(statusArgMatch) &&
-        (openingQuote ? script[j] === openingQuote : j >= script.length || /[\s;&|)><]/.test(script[j]));
+        (openingQuote
+          ? script[j] === openingQuote
+          : j >= script.length || /[\s;&|)><]/.test(script[j]));
       const literalMatch = exprBody.match(/^'([^']*)'$|^"([^"]*)"$/);
       const literalVal = literalMatch ? (literalMatch[1] ?? literalMatch[2]) : undefined;
       const isLineStart = /(?:^|[\r\n])[ \t]*$/.test(tail);
@@ -70,10 +72,15 @@ export function maskGitHubExpressions(script: string): string {
       const heredocQuote = heredocQuoteMatch?.[1];
       const hasMatchingQuote = Boolean(heredocQuote && script[j] === heredocQuote);
       const isDirectHeredocOpener = /<<-?\s*$/.test(tail);
-      const isQuotedHeredocSafe = literalVal !== undefined && literalVal.length > 0 && !/[\r\n]/.test(literalVal);
-      const isUnquotedHeredocSafe = literalVal !== undefined && /^[a-zA-Z0-9_.:-]+$/.test(literalVal);
+      const isQuotedHeredocSafe =
+        literalVal !== undefined && literalVal.length > 0 && !/[\r\n]/.test(literalVal);
+      const isUnquotedHeredocSafe =
+        literalVal !== undefined && /^[a-zA-Z0-9_.:-]+$/.test(literalVal);
       const isHeredocDelimiter =
-        (isLineStart && isLineEnd && literalVal !== undefined && observedHeredocDelimiters.has(literalVal)) ||
+        (isLineStart &&
+          isLineEnd &&
+          literalVal !== undefined &&
+          observedHeredocDelimiters.has(literalVal)) ||
         (isDirectHeredocOpener && isUnquotedHeredocSafe) ||
         (hasMatchingQuote && isQuotedHeredocSafe);
 
@@ -100,7 +107,9 @@ export function maskGitHubExpressions(script: string): string {
     } else {
       if (script.startsWith('<<', i)) {
         const quotedHMatch = script.slice(i).match(/^<<-?\s*(['"])([^\r\n]+?)\1/);
-        const unquotedHMatch = quotedHMatch ? null : script.slice(i).match(/^<<-?\s*([a-zA-Z0-9_.:-]+)/);
+        const unquotedHMatch = quotedHMatch
+          ? null
+          : script.slice(i).match(/^<<-?\s*([a-zA-Z0-9_.:-]+)/);
         const delim = quotedHMatch?.[2] ?? unquotedHMatch?.[1];
         if (delim) {
           observedHeredocDelimiters.add(delim);
@@ -239,7 +248,10 @@ export function parseMatrixPathExpression(pathExpr: string): string[] {
 
 const MATRIX_SEGMENT_PATTERN = `(?:\\.[a-zA-Z0-9_-]+|\\[(?:['"][^'"]+['"]|\\d+)\\])`;
 const MATRIX_REF_REGEX = new RegExp(`^\\$\\{\\{\\s*matrix(${MATRIX_SEGMENT_PATTERN}+)\\s*\\}\\}$`);
-export const MATRIX_SCAN_REGEX = new RegExp(`\\$\\{\\{\\s*matrix(${MATRIX_SEGMENT_PATTERN}+)\\s*\\}\\}`, 'g');
+export const MATRIX_SCAN_REGEX = new RegExp(
+  `\\$\\{\\{\\s*matrix(${MATRIX_SEGMENT_PATTERN}+)\\s*\\}\\}`,
+  'g',
+);
 
 export function parseMatrixReference(expr: string): string[] | undefined {
   const match = expr.match(MATRIX_REF_REGEX);
@@ -275,7 +287,9 @@ export function resolveStaticMatrixExpression(expr: string, strategy: unknown): 
         }
       } else if (curr && typeof curr === 'object') {
         const lowerP = p.toLowerCase();
-        const foundKey = Object.keys(curr as Record<string, unknown>).find((k) => k.toLowerCase() === lowerP);
+        const foundKey = Object.keys(curr as Record<string, unknown>).find(
+          (k) => k.toLowerCase() === lowerP,
+        );
         if (foundKey !== undefined) {
           curr = (curr as Record<string, unknown>)[foundKey];
         } else {
@@ -299,8 +313,12 @@ export function resolveStaticMatrixExpression(expr: string, strategy: unknown): 
     if (rows.length === 0) {
       return '';
     }
-    const resolvedValues = rows.map((row): unknown => (remaining.length > 0 ? resolvePath(row, remaining) : row));
-    const stringValues = resolvedValues.map((v): string => (v === null || v === undefined ? '' : String(v)));
+    const resolvedValues = rows.map((row): unknown =>
+      remaining.length > 0 ? resolvePath(row, remaining) : row,
+    );
+    const stringValues = resolvedValues.map((v): string =>
+      v === null || v === undefined ? '' : String(v),
+    );
     const first = stringValues[0];
     if (stringValues.every((v): boolean => v === first)) {
       return first;
@@ -320,7 +338,10 @@ export function resolveStaticMatrixExpression(expr: string, strategy: unknown): 
   return undefined;
 }
 
-function expandMatrixRows(strategy: unknown, diagnostics?: string[]): Array<Record<string, unknown>> | null {
+function expandMatrixRows(
+  strategy: unknown,
+  diagnostics?: string[],
+): Array<Record<string, unknown>> | null {
   if (!strategy || typeof strategy !== 'object') {
     return null;
   }
@@ -393,7 +414,9 @@ function expandMatrixRows(strategy: unknown, diagnostics?: string[]): Array<Reco
 
   const baseEntries = combinations.map((comb) => ({ original: { ...comb }, current: { ...comb } }));
   const extraEntries: Array<Record<string, unknown>> = [];
-  const include: unknown[] = Array.isArray(matrixObj.include) ? (matrixObj.include as unknown[]) : [];
+  const include: unknown[] = Array.isArray(matrixObj.include)
+    ? (matrixObj.include as unknown[])
+    : [];
   for (const inc of include) {
     if (isPlainObject(inc)) {
       let matched = false;
@@ -406,7 +429,9 @@ function expandMatrixRows(strategy: unknown, diagnostics?: string[]): Array<Reco
         if (isMatch) {
           for (const [incK, incV] of Object.entries(inc)) {
             const incKLower = incK.toLowerCase();
-            const existingKey = Object.keys(entry.current).find((ck) => ck.toLowerCase() === incKLower);
+            const existingKey = Object.keys(entry.current).find(
+              (ck) => ck.toLowerCase() === incKLower,
+            );
             if (existingKey !== undefined && existingKey !== incK) {
               delete entry.current[existingKey];
             }
@@ -429,7 +454,10 @@ function expandMatrixRows(strategy: unknown, diagnostics?: string[]): Array<Reco
   return [...baseEntries.map((e) => e.current), ...extraEntries];
 }
 
-function evalMatrixConditionClause(clause: string, row: Record<string, unknown>): boolean | undefined {
+function evalMatrixConditionClause(
+  clause: string,
+  row: Record<string, unknown>,
+): boolean | undefined {
   let c = clause.trim();
   if (c.startsWith('${{') && c.endsWith('}}')) {
     c = c.slice(3, -2).trim();
@@ -474,7 +502,9 @@ function evalMatrixConditionClause(clause: string, row: Record<string, unknown>)
     return { known: false, value: '' };
   };
 
-  const eqMatch = c.match(/^\s*(?:'([^']*)'|"([^"]*)"|(\S+))\s*(==|!=)\s*(?:'([^']*)'|"([^"]*)"|(\S+))\s*$/);
+  const eqMatch = c.match(
+    /^\s*(?:'([^']*)'|"([^"]*)"|(\S+))\s*(==|!=)\s*(?:'([^']*)'|"([^"]*)"|(\S+))\s*$/,
+  );
   if (eqMatch) {
     const left = resolveOperand(eqMatch[1], eqMatch[2], eqMatch[3]);
     const right = resolveOperand(eqMatch[5], eqMatch[6], eqMatch[7]);
@@ -520,7 +550,9 @@ function evalContainerExprForRow(expr: string, row: Record<string, unknown>): st
     return substituted;
   }
 
-  const ternMatch = inner.match(/^(.+?)\s*&&\s*(?:'([^']*)'|"([^"]*)")\s*\|\|\s*(?:'([^']*)'|"([^"]*)")$/);
+  const ternMatch = inner.match(
+    /^(.+?)\s*&&\s*(?:'([^']*)'|"([^"]*)")\s*\|\|\s*(?:'([^']*)'|"([^"]*)")$/,
+  );
   if (ternMatch) {
     const condVal = evalMatrixConditionClause(ternMatch[1], row);
     if (condVal === undefined) {
@@ -541,7 +573,11 @@ function evalContainerExprForRow(expr: string, row: Record<string, unknown>): st
   return undefined;
 }
 
-function hasContainer(container: unknown, strategy?: unknown, eligibleRows?: Array<Record<string, unknown>>): boolean {
+function hasContainer(
+  container: unknown,
+  strategy?: unknown,
+  eligibleRows?: Array<Record<string, unknown>>,
+): boolean {
   if (typeof container === 'string') {
     const trimmed = container.trim();
     if (!trimmed) {
@@ -666,7 +702,8 @@ export function getRunnerDefaultShell(
           return lKey !== undefined ? rObj[lKey] : undefined;
         })()
       : runsOn;
-  const runsOnStr = typeof rawLabels === 'string' ? rawLabels : Array.isArray(rawLabels) ? rawLabels.join(' ') : '';
+  const runsOnStr =
+    typeof rawLabels === 'string' ? rawLabels : Array.isArray(rawLabels) ? rawLabels.join(' ') : '';
   const isExpression = runsOnStr.includes('${{');
 
   if (isExpression) {
@@ -696,19 +733,30 @@ export function getRunnerDefaultShell(
               if (Array.isArray(resolved)) {
                 return resolved.map(String);
               }
-              if (typeof resolved === 'string' || typeof resolved === 'number' || typeof resolved === 'boolean') {
+              if (
+                typeof resolved === 'string' ||
+                typeof resolved === 'number' ||
+                typeof resolved === 'boolean'
+              ) {
                 return [String(resolved)];
               }
               return [];
             }
-            const rendered = tmpl.replace(MATRIX_SCAN_REGEX, (_fullMatch: string, pathExpr: string): string => {
-              const segments = parseMatrixPathExpression(pathExpr);
-              const resolved = resolveMatrixPath(comb, segments);
-              if (typeof resolved === 'string' || typeof resolved === 'number' || typeof resolved === 'boolean') {
-                return String(resolved);
-              }
-              return '';
-            });
+            const rendered = tmpl.replace(
+              MATRIX_SCAN_REGEX,
+              (_fullMatch: string, pathExpr: string): string => {
+                const segments = parseMatrixPathExpression(pathExpr);
+                const resolved = resolveMatrixPath(comb, segments);
+                if (
+                  typeof resolved === 'string' ||
+                  typeof resolved === 'number' ||
+                  typeof resolved === 'boolean'
+                ) {
+                  return String(resolved);
+                }
+                return '';
+              },
+            );
             return [rendered];
           };
 
@@ -761,7 +809,9 @@ export function getRunnerDefaultShell(
   }
 
   const rawTokens: string[] = Array.isArray(rawLabels)
-    ? rawLabels.flatMap((l: unknown): string[] => (typeof l === 'string' ? l.split(/[\s,]+/) : [String(l)]))
+    ? rawLabels.flatMap((l: unknown): string[] =>
+        typeof l === 'string' ? l.split(/[\s,]+/) : [String(l)],
+      )
     : runsOnStr.split(/[\s,]+/);
 
   for (const token of rawTokens) {
@@ -987,7 +1037,10 @@ export function isStepWindowsOnlyCondition(rawCond: string): boolean {
               const tok = stripped[idx];
               if (tok.type === 'paren_open' || (tok.type === 'ident' && tok.value === '[')) {
                 dInner++;
-              } else if (tok.type === 'paren_close' || (tok.type === 'ident' && tok.value === ']')) {
+              } else if (
+                tok.type === 'paren_close' ||
+                (tok.type === 'ident' && tok.value === ']')
+              ) {
                 dInner--;
               } else if (dInner === 0 && tok.type === 'neq') {
                 if (cmpIdx !== -1) {
@@ -1224,7 +1277,11 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
         for (let i = 0; i < tokens.length - 1; i += 2) {
           const rawStatus = tokens[i];
           const rawPath = tokens[i + 1];
-          if (rawStatus && rawPath && rawStatus.includes(' 0000000000000000000000000000000000000000 A')) {
+          if (
+            rawStatus &&
+            rawPath &&
+            rawStatus.includes(' 0000000000000000000000000000000000000000 A')
+          ) {
             intentToAddFiles.add(rawPath);
           }
         }
@@ -1267,7 +1324,8 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
   }
 
   const indexedWorkflowEntries = Array.from(byPath.values()).filter(
-    (e) => dirname(e.path) === normWorkflowDir && (e.path.endsWith('.yml') || e.path.endsWith('.yaml')),
+    (e) =>
+      dirname(e.path) === normWorkflowDir && (e.path.endsWith('.yml') || e.path.endsWith('.yaml')),
   );
   const indexedActionEntries: IndexedBlobEntry[] = [];
   const localActionDirs = new Set<string>(['.github/actions']);
@@ -1292,10 +1350,14 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
   } catch {}
 
   const readBlobBySha = (entry: IndexedBlobEntry): Buffer => {
-    const catProc = spawnSync('git', ['cat-file', 'blob', entry.sha], { maxBuffer: 20 * 1024 * 1024 });
+    const catProc = spawnSync('git', ['cat-file', 'blob', entry.sha], {
+      maxBuffer: 20 * 1024 * 1024,
+    });
     if (catProc.status !== 0 || !catProc.stdout) {
       const errText = catProc.stderr ? catProc.stderr.toString('utf-8').trim() : 'unknown error';
-      throw new Error(`Failed to read staged blob '${entry.sha}' for '${entry.path}' from git index: ${errText}`);
+      throw new Error(
+        `Failed to read staged blob '${entry.sha}' for '${entry.path}' from git index: ${errText}`,
+      );
     }
     return Buffer.from(catProc.stdout);
   };
@@ -1348,7 +1410,8 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
           visitedPaths.add(currentEntry.path);
           const linkTarget = readBlobBySha(currentEntry).toString('utf-8').trim();
           const joinedTarget = join(dirname(currentEntry.path), linkTarget);
-          const resolvedTarget = process.platform === 'win32' ? joinedTarget.replace(/\\/g, '/') : joinedTarget;
+          const resolvedTarget =
+            process.platform === 'win32' ? joinedTarget.replace(/\\/g, '/') : joinedTarget;
           const sibling = resolveStagedEntry(resolvedTarget);
           if (!sibling) {
             throw new Error(
@@ -1399,7 +1462,8 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
               continue;
             }
             for (const manifestName of ['action.yml', 'action.yaml']) {
-              const probePath = candidateBase === '.' ? manifestName : `${candidateBase}/${manifestName}`;
+              const probePath =
+                candidateBase === '.' ? manifestName : `${candidateBase}/${manifestName}`;
               const manifestEntry = resolveStagedEntry(probePath);
               if (manifestEntry) {
                 referencedLocalActionDirs.add(dirname(manifestEntry.path));
@@ -1417,7 +1481,10 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
           const content = blob.toString('utf-8');
           let parsedSuccessfully = false;
           try {
-            if (typeof (Bun as { YAML?: { parse?: (s: string) => unknown } }).YAML?.parse === 'function') {
+            if (
+              typeof (Bun as { YAML?: { parse?: (s: string) => unknown } }).YAML?.parse ===
+              'function'
+            ) {
               const parsedWf = Bun.YAML.parse(content);
               if (parsedWf && typeof parsedWf === 'object') {
                 parsedSuccessfully = true;
@@ -1430,7 +1497,10 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
                         for (const step of steps) {
                           if (step && typeof step === 'object') {
                             const usesVal = (step as Record<string, unknown>).uses;
-                            if (typeof usesVal === 'string' && (/^\.\//.test(usesVal) || /^\.\\/.test(usesVal))) {
+                            if (
+                              typeof usesVal === 'string' &&
+                              (/^\.\//.test(usesVal) || /^\.\\/.test(usesVal))
+                            ) {
                               const actPath = posix
                                 .normalize(usesVal.replace(/\\/g, '/').trim())
                                 .replace(/^\.?\//, '')
@@ -1468,7 +1538,8 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
         for (const entry of indexedActionEntries) {
           const entryDir = dirname(entry.path);
           const isReachable =
-            referencedLocalActionDirs.has(entryDir) || (entryDir === '.' && referencedLocalActionDirs.has('.'));
+            referencedLocalActionDirs.has(entryDir) ||
+            (entryDir === '.' && referencedLocalActionDirs.has('.'));
           if (!isReachable) {
             continue;
           }
@@ -1494,10 +1565,14 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
           }
 
           if (isCycle) {
-            throw new Error(`Cyclic symlink chain detected in staged action manifest '${entry.path}'.`);
+            throw new Error(
+              `Cyclic symlink chain detected in staged action manifest '${entry.path}'.`,
+            );
           }
           if (isBroken) {
-            throw new Error(`Broken symlink chain pointing to missing staged file for '${entry.path}'.`);
+            throw new Error(
+              `Broken symlink chain pointing to missing staged file for '${entry.path}'.`,
+            );
           }
 
           const blob = readBlobBySha(currentEntry);
@@ -1526,7 +1601,9 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
           const manifestContent = blob.toString('utf-8');
           const relRefs: string[] = [];
           try {
-            const parsedYaml = (Bun as { YAML?: { parse?: (s: string) => unknown } }).YAML?.parse?.(manifestContent);
+            const parsedYaml = (Bun as { YAML?: { parse?: (s: string) => unknown } }).YAML?.parse?.(
+              manifestContent,
+            );
             if (parsedYaml && typeof parsedYaml === 'object') {
               const runs = (parsedYaml as { runs?: Record<string, unknown> }).runs;
               if (runs && typeof runs === 'object') {
@@ -1568,7 +1645,8 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
               continue;
             }
             const joinedPath = join(actDir, relRef);
-            const resolvedPath = process.platform === 'win32' ? joinedPath.replace(/\\/g, '/') : joinedPath;
+            const resolvedPath =
+              process.platform === 'win32' ? joinedPath.replace(/\\/g, '/') : joinedPath;
             const refEntry = resolveStagedEntry(resolvedPath);
             if (refEntry) {
               actionReferencedEntries.set(resolvedPath, refEntry);
@@ -1620,7 +1698,9 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
     } else if (isGitRepo) {
       throw new Error('Failed to read staged git index for workflow snapshot.');
     } else if (existsSync(workflowDir)) {
-      const diskFiles = readdirSync(workflowDir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
+      const diskFiles = readdirSync(workflowDir).filter(
+        (f) => f.endsWith('.yml') || f.endsWith('.yaml'),
+      );
       for (const file of diskFiles) {
         copyFileSync(join(workflowDir, file), join(tmpSnapshotDir, file));
       }
@@ -1645,7 +1725,9 @@ export function getStagedWorkflowsSnapshot(workflowDir = '.github/workflows'): s
           const entry = pendingLinks[idx];
           const linkTarget = readLinkText(entry);
           const targetPath = join(tmpRoot, entry.path);
-          const rawTargetPath = isAbsolute(linkTarget) ? linkTarget : join(dirname(targetPath), linkTarget);
+          const rawTargetPath = isAbsolute(linkTarget)
+            ? linkTarget
+            : join(dirname(targetPath), linkTarget);
           const isEscapingRoot = (relPath: string): boolean => {
             return relPath === '..' || relPath.startsWith(`..${sep}`) || relPath.startsWith('../');
           };
@@ -1718,7 +1800,9 @@ export async function validateWorkflowScripts(
       if (typeof val === 'string') {
         return val;
       }
-      errors.push(`[${file}] Malformed shell option at ${location}: expected string, got ${typeof val}`);
+      errors.push(
+        `[${file}] Malformed shell option at ${location}: expected string, got ${typeof val}`,
+      );
       return undefined;
     };
 
@@ -1738,13 +1822,16 @@ export async function validateWorkflowScripts(
       }
       const job = rawJob as Record<string, unknown>;
       const jobDefaults =
-        job.defaults && typeof job.defaults === 'object' ? (job.defaults as Record<string, unknown>) : undefined;
+        job.defaults && typeof job.defaults === 'object'
+          ? (job.defaults as Record<string, unknown>)
+          : undefined;
       const jobRun =
         jobDefaults?.run && typeof jobDefaults.run === 'object'
           ? (jobDefaults.run as Record<string, unknown>)
           : undefined;
       const survivingRows = expandMatrixRows(job.strategy);
-      const jobShellRaw = getShellString(jobRun?.shell, `job '${jobId}' defaults.run.shell`) || workflowShell;
+      const jobShellRaw =
+        getShellString(jobRun?.shell, `job '${jobId}' defaults.run.shell`) || workflowShell;
       let jobShell = jobShellRaw;
       let jobShellPattern: string | undefined;
       if (jobShell && jobShell.includes('${{')) {
@@ -1759,7 +1846,12 @@ export async function validateWorkflowScripts(
       }
 
       const shellDiagnostics: string[] = [];
-      const defaultShell = getRunnerDefaultShell(job['runs-on'], job.strategy, job.container, shellDiagnostics);
+      const defaultShell = getRunnerDefaultShell(
+        job['runs-on'],
+        job.strategy,
+        job.container,
+        shellDiagnostics,
+      );
       const steps = Array.isArray(job.steps) ? job.steps : [];
       let reportedShellDiag = false;
 
@@ -1781,7 +1873,10 @@ export async function validateWorkflowScripts(
           }
           reportedShellDiag = true;
         }
-        const stepEligibleRows = getStepEligibleRows(typeof step.if === 'string' ? step.if : undefined, survivingRows);
+        const stepEligibleRows = getStepEligibleRows(
+          typeof step.if === 'string' ? step.if : undefined,
+          survivingRows,
+        );
         if (stepEligibleRows && stepEligibleRows.length === 0) {
           continue;
         }
@@ -1791,7 +1886,12 @@ export async function validateWorkflowScripts(
           if (stepHasContainer) {
             stepDefaultShell = 'sh';
           } else if (defaultShell === 'sh') {
-            stepDefaultShell = getRunnerDefaultShell(job['runs-on'], job.strategy, undefined, undefined);
+            stepDefaultShell = getRunnerDefaultShell(
+              job['runs-on'],
+              job.strategy,
+              undefined,
+              undefined,
+            );
           }
         }
         if (!stepShell && !jobShell && typeof step.if === 'string') {
@@ -1830,7 +1930,10 @@ export async function validateWorkflowScripts(
                 rowDefault = 'pwsh';
               }
               if (rowDefault) {
-                resolvedRowShells.set(`implicit:${rowDefault}`, { shell: rowDefault, isImplicit: true });
+                resolvedRowShells.set(`implicit:${rowDefault}`, {
+                  shell: rowDefault,
+                  isImplicit: true,
+                });
               }
             }
           }
@@ -1847,13 +1950,18 @@ export async function validateWorkflowScripts(
               rowDefault = 'pwsh';
             }
             if (rowDefault) {
-              resolvedRowShells.set(`implicit:${rowDefault}`, { shell: rowDefault, isImplicit: true });
+              resolvedRowShells.set(`implicit:${rowDefault}`, {
+                shell: rowDefault,
+                isImplicit: true,
+              });
             }
           }
           candidateShells = Array.from(resolvedRowShells.values());
         } else {
           const effectiveShell = (stepShell || jobShell || stepDefaultShell).trim();
-          candidateShells = effectiveShell ? [{ shell: effectiveShell, isImplicit: !rawShell }] : [];
+          candidateShells = effectiveShell
+            ? [{ shell: effectiveShell, isImplicit: !rawShell }]
+            : [];
         }
 
         const script = step.run;
@@ -1871,7 +1979,11 @@ export async function validateWorkflowScripts(
             continue;
           }
           const dialect: 'bash' | 'sh' = isSh ? 'sh' : 'bash';
-          const effectiveRaw = isImplicit ? '' : !stepShell && jobShellPattern ? candidateShell : rawShell;
+          const effectiveRaw = isImplicit
+            ? ''
+            : !stepShell && jobShellPattern
+              ? candidateShell
+              : rawShell;
           const isBuiltinBash = effectiveRaw === 'bash' || (!effectiveRaw && isBash);
           const isBuiltinSh = effectiveRaw === 'sh' || (!effectiveRaw && isSh);
           let prefix = '';
@@ -1902,7 +2014,9 @@ export async function validateWorkflowScripts(
           masked = maskGitHubExpressions(script);
         } catch (e) {
           const stepLabel = step.name || step.id || `step ${i + 1}`;
-          errors.push(`[${file}: job '${jobId}', ${stepLabel}] ${e instanceof Error ? e.message : String(e)}`);
+          errors.push(
+            `[${file}: job '${jobId}', ${stepLabel}] ${e instanceof Error ? e.message : String(e)}`,
+          );
           continue;
         }
 
@@ -1915,7 +2029,9 @@ export async function validateWorkflowScripts(
           if (checker) {
             const checkRes = await checker(toCheck, dialect);
             if (!checkRes.ok) {
-              errors.push(`[${file}] Step ${i + 1} (${jobId}): ${checkRes.error || 'ShellCheck validation failed'}`);
+              errors.push(
+                `[${file}] Step ${i + 1} (${jobId}): ${checkRes.error || 'ShellCheck validation failed'}`,
+              );
               break;
             }
             continue;
@@ -1948,7 +2064,8 @@ export async function validateWorkflowScripts(
 
           if (exitCode !== 0) {
             const combined =
-              [stdout.trim(), stderr.trim()].filter(Boolean).join('\n') || `shellcheck exited with code ${exitCode}`;
+              [stdout.trim(), stderr.trim()].filter(Boolean).join('\n') ||
+              `shellcheck exited with code ${exitCode}`;
             const stepLabel = step.name || step.id || `step ${i + 1}`;
             errors.push(`[${file}: job '${jobId}', ${stepLabel}]\n${combined}`);
             break;

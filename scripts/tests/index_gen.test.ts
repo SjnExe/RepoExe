@@ -1,6 +1,14 @@
 import { expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -192,7 +200,12 @@ test('getRetainedReleaseAssetFilenames retains :all child and parent during part
 
 test('Thread #8: getRetainedReleaseAssetFilenames requires published ownership metadata for historical archives', (): void => {
   const otherRecipe = createRecipe({ name: 'other', version: '1', arch: 'aarch64' });
-  const clientRecipe = createRecipe({ name: 'client', version: '1', arch: 'aarch64', deps: ['helper (= 2)'] });
+  const clientRecipe = createRecipe({
+    name: 'client',
+    version: '1',
+    arch: 'aarch64',
+    deps: ['helper (= 2)'],
+  });
   const allRecipes = { other: otherRecipe, client: clientRecipe };
 
   // Without published ownership metadata, unrelated helper_1 and helper_2 are NOT admitted
@@ -206,8 +219,17 @@ test('Thread #8: getRetainedReleaseAssetFilenames requires published ownership m
   expect(retainedNoOwner.has('helper_2_aarch64.deb')).toBeFalse();
 
   // With published ownership metadata, compatible historical child helper_2 is admitted while incompatible helper_1 is not
-  const ownerBody = JSON.stringify({ managed_by: 'repoexe', name: 'other', owned_packages: ['other', 'helper'] });
-  const retainedOwned = getRetainedReleaseAssetFilenames(otherRecipe, unownedAssets, allRecipes, ownerBody);
+  const ownerBody = JSON.stringify({
+    managed_by: 'repoexe',
+    name: 'other',
+    owned_packages: ['other', 'helper'],
+  });
+  const retainedOwned = getRetainedReleaseAssetFilenames(
+    otherRecipe,
+    unownedAssets,
+    allRecipes,
+    ownerBody,
+  );
   expect(retainedOwned.has('helper_2_aarch64.deb')).toBeTrue();
   expect(retainedOwned.has('helper_1_aarch64.deb')).toBeFalse();
 });
@@ -257,7 +279,10 @@ test('Thread #3: isExternalPackage identifies external packages vs repository ta
   const tmpInventoryDir = mkdtempSync(join(tmpdir(), 'test-pkg-inventory-'));
   const tmpPkgDir = join(tmpInventoryDir, 'pkg');
   mkdirSync(join(tmpPkgDir, 'direct-pkg'), { recursive: true });
-  writeFileSync(join(tmpPkgDir, 'direct-pkg', 'recipe.ts'), `export default { name: 'direct-pkg', version: '1.0' };\n`);
+  writeFileSync(
+    join(tmpPkgDir, 'direct-pkg', 'recipe.ts'),
+    `export default { name: 'direct-pkg', version: '1.0' };\n`,
+  );
 
   mkdirSync(join(tmpPkgDir, 'parent-pkg'), { recursive: true });
   writeFileSync(

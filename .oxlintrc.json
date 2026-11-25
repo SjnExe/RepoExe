@@ -39,7 +39,16 @@
     "typescript/no-non-null-asserted-optional-chain": "error",
     "typescript/no-extra-non-null-assertion": "error"
   },
-  "ignorePatterns": ["node_modules/", "site/", ".git/", ".cache/", "build/", "output/", "artifacts/", "build_logs/"],
+  "ignorePatterns": [
+    "node_modules/",
+    "site/",
+    ".git/",
+    ".cache/",
+    "build/",
+    "output/",
+    "artifacts/",
+    "build_logs/"
+  ],
   "overrides": [
     {
       "files": ["scripts/**/*.{js,ts}"],

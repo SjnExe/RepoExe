@@ -46,9 +46,15 @@ export function getTermuxRepos(arch: string = 'aarch64'): Array<[string, string]
   const normArch = arch === 'arm64' ? 'aarch64' : (arch || 'aarch64').toLowerCase();
   const repoArch = ['aarch64', 'arm', 'x86_64', 'i686'].includes(normArch) ? normArch : 'aarch64';
   return [
-    ['https://packages-cf.termux.dev/apt/termux-main', `dists/stable/main/binary-${repoArch}/Packages`],
+    [
+      'https://packages-cf.termux.dev/apt/termux-main',
+      `dists/stable/main/binary-${repoArch}/Packages`,
+    ],
     ['https://packages-cf.termux.dev/apt/termux-x11', `dists/x11/main/binary-${repoArch}/Packages`],
-    ['https://packages-cf.termux.dev/apt/termux-root', `dists/root/stable/binary-${repoArch}/Packages`],
+    [
+      'https://packages-cf.termux.dev/apt/termux-root',
+      `dists/root/stable/binary-${repoArch}/Packages`,
+    ],
   ];
 }
 
@@ -92,7 +98,10 @@ export async function checkExistingReleaseHash(
   const apiUrl = `https://api.github.com/repos/${repoSlug}/releases/tags/${pkgName}`;
 
   try {
-    const resp = await fetch(apiUrl, { headers: getAuthHeaders(), signal: AbortSignal.timeout(5000) });
+    const resp = await fetch(apiUrl, {
+      headers: getAuthHeaders(),
+      signal: AbortSignal.timeout(5000),
+    });
     if (!resp.ok) {
       return false;
     }
@@ -113,7 +122,11 @@ export async function checkExistingReleaseHash(
       return false;
     }
 
-    const hasMatchingDeb = (expectedPkg: string, expectedArch: string, expectedVer?: string): boolean => {
+    const hasMatchingDeb = (
+      expectedPkg: string,
+      expectedArch: string,
+      expectedVer?: string,
+    ): boolean => {
       const normExpected = expectedArch === 'all' ? 'all' : normalizeArch(expectedArch);
       return debAssets.some((a) => {
         if (!a.name.endsWith('.deb')) {
@@ -137,7 +150,10 @@ export async function checkExistingReleaseHash(
         if (normExpected === 'all') {
           return a.name.endsWith('_all.deb');
         }
-        return a.name.endsWith(`_${normExpected}.deb`) || (normExpected === 'aarch64' && a.name.endsWith('_arm64.deb'));
+        return (
+          a.name.endsWith(`_${normExpected}.deb`) ||
+          (normExpected === 'aarch64' && a.name.endsWith('_arm64.deb'))
+        );
       });
     };
 
@@ -227,8 +243,16 @@ export async function checkExistingReleaseHash(
           if (remoteMeta.partial) {
             return false;
           }
-          const targetNormArch = targetArch ? (targetArch === 'all' ? 'all' : normalizeArch(targetArch)) : undefined;
-          if (targetNormArch && typeof remoteMeta.state_hashes === 'object' && remoteMeta.state_hashes !== null) {
+          const targetNormArch = targetArch
+            ? targetArch === 'all'
+              ? 'all'
+              : normalizeArch(targetArch)
+            : undefined;
+          if (
+            targetNormArch &&
+            typeof remoteMeta.state_hashes === 'object' &&
+            remoteMeta.state_hashes !== null
+          ) {
             const archHash = remoteMeta.state_hashes[targetNormArch];
             if (typeof archHash === 'string') {
               return archHash === targetHash;
@@ -252,8 +276,16 @@ export async function checkExistingReleaseHash(
     }
 
     const hasAuth = Boolean(process.env.GITHUB_TOKEN || process.env.GH_TOKEN);
-    for (const asset of (data.assets || []) as Array<{ name?: string; browser_download_url?: string; url?: string }>) {
-      const targetNormArch = targetArch ? (targetArch === 'all' ? 'all' : normalizeArch(targetArch)) : undefined;
+    for (const asset of (data.assets || []) as Array<{
+      name?: string;
+      browser_download_url?: string;
+      url?: string;
+    }>) {
+      const targetNormArch = targetArch
+        ? targetArch === 'all'
+          ? 'all'
+          : normalizeArch(targetArch)
+        : undefined;
       const isCandidateMeta =
         asset.name === 'metadata.json' ||
         asset.name === `${pkgName}_metadata.json` ||
@@ -266,7 +298,9 @@ export async function checkExistingReleaseHash(
           continue;
         }
         try {
-          const headers = hasAuth ? { ...getAuthHeaders(), Accept: 'application/octet-stream' } : getAuthHeaders();
+          const headers = hasAuth
+            ? { ...getAuthHeaders(), Accept: 'application/octet-stream' }
+            : getAuthHeaders();
           const assetResp = await fetch(downloadUrl, { headers });
           if (assetResp.ok) {
             const meta = (await assetResp.json()) as {
@@ -275,7 +309,11 @@ export async function checkExistingReleaseHash(
               partial?: boolean;
             };
             if (!meta.partial) {
-              if (targetNormArch && typeof meta.state_hashes === 'object' && meta.state_hashes !== null) {
+              if (
+                targetNormArch &&
+                typeof meta.state_hashes === 'object' &&
+                meta.state_hashes !== null
+              ) {
                 const archHash = meta.state_hashes[targetNormArch];
                 if (typeof archHash === 'string') {
                   return archHash === targetHash;
@@ -288,7 +326,12 @@ export async function checkExistingReleaseHash(
                       ? 'all'
                       : normalizeArch((meta as { arch?: string }).arch!)
                     : undefined;
-                if (!metaArch || !targetNormArch || metaArch === 'all' || metaArch === targetNormArch) {
+                if (
+                  !metaArch ||
+                  !targetNormArch ||
+                  metaArch === 'all' ||
+                  metaArch === targetNormArch
+                ) {
                   if (meta.state_hash === targetHash) {
                     return true;
                   }
@@ -347,8 +390,14 @@ export async function loadTermuxIndex(
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             const timeoutSignal = AbortSignal.timeout(30000);
-            const resp = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: timeoutSignal });
-            if (resp.status === 404 || (resp.status >= 400 && resp.status < 500 && resp.status !== 429)) {
+            const resp = await fetch(url, {
+              headers: { 'User-Agent': USER_AGENT },
+              signal: timeoutSignal,
+            });
+            if (
+              resp.status === 404 ||
+              (resp.status >= 400 && resp.status < 500 && resp.status !== 429)
+            ) {
               // Permanent HTTP 4xx error (403, 404, etc.): advance to next representation immediately
               break;
             }
@@ -359,7 +408,8 @@ export async function loadTermuxIndex(
               continue;
             }
             const buf = Buffer.from(await resp.arrayBuffer());
-            text = ext === '.gz' ? new TextDecoder().decode(Bun.gunzipSync(buf)) : buf.toString('utf-8');
+            text =
+              ext === '.gz' ? new TextDecoder().decode(Bun.gunzipSync(buf)) : buf.toString('utf-8');
             break;
           } catch {
             if (attempt === 3) {
@@ -382,9 +432,15 @@ export async function loadTermuxIndex(
             return;
           }
           for (const prov of stanza.Provides.split(',')) {
-            const match = prov.trim().match(/^([a-zA-Z0-9+.-]+)(?::[a-zA-Z0-9_-]+)?(?:\s*\(\s*=\s*([^)\s]+)\s*\))?$/);
+            const match = prov
+              .trim()
+              .match(/^([a-zA-Z0-9+.-]+)(?::[a-zA-Z0-9_-]+)?(?:\s*\(\s*=\s*([^)\s]+)\s*\))?$/);
             if (match?.[1]) {
-              addEntry(match[1], { ...stanza, IsVirtual: 'true', ProvidedVersion: (match[2] || '').trim() });
+              addEntry(match[1], {
+                ...stanza,
+                IsVirtual: 'true',
+                ProvidedVersion: (match[2] || '').trim(),
+              });
             }
           }
         };
@@ -451,7 +507,9 @@ export async function downloadFile(
   maxRetries = 4,
 ): Promise<void> {
   mkdirSync(dirname(destPath), { recursive: true });
-  const headers = useAuth ? getAuthHeaders(extraHeaders) : { 'User-Agent': USER_AGENT, ...extraHeaders };
+  const headers = useAuth
+    ? getAuthHeaders(extraHeaders)
+    : { 'User-Agent': USER_AGENT, ...extraHeaders };
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -493,7 +551,16 @@ export async function downloadFile(
 }
 
 const DEP_OWNERSHIP_MANIFEST = '.repoexe_dep_ownership.json';
-const PROTECTED_PREFIX_DIRS = new Set(['bin', 'lib', 'include', 'share', 'etc', 'var', 'tmp', 'libexec']);
+const PROTECTED_PREFIX_DIRS = new Set([
+  'bin',
+  'lib',
+  'include',
+  'share',
+  'etc',
+  'var',
+  'tmp',
+  'libexec',
+]);
 
 interface DepOwnershipEntry {
   version: string;
@@ -544,7 +611,9 @@ function extractDebToStagingDir(debPath: string, stagingRoot: string): string[] 
   try {
     const extractRes = spawnSync('dpkg-deb', ['-x', debPath, extractTmp], { encoding: 'utf-8' });
     if (extractRes.status !== 0) {
-      throw new Error(`dpkg-deb failed to extract ${basename(debPath)}: ${extractRes.stderr || 'unknown error'}`);
+      throw new Error(
+        `dpkg-deb failed to extract ${basename(debPath)}: ${extractRes.stderr || 'unknown error'}`,
+      );
     }
 
     const extractedUsr = join(extractTmp, 'data', 'data', 'com.termux', 'files', 'usr');
@@ -554,9 +623,13 @@ function extractDebToStagingDir(debPath: string, stagingRoot: string): string[] 
     }
 
     const relFiles = collectRelativePayloadEntries(sourceUsr);
-    const cpRes = spawnSync('cp', ['-a', `${sourceUsr}/.`, `${stagingRoot}/`], { encoding: 'utf-8' });
+    const cpRes = spawnSync('cp', ['-a', `${sourceUsr}/.`, `${stagingRoot}/`], {
+      encoding: 'utf-8',
+    });
     if (cpRes.status !== 0) {
-      throw new Error(`Failed to copy extracted usr into ${stagingRoot}: ${cpRes.stderr || 'unknown error'}`);
+      throw new Error(
+        `Failed to copy extracted usr into ${stagingRoot}: ${cpRes.stderr || 'unknown error'}`,
+      );
     }
     return relFiles;
   } finally {
@@ -642,7 +715,11 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
         if (!acquired && lockStat) {
           try {
             const currentStat = statSync(lockDir);
-            if (currentStat.ino === lockStat.ino && currentStat.dev === lockStat.dev && !existsSync(ownerPath)) {
+            if (
+              currentStat.ino === lockStat.ino &&
+              currentStat.dev === lockStat.dev &&
+              !existsSync(ownerPath)
+            ) {
               rmdirSync(lockDir);
             }
           } catch {}
@@ -665,7 +742,10 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
             let claimAcquired = false;
             try {
               const claimData = { pid: process.pid, token: lockToken, createdAt: Date.now() };
-              writeFileSync(claimFile, JSON.stringify(claimData), { encoding: 'utf-8', flag: 'wx' });
+              writeFileSync(claimFile, JSON.stringify(claimData), {
+                encoding: 'utf-8',
+                flag: 'wx',
+              });
               claimAcquired = true;
             } catch (claimErr: unknown) {
               const cErr = claimErr as { code?: string };
@@ -691,13 +771,20 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
                 }
                 if (abandoned) {
                   // Atomically evict the observed claim by renaming to a private retiring file
-                  const retiringFile = join(lockDir, `.claim_${staleToken}.retiring.${process.pid}.${Date.now()}`);
+                  const retiringFile = join(
+                    lockDir,
+                    `.claim_${staleToken}.retiring.${process.pid}.${Date.now()}`,
+                  );
                   try {
                     renameSync(claimFile, retiringFile);
                     let confirmedAbandoned = true;
                     try {
                       const retiredClaim = JSON.parse(readFileSync(retiringFile, 'utf-8'));
-                      if (retiredClaim && typeof retiredClaim.pid === 'number' && claimantPid !== undefined) {
+                      if (
+                        retiredClaim &&
+                        typeof retiredClaim.pid === 'number' &&
+                        claimantPid !== undefined
+                      ) {
                         if (retiredClaim.pid !== claimantPid && isPidAlive(retiredClaim.pid)) {
                           confirmedAbandoned = false;
                           try {
@@ -733,7 +820,10 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
                       if (Date.now() - mStat.mtimeMs > 5000) {
                         let holderAlive = false;
                         try {
-                          const hContent = readFileSync(join(publishMutex, '.mutex_holder'), 'utf-8');
+                          const hContent = readFileSync(
+                            join(publishMutex, '.mutex_holder'),
+                            'utf-8',
+                          );
                           const mPid = parseInt(hContent.split('.')[0], 10);
                           if (mPid && isPidAlive(mPid)) {
                             holderAlive = true;
@@ -759,14 +849,19 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
                   let ownerMatches = false;
                   try {
                     const currentOwner = JSON.parse(readFileSync(ownerFile, 'utf-8'));
-                    if (currentOwner && currentOwner.token === owner.token && currentOwner.pid === owner.pid) {
+                    if (
+                      currentOwner &&
+                      currentOwner.token === owner.token &&
+                      currentOwner.pid === owner.pid
+                    ) {
                       ownerMatches = true;
                     }
                   } catch {}
 
                   let stillHoldsMutex = false;
                   try {
-                    stillHoldsMutex = readFileSync(join(publishMutex, '.mutex_holder'), 'utf-8') === mutexToken;
+                    stillHoldsMutex =
+                      readFileSync(join(publishMutex, '.mutex_holder'), 'utf-8') === mutexToken;
                   } catch {}
 
                   if (ownerMatches && stillHoldsMutex) {
@@ -785,7 +880,11 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
                       let claimValid = false;
                       try {
                         const checkClaim = JSON.parse(readFileSync(claimFile, 'utf-8'));
-                        if (checkClaim && checkClaim.pid === process.pid && checkClaim.token === lockToken) {
+                        if (
+                          checkClaim &&
+                          checkClaim.pid === process.pid &&
+                          checkClaim.token === lockToken
+                        ) {
                           claimValid = true;
                         }
                       } catch {}
@@ -805,7 +904,10 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
                           createdAt: Date.now(),
                         };
                         try {
-                          writeFileSync(ownerFile, JSON.stringify(newOwnerData), { encoding: 'utf-8', flag: 'wx' });
+                          writeFileSync(ownerFile, JSON.stringify(newOwnerData), {
+                            encoding: 'utf-8',
+                            flag: 'wx',
+                          });
                           acquired = true;
                           try {
                             rmSync(retiringOwnerFile, { force: true });
@@ -837,7 +939,10 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
               } finally {
                 if (mutexAcquired) {
                   try {
-                    if (mutexToken && readFileSync(join(publishMutex, '.mutex_holder'), 'utf-8') === mutexToken) {
+                    if (
+                      mutexToken &&
+                      readFileSync(join(publishMutex, '.mutex_holder'), 'utf-8') === mutexToken
+                    ) {
                       rmSync(publishMutex, { recursive: true, force: true });
                     }
                   } catch {}
@@ -875,7 +980,8 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
                 mkdirSync(claimDir);
                 try {
                   const currentSt = statSync(lockDir);
-                  const currentAge = currentSt.birthtimeMs > 0 ? Date.now() - currentSt.birthtimeMs : lockAge;
+                  const currentAge =
+                    currentSt.birthtimeMs > 0 ? Date.now() - currentSt.birthtimeMs : lockAge;
                   const identityUnchanged = currentSt.ino === st.ino && currentSt.dev === st.dev;
                   let ownerUnreadableOrMissing = !existsSync(ownerFile);
                   if (!ownerUnreadableOrMissing) {
@@ -911,7 +1017,10 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
                             if (Date.now() - mStat.mtimeMs > 5000) {
                               let holderAlive = false;
                               try {
-                                const hContent = readFileSync(join(publishMutex, '.mutex_holder'), 'utf-8');
+                                const hContent = readFileSync(
+                                  join(publishMutex, '.mutex_holder'),
+                                  'utf-8',
+                                );
                                 const mPid = parseInt(hContent.split('.')[0], 10);
                                 if (mPid && isPidAlive(mPid)) {
                                   holderAlive = true;
@@ -926,7 +1035,10 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
                                   renameSync(publishMutex, retiringMutex);
                                   let confirmedDead = true;
                                   try {
-                                    const rHolder = readFileSync(join(retiringMutex, '.mutex_holder'), 'utf-8').trim();
+                                    const rHolder = readFileSync(
+                                      join(retiringMutex, '.mutex_holder'),
+                                      'utf-8',
+                                    ).trim();
                                     const rPid = parseInt(rHolder.split('.')[0], 10);
                                     if (rPid && isPidAlive(rPid)) {
                                       confirmedDead = false;
@@ -959,7 +1071,9 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
                         // Ensure no active reclaimer has retired an owner record pending restoration
                         let hasRetiring = false;
                         try {
-                          const retiringFiles = readdirSync(lockDir).filter((f) => f.includes('.retiring.'));
+                          const retiringFiles = readdirSync(lockDir).filter((f) =>
+                            f.includes('.retiring.'),
+                          );
                           for (const rf of retiringFiles) {
                             const match = rf.match(/\.retiring\.(\d+)\./);
                             const rPid = match ? Number(match[1]) : null;
@@ -993,13 +1107,18 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
 
                           let stillHoldsMutex = false;
                           try {
-                            stillHoldsMutex = readFileSync(join(publishMutex, '.mutex_holder'), 'utf-8') === mutexToken;
+                            stillHoldsMutex =
+                              readFileSync(join(publishMutex, '.mutex_holder'), 'utf-8') ===
+                              mutexToken;
                           } catch {}
 
                           if (stillUnreadableOrMissing && stillHoldsMutex) {
                             if (existsSync(ownerFile)) {
                               try {
-                                const malformedRetiring = join(lockDir, `retiring.malformed.${lockToken}`);
+                                const malformedRetiring = join(
+                                  lockDir,
+                                  `retiring.malformed.${lockToken}`,
+                                );
                                 renameSync(ownerFile, malformedRetiring);
                                 try {
                                   rmSync(malformedRetiring, { force: true });
@@ -1051,7 +1170,10 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
                     } finally {
                       if (mutexAcquired) {
                         try {
-                          if (readFileSync(join(publishMutex, '.mutex_holder'), 'utf-8') === mutexToken) {
+                          if (
+                            readFileSync(join(publishMutex, '.mutex_holder'), 'utf-8') ===
+                            mutexToken
+                          ) {
                             rmSync(publishMutex, { recursive: true, force: true });
                           }
                         } catch {}
@@ -1087,7 +1209,10 @@ function acquirePrefixLock(prefix: string, timeoutMs = 60000): () => void {
         }
       } catch {}
       if (matches) {
-        const relTmp = join(prefix, `.rel_lock_${lockToken}_${Math.random().toString(36).slice(2, 8)}`);
+        const relTmp = join(
+          prefix,
+          `.rel_lock_${lockToken}_${Math.random().toString(36).slice(2, 8)}`,
+        );
         try {
           renameSync(lockDir, relTmp);
         } catch {
@@ -1242,7 +1367,10 @@ export function installDebsToPrefix(
 
       const retainedOtherFiles = new Set<string>();
       for (const [mPkg, mEntry] of Object.entries(manifest)) {
-        if (!batchPackages.has(mPkg) && (!pruneUnselected || !unselectedPkgsToRemove.includes(mPkg))) {
+        if (
+          !batchPackages.has(mPkg) &&
+          (!pruneUnselected || !unselectedPkgsToRemove.includes(mPkg))
+        ) {
           for (const f of mEntry.files || []) {
             retainedOtherFiles.add(f);
           }
@@ -1264,7 +1392,9 @@ export function installDebsToPrefix(
           if (e instanceof Error && e.message.startsWith('Cannot install')) {
             throw e;
           }
-          throw new Error(`Cannot install '${pkgName}': cannot inspect destination directory '${dir}'.`);
+          throw new Error(
+            `Cannot install '${pkgName}': cannot inspect destination directory '${dir}'.`,
+          );
         }
         return result;
       };
@@ -1390,7 +1520,11 @@ export function installDebsToPrefix(
       for (const [pkgName, entry] of batchPackages.entries()) {
         const prevSet = new Set(manifest[pkgName]?.files || []);
         const ownedFiles = entry.files.filter((rel) => {
-          if (approvedDirToFileReplacements.has(rel) || prevSet.has(rel) || allManifestFiles.has(rel)) {
+          if (
+            approvedDirToFileReplacements.has(rel) ||
+            prevSet.has(rel) ||
+            allManifestFiles.has(rel)
+          ) {
             return true;
           }
           try {
@@ -1408,7 +1542,11 @@ export function installDebsToPrefix(
             }
           }
         }
-        newlyTrackedByPkg.set(pkgName, { version: entry.version, files: ownedFiles, hashes: ownedHashes });
+        newlyTrackedByPkg.set(pkgName, {
+          version: entry.version,
+          files: ownedFiles,
+          hashes: ownedHashes,
+        });
       }
 
       if (plannedMoves.length > 0) {
@@ -1425,7 +1563,9 @@ export function installDebsToPrefix(
       const stagingEntries = existsSync(stagingPrefix) ? readdirSync(stagingPrefix) : [];
       if (stagingEntries.length > 0) {
         const stagingGlob = new Bun.Glob('**/*');
-        const stagingEntriesAll = Array.from(stagingGlob.scanSync({ cwd: stagingPrefix, dot: true, onlyFiles: false }));
+        const stagingEntriesAll = Array.from(
+          stagingGlob.scanSync({ cwd: stagingPrefix, dot: true, onlyFiles: false }),
+        );
         for (const rel of stagingEntriesAll) {
           const stagePath = join(stagingPrefix, rel);
           try {
@@ -1474,7 +1614,9 @@ export function installDebsToPrefix(
 
         prefixCopyStarted = true;
         const cpSources = stagingEntries.map((e) => join(stagingPrefix, e));
-        const cpRes = spawnSync('cp', ['-a', ...cpSources, `${effectivePrefix}/`], { encoding: 'utf-8' });
+        const cpRes = spawnSync('cp', ['-a', ...cpSources, `${effectivePrefix}/`], {
+          encoding: 'utf-8',
+        });
         if (cpRes.status !== 0) {
           throw new Error(
             `Failed to copy staging prefix into ${effectivePrefix}: ${cpRes.stderr || 'unknown copy error'}`,
@@ -1510,14 +1652,22 @@ export function installDebsToPrefix(
             stalePrunedBackups.set(oldRel, bPath);
             backedUpPrefixFiles.set(oldRel, bPath);
           } catch {
-            failedRemovalRelsByPkg.set(pkgName, [...(failedRemovalRelsByPkg.get(pkgName) || []), oldRel]);
+            failedRemovalRelsByPkg.set(pkgName, [
+              ...(failedRemovalRelsByPkg.get(pkgName) || []),
+              oldRel,
+            ]);
             continue;
           }
           rmSync(targetPath, { force: true });
           try {
             lstatSync(targetPath);
-            console.warn(`::warning:: Failed to remove stale dependency file '${targetPath}' for package '${pkgName}'`);
-            failedRemovalRelsByPkg.set(pkgName, [...(failedRemovalRelsByPkg.get(pkgName) || []), oldRel]);
+            console.warn(
+              `::warning:: Failed to remove stale dependency file '${targetPath}' for package '${pkgName}'`,
+            );
+            failedRemovalRelsByPkg.set(pkgName, [
+              ...(failedRemovalRelsByPkg.get(pkgName) || []),
+              oldRel,
+            ]);
           } catch {
             candidateDirsToPrune.add(dirname(targetPath));
           }
@@ -1525,7 +1675,10 @@ export function installDebsToPrefix(
           console.warn(
             `::warning:: Failed to remove stale dependency file '${targetPath}' for package '${pkgName}': ${rmErr instanceof Error ? rmErr.message : String(rmErr)}`,
           );
-          failedRemovalRelsByPkg.set(pkgName, [...(failedRemovalRelsByPkg.get(pkgName) || []), oldRel]);
+          failedRemovalRelsByPkg.set(pkgName, [
+            ...(failedRemovalRelsByPkg.get(pkgName) || []),
+            oldRel,
+          ]);
         }
       }
 
@@ -1608,7 +1761,9 @@ export function installDebsToPrefix(
             ensureTreeRemovable(backupDir);
             rmSync(backupDir, { recursive: true, force: true });
           } catch {
-            console.warn(`::warning:: Failed to cleanup backup directory; retaining path at: ${backupDir}`);
+            console.warn(
+              `::warning:: Failed to cleanup backup directory; retaining path at: ${backupDir}`,
+            );
           }
         }
       } else {
@@ -1696,7 +1851,9 @@ export function installDebsToPrefix(
           ensureTreeRemovable(stagingPrefix);
           rmSync(stagingPrefix, { recursive: true, force: true });
         } catch {
-          console.warn(`::warning:: Failed to cleanup staging prefix; retaining path at: ${stagingPrefix}`);
+          console.warn(
+            `::warning:: Failed to cleanup staging prefix; retaining path at: ${stagingPrefix}`,
+          );
         }
       } else {
         ensureTreeRemovable(stagingPrefix);
@@ -1847,7 +2004,9 @@ function extractDebMultiArch(debPath: string): string | null {
 
 function getInstalledSystemVersion(pkgName: string): string | null {
   try {
-    const res = spawnSync('dpkg-query', ['-W', '-f=${Status}\t${Version}', pkgName], { encoding: 'utf-8' });
+    const res = spawnSync('dpkg-query', ['-W', '-f=${Status}\t${Version}', pkgName], {
+      encoding: 'utf-8',
+    });
     if (res.status === 0 && res.stdout) {
       const [statusPart, verPart] = res.stdout.trim().split('\t');
       if (statusPart && verPart) {
@@ -1969,9 +2128,16 @@ export function pruneOrphanedPending(
   if (!pendingDebs) {
     return;
   }
-  const liveDebs = new Set([...activeConstraints.keys(), ...resolving].map((k) => pendingDebs.get(k)).filter(Boolean));
+  const liveDebs = new Set(
+    [...activeConstraints.keys(), ...resolving].map((k) => pendingDebs.get(k)).filter(Boolean),
+  );
   for (const [p, debPath] of Array.from(pendingDebs.entries())) {
-    if (p !== candidate && !activeConstraints.has(p) && !resolving.has(p) && !liveDebs.has(debPath)) {
+    if (
+      p !== candidate &&
+      !activeConstraints.has(p) &&
+      !resolving.has(p) &&
+      !liveDebs.has(debPath)
+    ) {
       pendingDebs.delete(p);
       fetched.delete(p);
       selectedVersions.delete(p);
@@ -2059,20 +2225,44 @@ export async function resolvePackageDependencies(
 
       let tokenOk = false;
 
-      if (!token.multiArch && ['dpkg', 'apt', 'bash', 'termux-tools', 'command-not-found'].includes(cleanTokenName)) {
+      if (
+        !token.multiArch &&
+        ['dpkg', 'apt', 'bash', 'termux-tools', 'command-not-found'].includes(cleanTokenName)
+      ) {
         const stagedVer = selectedVersions.get(cleanTokenName);
         if (stagedVer) {
-          if (!token.versionConstraint || satisfiesVersionConstraint(stagedVer, token.versionConstraint)) {
-            recordConstraint(activeConstraints, cleanTokenName, token.versionConstraint, requester, token.multiArch);
+          if (
+            !token.versionConstraint ||
+            satisfiesVersionConstraint(stagedVer, token.versionConstraint)
+          ) {
+            recordConstraint(
+              activeConstraints,
+              cleanTokenName,
+              token.versionConstraint,
+              requester,
+              token.multiArch,
+            );
             tokenOk = true;
           }
         } else if (!token.versionConstraint) {
-          recordConstraint(activeConstraints, cleanTokenName, undefined, requester, token.multiArch);
+          recordConstraint(
+            activeConstraints,
+            cleanTokenName,
+            undefined,
+            requester,
+            token.multiArch,
+          );
           tokenOk = true;
         } else {
           const instVer = getInstalledSystemVersion(cleanTokenName);
           if (instVer && satisfiesVersionConstraint(instVer, token.versionConstraint)) {
-            recordConstraint(activeConstraints, cleanTokenName, token.versionConstraint, requester, token.multiArch);
+            recordConstraint(
+              activeConstraints,
+              cleanTokenName,
+              token.versionConstraint,
+              requester,
+              token.multiArch,
+            );
             tokenOk = true;
           }
         }
@@ -2084,7 +2274,8 @@ export async function resolvePackageDependencies(
             ? getBuildArch()
             : normalizeArch(token.multiArch)
           : undefined;
-      const reqExpectedArch = reqExplicitArch || (repoArch === 'all' ? undefined : normalizeArch(repoArch));
+      const reqExpectedArch =
+        reqExplicitArch || (repoArch === 'all' ? undefined : normalizeArch(repoArch));
 
       if (!tokenOk && resolving.has(cleanTokenName)) {
         const resolvingDeb = effectivePending.get(cleanTokenName);
@@ -2105,7 +2296,13 @@ export async function resolvePackageDependencies(
           (!token.versionConstraint ||
             (resolvingVer && satisfiesVersionConstraint(resolvingVer, token.versionConstraint)))
         ) {
-          recordConstraint(activeConstraints, cleanTokenName, token.versionConstraint, requester, token.multiArch);
+          recordConstraint(
+            activeConstraints,
+            cleanTokenName,
+            token.versionConstraint,
+            requester,
+            token.multiArch,
+          );
           tokenOk = true;
         } else {
           restoreLocal(snapF, snapV, snapP, snapC);
@@ -2130,17 +2327,30 @@ export async function resolvePackageDependencies(
         const existing = activeConstraints.get(cleanTokenName) || [];
         if (
           archOk &&
-          (!token.versionConstraint || (cachedVer && satisfiesVersionConstraint(cachedVer, token.versionConstraint)))
+          (!token.versionConstraint ||
+            (cachedVer && satisfiesVersionConstraint(cachedVer, token.versionConstraint)))
         ) {
-          recordConstraint(activeConstraints, cleanTokenName, token.versionConstraint, requester, token.multiArch);
+          recordConstraint(
+            activeConstraints,
+            cleanTokenName,
+            token.versionConstraint,
+            requester,
+            token.multiArch,
+          );
           tokenOk = true;
         } else if (!archOk) {
           restoreLocal(snapF, snapV, snapP, snapC);
           continue;
         } else {
-          const allConstraints = [...existing, ...(token.versionConstraint ? [token.versionConstraint] : [])];
+          const allConstraints = [
+            ...existing,
+            ...(token.versionConstraint ? [token.versionConstraint] : []),
+          ];
           const equalities = allConstraints.filter((c) => c?.operator === '=');
-          if (equalities.length > 1 && equalities.some((c) => c?.version !== equalities[0]?.version)) {
+          if (
+            equalities.length > 1 &&
+            equalities.some((c) => c?.version !== equalities[0]?.version)
+          ) {
             restoreLocal(snapF, snapV, snapP, snapC);
             continue;
           }
@@ -2159,7 +2369,10 @@ export async function resolvePackageDependencies(
           const affectedAliases = oldPending
             ? Array.from(effectivePending.entries())
                 .filter(
-                  ([k, v]) => v === oldPending && k !== cleanTokenName && (activeConstraints.get(k)?.length ?? 0) > 0,
+                  ([k, v]) =>
+                    v === oldPending &&
+                    k !== cleanTokenName &&
+                    (activeConstraints.get(k)?.length ?? 0) > 0,
                 )
                 .map(([k]) => k)
             : [];
@@ -2276,7 +2489,13 @@ export async function resolvePackageDependencies(
             artifactCache,
           );
           if (ok) {
-            recordConstraint(activeConstraints, cleanTokenName, token.versionConstraint, requester, token.multiArch);
+            recordConstraint(
+              activeConstraints,
+              cleanTokenName,
+              token.versionConstraint,
+              requester,
+              token.multiArch,
+            );
             tokenOk = true;
           }
         } catch {}
@@ -2374,8 +2593,8 @@ export async function resolvePackageDependencies(
  * @param dep Dependency specification string (e.g. 'pkg (>= 1.0)', 'pkg:arm', or 'pkg:any').
  * @param destdir Destination directory to unpack or download deb archives into.
  * @param fetched Set of package names already fetched.
- * @param targetArch Target architecture. When set to 'all', resolves through concrete architecture fallback (defaults
- *   to 'aarch64').
+ * @param targetArch Target architecture. When set to 'all', resolves through concrete architecture
+ *   fallback (defaults to 'aarch64').
  * @param resolving Set of package names currently being recursively resolved.
  * @param pendingDebs Map of package/alias name to staged deb path.
  * @param subpackageMap Mapping of subpackage name to parent recipe name.
@@ -2442,7 +2661,9 @@ export async function fetchSingleDep(
 
   const parsedClauses = parseDependencyList(dep);
   const token = parsedClauses[0]?.[0];
-  const pkgName = token ? token.name.split(':')[0].trim() : parseDepSpec(dep)[0].split(':')[0].trim();
+  const pkgName = token
+    ? token.name.split(':')[0].trim()
+    : parseDepSpec(dep)[0].split(':')[0].trim();
   const constraint = token?.versionConstraint;
   const isAnyArch = token?.multiArch === 'any';
   const explicitArch =
@@ -2453,7 +2674,10 @@ export async function fetchSingleDep(
       : undefined;
   const effectiveArch = explicitArch || targetArch;
 
-  let allConstraints = [...(activeConstraints.get(pkgName) || []), ...(constraint ? [constraint] : [])];
+  let allConstraints = [
+    ...(activeConstraints.get(pkgName) || []),
+    ...(constraint ? [constraint] : []),
+  ];
 
   if (resolving.has(pkgName)) {
     if (effectivePending.size > 0 && !effectivePending.has(pkgName)) {
@@ -2472,7 +2696,9 @@ export async function fetchSingleDep(
       }
     }
     const resolvingVer = selectedVersions.get(pkgName);
-    return !constraint || Boolean(resolvingVer && satisfiesVersionConstraint(resolvingVer, constraint));
+    return (
+      !constraint || Boolean(resolvingVer && satisfiesVersionConstraint(resolvingVer, constraint))
+    );
   }
 
   let rollbackRevision: (() => void) | undefined;
@@ -2492,7 +2718,10 @@ export async function fetchSingleDep(
         archCompatible = false;
       }
     }
-    if (archCompatible && (!constraint || (cachedVer && satisfiesVersionConstraint(cachedVer, constraint)))) {
+    if (
+      archCompatible &&
+      (!constraint || (cachedVer && satisfiesVersionConstraint(cachedVer, constraint)))
+    ) {
       recordConstraint(activeConstraints, pkgName, constraint, requester, token?.multiArch);
       return commitSuccess();
     }
@@ -2533,8 +2762,18 @@ export async function fetchSingleDep(
     const snapshotVersionsBeforeRetirement = new Map(selectedVersions);
 
     retireCandidateConstraints(activeConstraints, pkgName);
-    pruneOrphanedPending(pkgName, activeConstraints, fetched, selectedVersions, resolving, effectivePending);
-    allConstraints = [...(activeConstraints.get(pkgName) || []), ...(constraint ? [constraint] : [])];
+    pruneOrphanedPending(
+      pkgName,
+      activeConstraints,
+      fetched,
+      selectedVersions,
+      resolving,
+      effectivePending,
+    );
+    allConstraints = [
+      ...(activeConstraints.get(pkgName) || []),
+      ...(constraint ? [constraint] : []),
+    ];
 
     rollbackRevision = (): void => {
       activeConstraints.clear();
@@ -2597,7 +2836,9 @@ export async function fetchSingleDep(
   const snapshotFetched = new Set(fetched);
   const snapshotPending = new Map(effectivePending);
   const snapshotVersions = new Map(selectedVersions);
-  const snapshotConstraints = new Map(Array.from(activeConstraints.entries()).map(([k, v]) => [k, [...v]]));
+  const snapshotConstraints = new Map(
+    Array.from(activeConstraints.entries()).map(([k, v]) => [k, [...v]]),
+  );
 
   const rollbackCandidate = (): void => {
     fetched.clear();
@@ -2700,7 +2941,8 @@ export async function fetchSingleDep(
       } catch {}
       return [];
     };
-    const localDirs = customArtifactDirs !== undefined ? customArtifactDirs : ['artifacts', outputDir];
+    const localDirs =
+      customArtifactDirs !== undefined ? customArtifactDirs : ['artifacts', outputDir];
     const localArts = localDirs.flatMap((dir) => checkArtifacts(dir));
     for (const chosenDeb of localArts) {
       if (excludedDebs && (excludedDebs.has(chosenDeb) || excludedDebs.has(basename(chosenDeb)))) {
@@ -2710,7 +2952,8 @@ export async function fetchSingleDep(
       if (!isAnyArch) {
         if (
           debControlArch &&
-          (!CANONICAL_ARCHES.has(normalizeArch(debControlArch)) || !isDebArchCompatible(debControlArch, repoArch))
+          (!CANONICAL_ARCHES.has(normalizeArch(debControlArch)) ||
+            !isDebArchCompatible(debControlArch, repoArch))
         ) {
           continue;
         }
@@ -2777,7 +3020,9 @@ export async function fetchSingleDep(
       }
       const debDeps = extractDebDepends(chosenDeb);
       if (debDeps === null) {
-        console.warn(`::warning:: Corrupt control metadata in ${basename(chosenDeb)}, skipping candidate.`);
+        console.warn(
+          `::warning:: Corrupt control metadata in ${basename(chosenDeb)}, skipping candidate.`,
+        );
         continue;
       }
       console.log(`✓ Found local artifact for dependency '${pkgName}': ${basename(chosenDeb)}`);
@@ -2826,7 +3071,8 @@ export async function fetchSingleDep(
     }
 
     // 2. RepoExe GitHub releases
-    const repoSlug = process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
+    const repoSlug =
+      process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
     const releaseOwner =
       subpackageMap && subpackageMap[pkgName]
         ? subpackageMap[pkgName]
@@ -2834,7 +3080,10 @@ export async function fetchSingleDep(
           ? pkgName.slice(0, -4)
           : pkgName;
     const apiUrl = `https://api.github.com/repos/${repoSlug}/releases/tags/${releaseOwner}`;
-    const resp = await fetch(apiUrl, { headers: getAuthHeaders(), signal: AbortSignal.timeout(15000) });
+    const resp = await fetch(apiUrl, {
+      headers: getAuthHeaders(),
+      signal: AbortSignal.timeout(15000),
+    });
     if (resp.ok) {
       interface ReleaseAsset {
         name: string;
@@ -2846,10 +3095,15 @@ export async function fetchSingleDep(
       const releaseAssets: ReleaseAsset[] = relData.draft ? [] : relData.assets || [];
       const debAssets = releaseAssets.filter(
         (a): a is ReleaseAsset =>
-          typeof a?.name === 'string' && a.name.startsWith(`${pkgName}_`) && isDebArchCompatible(a.name, repoArch),
+          typeof a?.name === 'string' &&
+          a.name.startsWith(`${pkgName}_`) &&
+          isDebArchCompatible(a.name, repoArch),
       );
       for (const debAsset of debAssets) {
-        if (excludedDebs && (excludedDebs.has(debAsset.name) || (debAsset.url && excludedDebs.has(debAsset.url)))) {
+        if (
+          excludedDebs &&
+          (excludedDebs.has(debAsset.name) || (debAsset.url && excludedDebs.has(debAsset.url)))
+        ) {
           continue;
         }
         const assetVer = parseFilenameDebVersion(debAsset.name);
@@ -2862,7 +3116,8 @@ export async function fetchSingleDep(
         if (!downloadUrl) {
           continue;
         }
-        const extraHeaders = downloadUrl === debAsset.url ? { Accept: 'application/octet-stream' } : undefined;
+        const extraHeaders =
+          downloadUrl === debAsset.url ? { Accept: 'application/octet-stream' } : undefined;
         try {
           await downloadFile(downloadUrl, debPath, hasAuth, extraHeaders);
         } catch {
@@ -2879,7 +3134,8 @@ export async function fetchSingleDep(
         const debControlArch = extractDebArchitecture(debPath);
         if (
           debControlArch &&
-          (!CANONICAL_ARCHES.has(normalizeArch(debControlArch)) || !isDebArchCompatible(debControlArch, repoArch))
+          (!CANONICAL_ARCHES.has(normalizeArch(debControlArch)) ||
+            !isDebArchCompatible(debControlArch, repoArch))
         ) {
           rmSync(debPath, { force: true });
           rollbackCandidate();
@@ -2978,7 +3234,9 @@ export async function fetchSingleDep(
         }
       }
       const effectiveVer = isVirtual ? pkgInfo.ProvidedVersion : pkgInfo.Version;
-      const hasActualVersionConstraint = allConstraints.some((c) => Boolean(c.operator && c.version));
+      const hasActualVersionConstraint = allConstraints.some((c) =>
+        Boolean(c.operator && c.version),
+      );
       if (hasActualVersionConstraint) {
         if (isVirtual && !effectiveVer) {
           continue;
@@ -3040,9 +3298,14 @@ export async function fetchSingleDep(
         const resolverDownloadsDir = join(destdir, '.resolver_downloads');
         mkdirSync(resolverDownloadsDir, { recursive: true });
         const attemptKey = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-        debDest = join(resolverDownloadsDir, `${debFilename.replace(/\.deb$/, '')}_${attemptKey}.deb`);
+        debDest = join(
+          resolverDownloadsDir,
+          `${debFilename.replace(/\.deb$/, '')}_${attemptKey}.deb`,
+        );
         termuxCandidateIdentityByPath.set(debDest, debUrl);
-        console.log(`⚡ Fetching Termux upstream dependency '${pkgName}' [${repoArch}] from ${debUrl}...`);
+        console.log(
+          `⚡ Fetching Termux upstream dependency '${pkgName}' [${repoArch}] from ${debUrl}...`,
+        );
         try {
           await downloadFile(debUrl, debDest);
         } catch {
@@ -3078,7 +3341,8 @@ export async function fetchSingleDep(
       const actualControlArch = extractDebArchitecture(debDest);
       if (
         actualControlArch &&
-        (!CANONICAL_ARCHES.has(normalizeArch(actualControlArch)) || !isDebArchCompatible(actualControlArch, repoArch))
+        (!CANONICAL_ARCHES.has(normalizeArch(actualControlArch)) ||
+          !isDebArchCompatible(actualControlArch, repoArch))
       ) {
         rmSync(debDest, { force: true });
         if (candidateCanonical && addedResolving) {
@@ -3176,7 +3440,11 @@ export async function fetchSingleDep(
       }
 
       const validatedVer = isVirtual ? provVer || '' : actualVer || concreteVer;
-      if (allConstraints.length > 0 && validatedVer && !satisfiesAllConstraints(validatedVer, allConstraints)) {
+      if (
+        allConstraints.length > 0 &&
+        validatedVer &&
+        !satisfiesAllConstraints(validatedVer, allConstraints)
+      ) {
         rmSync(debDest, { force: true });
         if (candidateCanonical && addedResolving) {
           resolving.delete(candidateCanonical);
@@ -3186,7 +3454,9 @@ export async function fetchSingleDep(
 
       const debDeps = extractDebDepends(debDest);
       if (debDeps === null) {
-        console.warn(`::warning:: Corrupt control metadata in downloaded ${basename(debDest)}, skipping candidate.`);
+        console.warn(
+          `::warning:: Corrupt control metadata in downloaded ${basename(debDest)}, skipping candidate.`,
+        );
         rmSync(debDest, { force: true });
         if (candidateCanonical && addedResolving) {
           resolving.delete(candidateCanonical);
@@ -3235,7 +3505,9 @@ export async function fetchSingleDep(
                 }
               }
               const aliasConstraints = activeConstraints.get(k) || [];
-              const hasVersionPredicate = aliasConstraints.some((c) => Boolean(c.operator && c.version));
+              const hasVersionPredicate = aliasConstraints.some((c) =>
+                Boolean(c.operator && c.version),
+              );
               if (
                 !isProvided ||
                 (!aliasProvVer && hasVersionPredicate) ||
@@ -3317,7 +3589,9 @@ export async function fetchSingleDep(
     }
   } catch (err: unknown) {
     const reason = err instanceof Error ? err.message : String(err);
-    console.warn(`Warning: Failed to fetch upstream dependency '${pkgName}' [${repoArch}]: ${reason}`);
+    console.warn(
+      `Warning: Failed to fetch upstream dependency '${pkgName}' [${repoArch}]: ${reason}`,
+    );
     rollbackCandidate();
   } finally {
     resolving.delete(pkgName);
@@ -3347,7 +3621,10 @@ export async function resolveAndFetchBuildDependencies(
   const effectiveIsolatedPrefix =
     isIsolatedPrefix !== undefined
       ? isIsolatedPrefix
-      : Boolean(process.env.PREFIX && resolve(process.env.PREFIX) !== resolve('/data/data/com.termux/files/usr'));
+      : Boolean(
+          process.env.PREFIX &&
+          resolve(process.env.PREFIX) !== resolve('/data/data/com.termux/files/usr'),
+        );
 
   if (filtered.length === 0) {
     if (effectiveIsolatedPrefix) {
@@ -3418,7 +3695,9 @@ export async function resolveAndFetchBuildDependencies(
         const snapFetched = new Set(fetched);
         const snapVersions = new Map(selectedVersions);
         const snapPending = new Map(sharedPendingArtifacts);
-        const snapConstraints = new Map(Array.from(activeConstraints.entries()).map(([k, v]) => [k, [...v]]));
+        const snapConstraints = new Map(
+          Array.from(activeConstraints.entries()).map(([k, v]) => [k, [...v]]),
+        );
 
         let success = false;
         try {
@@ -3440,12 +3719,20 @@ export async function resolveAndFetchBuildDependencies(
           );
         } catch (err: unknown) {
           const reason = err instanceof Error ? err.message : String(err);
-          console.warn(`Warning: Error resolving dependency '${cleanName}' for ${concreteArch}: ${reason}`);
+          console.warn(
+            `Warning: Error resolving dependency '${cleanName}' for ${concreteArch}: ${reason}`,
+          );
         }
 
         if (success) {
           const chosenDeb = sharedPendingArtifacts.get(cleanName);
-          recordConstraint(activeConstraints, cleanName, token.versionConstraint, rootRequester, token.multiArch);
+          recordConstraint(
+            activeConstraints,
+            cleanName,
+            token.versionConstraint,
+            rootRequester,
+            token.multiArch,
+          );
           if (await solveClauses(clauseIdx + 1)) {
             return true;
           }
@@ -3481,11 +3768,16 @@ export async function resolveAndFetchBuildDependencies(
     mkdirSync(destdir, { recursive: true });
     const resolved = await solveClauses(0);
     if (budgetExhausted) {
-      throw new Error(`Dependency resolution backtracking budget exceeded (${MAX_BACKTRACK_STEPS} steps).`);
+      throw new Error(
+        `Dependency resolution backtracking budget exceeded (${MAX_BACKTRACK_STEPS} steps).`,
+      );
     }
     if (!resolved) {
-      const branchStr = deepestFailureBranch || filtered[0]?.map((t) => t.name).join(' | ') || buildDeps.join(', ');
-      throw new Error(`Missing required build dependency '${branchStr}' for ${concreteArch} and no artifact exists.`);
+      const branchStr =
+        deepestFailureBranch || filtered[0]?.map((t) => t.name).join(' | ') || buildDeps.join(', ');
+      throw new Error(
+        `Missing required build dependency '${branchStr}' for ${concreteArch} and no artifact exists.`,
+      );
     }
 
     const uniqueDebs = Array.from(new Set(sharedPendingArtifacts.values()));

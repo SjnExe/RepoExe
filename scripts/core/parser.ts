@@ -2,7 +2,12 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 import { CANONICAL_ARCHES, normalizeArch, parseDependencyList } from './dependencies.ts';
-import type { PackageRecipe, RecipeDefinition, ResourceConfig, SubpackageDefinition } from './types.ts';
+import type {
+  PackageRecipe,
+  RecipeDefinition,
+  ResourceConfig,
+  SubpackageDefinition,
+} from './types.ts';
 
 export class RecipeCollisionError extends Error {
   constructor(message: string) {
@@ -14,7 +19,9 @@ export class RecipeCollisionError extends Error {
 function validateProvidesList(provides: string[], ownerName: string, isArchAll = false): void {
   for (const item of provides) {
     if (typeof item !== 'string' || !item.trim()) {
-      throw new Error(`Invalid provides entry in ${ownerName}: empty or blank capability is not permitted.`);
+      throw new Error(
+        `Invalid provides entry in ${ownerName}: empty or blank capability is not permitted.`,
+      );
     }
   }
   const debPkgNameRegex = /^[a-z0-9][a-z0-9+.-]+$/;
@@ -67,7 +74,9 @@ function canonicalJson(obj: unknown): string {
     return '[' + obj.map(canonicalJson).join(',') + ']';
   }
   const keys = Object.keys(obj as Record<string, unknown>).sort();
-  const entries = keys.map((k) => `${JSON.stringify(k)}:${canonicalJson((obj as Record<string, unknown>)[k])}`);
+  const entries = keys.map(
+    (k) => `${JSON.stringify(k)}:${canonicalJson((obj as Record<string, unknown>)[k])}`,
+  );
   return '{' + entries.join(',') + '}';
 }
 
@@ -171,7 +180,8 @@ export function normalizeRecipe(rawData: RecipeDefinition, pkgDir?: string): Pac
   const resources: ResourceConfig = {
     zram: rawData.resources?.zram !== undefined ? Number(rawData.resources.zram) : isHeavy ? 4 : 0,
     swap: rawData.resources?.swap !== undefined ? Number(rawData.resources.swap) : isHeavy ? 8 : 0,
-    free_space: rawData.resources?.free_space !== undefined ? Boolean(rawData.resources.free_space) : isHeavy,
+    free_space:
+      rawData.resources?.free_space !== undefined ? Boolean(rawData.resources.free_space) : isHeavy,
     tmpfs: Math.max(0, Math.min(6, Number(rawData.resources?.tmpfs ?? (isHeavy ? 6 : 4)))),
   };
 
@@ -182,7 +192,8 @@ export function normalizeRecipe(rawData: RecipeDefinition, pkgDir?: string): Pac
     }
     return trimmed.toLowerCase() === 'all' ? 'all' : normalizeArch(trimmed);
   };
-  const rawArch = Array.isArray(rawData.arches) && rawData.arches.length > 0 ? rawData.arches : rawData.arch;
+  const rawArch =
+    Array.isArray(rawData.arches) && rawData.arches.length > 0 ? rawData.arches : rawData.arch;
   let resolvedArches: string[];
   if (Array.isArray(rawArch)) {
     resolvedArches = rawArch.map((s) => canonicalizeArch(String(s))).filter(Boolean);
@@ -239,14 +250,20 @@ export function normalizeRecipe(rawData: RecipeDefinition, pkgDir?: string): Pac
             .map((s: string) => s.trim())
             .filter(Boolean)
         : [],
-    component: String(rawData.component || (String(rawData.interface || '').toLowerCase() === 'gui' ? 'gui' : 'main')),
+    component: String(
+      rawData.component ||
+        (String(rawData.interface || '').toLowerCase() === 'gui' ? 'gui' : 'main'),
+    ),
     section: rawData.section ? String(rawData.section).trim() : undefined,
     priority: rawData.priority ? String(rawData.priority).trim() : undefined,
     interface:
-      rawData.interface && ['cli', 'gui', 'tui', 'both'].includes(String(rawData.interface).toLowerCase())
+      rawData.interface &&
+      ['cli', 'gui', 'tui', 'both'].includes(String(rawData.interface).toLowerCase())
         ? (String(rawData.interface).toLowerCase() as 'cli' | 'gui' | 'tui' | 'both')
         : undefined,
-    tags: Array.isArray(rawData.tags) ? rawData.tags.map((t: unknown) => String(t).trim()).filter(Boolean) : undefined,
+    tags: Array.isArray(rawData.tags)
+      ? rawData.tags.map((t: unknown) => String(t).trim()).filter(Boolean)
+      : undefined,
     build_system: String(rawData.build_system || 'custom'),
     source: rawData.source
       ? Array.isArray(rawData.source)
@@ -293,7 +310,8 @@ export function normalizeRecipe(rawData: RecipeDefinition, pkgDir?: string): Pac
     phases: rawData.phases && typeof rawData.phases === 'object' ? rawData.phases : {},
     vars: rawData.vars && typeof rawData.vars === 'object' ? rawData.vars : {},
     env: rawData.env && typeof rawData.env === 'object' ? rawData.env : {},
-    toolchains: rawData.toolchains && typeof rawData.toolchains === 'object' ? rawData.toolchains : {},
+    toolchains:
+      rawData.toolchains && typeof rawData.toolchains === 'object' ? rawData.toolchains : {},
     state_hash: '',
     ndk: rawData.ndk,
   };
@@ -309,7 +327,10 @@ export function normalizeRecipe(rawData: RecipeDefinition, pkgDir?: string): Pac
 
     const addSubpkg = (key: string, def: SubpackageDefinition): void => {
       const emittedName = def.name || key;
-      if (normSubpkgs[key] || Object.values(normSubpkgs).some((existing) => (existing.name || '') === emittedName)) {
+      if (
+        normSubpkgs[key] ||
+        Object.values(normSubpkgs).some((existing) => (existing.name || '') === emittedName)
+      ) {
         throw new RecipeCollisionError(
           `Subpackage name '${emittedName}' in ${baseRecipe.name} collides with the parent or another subpackage.`,
         );
@@ -317,7 +338,10 @@ export function normalizeRecipe(rawData: RecipeDefinition, pkgDir?: string): Pac
       normSubpkgs[key] = def;
     };
 
-    const normalizeSubpkgDef = (val: Partial<SubpackageDefinition>, key: string): SubpackageDefinition => {
+    const normalizeSubpkgDef = (
+      val: Partial<SubpackageDefinition>,
+      key: string,
+    ): SubpackageDefinition => {
       const sName = val.name || key;
       const filesAlias = (val as { files?: string[] }).files;
       if (val.include !== undefined && !Array.isArray(val.include)) {
@@ -520,7 +544,9 @@ export function normalizeRecipe(rawData: RecipeDefinition, pkgDir?: string): Pac
       if (sub.arch) {
         const normArch = sub.arch.toLowerCase() === 'all' ? 'all' : normalizeArch(sub.arch);
         if (!CANONICAL_ARCHES.has(normArch)) {
-          throw new Error(`Unsupported architecture '${sub.arch}' for subpackage '${sName}' in ${baseRecipe.name}.`);
+          throw new Error(
+            `Unsupported architecture '${sub.arch}' for subpackage '${sName}' in ${baseRecipe.name}.`,
+          );
         }
         sub.arch = normArch;
         if (normArch !== 'all') {
@@ -554,7 +580,9 @@ export function normalizeRecipe(rawData: RecipeDefinition, pkgDir?: string): Pac
   const epochStr = String(baseRecipe.epoch);
 
   if (baseRecipe.source) {
-    baseRecipe.source = baseRecipe.source.replace(/{version}/g, verStr).replace(/{epoch}/g, epochStr);
+    baseRecipe.source = baseRecipe.source
+      .replace(/{version}/g, verStr)
+      .replace(/{epoch}/g, epochStr);
   }
 
   if (baseRecipe.sources) {

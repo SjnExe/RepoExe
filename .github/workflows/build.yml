@@ -455,45 +455,6 @@ jobs:
           path: build_logs/
           retention-days: 1
 
-  build-status:
-    name: Build Status & Log Aggregator
-    needs: [generate-matrix, build]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v7
-
-      - name: Download All Target Build Logs
-        uses: actions/download-artifact@v8
-        with:
-          pattern: build-log-*
-          path: all_logs
-          merge-multiple: true
-        continue-on-error: true
-
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Aggregate All Logs
-        run: |
-          mkdir -p summary
-          if [ -d "all_logs" ]; then
-            bun run scripts/utils/log_aggregator.ts all_logs summary/all_build_logs.txt
-          else
-            echo "No build logs collected." > summary/all_build_logs.txt
-          fi
-
-      - name: Upload Aggregated Log Summary
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: aggregated-build-logs
-          path: summary/all_build_logs.txt
-          retention-days: 7
-
   publish-site:
     name: Index & Release Publish
     needs: [generate-matrix, lint-audit, test-suite, build]

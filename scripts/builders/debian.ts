@@ -213,7 +213,10 @@ export function generateControlFile(recipe: PackageRecipe, installedSizeKib?: nu
   return lines.join('\n') + '\n';
 }
 
-export function getPackageSourceDateEpoch(pkgDir?: string, repoRoot: string = resolve('.')): number {
+export function getPackageSourceDateEpoch(
+  pkgDir?: string,
+  repoRoot: string = resolve('.'),
+): number {
   if (process.env.SOURCE_DATE_EPOCH !== undefined && process.env.SOURCE_DATE_EPOCH.trim() !== '') {
     const raw = process.env.SOURCE_DATE_EPOCH.trim();
     if (/^\d+$/.test(raw)) {
@@ -285,10 +288,19 @@ export function cleanStageElfs(stageDir: string, cleanerBin?: string): void {
         try {
           const magic = Buffer.alloc(4);
           const n = readSync(fd, magic, 0, 4, 0);
-          if (n === 4 && magic[0] === 0x7f && magic[1] === 0x45 && magic[2] === 0x4c && magic[3] === 0x46) {
+          if (
+            n === 4 &&
+            magic[0] === 0x7f &&
+            magic[1] === 0x45 &&
+            magic[2] === 0x4c &&
+            magic[3] === 0x46
+          ) {
             const cleanRes = spawnSync(cleaner, ['--api-level', '24', full], { encoding: 'utf-8' });
             if (cleanRes.status !== 0 || cleanRes.error) {
-              const err = cleanRes.error?.message || cleanRes.stderr?.trim() || `exit code ${cleanRes.status}`;
+              const err =
+                cleanRes.error?.message ||
+                cleanRes.stderr?.trim() ||
+                `exit code ${cleanRes.status}`;
               throw new Error(`termux-elf-cleaner failed on '${full}': ${err}`);
             }
           }
@@ -362,7 +374,9 @@ export function normalizeStageDir(stageDir: string, epoch: number): void {
           } catch {}
         } else if (lstat.isFile()) {
           if (isDebianDir && relParts.length > 1) {
-            const isScript = ['preinst', 'postinst', 'prerm', 'postrm', 'config'].includes(entry.name);
+            const isScript = ['preinst', 'postinst', 'prerm', 'postrm', 'config'].includes(
+              entry.name,
+            );
             chmodSync(full, isScript ? 0o755 : 0o644);
           }
           try {
@@ -379,7 +393,13 @@ export function normalizeStageDir(stageDir: string, epoch: number): void {
   } catch {}
 }
 
-export const ALLOWED_MAINTAINER_SCRIPTS = new Set(['preinst', 'postinst', 'prerm', 'postrm', 'config']);
+export const ALLOWED_MAINTAINER_SCRIPTS = new Set([
+  'preinst',
+  'postinst',
+  'prerm',
+  'postrm',
+  'config',
+]);
 
 const PERL_SYNTAX_MOCK_CONTENT =
   'package RepoExePerlSyntaxMock;\n' +
@@ -419,7 +439,11 @@ const PERL_SYNTAX_MOCK_CONTENT =
   '};\n' +
   '1;\n';
 
-export function validateMaintainerScript(scriptName: string, content: string, pkgName: string): void {
+export function validateMaintainerScript(
+  scriptName: string,
+  content: string,
+  pkgName: string,
+): void {
   if (!ALLOWED_MAINTAINER_SCRIPTS.has(scriptName)) {
     throw new Error(
       `Invalid maintainer script '${scriptName}' in package '${pkgName}'. Allowed scripts: ${Array.from(ALLOWED_MAINTAINER_SCRIPTS).join(', ')}.`,
@@ -490,22 +514,30 @@ export function validateMaintainerScript(scriptName: string, content: string, pk
       }
     }
   } else if (rawInterpreter === 'python' || rawInterpreter === 'python3') {
-    checkRes = spawnSync('python3', ['-c', "import sys; compile(sys.stdin.read(), '<maintainer-script>', 'exec')"], {
-      input: content,
-      encoding: 'utf-8',
-      timeout: 10_000,
-    });
+    checkRes = spawnSync(
+      'python3',
+      ['-c', "import sys; compile(sys.stdin.read(), '<maintainer-script>', 'exec')"],
+      {
+        input: content,
+        encoding: 'utf-8',
+        timeout: 10_000,
+      },
+    );
   }
 
   if (checkRes) {
     if (checkRes.error) {
       if ((checkRes.error as NodeJS.ErrnoException).code === 'ETIMEDOUT') {
-        throw new Error(`Syntax validation timed out for maintainer script '${scriptName}' in package '${pkgName}'`);
+        throw new Error(
+          `Syntax validation timed out for maintainer script '${scriptName}' in package '${pkgName}'`,
+        );
       }
       return;
     }
     if (checkRes.status !== 0) {
-      const errMsg = checkRes.stderr ? String(checkRes.stderr).trim() : `syntax error (exit code ${checkRes.status})`;
+      const errMsg = checkRes.stderr
+        ? String(checkRes.stderr).trim()
+        : `syntax error (exit code ${checkRes.status})`;
       throw new Error(
         `Syntax validation failed for maintainer script '${scriptName}' in package '${pkgName}': ${errMsg}`,
       );
@@ -541,7 +573,10 @@ export function prepareDebianDir(
     }
   }
 
-  const packagingTrackerFile = join(dirname(stageDir), `.${basename(stageDir)}_packaging_scripts.json`);
+  const packagingTrackerFile = join(
+    dirname(stageDir),
+    `.${basename(stageDir)}_packaging_scripts.json`,
+  );
   if (existsSync(packagingTrackerFile)) {
     try {
       const prevGenerated = JSON.parse(readFileSync(packagingTrackerFile, 'utf-8'));
@@ -644,7 +679,9 @@ export function prepareDebianDir(
     };
     const existsAnywhere = allStages.some(entryExists);
     if (!existsAnywhere) {
-      throw new Error(`Conffile '${trimmed}' declared in conffiles does not exist in stage or any subpackage stage.`);
+      throw new Error(
+        `Conffile '${trimmed}' declared in conffiles does not exist in stage or any subpackage stage.`,
+      );
     }
     if (entryExists(stageDir)) {
       conffileEntries.add(trimmed.startsWith('/') ? trimmed : `/${trimmed}`);
@@ -786,13 +823,15 @@ export function buildAllDebs(
   sourceEpochOverride?: number,
 ): string[] {
   const resolvedArch = targetArch || recipe.arch || 'aarch64';
-  const effectiveRecipe = targetArch && recipe.arch !== 'all' ? { ...recipe, arch: targetArch } : recipe;
+  const effectiveRecipe =
+    targetArch && recipe.arch !== 'all' ? { ...recipe, arch: targetArch } : recipe;
   const buildPath = resolve(destdir);
   const outPath = resolve(outputDir);
   mkdirSync(outPath, { recursive: true });
 
   const stageDir = join(buildPath, 'stage');
-  const sourceEpoch = sourceEpochOverride !== undefined ? sourceEpochOverride : getPackageSourceDateEpoch(pkgDir);
+  const sourceEpoch =
+    sourceEpochOverride !== undefined ? sourceEpochOverride : getPackageSourceDateEpoch(pkgDir);
 
   // Split subpackages before preparing parent Debian control & conffiles
   const subSplits = splitSubpackages(effectiveRecipe, stageDir, buildPath, resolvedArch);
@@ -828,7 +867,13 @@ export function buildAllDebs(
   }
 
   // Assemble parent and emitted subpackage debs
-  const parentDeb = assembleSingleDeb(effectiveRecipe, parentStageDir, outPath, resolvedArch, sourceEpoch);
+  const parentDeb = assembleSingleDeb(
+    effectiveRecipe,
+    parentStageDir,
+    outPath,
+    resolvedArch,
+    sourceEpoch,
+  );
   const allDebs: string[] = [parentDeb];
   for (const sub of emittedSubs) {
     allDebs.push(assembleSingleDeb(sub.recipe, sub.stageDir, outPath, resolvedArch, sourceEpoch));
@@ -957,13 +1002,15 @@ export function buildAptMetadataContext(
       const debArch = extractDebArch(debName);
       if (
         debArch !== 'unknown' &&
-        (!CANONICAL_ARCHES.has(normalizeArch(declaredArch)) || normalizeArch(declaredArch) !== normalizeArch(debArch))
+        (!CANONICAL_ARCHES.has(normalizeArch(declaredArch)) ||
+          normalizeArch(declaredArch) !== normalizeArch(debArch))
       ) {
         continue;
       }
       const effectiveArch = declaredArch;
       const pkgName = extractDebianField(controlInfo, 'Package') || debName.split('_')[0];
-      const pkgVersion = extractDebianField(controlInfo, 'Version') || parseFilenameDebVersion(debName);
+      const pkgVersion =
+        extractDebianField(controlInfo, 'Version') || parseFilenameDebVersion(debName);
       const provides: ParsedProvideEntry[] = [];
       const provVal = extractDebianField(controlInfo, 'Provides');
       if (provVal) {
@@ -1050,7 +1097,9 @@ export function buildAptMetadataContext(
         const isRepoExeOwnedOrProvided = (depName: string): boolean =>
           emittedNames.has(depName) ||
           existsSync(join(packagesDir, depName)) ||
-          allCandidates.some((c) => c.pkgName === depName || c.provides.some((p) => p.name === depName));
+          allCandidates.some(
+            (c) => c.pkgName === depName || c.provides.some((p) => p.name === depName),
+          );
 
         const clauseOptions: Array<{ hasExternal: boolean; localCands: CandidateDeb[] }> = [];
         let hasImpossibleClause = false;
@@ -1164,7 +1213,10 @@ export function buildAptMetadataContext(
               }
               const existing = selectedConcrete.get(choiceKey);
               if (existing) {
-                if (existing.pkgVersion !== choice.pkgVersion || existing.debName !== choice.debName) {
+                if (
+                  existing.pkgVersion !== choice.pkgVersion ||
+                  existing.debName !== choice.debName
+                ) {
                   continue;
                 }
                 if (solve(idx + 1)) {
@@ -1265,9 +1317,12 @@ export function generateAptMetadata(
   mkdirSync(diffDir, { recursive: true });
   const pkgsSha256 = new Bun.CryptoHasher('sha256').update(pkgsBuffer).digest('hex');
   const pkgsSize = pkgsBuffer.length;
-  const diffIndexContent = [`SHA256-Current: ${pkgsSha256} ${pkgsSize}`, `SHA256-History:`, `SHA256-Patches:`, ''].join(
-    '\n',
-  );
+  const diffIndexContent = [
+    `SHA256-Current: ${pkgsSha256} ${pkgsSize}`,
+    `SHA256-History:`,
+    `SHA256-Patches:`,
+    '',
+  ].join('\n');
   writeIndexWithByHash(diffDir, 'Index', Buffer.from(diffIndexContent, 'utf-8'));
 }
 
@@ -1280,7 +1335,9 @@ export function generateReleaseFile(
   const distsDir = join(outputDir, 'dists', suite);
   mkdirSync(distsDir, { recursive: true });
   const releasePath = join(distsDir, 'Release');
-  const componentList = Array.isArray(component) ? Array.from(new Set(component)).sort() : [component || 'main'];
+  const componentList = Array.isArray(component)
+    ? Array.from(new Set(component)).sort()
+    : [component || 'main'];
 
   const arches = new Set<string>();
   const fileEntries: string[] = [];
@@ -1337,7 +1394,10 @@ export function generateReleaseFile(
   const gpgPrivKey = process.env.GPG_PRIVATE_KEY;
   let signingKeyFingerprint: string | undefined;
   if (gpgPrivKey) {
-    const importRes = spawnSync('gpg', ['--status-fd', '1', '--import'], { input: gpgPrivKey, encoding: 'utf-8' });
+    const importRes = spawnSync('gpg', ['--status-fd', '1', '--import'], {
+      input: gpgPrivKey,
+      encoding: 'utf-8',
+    });
     if (importRes.status === 0 && importRes.stdout) {
       const match = importRes.stdout.match(/\[GNUPG:\]\s+IMPORT_OK\s+\d+\s+([0-9A-Fa-f]{16,40})/);
       if (match) {
@@ -1345,7 +1405,9 @@ export function generateReleaseFile(
       }
     }
     if (!signingKeyFingerprint) {
-      throw new Error('GPG_PRIVATE_KEY is set but key import or signing fingerprint extraction failed.');
+      throw new Error(
+        'GPG_PRIVATE_KEY is set but key import or signing fingerprint extraction failed.',
+      );
     }
   } else {
     let keyPath = 'scripts/repoexe.gpg';
@@ -1353,7 +1415,9 @@ export function generateReleaseFile(
       keyPath = 'repoexe.gpg';
     }
     if (existsSync(keyPath)) {
-      const importRes = spawnSync('gpg', ['--status-fd', '1', '--import', keyPath], { encoding: 'utf-8' });
+      const importRes = spawnSync('gpg', ['--status-fd', '1', '--import', keyPath], {
+        encoding: 'utf-8',
+      });
       if (importRes.status === 0 && importRes.stdout) {
         const match = importRes.stdout.match(/\[GNUPG:\]\s+IMPORT_OK\s+\d+\s+([0-9A-Fa-f]{16,40})/);
         if (match) {
@@ -1373,7 +1437,9 @@ export function generateReleaseFile(
   }
 
   const isSigningRequired =
-    requireSigned || Boolean(process.env.GPG_PRIVATE_KEY) || process.env.REQUIRE_APT_SIGNING === 'true';
+    requireSigned ||
+    Boolean(process.env.GPG_PRIVATE_KEY) ||
+    process.env.REQUIRE_APT_SIGNING === 'true';
   if (isSigningRequired && !signingKeyFingerprint) {
     throw new Error('APT signing is required but no signing key fingerprint could be resolved.');
   }
@@ -1407,7 +1473,9 @@ export function generateReleaseFile(
     }
 
     if (isSigningRequired && !hasInRelease && !hasReleaseGpg) {
-      throw new Error('Failed to sign APT Release file: gpg signing produced neither InRelease nor Release.gpg.');
+      throw new Error(
+        'Failed to sign APT Release file: gpg signing produced neither InRelease nor Release.gpg.',
+      );
     }
   } finally {
     if (existsSync(tmpInRelease)) {

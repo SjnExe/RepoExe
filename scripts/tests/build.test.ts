@@ -70,7 +70,10 @@ describe('build CLI helpers', (): void => {
     const recipe = { name: 'dummy', version: '1.0.0', source: 'https://example.com/dummy.tar.gz' };
     const identity = computeSourceIdentity(recipe, 'pkg/dummy');
     const sourceEpoch = getPackageSourceDateEpoch('pkg/dummy');
-    writeFileSync(join(testDest, '.source_prepared.json'), JSON.stringify({ identity, workDir: srcDir, sourceEpoch }));
+    writeFileSync(
+      join(testDest, '.source_prepared.json'),
+      JSON.stringify({ identity, workDir: srcDir, sourceEpoch }),
+    );
 
     const workDir = fetchAndPrepareSource(recipe, 'pkg/dummy', testDest, true);
     expect(workDir).toBe(srcDir);
@@ -100,12 +103,23 @@ describe('build CLI helpers', (): void => {
     mkdirSync(srcDir, { recursive: true });
     writeFileSync(join(srcDir, 'old.txt'), 'old');
 
-    const oldRecipe = { name: 'dummy', version: '1.0.0', source: 'file:///nonexistent/dummy.tar.gz' };
+    const oldRecipe = {
+      name: 'dummy',
+      version: '1.0.0',
+      source: 'file:///nonexistent/dummy.tar.gz',
+    };
     const oldIdentity = computeSourceIdentity(oldRecipe, 'pkg/dummy');
-    writeFileSync(join(testDest, '.source_prepared.json'), JSON.stringify({ identity: oldIdentity, workDir: srcDir }));
+    writeFileSync(
+      join(testDest, '.source_prepared.json'),
+      JSON.stringify({ identity: oldIdentity, workDir: srcDir }),
+    );
 
     // New version produces different identity, so continueBuild rejects stale source
-    const newRecipe = { name: 'dummy', version: '2.0.0', source: 'file:///nonexistent/dummy.tar.gz' };
+    const newRecipe = {
+      name: 'dummy',
+      version: '2.0.0',
+      source: 'file:///nonexistent/dummy.tar.gz',
+    };
     expect(() => fetchAndPrepareSource(newRecipe, 'pkg/dummy', testDest, true)).toThrow();
     expect(existsSync(join(srcDir, 'old.txt'))).toBeFalse();
 
@@ -128,7 +142,9 @@ describe('build CLI helpers', (): void => {
       version: '1.0.0',
       formats: ['deb'], // invalid, should be apt
     };
-    expect(executePack(recipe, 'pkg/bad-fmt', testDest, testOut)).rejects.toThrow('Unsupported package format');
+    expect(executePack(recipe, 'pkg/bad-fmt', testDest, testOut)).rejects.toThrow(
+      'Unsupported package format',
+    );
     rmSync(testDest, { recursive: true, force: true });
   });
 
@@ -288,7 +304,11 @@ describe('build CLI helpers', (): void => {
     writeFileSync(join(srcDir, 'test.txt'), 'hello');
 
     try {
-      const recipe = { name: 'dummy', version: '1.0.0', source: 'file:///nonexistent/dummy.tar.gz' };
+      const recipe = {
+        name: 'dummy',
+        version: '1.0.0',
+        source: 'file:///nonexistent/dummy.tar.gz',
+      };
       const identity = computeSourceIdentity(recipe, 'pkg/dummy');
       const effectiveEpoch = getPackageSourceDateEpoch('pkg/dummy');
       writeFileSync(
@@ -320,7 +340,9 @@ describe('build CLI helpers', (): void => {
       patches: ['fix.diff'],
     };
 
-    expect(() => fetchAndPrepareSource(recipe, testPkg, testDest, false)).toThrow(/Invalid patch filename 'fix.diff'/);
+    expect(() => fetchAndPrepareSource(recipe, testPkg, testDest, false)).toThrow(
+      /Invalid patch filename 'fix.diff'/,
+    );
 
     rmSync(testPkg, { recursive: true, force: true });
     rmSync(testDest, { recursive: true, force: true });
@@ -339,11 +361,17 @@ describe('build CLI helpers', (): void => {
     mkdirSync(patchDir, { recursive: true });
     writeFileSync(join(patchDir, '0001-fix.patch'), 'patch content\n');
 
-    const valid = resolveAndValidatePatches({ name: 'testpkg', patches: ['patches/0001-fix.patch'] }, testPkg);
+    const valid = resolveAndValidatePatches(
+      { name: 'testpkg', patches: ['patches/0001-fix.patch'] },
+      testPkg,
+    );
     expect(valid).toEqual(['0001-fix.patch']);
 
     expect(() =>
-      resolveAndValidatePatches({ name: 'testpkg', patches: ['patches/0002-missing.patch'] }, testPkg),
+      resolveAndValidatePatches(
+        { name: 'testpkg', patches: ['patches/0002-missing.patch'] },
+        testPkg,
+      ),
     ).toThrow(/Patch file .* not found/);
 
     rmSync(testPkg, { recursive: true, force: true });
@@ -475,9 +503,9 @@ describe('build CLI helpers', (): void => {
     const tmpPkg = join(process.env.TMPDIR || tmpdir(), `pkg-nopatchdir-${Date.now()}`);
     mkdirSync(tmpPkg, { recursive: true });
     try {
-      expect(() => snapshotPatches({ name: 'missing-dir-pkg', patches: ['0001-fix.patch'] }, tmpPkg)).toThrow(
-        /Patch file .*0001-fix\.patch not found/,
-      );
+      expect(() =>
+        snapshotPatches({ name: 'missing-dir-pkg', patches: ['0001-fix.patch'] }, tmpPkg),
+      ).toThrow(/Patch file .*0001-fix\.patch not found/);
     } finally {
       rmSync(tmpPkg, { recursive: true, force: true });
     }
@@ -540,7 +568,10 @@ describe('build CLI helpers', (): void => {
       JSON.stringify({ name: 'app', arch: 'aarch64', archive_digest: hash }),
     );
     // Legacy sidecar without archive_digest
-    writeFileSync(join(outputDir, 'app_metadata.json'), JSON.stringify({ name: 'app', arch: 'aarch64' }));
+    writeFileSync(
+      join(outputDir, 'app_metadata.json'),
+      JSON.stringify({ name: 'app', arch: 'aarch64' }),
+    );
     // Sidecar for different architecture
     writeFileSync(
       join(outputDir, 'app_x86_64_metadata.json'),
@@ -607,18 +638,42 @@ describe('build CLI helpers', (): void => {
   it('Thread #7: validateCompileStamp enforces architecture and compile identity match', (): void => {
     const testDest = join(process.env.TMPDIR || tmpdir(), `stamp-check-${Date.now()}`);
     mkdirSync(testDest, { recursive: true });
-    const armRecipe = { arch: 'arm', state_hash: 'hash-arm', version: '1.0', revision: 0, epoch: 0 };
-    const x86Recipe = { arch: 'x86_64', state_hash: 'hash-x86', version: '1.0', revision: 0, epoch: 0 };
-    const allRecipe = { arch: 'all', state_hash: 'hash-all', version: '1.0', revision: 0, epoch: 0 };
+    const armRecipe = {
+      arch: 'arm',
+      state_hash: 'hash-arm',
+      version: '1.0',
+      revision: 0,
+      epoch: 0,
+    };
+    const x86Recipe = {
+      arch: 'x86_64',
+      state_hash: 'hash-x86',
+      version: '1.0',
+      revision: 0,
+      epoch: 0,
+    };
+    const allRecipe = {
+      arch: 'all',
+      state_hash: 'hash-all',
+      version: '1.0',
+      revision: 0,
+      epoch: 0,
+    };
     try {
-      writeFileSync(join(testDest, '.compile_success'), JSON.stringify(buildCompileStamp(armRecipe)));
+      writeFileSync(
+        join(testDest, '.compile_success'),
+        JSON.stringify(buildCompileStamp(armRecipe)),
+      );
       expect(validateCompileStamp(testDest, armRecipe).valid).toBeTrue();
       const mismatch = validateCompileStamp(testDest, x86Recipe);
       expect(mismatch.valid).toBeFalse();
       expect(mismatch.archMismatch).toBeTrue();
 
       // arch: all with concrete architecture validation
-      writeFileSync(join(testDest, '.compile_success'), JSON.stringify(buildCompileStamp(allRecipe, undefined, 'arm')));
+      writeFileSync(
+        join(testDest, '.compile_success'),
+        JSON.stringify(buildCompileStamp(allRecipe, undefined, 'arm')),
+      );
       expect(validateCompileStamp(testDest, allRecipe, undefined, 'arm').valid).toBeTrue();
       const allMismatch = validateCompileStamp(testDest, allRecipe, undefined, 'aarch64');
       expect(allMismatch.valid).toBeFalse();

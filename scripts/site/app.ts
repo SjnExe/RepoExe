@@ -137,7 +137,8 @@ const copyBtn = document.getElementById('copyBtn');
 if (copyBtn) {
   copyBtn.addEventListener('click', () => {
     const cmd =
-      document.getElementById('installCmd')?.innerText ?? 'curl -sL https://sjnexe.github.io/RepoExe/install | sh';
+      document.getElementById('installCmd')?.innerText ??
+      'curl -sL https://sjnexe.github.io/RepoExe/install | sh';
     copyText(cmd, copyBtn).catch(() => {});
   });
 }
@@ -167,7 +168,11 @@ function renderDependencyTag(depName: string, variant?: 'internal' | 'warning'):
   return `<a href="https://github.com/termux/termux-packages/tree/master/packages/${encodeURIComponent(packageName)}" target="_blank" rel="noopener" class="dep-pill external" title="Official Termux upstream package">${escapeHtml(clean)} <span class="ext-arrow">↗</span></a>`;
 }
 
-function renderRelationSection(title: string, items?: string[], variant: 'internal' | 'warning' = 'internal'): string {
+function renderRelationSection(
+  title: string,
+  items?: string[],
+  variant: 'internal' | 'warning' = 'internal',
+): string {
   if (!items || items.length === 0) return '';
   return `
     <div class="relation-block">
@@ -191,10 +196,17 @@ function renderCatalog(): void {
 
   const filtered = packagesData.filter((pkg) => {
     const pkgIface = (pkg.interface || (pkg.component === 'gui' ? 'gui' : 'cli')).toLowerCase();
-    if (activeInterfaceFilter !== 'all' && pkgIface !== activeInterfaceFilter && pkgIface !== 'both') {
+    if (
+      activeInterfaceFilter !== 'all' &&
+      pkgIface !== activeInterfaceFilter &&
+      pkgIface !== 'both'
+    ) {
       return false;
     }
-    if (activeSectionFilter !== 'all' && (pkg.section || '').toLowerCase() !== activeSectionFilter.toLowerCase()) {
+    if (
+      activeSectionFilter !== 'all' &&
+      (pkg.section || '').toLowerCase() !== activeSectionFilter.toLowerCase()
+    ) {
       return false;
     }
     if (!search) return true;
@@ -202,10 +214,14 @@ function renderCatalog(): void {
     const descMatch = pkg.description?.toLowerCase().includes(search);
     const archMatch = pkg.arch?.toLowerCase().includes(search);
     const sectionMatch = pkg.section?.toLowerCase().includes(search);
-    const tagsMatch = Array.isArray(pkg.tags) && pkg.tags.some((t) => t.toLowerCase().includes(search));
-    const depsMatch = Array.isArray(pkg.deps) && pkg.deps.some((d) => d.toLowerCase().includes(search));
+    const tagsMatch =
+      Array.isArray(pkg.tags) && pkg.tags.some((t) => t.toLowerCase().includes(search));
+    const depsMatch =
+      Array.isArray(pkg.deps) && pkg.deps.some((d) => d.toLowerCase().includes(search));
     const licenseMatch = pkg.license?.toLowerCase().includes(search);
-    return nameMatch || descMatch || archMatch || sectionMatch || tagsMatch || depsMatch || licenseMatch;
+    return (
+      nameMatch || descMatch || archMatch || sectionMatch || tagsMatch || depsMatch || licenseMatch
+    );
   });
 
   if (pkgCount) {
@@ -223,12 +239,15 @@ function renderCatalog(): void {
 
   grid.innerHTML = filtered
     .map((pkg) => {
-      const verStr = pkg.version ? `v${pkg.version}${pkg.revision && pkg.revision > 0 ? '-' + pkg.revision : ''}` : '';
+      const verStr = pkg.version
+        ? `v${pkg.version}${pkg.revision && pkg.revision > 0 ? '-' + pkg.revision : ''}`
+        : '';
       const desc = pkg.description || 'RepoExe compiled Termux package';
       const downloads = pkg.total_downloads ?? 0;
       const assets = pkg.assets || [];
       const hasMultiArch = assets.length > 1;
-      const archList = assets.length > 0 ? assets.map((a) => a.arch).join(', ') : pkg.arch || 'aarch64';
+      const archList =
+        assets.length > 0 ? assets.map((a) => a.arch).join(', ') : pkg.arch || 'aarch64';
       const firstAsset = assets[0];
       const defaultArch = firstAsset?.arch || pkg.arch || 'aarch64';
       const sizeStr = firstAsset?.size_formatted || '';
@@ -325,10 +344,17 @@ function renderDetailPage(pkgName: string): void {
     return;
   }
 
-  const verStr = pkg.version ? `v${pkg.version}${pkg.revision && pkg.revision > 0 ? '-' + pkg.revision : ''}` : '';
-  const uploadersList = Array.isArray(pkg.uploaders) ? pkg.uploaders : pkg.uploaders ? [pkg.uploaders] : [];
+  const verStr = pkg.version
+    ? `v${pkg.version}${pkg.revision && pkg.revision > 0 ? '-' + pkg.revision : ''}`
+    : '';
+  const uploadersList = Array.isArray(pkg.uploaders)
+    ? pkg.uploaders
+    : pkg.uploaders
+      ? [pkg.uploaders]
+      : [];
 
-  const uploadersHtml = uploadersList.length > 0 ? uploadersList.map(formatUser).join(', ') : 'None';
+  const uploadersHtml =
+    uploadersList.length > 0 ? uploadersList.map(formatUser).join(', ') : 'None';
 
   const assets =
     pkg.assets && pkg.assets.length > 0
@@ -590,7 +616,8 @@ document.addEventListener('click', (e) => {
 // Keyboard shortcut '/' or 'Ctrl+K' to focus search
 window.addEventListener('keydown', (e: KeyboardEvent) => {
   const isSearchShortcut =
-    (e.key === '/' && document.activeElement !== searchEl) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k');
+    (e.key === '/' && document.activeElement !== searchEl) ||
+    ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k');
 
   if (isSearchShortcut) {
     e.preventDefault();

@@ -2,7 +2,11 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { extractDebArch, formatDebianFilenameVersion, getDebMultiArch } from '../builders/debian.ts';
+import {
+  extractDebArch,
+  formatDebianFilenameVersion,
+  getDebMultiArch,
+} from '../builders/debian.ts';
 import {
   CANONICAL_ARCHES,
   type DependencyToken,
@@ -15,7 +19,11 @@ import { parseFilenameDebVersion } from '../core/fetcher.ts';
 import { parseRecipe } from '../core/parser.ts';
 import { getSubpackageNames } from '../core/subpkg.ts';
 import type { PackageRecipe, SubpackageDefinition } from '../core/types.ts';
-import { compareDebianVersions, formatDebianVersion, satisfiesVersionConstraint } from '../core/version.ts';
+import {
+  compareDebianVersions,
+  formatDebianVersion,
+  satisfiesVersionConstraint,
+} from '../core/version.ts';
 import { DependencyGraph } from '../utils/dag.ts';
 
 export function getExpectedAssetFilenames(recipe: PackageRecipe): Set<string> {
@@ -195,13 +203,19 @@ export function isPackageReleaseTag(rel: ReleaseRecord, pkgsDir: string): boolea
     try {
       const recipe = parseRecipe(recipePath);
       const subNames = getSubpackageNames(recipe);
-      if (assets.some((a) => a.name?.endsWith('.deb') && subNames.some((sub) => a.name?.startsWith(`${sub}_`)))) {
+      if (
+        assets.some(
+          (a) => a.name?.endsWith('.deb') && subNames.some((sub) => a.name?.startsWith(`${sub}_`)),
+        )
+      ) {
         return true;
       }
     } catch {}
   } else {
     // Recipe is absent: require positive publisher-written ownership metadata before classifying child-only releases
-    const ownership = parseReleaseOwnershipMetadata(typeof rel.body === 'string' ? rel.body : undefined);
+    const ownership = parseReleaseOwnershipMetadata(
+      typeof rel.body === 'string' ? rel.body : undefined,
+    );
     if (ownership.managedByRepoExe && (!ownership.ownerName || ownership.ownerName === tag)) {
       if (
         ownership.ownedPackages.size > 0 &&
@@ -232,7 +246,9 @@ export function isPackageReleaseTag(rel: ReleaseRecord, pkgsDir: string): boolea
 
 function getPublicationBranchRecipeInventory(): Set<string> | null {
   try {
-    const res = spawnSync('git', ['ls-tree', '--name-only', 'origin/main', 'pkg/'], { encoding: 'utf-8' });
+    const res = spawnSync('git', ['ls-tree', '--name-only', 'origin/main', 'pkg/'], {
+      encoding: 'utf-8',
+    });
     if (res.status === 0 && res.stdout) {
       const set = new Set<string>();
       for (const line of res.stdout.split('\n')) {
@@ -401,7 +417,11 @@ interface DepRequirement {
   isAny?: boolean;
 }
 
-function collectDepRequirements(depStrings: string[], emittedPkgs: Set<string>, targetArch?: string): DepRequirement[] {
+function collectDepRequirements(
+  depStrings: string[],
+  emittedPkgs: Set<string>,
+  targetArch?: string,
+): DepRequirement[] {
   const reqs: DepRequirement[] = [];
   if (!depStrings || depStrings.length === 0) {
     return reqs;
@@ -412,7 +432,8 @@ function collectDepRequirements(depStrings: string[], emittedPkgs: Set<string>, 
       const depPkg = token.name.split(':')[0].trim();
       if (emittedPkgs.has(depPkg)) {
         const isAny = token.multiArch === 'any' || token.name.endsWith(':any');
-        const effectiveReqArch = token.multiArch && !isAny ? normalizeArch(token.multiArch) : targetArch;
+        const effectiveReqArch =
+          token.multiArch && !isAny ? normalizeArch(token.multiArch) : targetArch;
         reqs.push({
           name: depPkg,
           constraint: token.versionConstraint,
@@ -457,7 +478,10 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
   for (const asset of assets) {
     const name = asset.name || '';
     if (whitelist.has(name) && name.endsWith('.deb')) {
-      if ((asset as { state?: string }).state && (asset as { state?: string }).state !== 'uploaded') {
+      if (
+        (asset as { state?: string }).state &&
+        (asset as { state?: string }).state !== 'uploaded'
+      ) {
         continue;
       }
       replacedPkgArches.add(`${debPackageName(name)}:${extractDebArch(name)}`);
@@ -512,7 +536,8 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
 
   const requiredParentArches = new Set<string>(parentArches);
   if (hasOldAllParent && !replacedPkgArches.has(`${recipe.name}:all`)) {
-    const parentTargetArches = recipe.arches && recipe.arches.length > 0 ? recipe.arches : [recipe.arch || 'aarch64'];
+    const parentTargetArches =
+      recipe.arches && recipe.arches.length > 0 ? recipe.arches : [recipe.arch || 'aarch64'];
     for (const a of parentTargetArches) {
       if (a !== 'all') {
         requiredParentArches.add(normalizeArch(a));
@@ -526,7 +551,8 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
       ? Array.from(requiredParentArches).every((a) => replacedPkgArches.has(`${recipe.name}:${a}`))
       : !hasOldAllParent);
 
-  const normArch = (a?: string): string => (!a || a === 'all' ? 'all' : a === 'arm64' ? 'aarch64' : a);
+  const normArch = (a?: string): string =>
+    !a || a === 'all' ? 'all' : a === 'arm64' ? 'aarch64' : a;
 
   const currentParentVer = formatDebianVersion(recipe);
 
@@ -543,18 +569,23 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
     }
 
     const subDef = recipe.subpackages
-      ? (Object.values(recipe.subpackages).find((s) => s && (s as SubpackageDefinition).name === pkg) as
-          SubpackageDefinition | undefined)
+      ? (Object.values(recipe.subpackages).find(
+          (s) => s && (s as SubpackageDefinition).name === pkg,
+        ) as SubpackageDefinition | undefined)
       : undefined;
 
     if (arch === 'all') {
-      return (!childHasParentDependency(subDef) || parentFullyPublished) && replacedPkgArches.has(`${pkg}:all`);
+      return (
+        (!childHasParentDependency(subDef) || parentFullyPublished) &&
+        replacedPkgArches.has(`${pkg}:all`)
+      );
     }
 
     if (replacedPkgArches.has(`${pkg}:all`)) {
       if (childHasParentDependency(subDef)) {
         const parentCoversArch =
-          replacedPkgArches.has(`${recipe.name}:all`) || replacedPkgArches.has(`${recipe.name}:${arch}`);
+          replacedPkgArches.has(`${recipe.name}:all`) ||
+          replacedPkgArches.has(`${recipe.name}:${arch}`);
         if (!parentCoversArch) {
           return false;
         }
@@ -570,7 +601,10 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
               replacedPkgArches.has(`${tokName}:all`) ||
               replacedPkgArches.has(`${tokName}:${arch}`)
             ) {
-              return replacedPkgArches.has(`${tokName}:all`) || replacedPkgArches.has(`${tokName}:${arch}`);
+              return (
+                replacedPkgArches.has(`${tokName}:all`) ||
+                replacedPkgArches.has(`${tokName}:${arch}`)
+              );
             }
             return true;
           });
@@ -609,7 +643,11 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
   const activeRequirements: DepRequirement[] = [];
   if (Array.isArray(recipe.deps)) {
     activeRequirements.push(
-      ...collectDepRequirements(recipe.deps, allTrackedNames, recipe.arch === 'all' ? 'all' : recipe.arch || 'aarch64'),
+      ...collectDepRequirements(
+        recipe.deps,
+        allTrackedNames,
+        recipe.arch === 'all' ? 'all' : recipe.arch || 'aarch64',
+      ),
     );
   }
 
@@ -619,12 +657,18 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
         continue;
       }
       const childArch =
-        (subDef as SubpackageDefinition).arch || (recipe.arch === 'all' ? 'all' : recipe.arch || 'aarch64');
+        (subDef as SubpackageDefinition).arch ||
+        (recipe.arch === 'all' ? 'all' : recipe.arch || 'aarch64');
       if (Array.isArray(subDef.deps)) {
         activeRequirements.push(...collectDepRequirements(subDef.deps, allTrackedNames, childArch));
       }
-      if (typeof subDef.parent_dep === 'string' && !['exact', 'same-version', 'none'].includes(subDef.parent_dep)) {
-        activeRequirements.push(...collectDepRequirements([subDef.parent_dep], allTrackedNames, childArch));
+      if (
+        typeof subDef.parent_dep === 'string' &&
+        !['exact', 'same-version', 'none'].includes(subDef.parent_dep)
+      ) {
+        activeRequirements.push(
+          ...collectDepRequirements([subDef.parent_dep], allTrackedNames, childArch),
+        );
       }
     }
   }
@@ -650,14 +694,17 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
       }
       if (Array.isArray(otherRecipe.build_deps)) {
         for (const cArch of consumerArches) {
-          activeRequirements.push(...collectDepRequirements(otherRecipe.build_deps, allTrackedNames, cArch));
+          activeRequirements.push(
+            ...collectDepRequirements(otherRecipe.build_deps, allTrackedNames, cArch),
+          );
         }
       }
       if (otherRecipe.subpackages) {
         for (const sDef of Object.values(otherRecipe.subpackages)) {
           if (sDef && typeof sDef === 'object') {
             const rawSubArch = (sDef as SubpackageDefinition).arch;
-            const subArches = rawSubArch === 'all' ? ['all'] : rawSubArch ? [rawSubArch] : consumerArches;
+            const subArches =
+              rawSubArch === 'all' ? ['all'] : rawSubArch ? [rawSubArch] : consumerArches;
 
             const childPubDeps = (sDef as { publishedDeps?: string[] }).publishedDeps;
             const childDeps = Array.isArray(childPubDeps)
@@ -674,7 +721,9 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
 
             if (childDeps.length > 0) {
               for (const cArch of subArches) {
-                activeRequirements.push(...collectDepRequirements(childDeps, allTrackedNames, cArch));
+                activeRequirements.push(
+                  ...collectDepRequirements(childDeps, allTrackedNames, cArch),
+                );
               }
             }
           }
@@ -728,7 +777,11 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
           (recipe as { multiarch?: string; multi_arch?: string }).multi_arch;
       } else if (recipe.subpackages) {
         for (const [sKey, sDef] of Object.entries(recipe.subpackages)) {
-          if (sDef && typeof sDef === 'object' && ((sDef as SubpackageDefinition).name || sKey) === pkg) {
+          if (
+            sDef &&
+            typeof sDef === 'object' &&
+            ((sDef as SubpackageDefinition).name || sKey) === pkg
+          ) {
             candMultiArch =
               (sDef as { multiarch?: string; multi_arch?: string }).multiarch ||
               (sDef as { multiarch?: string; multi_arch?: string }).multi_arch;
@@ -824,8 +877,9 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
         (asset as { owner?: string }).owner === recipe.name
       ) {
         const subDef = recipe.subpackages
-          ? (Object.values(recipe.subpackages).find((s) => s && (s as SubpackageDefinition).name === pkg) as
-              SubpackageDefinition | undefined)
+          ? (Object.values(recipe.subpackages).find(
+              (s) => s && (s as SubpackageDefinition).name === pkg,
+            ) as SubpackageDefinition | undefined)
           : undefined;
         const assetDeps = (asset as { depends?: string[] | string }).depends;
         if (assetDeps) {
@@ -836,8 +890,13 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
             activeRequirements.push(...collectDepRequirements(subDef.deps, allTrackedNames, arch));
           }
           const op = subDef.parent_dep === 'same-version' ? '>=' : '=';
-          if (typeof subDef.parent_dep === 'string' && !['exact', 'same-version', 'none'].includes(subDef.parent_dep)) {
-            activeRequirements.push(...collectDepRequirements([subDef.parent_dep], allTrackedNames, arch));
+          if (
+            typeof subDef.parent_dep === 'string' &&
+            !['exact', 'same-version', 'none'].includes(subDef.parent_dep)
+          ) {
+            activeRequirements.push(
+              ...collectDepRequirements([subDef.parent_dep], allTrackedNames, arch),
+            );
           } else if (childHasParentDependency(subDef)) {
             if (arch === 'all') {
               if (parentArches.size > 0) {
@@ -1006,7 +1065,9 @@ export function identifyOutdatedAssets<T extends ReleaseAssetRecord = ReleaseAss
     } else if (name.endsWith('_metadata.json')) {
       const base = name.slice(0, -'_metadata.json'.length);
       let metaPkg = base;
-      const match = base.match(/^(.*?)(?:_(aarch64|arm64|x86_64|amd64|arm|armhf|armel|armv7|i686|i386|all))?$/i);
+      const match = base.match(
+        /^(.*?)(?:_(aarch64|arm64|x86_64|amd64|arm|armhf|armel|armv7|i686|i386|all))?$/i,
+      );
       if (match && match[2] && CANONICAL_ARCHES.has(normalizeArch(match[2]))) {
         metaPkg = match[1];
       }
@@ -1040,10 +1101,14 @@ export async function pruneReleaseTags(): Promise<void> {
     return;
   }
 
-  const releasesRes = spawnSync('gh', ['api', '--paginate', '--slurp', `repos/${owner}/${repoName}/releases`], {
-    encoding: 'utf-8',
-    maxBuffer: 20 * 1024 * 1024,
-  });
+  const releasesRes = spawnSync(
+    'gh',
+    ['api', '--paginate', '--slurp', `repos/${owner}/${repoName}/releases`],
+    {
+      encoding: 'utf-8',
+      maxBuffer: 20 * 1024 * 1024,
+    },
+  );
   if (releasesRes.status !== 0) {
     console.log(`Failed to fetch releases: ${releasesRes.stderr}`);
     return;
@@ -1053,7 +1118,9 @@ export async function pruneReleaseTags(): Promise<void> {
   try {
     releases = parsePaginatedGhJsonArray(releasesRes.stdout);
   } catch (e) {
-    console.error(`::error:: Failed to parse paginated releases JSON: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(
+      `::error:: Failed to parse paginated releases JSON: ${e instanceof Error ? e.message : String(e)}`,
+    );
     return;
   }
 
@@ -1083,7 +1150,9 @@ export async function pruneReleaseTags(): Promise<void> {
       return;
     }
   } else {
-    console.error(`::error:: Package directory ${pkgsDir} does not exist or is unavailable. Aborting asset pruning.`);
+    console.error(
+      `::error:: Package directory ${pkgsDir} does not exist or is unavailable. Aborting asset pruning.`,
+    );
     return;
   }
 
@@ -1105,10 +1174,14 @@ export async function pruneReleaseTags(): Promise<void> {
       try {
         const recipe = parseRecipe(recipePath);
         const whitelist = getExpectedAssetFilenames(recipe);
-        const hasCurrentDebInRelease = assets.some((a: any) => whitelist.has(a.name || '') && a.name?.endsWith('.deb'));
+        const hasCurrentDebInRelease = assets.some(
+          (a: any) => whitelist.has(a.name || '') && a.name?.endsWith('.deb'),
+        );
 
         if (!hasCurrentDebInRelease) {
-          console.log(`Notice: Preserving existing assets for ${tag} until replacement is confirmed on release.`);
+          console.log(
+            `Notice: Preserving existing assets for ${tag} until replacement is confirmed on release.`,
+          );
           continue;
         }
 
@@ -1119,7 +1192,8 @@ export async function pruneReleaseTags(): Promise<void> {
               tag,
               name: asset.name,
               assetId: asset.id,
-              requiredParentArches: (asset as { requiredParentArches?: string[] }).requiredParentArches,
+              requiredParentArches: (asset as { requiredParentArches?: string[] })
+                .requiredParentArches,
             });
           }
         }
@@ -1160,9 +1234,13 @@ export async function pruneReleaseTags(): Promise<void> {
     console.log(`🗑️ Found ${deletionTasks.length} outdated asset(s) to prune...`);
     for (const task of deletionTasks) {
       // Re-verify that replacement assets still exist on release before deleting (Thread #6, #7, #8)
-      const currentReleaseView = spawnSync('gh', ['release', 'view', task.tag, '--json', 'assets'], {
-        encoding: 'utf-8',
-      });
+      const currentReleaseView = spawnSync(
+        'gh',
+        ['release', 'view', task.tag, '--json', 'assets'],
+        {
+          encoding: 'utf-8',
+        },
+      );
       if (currentReleaseView.status !== 0 || !currentReleaseView.stdout) {
         console.warn(
           `::warning:: Skipping deletion of '${task.name}' on '${task.tag}': failed to query live release assets.`,
@@ -1211,7 +1289,9 @@ export async function pruneReleaseTags(): Promise<void> {
               const recipe = allRecipes[task.tag];
               if (recipe) {
                 const parentTargetArches =
-                  recipe.arches && recipe.arches.length > 0 ? recipe.arches : [recipe.arch || 'aarch64'];
+                  recipe.arches && recipe.arches.length > 0
+                    ? recipe.arches
+                    : [recipe.arch || 'aarch64'];
                 for (const a of parentTargetArches) {
                   if (a !== 'all') {
                     requiredParentArches.add(normalizeArch(a));

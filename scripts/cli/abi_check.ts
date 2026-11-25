@@ -2,7 +2,12 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 
-import { type DependencyClause, filterDepsForArch, normalizeArch, parseDependencyList } from '../core/dependencies.ts';
+import {
+  type DependencyClause,
+  filterDepsForArch,
+  normalizeArch,
+  parseDependencyList,
+} from '../core/dependencies.ts';
 import { loadTermuxIndex } from '../core/fetcher.ts';
 import { parseRecipe } from '../core/parser.ts';
 import type { PackageRecipe } from '../core/types.ts';
@@ -39,7 +44,9 @@ function getGitHubHeaders(): Record<string, string> {
   return headers;
 }
 
-export function getBestTermuxEntry(entries: Record<string, string>[] | undefined): Record<string, string> | null {
+export function getBestTermuxEntry(
+  entries: Record<string, string>[] | undefined,
+): Record<string, string> | null {
   if (!entries || entries.length === 0) {
     return null;
   }
@@ -156,7 +163,10 @@ async function fetchReleaseAbiMetadata(pkgName: string): Promise<ReleaseAbiMetad
   const repoSlug = process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
   const url = `https://api.github.com/repos/${repoSlug}/releases/tags/${pkgName}`;
   try {
-    const resp = await fetch(url, { headers: getGitHubHeaders(), signal: AbortSignal.timeout(8_000) });
+    const resp = await fetch(url, {
+      headers: getGitHubHeaders(),
+      signal: AbortSignal.timeout(8_000),
+    });
     if (!resp.ok) {
       return null;
     }
@@ -205,7 +215,10 @@ async function inspectTermuxDebSonames(
   }
 
   const url = `${pkg.baseUrl.replace(/\/+$/, '')}/${pkg.filename.replace(/^\/+/, '')}`;
-  const workDir = join(process.env.TMPDIR || tmpdir(), `abi_deb_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const workDir = join(
+    process.env.TMPDIR || tmpdir(),
+    `abi_deb_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+  );
   mkdirSync(workDir, { recursive: true });
   const debPath = join(workDir, `${pkg.name}.deb`);
 
@@ -269,7 +282,9 @@ export async function runAbiCheck(jsonOutput: boolean = false): Promise<AbiRevbu
   }
 
   if (!jsonOutput) {
-    console.log(`Checking ABI SONAMEs for ${releaseMetaMap.size}/${recipes.length} tracked packages...`);
+    console.log(
+      `Checking ABI SONAMEs for ${releaseMetaMap.size}/${recipes.length} tracked packages...`,
+    );
   }
 
   const indexCache = new Map<string, Record<string, Record<string, string>[]>>();
@@ -337,7 +352,11 @@ export async function runAbiCheck(jsonOutput: boolean = false): Promise<AbiRevbu
           name: recipe.name,
           oldRevision,
           newRevision: oldRevision + 1,
-          heavy: Boolean(recipe.heavy_build || (recipe.resources?.swap ?? 0) > 0 || (recipe.resources?.zram ?? 0) > 0),
+          heavy: Boolean(
+            recipe.heavy_build ||
+            (recipe.resources?.swap ?? 0) > 0 ||
+            (recipe.resources?.zram ?? 0) > 0,
+          ),
           arch: checkArch,
           missingSonames,
           changedDeps: changedDeps.map((d) => `${d.name}: ${d.oldVersion} -> ${d.newVersion}`),

@@ -41,7 +41,9 @@ export function isDebArchCompatible(fileOrArch: string, targetArch: string): boo
   const normTarget = normalizeArch(targetArch);
   let arch = fileOrArch;
   if (fileOrArch.endsWith('.deb')) {
-    const match = fileOrArch.match(/_(aarch64|arm64|x86_64|amd64|arm|armhf|armel|armv7|i686|i386|all)\.deb$/i);
+    const match = fileOrArch.match(
+      /_(aarch64|arm64|x86_64|amd64|arm|armhf|armel|armv7|i686|i386|all)\.deb$/i,
+    );
     if (match) {
       arch = match[1];
     } else {
@@ -181,7 +183,10 @@ export function matchArchWildcard(pattern: string, normTarget: string): boolean 
   return false;
 }
 
-export function filterDepsForArch(clauses: DependencyClause[], targetArch: string): DependencyClause[] {
+export function filterDepsForArch(
+  clauses: DependencyClause[],
+  targetArch: string,
+): DependencyClause[] {
   const normTarget = normalizeArch(targetArch);
   const result: DependencyClause[] = [];
 
@@ -192,7 +197,9 @@ export function filterDepsForArch(clauses: DependencyClause[], targetArch: strin
       if (!token.architectures || token.architectures.length === 0 || normTarget === 'all') {
         matchedTokens.push({ ...token, architectures: undefined, negatedArch: undefined });
       } else {
-        const matches = token.architectures.some((archPattern) => matchArchWildcard(archPattern, normTarget));
+        const matches = token.architectures.some((archPattern) =>
+          matchArchWildcard(archPattern, normTarget),
+        );
         const include = token.negatedArch ? !matches : matches;
         if (include) {
           matchedTokens.push({ ...token, architectures: undefined, negatedArch: undefined });
@@ -215,7 +222,9 @@ export function formatDebianDependency(clauses: DependencyClause[]): string {
         .map((t) => {
           const maArch = t.multiArch === 'x86_64' ? 'amd64' : t.multiArch;
           const ma = maArch ? `:${maArch}` : '';
-          const ver = t.versionConstraint ? ` (${t.versionConstraint.operator} ${t.versionConstraint.version})` : '';
+          const ver = t.versionConstraint
+            ? ` (${t.versionConstraint.operator} ${t.versionConstraint.version})`
+            : '';
           return `${t.name}${ma}${ver}`;
         })
         .join(' | '),

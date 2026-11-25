@@ -575,7 +575,9 @@ test('DependencyGraph rejects alternatives in Provides, arch-restricted Provides
   expect(dag.rejectedRecipes['recovered']).toBe('previous invalid Provides');
 
   // Valid registration clears stale rejection
-  dag.registerRecipe(createRecipe({ name: 'recovered', version: '1.0', provides: ['good-a, good-b (= 2)'] }));
+  dag.registerRecipe(
+    createRecipe({ name: 'recovered', version: '1.0', provides: ['good-a, good-b (= 2)'] }),
+  );
   expect(dag.rejectedRecipes['recovered']).toBeUndefined();
   expect(dag.resolveBuildOrder(['recovered'])).toEqual(['recovered']);
   expect(dag.getLayers(['recovered'])).toEqual([['recovered']]);
@@ -1144,8 +1146,12 @@ test('DependencyGraph ties provided version to provider and preserves external a
     }),
   );
 
-  expect(dag.canOwnerSatisfyDep('a-owner', 'sample-api', { operator: '>=', version: '2' })).toBeFalse();
-  expect(dag.canOwnerSatisfyDep('old-provider', 'sample-api', { operator: '>=', version: '2' })).toBeTrue();
+  expect(
+    dag.canOwnerSatisfyDep('a-owner', 'sample-api', { operator: '>=', version: '2' }),
+  ).toBeFalse();
+  expect(
+    dag.canOwnerSatisfyDep('old-provider', 'sample-api', { operator: '>=', version: '2' }),
+  ).toBeTrue();
   const clauses = dag.getRecipeDepClauses(dag.recipes['a-owner']);
   expect(clauses.some((clause) => clause.includes('z-helper'))).toBeTrue();
 });
@@ -1212,7 +1218,11 @@ test('DependencyGraph checks required version before marking build alternative r
   expect(order).toContain('a-app');
   expect(order.indexOf('b-kit')).toBeLessThan(order.indexOf('z-bootstrap'));
   expect(order.indexOf('z-bootstrap')).toBeLessThan(order.indexOf('a-app'));
-  expect(dag.getLayers(['b-kit', 'z-bootstrap', 'a-app'])).toEqual([['b-kit'], ['z-bootstrap'], ['a-app']]);
+  expect(dag.getLayers(['b-kit', 'z-bootstrap', 'a-app'])).toEqual([
+    ['b-kit'],
+    ['z-bootstrap'],
+    ['a-app'],
+  ]);
 });
 
 test('DependencyGraph alias removal removes only aliases of previous owner without prefix collisions', (): void => {
@@ -1350,7 +1360,9 @@ test('Finding #9: getLayers does not let arch-incompatible local recipe unlock c
       provides: ['libapi (= 1.0)'],
     }),
   );
-  dag.registerRecipe(createRecipe({ name: 'app', version: '1.0', arch: 'aarch64', deps: ['libapi'] }));
+  dag.registerRecipe(
+    createRecipe({ name: 'app', version: '1.0', arch: 'aarch64', deps: ['libapi'] }),
+  );
 
   const layers = dag.getLayers(['libapi', 'prereq', 'libapi-aarch64', 'app'], 'aarch64');
   expect(layers).toEqual([['libapi', 'prereq'], ['libapi-aarch64'], ['app']]);
@@ -1367,7 +1379,9 @@ test('Finding #9: resolveBuildOrder preserves topological order when local alter
       deps: ['local-old (>= 2.0) | upstream-fallback'],
     }),
   );
-  dag.registerRecipe(createRecipe({ name: 'a-consumer', version: '1.0', arch: 'aarch64', deps: ['z-mid'] }));
+  dag.registerRecipe(
+    createRecipe({ name: 'a-consumer', version: '1.0', arch: 'aarch64', deps: ['z-mid'] }),
+  );
 
   const order = dag.resolveBuildOrder(['a-consumer', 'z-mid', 'local-old'], 'aarch64');
   // Without fix, z-mid deadlocks and leftovers sort alphabetically (a-consumer before z-mid)
@@ -1377,8 +1391,12 @@ test('Finding #9: resolveBuildOrder preserves topological order when local alter
 test('Thread #28: keeps compatible providers in execution plan while preferring concrete package', (): void => {
   const dag = new DependencyGraph('pkg');
   dag.registerRecipe(createRecipe({ name: 'sdk', version: '2', arch: 'aarch64' }));
-  dag.registerRecipe(createRecipe({ name: 'z-sdk-compat', version: '2', arch: 'aarch64', provides: ['sdk (= 2)'] }));
-  dag.registerRecipe(createRecipe({ name: 'a-app', version: '1', arch: 'aarch64', deps: ['sdk (>= 2)'] }));
+  dag.registerRecipe(
+    createRecipe({ name: 'z-sdk-compat', version: '2', arch: 'aarch64', provides: ['sdk (= 2)'] }),
+  );
+  dag.registerRecipe(
+    createRecipe({ name: 'a-app', version: '1', arch: 'aarch64', deps: ['sdk (>= 2)'] }),
+  );
 
   const targets = dag.getRecipeDepTargets(dag.recipes['a-app'], 'aarch64');
   expect(targets).toHaveLength(1);
@@ -1433,7 +1451,9 @@ test('canOwnerSatisfyDep resolves unnamed subpackage children by record key', ()
     (recipe.subpackages['unnamed-child'] as { name?: string }).name = undefined;
   }
   dag.registerRecipe(recipe);
-  expect(dag.canOwnerSatisfyDep('parent-pkg', 'unnamed-child', undefined, undefined, 'arm')).toBeTrue();
+  expect(
+    dag.canOwnerSatisfyDep('parent-pkg', 'unnamed-child', undefined, undefined, 'arm'),
+  ).toBeTrue();
 });
 
 test('getRecipeDepTargets respects includeRuntime parameter', (): void => {
@@ -1448,11 +1468,25 @@ test('getRecipeDepTargets respects includeRuntime parameter', (): void => {
       deps: ['r-dep'],
     }),
   );
-  const buildOnly = dag.getRecipeDepTargets(dag.recipes['main-pkg'], 'aarch64', false, undefined, false, false);
+  const buildOnly = dag.getRecipeDepTargets(
+    dag.recipes['main-pkg'],
+    'aarch64',
+    false,
+    undefined,
+    false,
+    false,
+  );
   expect(buildOnly).toHaveLength(1);
   expect(buildOnly[0][0].name).toBe('b-dep');
 
-  const withRuntime = dag.getRecipeDepTargets(dag.recipes['main-pkg'], 'aarch64', false, undefined, false, true);
+  const withRuntime = dag.getRecipeDepTargets(
+    dag.recipes['main-pkg'],
+    'aarch64',
+    false,
+    undefined,
+    false,
+    true,
+  );
   expect(withRuntime).toHaveLength(2);
 });
 
@@ -1546,7 +1580,9 @@ test('Thread #24: ownerProducesDep rejects unversioned provider record when vers
   // Without version constraint, it produces
   expect(dag.ownerProducesDep('kit', 'sdk', 'aarch64')).toBeTrue();
   // With version constraint, unversioned provides is rejected
-  expect(dag.ownerProducesDep('kit', 'sdk', 'aarch64', { operator: '>=', version: '2.0' })).toBeFalse();
+  expect(
+    dag.ownerProducesDep('kit', 'sdk', 'aarch64', { operator: '>=', version: '2.0' }),
+  ).toBeFalse();
 });
 
 test('Thread #25: getRecipeDepTargets does not inherit owner version for bare provides', (): void => {
@@ -1775,7 +1811,13 @@ test('Finding #14: self-satisfaction does not suppress alternative when child do
   );
 
   // On an aarch64 build, parent-pkg does not emit self-tools:arm, so z-helper must not be dropped
-  const targets = dag.getRecipeDepTargets(dag.recipes['parent-pkg'], 'aarch64', true, undefined, false);
+  const targets = dag.getRecipeDepTargets(
+    dag.recipes['parent-pkg'],
+    'aarch64',
+    true,
+    undefined,
+    false,
+  );
   const flatTargets = targets.flat();
   const hasZHelper = flatTargets.some((t) => t.name === 'z-helper');
   expect(hasZHelper).toBe(true);

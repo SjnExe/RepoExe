@@ -54,7 +54,11 @@ test('parses alternative dependencies', () => {
 });
 
 test('filters architecture-specific dependencies', () => {
-  const raw = ['vulkan-loader [aarch64 x86_64]', 'simdutf [!i686]', 'openblas [aarch64] | atlas [x86_64] | lapack'];
+  const raw = [
+    'vulkan-loader [aarch64 x86_64]',
+    'simdutf [!i686]',
+    'openblas [aarch64] | atlas [x86_64] | lapack',
+  ];
   const clauses = parseDependencyList(raw);
 
   // Evaluated for aarch64
@@ -141,7 +145,10 @@ test('retireCandidateConstraints removes obsolete constraints owned by replaced 
 });
 
 function createMinimalDebBuffer(pkgName: string, version: string, arch: string): Buffer {
-  const tmp = join(process.env.TMPDIR || tmpdir(), `mkdeb-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const tmp = join(
+    process.env.TMPDIR || tmpdir(),
+    `mkdeb-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
   const root = join(tmp, 'root');
   mkdirSync(join(root, 'DEBIAN'), { recursive: true });
   chmodSync(root, 0o755);
@@ -249,12 +256,18 @@ test('fetchSingleDep continues to next release asset candidate when download fai
           { status: 200 },
         );
       }
-      if (urlStr === 'https://api.github.com/repos/test/asset/1' || urlStr === 'https://example.com/asset/1.deb') {
+      if (
+        urlStr === 'https://api.github.com/repos/test/asset/1' ||
+        urlStr === 'https://example.com/asset/1.deb'
+      ) {
         releaseAsset1Tried = true;
         // First candidate asset fails with 404 (non-retryable permanent error)
         return new Response('Not Found', { status: 404 });
       }
-      if (urlStr === 'https://api.github.com/repos/test/asset/2' || urlStr === 'https://example.com/asset/2.deb') {
+      if (
+        urlStr === 'https://api.github.com/repos/test/asset/2' ||
+        urlStr === 'https://example.com/asset/2.deb'
+      ) {
         releaseAsset2Tried = true;
         // Second candidate asset succeeds with valid deb
         return new Response(new Uint8Array(validDeb), { status: 200 });
@@ -386,7 +399,8 @@ test('resolvePackageDependencies falls through to alternative when system packag
   process.env.PREFIX = privatePrefix;
 
   const fetchSpy = spyOn(globalThis, 'fetch').mockImplementation(
-    (async (): Promise<Response> => new Response('Not Found', { status: 404 })) as unknown as typeof fetch,
+    (async (): Promise<Response> =>
+      new Response('Not Found', { status: 404 })) as unknown as typeof fetch,
   );
   const fetched = new Set<string>(['bash', 'custom-shell']);
   const resolving = new Set<string>(['custom-shell']);
@@ -443,7 +457,10 @@ function createTestDebFile(
     payloadSymlink?: { linkPath: string; target: string };
   } = {},
 ): string {
-  const tmp = join(process.env.TMPDIR || tmpdir(), `mkdeb-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const tmp = join(
+    process.env.TMPDIR || tmpdir(),
+    `mkdeb-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
   const root = join(tmp, 'root');
   mkdirSync(join(root, 'DEBIAN'), { recursive: true });
   chmodSync(root, 0o755);
@@ -469,7 +486,15 @@ function createTestDebFile(
     }
   }
   if (opts.payloadSymlink) {
-    const linkFull = join(root, 'data', 'data', 'com.termux', 'files', 'usr', opts.payloadSymlink.linkPath);
+    const linkFull = join(
+      root,
+      'data',
+      'data',
+      'com.termux',
+      'files',
+      'usr',
+      opts.payloadSymlink.linkPath,
+    );
     mkdirSync(join(linkFull, '..'), { recursive: true });
     symlinkSync(opts.payloadSymlink.target, linkFull);
   }
@@ -665,7 +690,10 @@ test('Finding #14: loadTermuxIndex trims ProvidedVersion whitespace and rejects 
 
     expect(index['libfoo']?.[0]?.ProvidedVersion).toBe('1.5');
     expect(
-      satisfiesVersionConstraint(index['libfoo'][0].ProvidedVersion, { operator: '=', version: '1.5' }),
+      satisfiesVersionConstraint(index['libfoo'][0].ProvidedVersion, {
+        operator: '=',
+        version: '1.5',
+      }),
     ).toBeTrue();
     expect(index['libbaz']?.[0]?.ProvidedVersion).toBe('3.0');
     expect(index['libbar']).toBeUndefined();
@@ -707,7 +735,9 @@ test('loadTermuxIndex respects cache TTL and does not cache incomplete index in 
       }
       if (u.endsWith('/Packages')) {
         fetchCount++;
-        return new Response('Package: fresh-pkg\nVersion: 1.0\nFilename: pool/fresh.deb\n\n', { status: 200 });
+        return new Response('Package: fresh-pkg\nVersion: 1.0\nFilename: pool/fresh.deb\n\n', {
+          status: 200,
+        });
       }
       return new Response('Not Found', { status: 404 });
     }) as unknown as typeof fetch);
@@ -800,7 +830,8 @@ test('Thread #13: resolveAndFetchBuildDependencies backtracks to earlier alterna
   const prefixDir = join(workDir, 'prefix');
   const oldPrefix = process.env.PREFIX;
   const fetchSpy = spyOn(globalThis, 'fetch').mockImplementation(
-    (async (): Promise<Response> => new Response('Not Found', { status: 404 })) as unknown as typeof fetch,
+    (async (): Promise<Response> =>
+      new Response('Not Found', { status: 404 })) as unknown as typeof fetch,
   );
 
   try {
@@ -905,8 +936,14 @@ test('fetchSingleDep skips -doc shortcut when activeConstraints contains version
 
 test('resolveAndFetchBuildDependencies creates fresh destdir on empty filtered build dependency list and reconciles existing prefix (Thread #9 & Thread #21)', async (): Promise<void> => {
   const tmpBase = process.env.TMPDIR || tmpdir();
-  const freshDest = join(tmpBase, `fresh-dest-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
-  const separatePrefix = join(tmpBase, `separate-prefix-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
+  const freshDest = join(
+    tmpBase,
+    `fresh-dest-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  );
+  const separatePrefix = join(
+    tmpBase,
+    `separate-prefix-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  );
   mkdirSync(join(separatePrefix, 'include'), { recursive: true });
 
   const managedFile = join(separatePrefix, 'include', 'managed.h');

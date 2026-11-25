@@ -43,7 +43,13 @@ describe('Matrix Shards & Concurrency Optimization (scripts/cli/generate_shards.
       resources: { zram: 0, swap: 0, free_space: false, tmpfs: 2 },
     });
 
-    const shards = await buildMatrixLayer(['heavy-pkg', 'a-consumer', 'z-provider'], 'pkg', dag, true, 20);
+    const shards = await buildMatrixLayer(
+      ['heavy-pkg', 'a-consumer', 'z-provider'],
+      'pkg',
+      dag,
+      true,
+      20,
+    );
 
     expect(shards).toHaveLength(2);
     const heavyShards = shards.filter((s) => s.heavy);
@@ -156,7 +162,10 @@ describe('Matrix Shards & Concurrency Optimization (scripts/cli/generate_shards.
           JSON.stringify([
             {
               tag_name: 'multi-app',
-              assets: [{ name: 'multi-app_1.0.0_aarch64.deb' }, { name: 'multi-app-doc_1.0.0_all.deb' }],
+              assets: [
+                { name: 'multi-app_1.0.0_aarch64.deb' },
+                { name: 'multi-app-doc_1.0.0_all.deb' },
+              ],
             },
           ]),
           { status: 200 },
@@ -215,7 +224,10 @@ describe('Matrix Shards & Concurrency Optimization (scripts/cli/generate_shards.
 
       // 3. Missing child archive -> missing
       releaseBody = '';
-      releaseAssets = [{ name: 'withheld-app_2.0.0_aarch64.deb' }, { name: 'withheld-app_2.0.0_arm.deb' }];
+      releaseAssets = [
+        { name: 'withheld-app_2.0.0_aarch64.deb' },
+        { name: 'withheld-app_2.0.0_arm.deb' },
+      ];
       missing = await getMissingReleasePackages(dag, 'owner/repo');
       expect(missing).toContain('withheld-app');
     } finally {

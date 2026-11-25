@@ -48,7 +48,11 @@ import {
   resolveChildProducerArch,
 } from '../core/subpkg.ts';
 import type { PackageRecipe, SubpackageDefinition } from '../core/types.ts';
-import { compareDebianVersions, formatDebianVersion, satisfiesVersionConstraint } from '../core/version.ts';
+import {
+  compareDebianVersions,
+  formatDebianVersion,
+  satisfiesVersionConstraint,
+} from '../core/version.ts';
 import { collectExternalNeededSonames, sanitizeStagingElfs } from '../sanitizer/elf.ts';
 import { sanitizeShebangs } from '../sanitizer/shebang.ts';
 import { DependencyGraph } from '../utils/dag.ts';
@@ -63,7 +67,9 @@ export function comparePatchFilenames(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-export type SourceIdentityInput = Partial<Pick<PackageRecipe, 'name' | 'source' | 'sha256' | 'patches'>> & {
+export type SourceIdentityInput = Partial<
+  Pick<PackageRecipe, 'name' | 'source' | 'sha256' | 'patches'>
+> & {
   version: string;
 };
 
@@ -111,7 +117,10 @@ export function snapshotPatches(
   const snapshots = new Map<string, Buffer>();
   const pf = join(pDir, 'patches');
   if (existsSync(pf) || (Array.isArray(recipe.patches) && recipe.patches.length > 0)) {
-    const validPatches = resolveAndValidatePatches({ name: recipe.name || 'unknown', patches: recipe.patches }, pDir);
+    const validPatches = resolveAndValidatePatches(
+      { name: recipe.name || 'unknown', patches: recipe.patches },
+      pDir,
+    );
     for (const f of validPatches) {
       snapshots.set(f, readFileSync(join(pf, f)));
     }
@@ -141,12 +150,16 @@ export function computeSourceIdentity(
     const filename = sp.startsWith('patches/') ? sp.slice(8) : sp;
     const content = snapshots.get(filename);
     if (content) {
-      selectedPatchHashes.push(`${filename}:${new Bun.CryptoHasher('sha256').update(content).digest('hex')}`);
+      selectedPatchHashes.push(
+        `${filename}:${new Bun.CryptoHasher('sha256').update(content).digest('hex')}`,
+      );
     } else {
       const targetFile = join(pf, filename);
       if (existsSync(targetFile)) {
         const fileContent = readFileSync(targetFile);
-        selectedPatchHashes.push(`${filename}:${new Bun.CryptoHasher('sha256').update(fileContent).digest('hex')}`);
+        selectedPatchHashes.push(
+          `${filename}:${new Bun.CryptoHasher('sha256').update(fileContent).digest('hex')}`,
+        );
       } else {
         selectedPatchHashes.push(sp);
       }
@@ -154,7 +167,8 @@ export function computeSourceIdentity(
   }
 
   const rawSources =
-    (recipe as Partial<PackageRecipe>).sources && (recipe as Partial<PackageRecipe>).sources!.length > 0
+    (recipe as Partial<PackageRecipe>).sources &&
+    (recipe as Partial<PackageRecipe>).sources!.length > 0
       ? (recipe as Partial<PackageRecipe>).sources!
       : recipe.source
         ? [recipe.source]
@@ -178,7 +192,9 @@ export function computeSourceIdentity(
 function isGithubHttpsUrl(urlStr: string): boolean {
   try {
     const u = new URL(urlStr);
-    return u.protocol === 'https:' && (u.hostname === 'github.com' || u.hostname === 'api.github.com');
+    return (
+      u.protocol === 'https:' && (u.hostname === 'github.com' || u.hostname === 'api.github.com')
+    );
   } catch {
     return false;
   }
@@ -215,7 +231,11 @@ export function fetchAndPrepareSource(
 ): string {
   const patchSnapshots = snapshotPatches(recipe, pDir);
   const rawSources =
-    recipe.sources && recipe.sources.length > 0 ? recipe.sources : recipe.source ? [recipe.source] : [];
+    recipe.sources && recipe.sources.length > 0
+      ? recipe.sources
+      : recipe.source
+        ? [recipe.source]
+        : [];
   if (rawSources.length === 0) {
     return pDir;
   }
@@ -234,7 +254,9 @@ export function fetchAndPrepareSource(
         marker.workDir &&
         existsSync(marker.workDir)
       ) {
-        console.log(`[${recipe.name}] Continuing build: reusing existing source directory at ${marker.workDir}...`);
+        console.log(
+          `[${recipe.name}] Continuing build: reusing existing source directory at ${marker.workDir}...`,
+        );
         return marker.workDir;
       }
     } catch {}
@@ -285,7 +307,10 @@ export function fetchAndPrepareSource(
   for (const srcUrl of candidateUrls) {
     const isArchive = /\.(tar\.gz|tgz|tar\.xz|tar\.bz2|zip|crate|whl)$/i.test(srcUrl.split('#')[0]);
 
-    if (!isArchive && (srcUrl.endsWith('.git') || srcUrl.includes('.git#') || srcUrl.includes('#'))) {
+    if (
+      !isArchive &&
+      (srcUrl.endsWith('.git') || srcUrl.includes('.git#') || srcUrl.includes('#'))
+    ) {
       console.log(`[${recipe.name}] Fetching source via git from ${srcUrl}...`);
       if (existsSync(srcExtractDir)) {
         rmSync(srcExtractDir, { recursive: true, force: true });
@@ -295,7 +320,10 @@ export function fetchAndPrepareSource(
       const gitExtraArgs: string[] = ['-c', 'advice.detachedHead=false'];
       if (ghToken && isGithubHttpsUrl(srcUrl.split('#')[0])) {
         const basicAuth = Buffer.from(`x-access-token:${ghToken}`).toString('base64');
-        gitExtraArgs.push('-c', `http.https://github.com/.extraheader=AUTHORIZATION: basic ${basicAuth}`);
+        gitExtraArgs.push(
+          '-c',
+          `http.https://github.com/.extraheader=AUTHORIZATION: basic ${basicAuth}`,
+        );
       }
 
       let gitSuccess = false;
@@ -304,15 +332,28 @@ export function fetchAndPrepareSource(
         if (ref.length === 40 && /^[0-9a-fA-F]+$/.test(ref)) {
           let res = spawnSync('git', ['init', srcExtractDir], { stdio: 'inherit' });
           if (res.status === 0) {
-            res = spawnSync('git', ['-C', srcExtractDir, 'remote', 'add', 'origin', repoUrl], { stdio: 'inherit' });
+            res = spawnSync('git', ['-C', srcExtractDir, 'remote', 'add', 'origin', repoUrl], {
+              stdio: 'inherit',
+            });
             if (res.status === 0) {
-              res = spawnSync('git', [...gitExtraArgs, '-C', srcExtractDir, 'fetch', '--depth', '1', 'origin', ref], {
-                stdio: 'inherit',
-              });
+              res = spawnSync(
+                'git',
+                [...gitExtraArgs, '-C', srcExtractDir, 'fetch', '--depth', '1', 'origin', ref],
+                {
+                  stdio: 'inherit',
+                },
+              );
               if (res.status === 0) {
                 res = spawnSync(
                   'git',
-                  ['-c', 'advice.detachedHead=false', '-C', srcExtractDir, 'checkout', 'FETCH_HEAD'],
+                  [
+                    '-c',
+                    'advice.detachedHead=false',
+                    '-C',
+                    srcExtractDir,
+                    'checkout',
+                    'FETCH_HEAD',
+                  ],
                   {
                     stdio: 'inherit',
                   },
@@ -336,9 +377,13 @@ export function fetchAndPrepareSource(
           }
         }
       } else {
-        const res = spawnSync('git', [...gitExtraArgs, 'clone', '--depth', '1', srcUrl, srcExtractDir], {
-          stdio: 'inherit',
-        });
+        const res = spawnSync(
+          'git',
+          [...gitExtraArgs, 'clone', '--depth', '1', srcUrl, srcExtractDir],
+          {
+            stdio: 'inherit',
+          },
+        );
         if (res.status === 0) {
           gitSuccess = true;
         }
@@ -350,7 +395,9 @@ export function fetchAndPrepareSource(
       if (existsSync(srcExtractDir)) {
         rmSync(srcExtractDir, { recursive: true, force: true });
       }
-      console.warn(`[${recipe.name}] Git fetch failed from ${srcUrl}, trying alternative mirrors...`);
+      console.warn(
+        `[${recipe.name}] Git fetch failed from ${srcUrl}, trying alternative mirrors...`,
+      );
     } else {
       console.log(`[${recipe.name}] Downloading source archive from ${srcUrl}...`);
       const archivePath = join(destdir, 'source_archive');
@@ -358,7 +405,17 @@ export function fetchAndPrepareSource(
         rmSync(archivePath, { force: true });
       }
 
-      const curlArgs = ['-fsSL', '-A', 'Mozilla/5.0', '--connect-timeout', '20', '--max-time', '600', '--retry', '3'];
+      const curlArgs = [
+        '-fsSL',
+        '-A',
+        'Mozilla/5.0',
+        '--connect-timeout',
+        '20',
+        '--max-time',
+        '600',
+        '--retry',
+        '3',
+      ];
       if (ghToken && isGithubHttpsUrl(srcUrl)) {
         curlArgs.push('-H', `Authorization: Bearer ${ghToken}`);
       }
@@ -376,7 +433,9 @@ export function fetchAndPrepareSource(
       }
 
       if (recipe.sha256) {
-        const digest = new Bun.CryptoHasher('sha256').update(readFileSync(archivePath)).digest('hex');
+        const digest = new Bun.CryptoHasher('sha256')
+          .update(readFileSync(archivePath))
+          .digest('hex');
         if (digest.toLowerCase() !== recipe.sha256.toLowerCase()) {
           console.warn(
             `[${recipe.name}] sha256 mismatch from ${srcUrl}: expected ${recipe.sha256}, got ${digest}. Trying next mirror...`,
@@ -397,13 +456,19 @@ export function fetchAndPrepareSource(
 
       let extractRes;
       if (isZipArchive(archivePath)) {
-        extractRes = spawnSync('unzip', ['-q', '-o', archivePath, '-d', srcExtractDir], { stdio: 'inherit' });
+        extractRes = spawnSync('unzip', ['-q', '-o', archivePath, '-d', srcExtractDir], {
+          stdio: 'inherit',
+        });
       } else {
-        extractRes = spawnSync('tar', ['-xf', archivePath, '-C', srcExtractDir], { stdio: 'inherit' });
+        extractRes = spawnSync('tar', ['-xf', archivePath, '-C', srcExtractDir], {
+          stdio: 'inherit',
+        });
       }
 
       if (extractRes.status !== 0) {
-        console.warn(`[${recipe.name}] Failed to extract source archive from ${srcUrl}, trying next mirror...`);
+        console.warn(
+          `[${recipe.name}] Failed to extract source archive from ${srcUrl}, trying next mirror...`,
+        );
         if (existsSync(srcExtractDir)) {
           ensureTreeRemovable(srcExtractDir);
           rmSync(srcExtractDir, { recursive: true, force: true });
@@ -444,7 +509,11 @@ export function fetchAndPrepareSource(
 
   writeFileSync(
     readyFile,
-    JSON.stringify({ identity: currentIdentity, workDir, sourceEpoch: effectiveSourceEpoch }, null, 2),
+    JSON.stringify(
+      { identity: currentIdentity, workDir, sourceEpoch: effectiveSourceEpoch },
+      null,
+      2,
+    ),
     'utf-8',
   );
   return workDir;
@@ -498,7 +567,11 @@ export function validateCompileStamp(
   try {
     const parsed = JSON.parse(readFileSync(stampPath, 'utf-8')) as Partial<CompileStamp>;
     if (!parsed || parsed.status !== 'ok' || typeof parsed.arch !== 'string') {
-      return { valid: false, archMismatch: false, reason: 'unrecognized or legacy .compile_success format' };
+      return {
+        valid: false,
+        archMismatch: false,
+        reason: 'unrecognized or legacy .compile_success format',
+      };
     }
     const recordedArch = parsed.arch === 'all' ? 'all' : normalizeArch(parsed.arch);
     if (recordedArch !== expected.arch) {
@@ -510,7 +583,9 @@ export function validateCompileStamp(
     }
     if (recordedArch === 'all' && expectedConcreteArch) {
       const normExpectedConcrete = normalizeArch(expectedConcreteArch);
-      const recordedConcrete = parsed.concrete_arch ? normalizeArch(parsed.concrete_arch) : undefined;
+      const recordedConcrete = parsed.concrete_arch
+        ? normalizeArch(parsed.concrete_arch)
+        : undefined;
       if (recordedConcrete && recordedConcrete !== normExpectedConcrete) {
         return {
           valid: false,
@@ -626,13 +701,16 @@ export function cleanupPackageOutputs(
     return true;
   });
   const targetPrefixArches = new Map<string, string>();
-  const parentDebArch = recipe.arch === 'all' ? 'all' : normalizeArch(concreteArch || recipe.arch || 'aarch64');
+  const parentDebArch =
+    recipe.arch === 'all' ? 'all' : normalizeArch(concreteArch || recipe.arch || 'aarch64');
   targetPrefixArches.set(recipe.name, parentDebArch);
 
   for (const name of producedSubpkgs) {
     const subDef = findSubDef(name);
     const subArch =
-      subDef?.arch === 'all' ? 'all' : normalizeArch(subDef?.arch || concreteArch || recipe.arch || 'aarch64');
+      subDef?.arch === 'all'
+        ? 'all'
+        : normalizeArch(subDef?.arch || concreteArch || recipe.arch || 'aarch64');
     targetPrefixArches.set(name, subArch);
   }
 
@@ -654,8 +732,15 @@ export function cleanupPackageOutputs(
   }
   try {
     rmSync(join(outputDir, `${recipe.name}_metadata.json`), { recursive: true, force: true });
-    const metaArch = recipe.arch ? (recipe.arch === 'all' ? 'all' : normalizeArch(recipe.arch)) : 'aarch64';
-    rmSync(join(outputDir, `${recipe.name}_${metaArch}_metadata.json`), { recursive: true, force: true });
+    const metaArch = recipe.arch
+      ? recipe.arch === 'all'
+        ? 'all'
+        : normalizeArch(recipe.arch)
+      : 'aarch64';
+    rmSync(join(outputDir, `${recipe.name}_${metaArch}_metadata.json`), {
+      recursive: true,
+      force: true,
+    });
   } catch {}
 }
 
@@ -687,7 +772,9 @@ export function stageValidatedOutputs(
   const subpkgNames = getSubpackageNames(recipe as Pick<Partial<PackageRecipe>, 'subpackages'>);
   const targetPrefixes = [recipe.name, ...subpkgNames];
 
-  const expectedDebVersion = recipe.version ? formatDebianVersion(recipe as PackageRecipe) : undefined;
+  const expectedDebVersion = recipe.version
+    ? formatDebianVersion(recipe as PackageRecipe)
+    : undefined;
 
   const filesToCopy: string[] = [];
   for (const file of readdirSync(outputDir)) {
@@ -713,12 +800,16 @@ export function stageValidatedOutputs(
       let candidatePkg = base;
       const expectedPkg = targetPrefixes.find(
         (p) =>
-          base === p || (base.startsWith(`${p}_`) && CANONICAL_ARCHES.has(normalizeArch(base.slice(p.length + 1)))),
+          base === p ||
+          (base.startsWith(`${p}_`) &&
+            CANONICAL_ARCHES.has(normalizeArch(base.slice(p.length + 1)))),
       );
       if (expectedPkg) {
         candidatePkg = expectedPkg;
       } else {
-        const match = base.match(/^(.*?)(?:_(aarch64|arm64|x86_64|amd64|arm|armhf|armel|armv7|i686|i386|all))?$/i);
+        const match = base.match(
+          /^(.*?)(?:_(aarch64|arm64|x86_64|amd64|arm|armhf|armel|armv7|i686|i386|all))?$/i,
+        );
         if (match && match[2] && CANONICAL_ARCHES.has(normalizeArch(match[2]))) {
           candidatePkg = match[1];
         }
@@ -841,7 +932,10 @@ export function stageValidatedOutputs(
           rmSync(backupDir, { recursive: true, force: true });
         } catch {}
       } else {
-        console.warn(`::warning:: Preserving unrestored backups in ${backupDir}:`, Array.from(replacedFiles.values()));
+        console.warn(
+          `::warning:: Preserving unrestored backups in ${backupDir}:`,
+          Array.from(replacedFiles.values()),
+        );
       }
     }
   }
@@ -907,7 +1001,9 @@ async function hasUsablePublishedOrLocalArtifact(
     }
     const resp = await fetch(apiUrl, { headers, signal: AbortSignal.timeout(4000) });
     if (resp.ok) {
-      const data = (await resp.json()) as { assets?: Array<{ name: string; provides?: string[] | string }> };
+      const data = (await resp.json()) as {
+        assets?: Array<{ name: string; provides?: string[] | string }>;
+      };
       const debAssets = (data.assets || []).filter((a) => a.name.endsWith('.deb'));
       for (const a of debAssets) {
         if (!isDebArchCompatible(a.name, repoArch)) {
@@ -942,7 +1038,8 @@ async function hasUsablePublishedOrLocalArtifact(
 
   try {
     const index = await loadTermuxIndex(repoArch);
-    const candidates = index[pkgName] || index[`lib${pkgName}`] || index[pkgName.replace(/^lib/, '')] || [];
+    const candidates =
+      index[pkgName] || index[`lib${pkgName}`] || index[pkgName.replace(/^lib/, '')] || [];
     for (const cand of candidates) {
       const ver = (cand.IsVirtual === 'true' ? cand.ProvidedVersion : cand.Version) ?? '';
       if (satisfiesVersionConstraint(ver, constraint)) {
@@ -1074,7 +1171,9 @@ export async function executePack(
   const fmts = recipe.formats || ['apt'];
   for (const fmt of fmts) {
     if (!supportedFormats.has(fmt)) {
-      throw new Error(`Unsupported package format '${fmt}' for ${recipe.name}. Supported format: apt.`);
+      throw new Error(
+        `Unsupported package format '${fmt}' for ${recipe.name}. Supported format: apt.`,
+      );
     }
   }
 
@@ -1087,7 +1186,14 @@ export async function executePack(
 
   const tmpPackDir = mkdtempSync(join(outputDir, '.tmp-pack-'));
   try {
-    const builtDeb = buildDeb(recipe as PackageRecipe, destdir, tmpPackDir, recipe.arch, pkgDir, sourceEpoch);
+    const builtDeb = buildDeb(
+      recipe as PackageRecipe,
+      destdir,
+      tmpPackDir,
+      recipe.arch,
+      pkgDir,
+      sourceEpoch,
+    );
 
     let archiveDigest: string | undefined;
     if (builtDeb && existsSync(builtDeb)) {
@@ -1098,8 +1204,13 @@ export async function executePack(
     try {
       const stampPath = join(destdir, '.compile_success');
       if (existsSync(stampPath)) {
-        const stamp = JSON.parse(readFileSync(stampPath, 'utf-8')) as { compile_duration_sec?: number };
-        if (typeof stamp.compile_duration_sec === 'number' && Number.isFinite(stamp.compile_duration_sec)) {
+        const stamp = JSON.parse(readFileSync(stampPath, 'utf-8')) as {
+          compile_duration_sec?: number;
+        };
+        if (
+          typeof stamp.compile_duration_sec === 'number' &&
+          Number.isFinite(stamp.compile_duration_sec)
+        ) {
           compileDurationSec = stamp.compile_duration_sec;
         }
       }
@@ -1107,14 +1218,21 @@ export async function executePack(
     const packDurationSec = Math.max(1, Math.round((Date.now() - packStartMs) / 1000));
     const totalBuildDurationSec = Math.max(1, Math.round(compileDurationSec + packDurationSec));
 
-    const metaArch = recipe.arch ? (recipe.arch === 'all' ? 'all' : normalizeArch(recipe.arch)) : 'aarch64';
+    const metaArch = recipe.arch
+      ? recipe.arch === 'all'
+        ? 'all'
+        : normalizeArch(recipe.arch)
+      : 'aarch64';
     const neededSonames = collectExternalNeededSonames(stageDir);
     const depVersions: Record<string, string> = {};
     const depArch = metaArch === 'all' ? 'aarch64' : metaArch;
     const rawDepClauses = Array.isArray(recipe.deps)
       ? filterDepsForArch(parseDependencyList(recipe.deps), depArch)
       : [];
-    const termuxCachePath = join(process.env.TMPDIR || tmpdir(), `termux_apt_index_v3_${depArch}.json`);
+    const termuxCachePath = join(
+      process.env.TMPDIR || tmpdir(),
+      `termux_apt_index_v3_${depArch}.json`,
+    );
     if (
       rawDepClauses.length > 0 &&
       process.env.REPOEXE_OFFLINE !== '1' &&
@@ -1201,12 +1319,15 @@ export async function executePack(
       return true;
     });
     const targetPrefixArches = new Map<string, string>();
-    const parentDebArch = recipe.arch === 'all' ? 'all' : normalizeArch(concreteArch || recipe.arch || 'aarch64');
+    const parentDebArch =
+      recipe.arch === 'all' ? 'all' : normalizeArch(concreteArch || recipe.arch || 'aarch64');
     targetPrefixArches.set(recipe.name, parentDebArch);
     for (const name of producedSubpkgs) {
       const subDef = findSubDef(name);
       const subArch =
-        subDef?.arch === 'all' ? 'all' : normalizeArch(subDef?.arch || concreteArch || recipe.arch || 'aarch64');
+        subDef?.arch === 'all'
+          ? 'all'
+          : normalizeArch(subDef?.arch || concreteArch || recipe.arch || 'aarch64');
       targetPrefixArches.set(name, subArch);
     }
 
@@ -1227,7 +1348,10 @@ export async function executePack(
               shouldBackup = true;
             }
           }
-        } else if (f === `${recipe.name}_metadata.json` || f === `${recipe.name}_${metaArch}_metadata.json`) {
+        } else if (
+          f === `${recipe.name}_metadata.json` ||
+          f === `${recipe.name}_${metaArch}_metadata.json`
+        ) {
           shouldBackup = true;
         }
         if (shouldBackup) {
@@ -1281,7 +1405,9 @@ export async function executePack(
 
 export function resolveTestArch(rawArch?: string, explicitBuildArch?: string): string {
   const normalized = (rawArch || 'aarch64').toLowerCase();
-  return normalized === 'all' ? (explicitBuildArch || process.env.TARGET_ARCH || 'aarch64').toLowerCase() : normalized;
+  return normalized === 'all'
+    ? (explicitBuildArch || process.env.TARGET_ARCH || 'aarch64').toLowerCase()
+    : normalized;
 }
 
 export function executeTest(
@@ -1298,7 +1424,11 @@ export function executeTest(
   const rawArch = (recipe.arch || 'aarch64').toLowerCase();
   const debArch = ARCH_MAP[rawArch] || rawArch;
   const filenameVer = recipe.version
-    ? formatDebianFilenameVersion({ version: recipe.version, revision: recipe.revision, epoch: recipe.epoch })
+    ? formatDebianFilenameVersion({
+        version: recipe.version,
+        revision: recipe.revision,
+        epoch: recipe.epoch,
+      })
     : 'unknown';
   const targetDeb = `${recipe.name}_${filenameVer}_${debArch}.deb`;
 
@@ -1344,7 +1474,8 @@ export function executeTest(
     return normalizeArch(debArch) === designatedProducer;
   };
 
-  const hasDockerSocket = process.env.REPOEXE_TEST_BACKEND !== 'native' && existsSync('/var/run/docker.sock');
+  const hasDockerSocket =
+    process.env.REPOEXE_TEST_BACKEND !== 'native' && existsSync('/var/run/docker.sock');
 
   if (hasDockerSocket) {
     const owner = (process.env.REPO_OWNER || 'sjnexe').toLowerCase();
@@ -1353,7 +1484,8 @@ export function executeTest(
     const testArch = resolveTestArch(rawArch, explicitBuildArch);
     const testerDebArch = ARCH_MAP[testArch] || testArch;
     const archKey = `TESTER_IMAGE_${testArch.toUpperCase()}`;
-    const testerImage = process.env[archKey] || process.env.TESTER_IMAGE || `ghcr.io/${owner}/repoexe-tester:latest`;
+    const testerImage =
+      process.env[archKey] || process.env.TESTER_IMAGE || `ghcr.io/${owner}/repoexe-tester:latest`;
     const containerPkgDir = '/data/data/com.termux/files/usr/tmp/repoexe-pkg';
 
     const testStagingDir = mkdtempSync(join(localOutputDir, `.test-stage-${recipe.name}-`));
@@ -1441,7 +1573,9 @@ export function executeTest(
                 preDepends.push(...parseDependencyList(preDepStr));
               }
 
-              const provides: Array<{ name: string; versionConstraint?: VersionConstraint }> = [{ name: pkgName }];
+              const provides: Array<{ name: string; versionConstraint?: VersionConstraint }> = [
+                { name: pkgName },
+              ];
               if (provStr) {
                 for (const clause of parseDependencyList(provStr)) {
                   for (const token of clause) {
@@ -1481,7 +1615,11 @@ export function executeTest(
         }
         const depQueue: DepQueueItem[] = [];
         const expectedControlVer = recipe.version
-          ? formatDebianVersion({ version: recipe.version, epoch: recipe.epoch, revision: recipe.revision })
+          ? formatDebianVersion({
+              version: recipe.version,
+              epoch: recipe.epoch,
+              revision: recipe.revision,
+            })
           : '';
         const fixedPackages = new Set([
           recipe.name,
@@ -1499,7 +1637,11 @@ export function executeTest(
             if (deb.pkgName !== p) {
               return false;
             }
-            if (recipe.version && deb.version !== expectedControlVer && deb.version !== filenameVer) {
+            if (
+              recipe.version &&
+              deb.version !== expectedControlVer &&
+              deb.version !== filenameVer
+            ) {
               return false;
             }
             if (expectedArch === 'all') {
@@ -1547,7 +1689,11 @@ export function executeTest(
             ) {
               const rawSubArch = (subDef as SubpackageDefinition).arch;
               const subDeclaringArch =
-                rawSubArch === 'all' ? testerDebArch : rawSubArch ? normalizeArch(rawSubArch) : recipeDeclaringArch;
+                rawSubArch === 'all'
+                  ? testerDebArch
+                  : rawSubArch
+                    ? normalizeArch(rawSubArch)
+                    : recipeDeclaringArch;
               for (const clause of filterDepsForArch(
                 parseDependencyList((subDef as { deps: string[] }).deps),
                 testArch,
@@ -1581,7 +1727,9 @@ export function executeTest(
             const reqName = token.name.split(':')[0].trim();
             const constraint = token.versionConstraint;
             const reqExplicitArch =
-              token.multiArch && token.multiArch !== 'any' ? normalizeArch(token.multiArch) : undefined;
+              token.multiArch && token.multiArch !== 'any'
+                ? normalizeArch(token.multiArch)
+                : undefined;
             for (const debFilename of stagedDebs) {
               const info = localDebsByFilename.get(debFilename);
               if (info) {
@@ -1589,7 +1737,11 @@ export function executeTest(
                   if (info.multiArch !== 'allowed') {
                     continue;
                   }
-                } else if (reqExplicitArch && info.arch !== 'all' && normalizeArch(info.arch) !== reqExplicitArch) {
+                } else if (
+                  reqExplicitArch &&
+                  info.arch !== 'all' &&
+                  normalizeArch(info.arch) !== reqExplicitArch
+                ) {
                   continue;
                 } else if (
                   !reqExplicitArch &&
@@ -1601,7 +1753,10 @@ export function executeTest(
                 }
                 const matchedProv = info.provides.find((p) => p.name === reqName);
                 if (matchedProv) {
-                  const effVer = reqName === info.pkgName ? info.version : matchedProv.versionConstraint?.version || '';
+                  const effVer =
+                    reqName === info.pkgName
+                      ? info.version
+                      : matchedProv.versionConstraint?.version || '';
                   if (satisfiesVersionConstraint(effVer, constraint)) {
                     satisfied = true;
                     clauseSelectedArchive.set(clause, debFilename);
@@ -1643,14 +1798,20 @@ export function executeTest(
                     ? ':any'
                     : normalizeArch(qTok.multiArch)
                   : '';
-                if (qTok.name.split(':')[0].trim() === reqName && qArchQual === reqArchQual && qTok.versionConstraint) {
+                if (
+                  qTok.name.split(':')[0].trim() === reqName &&
+                  qArchQual === reqArchQual &&
+                  qTok.versionConstraint
+                ) {
                   allReqConstraints.push(qTok.versionConstraint);
                 }
               }
             }
 
             const reqExplicitArch =
-              token.multiArch && token.multiArch !== 'any' ? normalizeArch(token.multiArch) : undefined;
+              token.multiArch && token.multiArch !== 'any'
+                ? normalizeArch(token.multiArch)
+                : undefined;
             const candidates = (localDebsByName.get(reqName) || []).filter((cand) => {
               if (token.multiArch === 'any') {
                 if (cand.multiArch !== 'allowed') {
@@ -1674,7 +1835,10 @@ export function executeTest(
                 }
               }
               const matchedProv = cand.provides.find((p) => p.name === reqName);
-              const effVer = reqName === cand.pkgName ? cand.version : matchedProv?.versionConstraint?.version || '';
+              const effVer =
+                reqName === cand.pkgName
+                  ? cand.version
+                  : matchedProv?.versionConstraint?.version || '';
               return allReqConstraints.every((c) => satisfiesVersionConstraint(effVer, c));
             });
 
@@ -1684,7 +1848,11 @@ export function executeTest(
               for (const selected of candidates) {
                 const candKey = getStageKey(selected.pkgName, selected.arch);
                 const prevStaged = stagedConcretePkg.get(candKey);
-                if (prevStaged && prevStaged !== selected.filename && fixedPackages.has(selected.pkgName)) {
+                if (
+                  prevStaged &&
+                  prevStaged !== selected.filename &&
+                  fixedPackages.has(selected.pkgName)
+                ) {
                   continue;
                 }
                 if (!stagedDebs.has(selected.filename)) {
@@ -1706,10 +1874,18 @@ export function executeTest(
                     const childDeclaringArch =
                       selected.arch === 'all' ? item.declaringArch : normalizeArch(selected.arch);
                     for (const childClause of selected.preDepends) {
-                      depQueue.push({ clause: childClause, isPreDep: true, declaringArch: childDeclaringArch });
+                      depQueue.push({
+                        clause: childClause,
+                        isPreDep: true,
+                        declaringArch: childDeclaringArch,
+                      });
                     }
                     for (const childClause of selected.depends) {
-                      depQueue.push({ clause: childClause, isPreDep: false, declaringArch: childDeclaringArch });
+                      depQueue.push({
+                        clause: childClause,
+                        isPreDep: false,
+                        declaringArch: childDeclaringArch,
+                      });
                     }
                     candidateStaged = true;
                     clauseSelectedArchive.set(clause, selected.filename);
@@ -1760,7 +1936,9 @@ export function executeTest(
       }
 
       const relStagingDir = relative(resolve('.'), testStagingDir);
-      const hostStagingDir = relStagingDir.startsWith('..') ? testStagingDir : join(hostWorkspace, relStagingDir);
+      const hostStagingDir = relStagingDir.startsWith('..')
+        ? testStagingDir
+        : join(hostWorkspace, relStagingDir);
 
       const quoteShell = (str: string): string => `'${str.replace(/'/g, `'\\''`)}'`;
       const targetDebPathLiteral = quoteShell(`${containerPkgDir}/${actualTargetDeb}`);
@@ -1796,7 +1974,10 @@ export function executeTest(
                     continue;
                   }
                   const otherInfo = localDebsByFilename.get(other);
-                  if (otherInfo && otherInfo.provides.some((p: { name: string }) => p.name === reqName)) {
+                  if (
+                    otherInfo &&
+                    otherInfo.provides.some((p: { name: string }) => p.name === reqName)
+                  ) {
                     const otherPreDeps = otherInfo.preDepends.flatMap((cl) =>
                       cl.map((t) => t.name.split(':')[0].trim()),
                     );
@@ -1964,14 +2145,24 @@ export function executeTest(
   };
 
   const expVersion = recipe.version
-    ? formatDebianVersion({ version: recipe.version, epoch: recipe.epoch, revision: recipe.revision })
+    ? formatDebianVersion({
+        version: recipe.version,
+        epoch: recipe.epoch,
+        revision: recipe.revision,
+      })
     : '';
 
-  const findMatchingArchive = (pkgName: string, expectedVersion: string, expectedArch: string): string | undefined => {
+  const findMatchingArchive = (
+    pkgName: string,
+    expectedVersion: string,
+    expectedArch: string,
+  ): string | undefined => {
     if (!existsSync(localOutputDir)) {
       return undefined;
     }
-    const files = readdirSync(localOutputDir).filter((f) => f.endsWith('.deb') && !f.startsWith('.tmp-'));
+    const files = readdirSync(localOutputDir).filter(
+      (f) => f.endsWith('.deb') && !f.startsWith('.tmp-'),
+    );
     for (const f of files) {
       const underIdx = f.indexOf('_');
       if (underIdx === -1) {
@@ -2015,7 +2206,9 @@ export function executeTest(
 
     isolatedTempPrefix = mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'smoke-isolated-'));
     try {
-      const unpackRes = spawnSync('dpkg-deb', ['-x', selectedTargetDebPath, isolatedTempPrefix], { encoding: 'utf-8' });
+      const unpackRes = spawnSync('dpkg-deb', ['-x', selectedTargetDebPath, isolatedTempPrefix], {
+        encoding: 'utf-8',
+      });
       if (unpackRes.status !== 0) {
         throw new Error(
           `Failed to unpack target archive '${basename(selectedTargetDebPath)}' for smoke testing: ${unpackRes.stderr?.trim() || 'exit code ' + unpackRes.status}`,
@@ -2023,7 +2216,9 @@ export function executeTest(
       }
       testedArtifacts.push(basename(selectedTargetDebPath));
       for (const cPath of selectedChildDebPaths.values()) {
-        const cRes = spawnSync('dpkg-deb', ['-x', cPath, isolatedTempPrefix], { encoding: 'utf-8' });
+        const cRes = spawnSync('dpkg-deb', ['-x', cPath, isolatedTempPrefix], {
+          encoding: 'utf-8',
+        });
         if (cRes.status !== 0) {
           throw new Error(
             `Failed to unpack child archive '${basename(cPath)}' for smoke testing: ${cRes.stderr?.trim() || 'exit code ' + cRes.status}`,
@@ -2053,7 +2248,14 @@ export function executeTest(
         }
       }
       if (!archiveExtractedPrefix) {
-        archiveExtractedPrefix = join(isolatedTempPrefix, 'data', 'data', 'com.termux', 'files', 'usr');
+        archiveExtractedPrefix = join(
+          isolatedTempPrefix,
+          'data',
+          'data',
+          'com.termux',
+          'files',
+          'usr',
+        );
       }
     } catch (extractErr) {
       if (isolatedTempPrefix) {
@@ -2114,7 +2316,15 @@ export function executeTest(
           }
           for (const entry of readdirSync(packageBuildDir)) {
             if (entry === 'stage' || entry.startsWith('stage_')) {
-              const bPath = join(packageBuildDir, entry, 'data', 'data', 'com.termux', 'files', 'usr');
+              const bPath = join(
+                packageBuildDir,
+                entry,
+                'data',
+                'data',
+                'com.termux',
+                'files',
+                'usr',
+              );
               const binDir = join(bPath, 'bin');
               const libDir = join(bPath, 'lib');
               if (existsSync(binDir)) {
@@ -2156,7 +2366,9 @@ export function executeTest(
           ? archiveExtractedPrefix
           : process.env.PREFIX || '/data/data/com.termux/files/usr',
       PATH: [...targetBins, ...siblingBins, process.env.PATH].filter(Boolean).join(':'),
-      LD_LIBRARY_PATH: [...targetLibs, ...siblingLibs, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':'),
+      LD_LIBRARY_PATH: [...targetLibs, ...siblingLibs, process.env.LD_LIBRARY_PATH]
+        .filter(Boolean)
+        .join(':'),
     };
     const res = spawnSync('sh', testArgs, {
       stdio: 'inherit',
@@ -2211,7 +2423,11 @@ export async function simulateDryRun(
 
   const stateHash = recipe.state_hash || '';
   console.log(`🔑 State Hash:    ${stateHash ? stateHash.slice(0, 16) + '...' : '(none)'}`);
-  if (!force && stateHash && (await checkExistingReleaseHash(recipe.name, stateHash, recipe.arch, recipe))) {
+  if (
+    !force &&
+    stateHash &&
+    (await checkExistingReleaseHash(recipe.name, stateHash, recipe.arch, recipe))
+  ) {
     console.log(`⚡ Release State:  MATCHED EXISTING RELEASE (would skip without --force)`);
   } else {
     console.log(`⚡ Release State:  NEEDS BUILD (state hash differs or --force specified)`);
@@ -2231,7 +2447,9 @@ export async function simulateDryRun(
   }
 
   const patchesToApply = resolveAndValidatePatches(recipe, pDir);
-  console.log(`⚡ Patches:       ${patchesToApply.length > 0 ? patchesToApply.join(', ') : '(none)'}`);
+  console.log(
+    `⚡ Patches:       ${patchesToApply.length > 0 ? patchesToApply.join(', ') : '(none)'}`,
+  );
 
   console.log(`🛠️ Build Phases:`);
   for (const phase of ['prepare', 'configure', 'make', 'install']) {
@@ -2285,7 +2503,11 @@ export async function simulateDryRun(
       }
     }
   }
-  const metaArch = recipe.arch ? (recipe.arch === 'all' ? 'all' : normalizeArch(recipe.arch)) : 'aarch64';
+  const metaArch = recipe.arch
+    ? recipe.arch === 'all'
+      ? 'all'
+      : normalizeArch(recipe.arch)
+    : 'aarch64';
   console.log(`   - meta:   ${recipe.name}_${metaArch}_metadata.json`);
 
   const testCmd = recipe.phases?.test || `${recipe.name} --version || ${recipe.name} --help`;
@@ -2376,7 +2598,16 @@ async function main(): Promise<void> {
     }
 
     const VALID_FORMATS = new Set(['apt']);
-    const VALID_ARCHES = new Set(['aarch64', 'arm', 'x86_64', 'i686', 'all', 'arm64', 'amd64', 'i386']);
+    const VALID_ARCHES = new Set([
+      'aarch64',
+      'arm',
+      'x86_64',
+      'i686',
+      'all',
+      'arm64',
+      'amd64',
+      'i386',
+    ]);
     if (targetArch) {
       const norm = targetArch.toLowerCase();
       if (!VALID_ARCHES.has(norm)) {
@@ -2385,7 +2616,14 @@ async function main(): Promise<void> {
         );
         process.exit(1);
       }
-      targetArch = norm === 'arm64' ? 'aarch64' : norm === 'amd64' ? 'x86_64' : norm === 'i386' ? 'i686' : norm;
+      targetArch =
+        norm === 'arm64'
+          ? 'aarch64'
+          : norm === 'amd64'
+            ? 'x86_64'
+            : norm === 'i386'
+              ? 'i686'
+              : norm;
     }
     let parsedFormats: string[] | undefined;
     if (formatOverride !== undefined) {
@@ -2487,7 +2725,13 @@ async function main(): Promise<void> {
           const hasSucceededOwner = clause.some(
             (t) =>
               succeededTargets.has(t.owner) &&
-              dag.canOwnerSatisfyDep(t.owner, t.name, t.versionConstraint, undefined, concreteBuildArch) &&
+              dag.canOwnerSatisfyDep(
+                t.owner,
+                t.name,
+                t.versionConstraint,
+                undefined,
+                concreteBuildArch,
+              ) &&
               dag.ownerProducesDep(t.owner, t.name, concreteBuildArch, t.versionConstraint),
           );
           if (hasSucceededOwner) {
@@ -2498,7 +2742,13 @@ async function main(): Promise<void> {
             (t) =>
               pendingSet.has(t.owner) &&
               !failedTargets.has(t.owner) &&
-              dag.canOwnerSatisfyDep(t.owner, t.name, t.versionConstraint, undefined, concreteBuildArch),
+              dag.canOwnerSatisfyDep(
+                t.owner,
+                t.name,
+                t.versionConstraint,
+                undefined,
+                concreteBuildArch,
+              ),
           );
           if (hasPendingCompatible && deferralsSinceProgress < pendingQueue.length) {
             shouldDefer = true;
@@ -2514,9 +2764,13 @@ async function main(): Promise<void> {
                   : normalizeArch(target.multiArch)
                 : concreteBuildArch;
             if (
-              await hasUsablePublishedOrLocalArtifact(target.name, probeArch, target.versionConstraint, target.owner, [
-                outputDir,
-              ])
+              await hasUsablePublishedOrLocalArtifact(
+                target.name,
+                probeArch,
+                target.versionConstraint,
+                target.owner,
+                [outputDir],
+              )
             ) {
               usableCandidateExists = true;
               break;
@@ -2545,7 +2799,9 @@ async function main(): Promise<void> {
           try {
             cleanupStagingDirs(destdir);
           } catch (cleanErr) {
-            console.warn(`::warning:: Failed to cleanup staging dirs for ${recipe.name}: ${cleanErr}`);
+            console.warn(
+              `::warning:: Failed to cleanup staging dirs for ${recipe.name}: ${cleanErr}`,
+            );
           }
           continue;
         }
@@ -2585,13 +2841,16 @@ async function main(): Promise<void> {
           try {
             setupBionicCompat(concreteBuildArch);
           } catch (err) {
-            console.error(`Warning: setupBionicCompat failed: ${err instanceof Error ? err.message : String(err)}`);
+            console.error(
+              `Warning: setupBionicCompat failed: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
 
           // 2. Fetch build dependencies
           if (!skipDeps) {
             const isIsolatedPrefix = Boolean(
-              process.env.PREFIX && resolve(process.env.PREFIX) !== resolve('/data/data/com.termux/files/usr'),
+              process.env.PREFIX &&
+              resolve(process.env.PREFIX) !== resolve('/data/data/com.termux/files/usr'),
             );
             await resolveAndFetchBuildDependencies(
               recipe.build_deps || [],
@@ -2605,7 +2864,13 @@ async function main(): Promise<void> {
           }
 
           // 3. Fetch source and apply patches
-          const workDir = fetchAndPrepareSource(recipe, pDir, destdir, continueBuild, sourceEpochNum);
+          const workDir = fetchAndPrepareSource(
+            recipe,
+            pDir,
+            destdir,
+            continueBuild,
+            sourceEpochNum,
+          );
 
           // 4. Staging directories & environment
           const prefixDir = process.env.PREFIX || PREFIX;
@@ -2682,10 +2947,15 @@ async function main(): Promise<void> {
             }
           }
 
-          const compileDurationSec = Math.max(1, Math.round((Date.now() - pkgCompileStartMs) / 1000));
+          const compileDurationSec = Math.max(
+            1,
+            Math.round((Date.now() - pkgCompileStartMs) / 1000),
+          );
           writeFileSync(
             join(destdir, '.compile_success'),
-            JSON.stringify(buildCompileStamp(recipe, sourceEpochNum, concreteBuildArch, compileDurationSec)),
+            JSON.stringify(
+              buildCompileStamp(recipe, sourceEpochNum, concreteBuildArch, compileDurationSec),
+            ),
             'utf-8',
           );
 
@@ -2703,18 +2973,24 @@ async function main(): Promise<void> {
           }
           succeededTargets.add(recipe.name);
         } catch (err) {
-          console.error(`::error:: [${recipe.name}] Build failed: ${err instanceof Error ? err.message : String(err)}`);
+          console.error(
+            `::error:: [${recipe.name}] Build failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
           failedTargets.add(recipe.name);
           try {
             cleanupStagingDirs(destdir);
           } catch (cleanErr) {
-            console.warn(`::warning:: Failed to cleanup staging dirs for ${recipe.name}: ${cleanErr}`);
+            console.warn(
+              `::warning:: Failed to cleanup staging dirs for ${recipe.name}: ${cleanErr}`,
+            );
           }
           if (packCompleted) {
             try {
               cleanupPackageOutputs(recipe, outputDir);
             } catch (cleanErr) {
-              console.warn(`::warning:: Failed to cleanup package outputs for ${recipe.name}: ${cleanErr}`);
+              console.warn(
+                `::warning:: Failed to cleanup package outputs for ${recipe.name}: ${cleanErr}`,
+              );
             }
           }
         }
@@ -2789,7 +3065,9 @@ async function main(): Promise<void> {
           }
         }
         if (!existsSync(stageDir)) {
-          console.warn(`::warning:: stage_dir ${stageDir} does not exist for pack (${recipe.name}).`);
+          console.warn(
+            `::warning:: stage_dir ${stageDir} does not exist for pack (${recipe.name}).`,
+          );
           failedTargets.add(recipe.name);
           continue;
         }
@@ -2797,15 +3075,25 @@ async function main(): Promise<void> {
           await executePack(recipe, pDir, destdir, outputDir, currentEpoch);
           succeededTargets.add(recipe.name);
         } catch (err) {
-          console.error(`::error:: [${recipe.name}] Pack failed: ${err instanceof Error ? err.message : String(err)}`);
+          console.error(
+            `::error:: [${recipe.name}] Pack failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
           failedTargets.add(recipe.name);
         }
       } else if (command === 'test') {
-        const metaArch = recipe.arch ? (recipe.arch === 'all' ? 'all' : normalizeArch(recipe.arch)) : 'aarch64';
+        const metaArch = recipe.arch
+          ? recipe.arch === 'all'
+            ? 'all'
+            : normalizeArch(recipe.arch)
+          : 'aarch64';
         const metadataFile = join(outputDir, `${recipe.name}_${metaArch}_metadata.json`);
         const legacyMetaFile = join(outputDir, `${recipe.name}_metadata.json`);
         const filenameVer = recipe.version
-          ? formatDebianFilenameVersion({ version: recipe.version, revision: recipe.revision, epoch: recipe.epoch })
+          ? formatDebianFilenameVersion({
+              version: recipe.version,
+              revision: recipe.revision,
+              epoch: recipe.epoch,
+            })
           : 'unknown';
         const rawArch = (recipe.arch || 'aarch64').toLowerCase();
         const debArch = ARCH_MAP[rawArch] || rawArch;
@@ -2813,11 +3101,20 @@ async function main(): Promise<void> {
         const hasArchive =
           existsSync(targetDebPath) ||
           (existsSync(outputDir) &&
-            readdirSync(outputDir).some((f) => f.startsWith(`${recipe.name}_`) && f.endsWith('.deb')));
+            readdirSync(outputDir).some(
+              (f) => f.startsWith(`${recipe.name}_`) && f.endsWith('.deb'),
+            ));
 
-        if (!existsSync(stageDir) && !existsSync(metadataFile) && !existsSync(legacyMetaFile) && !hasArchive) {
+        if (
+          !existsSync(stageDir) &&
+          !existsSync(metadataFile) &&
+          !existsSync(legacyMetaFile) &&
+          !hasArchive
+        ) {
           if (!quiet) {
-            console.log(`Notice: Neither stage_dir nor package output exist for test (${recipe.name}).`);
+            console.log(
+              `Notice: Neither stage_dir nor package output exist for test (${recipe.name}).`,
+            );
           } else {
             console.log(`[SMOKE_TEST_SKIPPED] ${recipe.name}`);
           }
@@ -2840,12 +3137,16 @@ async function main(): Promise<void> {
           try {
             cleanupStagingDirs(destdir);
           } catch (cleanErr) {
-            console.warn(`::warning:: Failed to cleanup staging dirs for ${recipe.name}: ${cleanErr}`);
+            console.warn(
+              `::warning:: Failed to cleanup staging dirs for ${recipe.name}: ${cleanErr}`,
+            );
           }
           try {
             cleanupPackageOutputs(recipe, outputDir);
           } catch (cleanErr) {
-            console.warn(`::warning:: Failed to cleanup package outputs for ${recipe.name}: ${cleanErr}`);
+            console.warn(
+              `::warning:: Failed to cleanup package outputs for ${recipe.name}: ${cleanErr}`,
+            );
           }
         }
       }

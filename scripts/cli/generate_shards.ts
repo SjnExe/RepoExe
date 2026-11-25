@@ -3,7 +3,11 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { ARCH_MAP } from '../builders/debian.ts';
-import { extractAllPackageNames, normalizeArch, parseDependencyList } from '../core/dependencies.ts';
+import {
+  extractAllPackageNames,
+  normalizeArch,
+  parseDependencyList,
+} from '../core/dependencies.ts';
 import { checkExistingReleaseHash } from '../core/fetcher.ts';
 import { computeStateHash, parseRecipe } from '../core/parser.ts';
 import { getSubpackageNames } from '../core/subpkg.ts';
@@ -19,7 +23,9 @@ export function getGitDiffFiles(repoRoot: string): Set<string> {
   if (baseRef) {
     diffCmd = ['diff', '--name-only', `origin/${baseRef}...HEAD`];
   } else if (eventBefore && eventBefore !== '0000000000000000000000000000000000000000') {
-    const verifyBefore = spawnSync('git', ['rev-parse', '--verify', eventBefore], { cwd: repoRoot });
+    const verifyBefore = spawnSync('git', ['rev-parse', '--verify', eventBefore], {
+      cwd: repoRoot,
+    });
     if (verifyBefore.status === 0) {
       diffCmd = ['diff', '--name-only', `${eventBefore}..HEAD`];
     } else {
@@ -87,7 +93,11 @@ export function getChangedPackages(repoRoot: string, dag?: DependencyGraph): Set
   return changed;
 }
 
-export function parseTargetTokens(rawInput: string, dag: DependencyGraph, _pkgsDir?: string): string[] {
+export function parseTargetTokens(
+  rawInput: string,
+  dag: DependencyGraph,
+  _pkgsDir?: string,
+): string[] {
   const allPkgs = new Set(Object.keys(dag.recipes));
   const tokens = rawInput.trim().split(/\s+/).filter(Boolean);
 
@@ -172,7 +182,8 @@ export async function buildMatrixLayer(
   maxConcurrency: number = 20,
   historicalDurations?: Map<string, Record<string, number>>,
 ): Promise<Array<MatrixShard>> {
-  const forceRebuild = ['true', '1'].includes((process.env.FORCE_REBUILD || '').toLowerCase()) || isExplicitTarget;
+  const forceRebuild =
+    ['true', '1'].includes((process.env.FORCE_REBUILD || '').toLowerCase()) || isExplicitTarget;
 
   interface Candidate {
     pkg: string;
@@ -223,8 +234,10 @@ export async function buildMatrixLayer(
     }
   }
   observedSamples.sort((a, b) => a - b);
-  const medianObservedSec = observedSamples.length > 0 ? observedSamples[Math.floor(observedSamples.length / 2)] : 60;
-  const dynamicHeavyThresholdSec = observedSamples.length > 0 ? Math.max(1800, medianObservedSec * 3) : Infinity;
+  const medianObservedSec =
+    observedSamples.length > 0 ? observedSamples[Math.floor(observedSamples.length / 2)] : 60;
+  const dynamicHeavyThresholdSec =
+    observedSamples.length > 0 ? Math.max(1800, medianObservedSec * 3) : Infinity;
 
   const candidates: Candidate[] = [];
   const archOrderCache = new Map<string, Map<string, number>>();
@@ -246,9 +259,15 @@ export async function buildMatrixLayer(
 
     try {
       const r = dag.recipes[p] || parseRecipe(recipePath);
-      const isArchAll = r.arch === 'all' || (Array.isArray(r.arches) && r.arches.length === 1 && r.arches[0] === 'all');
+      const isArchAll =
+        r.arch === 'all' ||
+        (Array.isArray(r.arches) && r.arches.length === 1 && r.arches[0] === 'all');
       const concreteArches = (r.arches || [r.arch || 'aarch64']).filter((a) => a !== 'all');
-      const targetArches = isArchAll ? ['aarch64'] : concreteArches.length > 0 ? concreteArches : ['aarch64'];
+      const targetArches = isArchAll
+        ? ['aarch64']
+        : concreteArches.length > 0
+          ? concreteArches
+          : ['aarch64'];
 
       let maxZram = Number(r.resources?.zram ?? 0);
       let maxSwap = Number(r.resources?.swap ?? 0);
@@ -279,14 +298,23 @@ export async function buildMatrixLayer(
           };
           stateHash = computeStateHash(shardRecipe, recipeDir);
         }
-        if (!forceRebuild && stateHash && (await checkExistingReleaseHash(p, stateHash, checkArch, r))) {
-          console.error(`Notice: Skipping matrix shard for ${p} [${checkArch}] (state_hash unchanged).`);
+        if (
+          !forceRebuild &&
+          stateHash &&
+          (await checkExistingReleaseHash(p, stateHash, checkArch, r))
+        ) {
+          console.error(
+            `Notice: Skipping matrix shard for ${p} [${checkArch}] (state_hash unchanged).`,
+          );
           continue;
         }
 
         const pkgTimings = historicalDurations?.get(p);
         const estimatedDurationSec =
-          pkgTimings?.[checkArch] ?? pkgTimings?.[targetArch] ?? pkgTimings?.all ?? medianObservedSec;
+          pkgTimings?.[checkArch] ??
+          pkgTimings?.[targetArch] ??
+          pkgTimings?.all ??
+          medianObservedSec;
         const isDynamicHeavy = estimatedDurationSec > dynamicHeavyThresholdSec;
 
         candidates.push({
@@ -432,10 +460,13 @@ export async function buildMatrixLayer(
     } else {
       // Longest Processing Time First (LPT) bin-packing for independent packages
       const sorted = [...group].sort((a, b) => b.estimatedDurationSec - a.estimatedDurationSec);
-      const bins: Array<{ items: Candidate[]; totalDur: number }> = Array.from({ length: slots }, () => ({
-        items: [],
-        totalDur: 0,
-      }));
+      const bins: Array<{ items: Candidate[]; totalDur: number }> = Array.from(
+        { length: slots },
+        () => ({
+          items: [],
+          totalDur: 0,
+        }),
+      );
       for (const cand of sorted) {
         bins.sort((a, b) => a.totalDur - b.totalDur);
         bins[0].items.push(cand);
@@ -451,7 +482,9 @@ export async function buildMatrixLayer(
       const pkgs = batch.map((b) => b.pkg);
       const first = batch[0];
       const displayName =
-        pkgs.length === 1 ? `${first.pkg}:${first.checkArch}` : `${first.pkg}+${pkgs.length - 1}:${first.checkArch}`;
+        pkgs.length === 1
+          ? `${first.pkg}:${first.checkArch}`
+          : `${first.pkg}+${pkgs.length - 1}:${first.checkArch}`;
 
       shards.push({
         name: displayName,
@@ -460,7 +493,9 @@ export async function buildMatrixLayer(
         arch: first.targetArch,
         heavy: false,
         cache: batch.some((b) => b.cache),
-        build_system: batch.every((b) => b.buildSystem === first.buildSystem) ? first.buildSystem : 'custom',
+        build_system: batch.every((b) => b.buildSystem === first.buildSystem)
+          ? first.buildSystem
+          : 'custom',
         zram: Math.max(...batch.map((b) => b.zram)),
         swap: Math.max(...batch.map((b) => b.swap)),
         free_space: batch.some((b) => b.freeSpace),
@@ -479,7 +514,8 @@ export async function getMissingReleasePackages(
   repoSlug?: string,
   timingsOut?: Map<string, Record<string, number>>,
 ): Promise<string[]> {
-  const slug = repoSlug || process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
+  const slug =
+    repoSlug || process.env.GITHUB_REPOSITORY || `${process.env.REPO_OWNER || 'SjnExe'}/RepoExe`;
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
   const headers: Record<string, string> = { 'User-Agent': 'RepoExe-Matrix-Generator' };
   if (token) {
@@ -512,7 +548,11 @@ export async function getMissingReleasePackages(
         const debSet = releaseDebMap.get(tag) || new Set<string>();
         if (Array.isArray(rel.assets)) {
           for (const a of rel.assets) {
-            if (typeof a?.name === 'string' && a.name.endsWith('.deb') && (!a.state || a.state === 'uploaded')) {
+            if (
+              typeof a?.name === 'string' &&
+              a.name.endsWith('.deb') &&
+              (!a.state || a.state === 'uploaded')
+            ) {
               debSet.add(a.name);
             }
           }
@@ -524,9 +564,15 @@ export async function getMissingReleasePackages(
               if (parsedBody.partial === true) {
                 partialReleases.add(tag);
               }
-              if (timingsOut && parsedBody.build_durations && typeof parsedBody.build_durations === 'object') {
+              if (
+                timingsOut &&
+                parsedBody.build_durations &&
+                typeof parsedBody.build_durations === 'object'
+              ) {
                 const durMap: Record<string, number> = {};
-                for (const [k, v] of Object.entries(parsedBody.build_durations as Record<string, unknown>)) {
+                for (const [k, v] of Object.entries(
+                  parsedBody.build_durations as Record<string, unknown>,
+                )) {
                   if (typeof v === 'number' && Number.isFinite(v) && v > 0) {
                     durMap[k] = v;
                   }
@@ -548,7 +594,12 @@ export async function getMissingReleasePackages(
       }
     }
 
-    const hasArchMatch = (debsList: string[], reqArch: string, expectedVer?: string, pkgPrefix?: string): boolean => {
+    const hasArchMatch = (
+      debsList: string[],
+      reqArch: string,
+      expectedVer?: string,
+      pkgPrefix?: string,
+    ): boolean => {
       if (expectedVer && pkgPrefix) {
         if (reqArch === 'all') {
           return debsList.includes(`${pkgPrefix}_${expectedVer}_all.deb`);
@@ -563,7 +614,9 @@ export async function getMissingReleasePackages(
         return debsList.some((d) => d.endsWith('_all.deb'));
       }
       const norm = ARCH_MAP[reqArch] || normalizeArch(reqArch);
-      return debsList.some((d) => d.endsWith(`_${norm}.deb`) || (norm === 'aarch64' && d.endsWith('_arm64.deb')));
+      return debsList.some(
+        (d) => d.endsWith(`_${norm}.deb`) || (norm === 'aarch64' && d.endsWith('_arm64.deb')),
+      );
     };
 
     const missing: string[] = [];
@@ -580,7 +633,11 @@ export async function getMissingReleasePackages(
       const concreteArches = (recipe.arches || [recipe.arch || 'aarch64'])
         .filter((a) => a !== 'all')
         .map(normalizeArch);
-      const requiredArches = isArchAll ? ['all'] : concreteArches.length > 0 ? concreteArches : ['aarch64'];
+      const requiredArches = isArchAll
+        ? ['all']
+        : concreteArches.length > 0
+          ? concreteArches
+          : ['aarch64'];
       const debArray = Array.from(debs);
       const parentDebs = debArray.filter((d) => d.startsWith(`${pkgName}_`));
       const expectedVer = formatDebianFilenameVersion(recipe);
@@ -635,7 +692,8 @@ export async function getMissingReleasePackages(
               break;
             }
             if (
-              (hasAnyCurrentParent || hasArchMatch(parentDebs, childProducerArch, expectedVer, pkgName)) &&
+              (hasAnyCurrentParent ||
+                hasArchMatch(parentDebs, childProducerArch, expectedVer, pkgName)) &&
               !hasArchMatch(childDebs, 'all', expectedVer, subName)
             ) {
               isMissingChild = true;
@@ -706,7 +764,14 @@ async function main(): Promise<void> {
     }
   }
 
-  const matrix = await buildMatrixLayer(targetPkgs, pkgsDir, dag, isExplicit, 20, historicalDurations);
+  const matrix = await buildMatrixLayer(
+    targetPkgs,
+    pkgsDir,
+    dag,
+    isExplicit,
+    20,
+    historicalDurations,
+  );
   console.log(JSON.stringify({ matrix }));
 }
 

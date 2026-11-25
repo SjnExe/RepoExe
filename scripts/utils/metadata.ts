@@ -44,7 +44,11 @@ export function generatePackagesJson(
         if (entry.isDirectory()) {
           collect(full);
         } else if (entry.isFile()) {
-          if (publishableLocalAssets && !publishableLocalAssets.has(full) && !publishableLocalAssets.has(entry.name)) {
+          if (
+            publishableLocalAssets &&
+            !publishableLocalAssets.has(full) &&
+            !publishableLocalAssets.has(entry.name)
+          ) {
             continue;
           }
           availableFiles.set(entry.name, full);
@@ -105,7 +109,11 @@ export function generatePackagesJson(
             ) {
               continue;
             }
-            if (filename.endsWith('.deb') && expectedFilenames.has(filename) && !assetMap.has(filename)) {
+            if (
+              filename.endsWith('.deb') &&
+              expectedFilenames.has(filename) &&
+              !assetMap.has(filename)
+            ) {
               const arch = extractDebArch(filename);
               let size = 0;
               try {
@@ -125,7 +133,10 @@ export function generatePackagesJson(
           const hasConfirmedOrLocalArchives = assetMap.size > 0;
 
           if (assetMap.size === 0 && !publishableLocalAssets) {
-            const arches = recipe.arches && recipe.arches.length > 0 ? recipe.arches : [recipe.arch || 'aarch64'];
+            const arches =
+              recipe.arches && recipe.arches.length > 0
+                ? recipe.arches
+                : [recipe.arch || 'aarch64'];
             const verStr = formatDebianVersion(recipe);
             for (const debArch of arches) {
               const defaultName = `${recipe.name}_${verStr}_${debArch}.deb`;
@@ -150,7 +161,10 @@ export function generatePackagesJson(
             revision: recipe.revision,
             epoch: recipe.epoch,
             description: recipe.description || `${recipe.name} binary package`,
-            arch: recipe.arches && recipe.arches.length > 1 ? recipe.arches.join(', ') : recipe.arch || 'aarch64',
+            arch:
+              recipe.arches && recipe.arches.length > 1
+                ? recipe.arches.join(', ')
+                : recipe.arch || 'aarch64',
             arches: recipe.arches || [recipe.arch || 'aarch64'],
             license: recipe.license || 'MIT',
             homepage: recipe.homepage || 'https://github.com/SjnExe/RepoExe',
