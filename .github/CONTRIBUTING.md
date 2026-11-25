@@ -23,9 +23,8 @@ RepoExe is a modular, high-performance package repository and build orchestratio
 
 ## Code Owner & PR Governance
 
-- **Repository Owner:** `@SjnExe` is the sole repository code owner (per `.github/CODEOWNERS`).
-- **PR Approval:** All pull requests from contributors are reviewed and approved directly by `@SjnExe`.
-- **Merge Governance:** The repository strictly enforces **Rebase & Merge** (`gh pr merge <pr> --rebase`) to preserve a clean linear commit history with curated atomic commits. Merge commits are forbidden. Squash merges are reserved strictly for single isolated atomic changes or explicit owner direction.
+- **Repository Owner:** `@SjnExe` oversees the repository and final release approvals.
+- **Merge Governance:** The `Main branch` ruleset enforces a linear commit history (`squash` or `rebase` merges only, no merge commits), passing status checks (`Matrix`, `Lint & Code Quality Audit`, `Bun Unit Test Suite`, `Build Status & Log Aggregator`), and resolution of all review threads.
 
 ---
 
@@ -57,6 +56,31 @@ Packages in RepoExe are defined declaratively in `pkg/<name>/recipe.ts`.
 - **Strict System Packages Only:** RepoExe packages native system tools, compilers, and CLI utilities. Do **not** package Python wheels or npm modules; users install those via language-specific managers.
 - **Native Bionic Compliance:** Binaries must link against Android Bionic libc (`/system/bin/linker64`), never glibc (`libc.so.6`).
 - **Standard Prefix:** All binaries and assets must install into `${DESTDIR}${PREFIX}` (`/data/data/com.termux/files/usr`).
+- **Strict Patch Numbering:** Patches under `pkg/<name>/patches/` must be regular files using 4-digit zero-padded `.patch` filenames (e.g., `0001-fix-build.patch`, `0002-cross-compile.patch`).
+
+### `recipe.ts` Reference (`defineRecipe`)
+
+Recipes use `defineRecipe({...})` from `@core/types.ts`:
+
+| Field                                                                               | Description                                                                                                                                                                                                                   |
+| :---------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`, `version`, `epoch`, `revision`                                              | Package identity and Debian version components (`[epoch:]version[-revision]`).                                                                                                                                                |
+| `arch` / `arches`                                                                   | Target architecture(s): `'aarch64'`, `'arm'`, `'x86_64'`, `'i686'`, or `'all'`.                                                                                                                                               |
+| `description`, `license`, `homepage`, `component`                                   | Metadata for APT `control` and registry index (`main` by default).                                                                                                                                                            |
+| `maintainer`, `uploaders`                                                           | Maintainer handle/email and optional co-uploaders.                                                                                                                                                                            |
+| `build_system`                                                                      | Build backend (`'custom'`, `'cmake'`, `'meson'`, `'autotools'`, `'cargo'`, `'go'`, `'zig'`, etc.).                                                                                                                            |
+| `source` / `sources` / `mirrors` / `sha256`                                         | Upstream tarball/git URL(s), fallback mirrors, and SHA-256 verification.                                                                                                                                                      |
+| `formats`                                                                           | Target package formats (`['apt']`).                                                                                                                                                                                           |
+| `build_deps`, `deps`                                                                | Build-time and runtime dependencies (supports version constraints and `:any` / `\|` alternatives).                                                                                                                            |
+| `recommends`, `suggests`, `conflicts`, `provides`, `replaces`, `breaks`, `enhances` | Debian relationship fields.                                                                                                                                                                                                   |
+| `multiarch`                                                                         | Multi-Arch mode (`'foreign'`, `'same'`, `'allowed'`, `'no'`).                                                                                                                                                                 |
+| `subpackages`                                                                       | Split outputs into child `.deb`s (`'auto:dev'`, `'auto:doc'`, `'auto:static'`, or `SubpackageDefinition` objects with `include`/`files`, `arch`, `producer_arch`, `parent_dep`, `deps`, `provides`, `replaces`, `multiarch`). |
+| `maintainer_scripts`                                                                | Inline Debian maintainer scripts (`preinst`, `postinst`, `prerm`, `postrm`, `config`) validated at pack time.                                                                                                                 |
+| `resources`                                                                         | Runner resource hints: `{ zram, swap, free_space, tmpfs }`.                                                                                                                                                                   |
+| `heavy_build`, `cache`                                                              | Isolate long/memory-heavy builds into dedicated CI shards and enable toolchain caching.                                                                                                                                       |
+| `auto_update`, `update_strategy`, `custom_update_cmd`                               | Automated upstream checks (`'github_release'`, `'github_tag'`, `'git_tag'`, `'custom'`).                                                                                                                                      |
+| `patches`, `cflags`, `cxxflags`, `ldflags`, `ndk`                                   | Patch list, compiler/linker flags, and NDK version (`'30'`, `'23c'`).                                                                                                                                                         |
+| `phases`, `vars`, `env`, `toolchains`                                               | Shell phases (`prepare`, `configure`, `make`, `install`, `test`) and environment overrides.                                                                                                                                   |
 
 ---
 
@@ -70,8 +94,23 @@ git clone https://github.com/SjnExe/RepoExe.git
 cd RepoExe
 
 # Install dependencies (strictly locked)
-bun install --silent
+bun install --frozen-lockfile --silent
 ```
+
+### Build & CLI Commands
+
+| Command                                                  | Purpose                                                                           |
+| :------------------------------------------------------- | :-------------------------------------------------------------------------------- |
+| `bun run build pkg/<name> --arch <arch>`                 | Compile, pack `.deb` (including subpackages), and run smoke tests.                |
+| `bun run build compile pkg/<name> --arch <arch>`         | Run source fetch, patches, and `prepare`/`configure`/`make`/`install` phases.     |
+| `bun run build pack pkg/<name> --arch <arch>`            | Sanitize ELFs/shebangs, split subpackages, and emit reproducible `.deb` archives. |
+| `bun run build test pkg/<name> --arch <arch>`            | Run container/local smoke test against staged `.deb` archives.                    |
+| `bun run audit` (`bun run build check`)                  | Validate all recipes, DAG, and patch naming conventions.                          |
+| `bun run shards`                                         | Generate dynamic build-time-aware CI matrix shards.                               |
+| `bun run index`                                          | Publish GitHub Releases and generate APT repository + site metadata.              |
+| `bun run prune`                                          | Prune stale release assets and keep APT index consistent.                         |
+| `bun fmt --changed` / `bun check` / `bun run lint:check` | Format, typecheck, and lint (`oxlint`) TypeScript code.                           |
+| `bun test --parallel`                                    | Run the Bun unit test suite.                                                      |
 
 See [AGENTS.md](AGENTS.md) for full architectural guidelines and agent operational instructions.
 

@@ -3,8 +3,15 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { getExpectedAssetFilenames, identifyOrphanedReleases, identifyOutdatedAssets } from '../cli/prune.ts';
+import {
+  getExpectedAssetFilenames,
+  identifyOrphanedReleases,
+  identifyOutdatedAssets,
+  isPackageReleaseTag,
+  parsePaginatedGhJsonArray,
+} from '../cli/prune.ts';
 import { parseRecipe } from '../core/parser.ts';
+import { createRecipe } from './fixtures.ts';
 
 test('getExpectedAssetFilenames returns native format filenames', (): void => {
   const recipe = parseRecipe('pkg/aisleriot');
@@ -20,6 +27,24 @@ test('getExpectedAssetFilenames returns native format filenames', (): void => {
   expect(Array.from(expected).some((f) => f.endsWith('.apk'))).toBeFalse();
   expect(Array.from(expected).some((f) => f.endsWith('.whl'))).toBeFalse();
   expect(Array.from(expected).some((f) => f.endsWith('.tgz'))).toBeFalse();
+});
+
+test('getExpectedAssetFilenames includes subpackages when defined', (): void => {
+  const recipe = createRecipe({
+    name: 'testpkg',
+    version: '1.2.0',
+    revision: 1,
+    subpackages: {
+      dev: { name: 'testpkg-dev', include: ['include/**'] },
+      doc: 'auto:doc',
+    },
+  });
+  const expected = getExpectedAssetFilenames(recipe);
+  expect(expected.has('testpkg_1.2.0-1_aarch64.deb')).toBeTrue();
+  expect(expected.has('testpkg-dev_1.2.0-1_aarch64.deb')).toBeTrue();
+  expect(expected.has('testpkg-doc_1.2.0-1_all.deb')).toBeTrue();
+  expect(expected.has('testpkg-dev_metadata.json')).toBeTrue();
+  expect(expected.has('testpkg-doc_metadata.json')).toBeTrue();
 });
 
 test('identifyOutdatedAssets filters unknown assets', (): void => {
@@ -55,6 +80,373 @@ test('identifyOutdatedAssets only prunes architectures with current replacements
   expect(outdated2.map((a) => a.id)).toEqual([2, 3]);
 });
 
+test('identifyOutdatedAssets does not prune older child subpackages when only parent is replaced', (): void => {
+  const recipe = createRecipe({
+    name: 'foo',
+    version: '2.0.0',
+    revision: 0,
+    epoch: 0,
+    subpackages: {
+      dev: { name: 'foo-dev', include: ['include/**'] },
+    },
+  });
+
+  const assets1 = [
+    { name: 'foo_2.0.0_aarch64.deb', id: 1 },
+    { name: 'foo-dev_1.0.0_aarch64.deb', id: 2 },
+  ];
+
+  // foo_2 does not make foo-dev_1 eligible for deletion
+  const outdated1 = identifyOutdatedAssets(assets1, recipe, 'foo');
+  expect(outdated1.length).toBe(0);
+
+  // When foo-dev replacement is added to assets
+  const assets2 = [...assets1, { name: 'foo-dev_2.0.0_aarch64.deb', id: 3 }];
+  const outdated2 = identifyOutdatedAssets(assets2, recipe, 'foo');
+  expect(outdated2.map((a) => a.id)).toEqual([2]);
+});
+
+test('identifyOutdatedAssets preserves explicit parent dependency of current children', (): void => {
+  const recipe = createRecipe({
+    name: 'foo',
+    version: '2.0.0',
+    revision: 0,
+    epoch: 0,
+    arch: 'aarch64',
+    subpackages: {
+      client: {
+        name: 'foo-client',
+        arch: 'aarch64',
+        include: ['bin/**'],
+        parent_dep: 'foo (= 1.0.0)',
+      },
+    },
+  });
+
+  const assets = [
+    // Current replacement for parent
+    { name: 'foo_2.0.0_aarch64.deb', id: 1 },
+    // Current child subpackage
+    { name: 'foo-client_2.0.0_aarch64.deb', id: 2 },
+    // Explicit parent required by current child
+    { name: 'foo_1.0.0_aarch64.deb', id: 3 },
+    // Outdated parent on aarch64 that wasn't pinned
+    { name: 'foo_0.9.0_aarch64.deb', id: 4 },
+  ];
+
+  // foo_1.0.0_aarch64.deb is pinned by current child's parent_dep: 'foo (= 1.0.0)'
+  const outdated = identifyOutdatedAssets(assets, recipe, 'foo');
+  const outdatedIds = outdated.map((a) => a.id);
+  expect(outdatedIds).toEqual([4]);
+});
+
+test('identifyOutdatedAssets retains :all child and older parent when publication covers only some parent architectures', (): void => {
+  const recipe = createRecipe({
+    name: 'foo',
+    version: '2',
+    revision: 0,
+    epoch: 0,
+    arch: 'aarch64',
+    subpackages: {
+      doc: {
+        name: 'foo-doc',
+        arch: 'all',
+        include: ['share/doc/**'],
+      },
+    },
+  });
+
+  const assets = [
+    // Pre-existing release contains arm parent and older all child
+    { name: 'foo_1_arm.deb', id: 1 },
+    { name: 'foo-doc_1_all.deb', id: 2 },
+    // Only aarch64 build succeeds and publishes version 2 parent and all child
+    { name: 'foo_2_aarch64.deb', id: 3 },
+    { name: 'foo-doc_2_all.deb', id: 4 },
+  ];
+
+  // Since arm parent is not replaced, foo-doc_1_all and foo_1_arm must be retained
+  const outdated = identifyOutdatedAssets(assets, recipe, 'foo');
+  expect(outdated.map((a) => a.id)).toEqual([]);
+});
+
+test('identifyOutdatedAssets preserves version-pinned sibling subpackages', (): void => {
+  const recipe = createRecipe({
+    name: 'foo',
+    version: '2',
+    revision: 0,
+    epoch: 0,
+    arch: 'aarch64',
+    subpackages: {
+      runtime: {
+        name: 'foo-runtime',
+        arch: 'aarch64',
+        include: ['lib/**'],
+        parent_dep: 'none',
+      },
+      tools: {
+        name: 'foo-tools',
+        arch: 'aarch64',
+        include: ['bin/**'],
+        parent_dep: 'none',
+        deps: ['foo-runtime (= 1)'],
+      },
+    },
+  });
+
+  const assets = [
+    // Current parent and current children
+    { name: 'foo_2_aarch64.deb', id: 1 },
+    { name: 'foo-runtime_2_aarch64.deb', id: 2 },
+    { name: 'foo-tools_2_aarch64.deb', id: 3 },
+    // Version 1 of foo-runtime pinned by foo-tools
+    { name: 'foo-runtime_1_aarch64.deb', id: 4 },
+    // Unpinned older version of parent (runtime has parent_dep: 'none')
+    { name: 'foo_1_aarch64.deb', id: 5 },
+  ];
+
+  const outdated = identifyOutdatedAssets(assets, recipe, 'foo');
+  const outdatedIds = outdated.map((a) => a.id);
+  // foo_1_aarch64.deb is outdated and pruned; foo-runtime_1_aarch64.deb is preserved by sibling pin
+  expect(outdatedIds).toEqual([5]);
+});
+
+test('identifyOutdatedAssets collects dependencies from parent recipe.deps (Thread #3)', (): void => {
+  const recipe = createRecipe({
+    name: 'foo',
+    version: '2',
+    revision: 0,
+    epoch: 0,
+    arch: 'aarch64',
+    deps: ['foo-runtime (= 1)'],
+    subpackages: {
+      runtime: {
+        name: 'foo-runtime',
+        arch: 'aarch64',
+        include: ['lib/**'],
+        parent_dep: 'none',
+      },
+    },
+  });
+
+  const assets = [
+    { name: 'foo_2_aarch64.deb', id: 1 },
+    { name: 'foo-runtime_2_aarch64.deb', id: 2 },
+    { name: 'foo-runtime_1_aarch64.deb', id: 3 },
+  ];
+
+  const outdated = identifyOutdatedAssets(assets, recipe, 'foo');
+  const outdatedIds = outdated.map((a) => a.id);
+  // foo-runtime_1 is required by recipe.deps, so neither is deleted
+  expect(outdatedIds).toEqual([]);
+});
+
+test('identifyOutdatedAssets preserves comparison operator and avoids treating newer version as compatible with << (Thread #2)', (): void => {
+  const recipe = createRecipe({
+    name: 'foo',
+    version: '2',
+    revision: 0,
+    epoch: 0,
+    arch: 'aarch64',
+    subpackages: {
+      runtime: {
+        name: 'foo-runtime',
+        arch: 'aarch64',
+        include: ['lib/**'],
+        parent_dep: 'none',
+      },
+      tools: {
+        name: 'foo-tools',
+        arch: 'aarch64',
+        include: ['bin/**'],
+        parent_dep: 'none',
+        deps: ['foo-runtime (<< 1.5)'],
+      },
+    },
+  });
+
+  const assets = [
+    { name: 'foo_2_aarch64.deb', id: 1 },
+    { name: 'foo-tools_2_aarch64.deb', id: 2 },
+    { name: 'foo-runtime_2_aarch64.deb', id: 3 },
+    { name: 'foo-runtime_1.0_aarch64.deb', id: 4 },
+    { name: 'foo-runtime_1.8_aarch64.deb', id: 5 },
+  ];
+
+  const outdated = identifyOutdatedAssets(assets, recipe, 'foo');
+  const outdatedIds = outdated.map((a) => a.id);
+  // foo-runtime_1.0 satisfies '<< 1.5', so it must be preserved
+  expect(outdatedIds.includes(4)).toBeFalse();
+  // foo-runtime_1.8 violates '<< 1.5' and is older than replacement v2, so it must be marked outdated
+  expect(outdatedIds.includes(5)).toBeTrue();
+});
+
+test('identifyOutdatedAssets collects transitive dependencies of pinned assets to fixed point (Thread #4)', (): void => {
+  const recipe = createRecipe({
+    name: 'foo',
+    version: '2',
+    revision: 0,
+    epoch: 0,
+    arch: 'aarch64',
+    subpackages: {
+      runtime: {
+        name: 'foo-runtime',
+        arch: 'aarch64',
+        include: ['lib/**'],
+        // Default parent dependency on foo
+      },
+      tools: {
+        name: 'foo-tools',
+        arch: 'aarch64',
+        include: ['bin/**'],
+        parent_dep: 'none',
+        deps: ['foo-runtime (= 1)'],
+      },
+    },
+  });
+
+  const assets = [
+    { name: 'foo_2_aarch64.deb', id: 1 },
+    { name: 'foo-runtime_2_aarch64.deb', id: 2 },
+    { name: 'foo-tools_2_aarch64.deb', id: 3 },
+    // Version 1 of foo-runtime pinned by foo-tools
+    { name: 'foo-runtime_1_aarch64.deb', id: 4 },
+    // Version 1 of parent foo required by foo-runtime_1
+    { name: 'foo_1_aarch64.deb', id: 5 },
+  ];
+
+  const outdated = identifyOutdatedAssets(assets, recipe, 'foo');
+  const outdatedIds = outdated.map((a) => a.id);
+  // Both foo-runtime_1 and foo_1 are retained via fixed-point dependency chain
+  expect(outdatedIds).toEqual([]);
+});
+
+test('identifyOutdatedAssets retains cross-release pinned version (Thread #16)', (): void => {
+  const runtimeRecipe = createRecipe({
+    name: 'runtime',
+    version: '2',
+    arch: 'aarch64',
+  });
+
+  const clientRecipe = createRecipe({
+    name: 'client',
+    version: '1',
+    arch: 'aarch64',
+    deps: ['runtime (= 1)'],
+  });
+
+  const assets = [
+    { name: 'runtime_2_aarch64.deb', id: 1 },
+    { name: 'runtime_1_aarch64.deb', id: 2 },
+  ];
+
+  const allRecipes = {
+    runtime: runtimeRecipe,
+    client: clientRecipe,
+  };
+
+  const outdated = identifyOutdatedAssets(assets, runtimeRecipe, 'runtime', allRecipes);
+  const outdatedIds = outdated.map((a) => a.id);
+  // runtime_1 is retained because client pins runtime (= 1)
+  expect(outdatedIds).toEqual([]);
+});
+
+test('identifyOutdatedAssets checks parent coverage when all replaces native child (Thread #17)', (): void => {
+  const recipe = createRecipe({
+    name: 'foo',
+    version: '2',
+    arch: 'aarch64',
+    subpackages: {
+      doc: {
+        name: 'foo-doc',
+        arch: 'all',
+        include: ['share/doc/**'],
+      },
+    },
+  });
+
+  // Current release has foo_2_aarch64 and foo-doc_2_all, but NO foo_2_arm
+  const assets = [
+    { name: 'foo_2_aarch64.deb', id: 1 },
+    { name: 'foo-doc_2_all.deb', id: 2 },
+    // Old arm child should be retained because foo_2_arm is not available
+    { name: 'foo-doc_1_arm.deb', id: 3 },
+    { name: 'foo_1_arm.deb', id: 4 },
+  ];
+
+  const outdated = identifyOutdatedAssets(assets, recipe, 'foo');
+  const outdatedIds = outdated.map((a) => a.id);
+  // foo-doc_1_arm and foo_1_arm are preserved because replacement doc needs foo on arm
+  expect(outdatedIds).not.toContain(3);
+  expect(outdatedIds).not.toContain(4);
+
+  // When foo_2_arm.deb is published, ARM parent coverage is complete so older ARM child and parent are outdated
+  const assetsWithArm = [...assets, { name: 'foo_2_arm.deb', id: 5 }];
+  const outdatedWithArm = identifyOutdatedAssets(assetsWithArm, recipe, 'foo');
+  const outdatedWithArmIds = outdatedWithArm.map((a) => a.id);
+  expect(outdatedWithArmIds).toContain(3);
+  expect(outdatedWithArmIds).toContain(4);
+});
+
+test('identifyOutdatedAssets retains older parent version pinned by published dependencies of retained child archive', (): void => {
+  const recipe = createRecipe({
+    name: 'provider',
+    version: '2',
+    arch: 'aarch64',
+    subpackages: {
+      dev: {
+        name: 'provider-dev',
+        arch: 'aarch64',
+        include: ['include/**'],
+        parent_dep: 'provider (= 2)',
+      },
+    },
+  });
+
+  const assets = [
+    { name: 'provider_2_aarch64.deb', id: 1 },
+    {
+      name: 'provider-dev_1_aarch64.deb',
+      id: 2,
+      depends: ['provider (= 1)'],
+    },
+    { name: 'provider_1_aarch64.deb', id: 3 },
+  ];
+
+  const outdated = identifyOutdatedAssets(assets, recipe, 'provider');
+  const outdatedIds = outdated.map((a) => a.id);
+  expect(outdatedIds).not.toContain(3);
+});
+
+test('identifyOutdatedAssets retains pinned parent when all parent archives are architecture-independent (Thread #18)', (): void => {
+  const recipe = createRecipe({
+    name: 'foo',
+    version: '2',
+    arch: 'all',
+    subpackages: {
+      doc: {
+        name: 'foo-doc',
+        arch: 'all',
+        include: ['share/doc/**'],
+      },
+    },
+  });
+
+  // Current release only published foo_2_all.deb; foo-doc_2_all is missing
+  const assets = [
+    { name: 'foo_2_all.deb', id: 1 },
+    // Missing child replacement keeps foo-doc_1_all.deb
+    { name: 'foo-doc_1_all.deb', id: 2 },
+    // foo_1_all.deb should be retained because foo-doc_1_all depends on foo (= 1)
+    { name: 'foo_1_all.deb', id: 3 },
+  ];
+
+  const outdated = identifyOutdatedAssets(assets, recipe, 'foo');
+  const outdatedIds = outdated.map((a) => a.id);
+  expect(outdatedIds).not.toContain(2);
+  expect(outdatedIds).not.toContain(3);
+});
+
 test('identifyOrphanedReleases detects deleted/missing recipes', (): void => {
   const tmpPkgDir = join(tmpdir(), `test-pkgs-${Date.now()}`);
   mkdirSync(join(tmpPkgDir, 'existing-pkg'), { recursive: true });
@@ -74,4 +466,108 @@ test('identifyOrphanedReleases detects deleted/missing recipes', (): void => {
   expect(orphaned).not.toContain('random-non-package-tag');
 
   rmSync(tmpPkgDir, { recursive: true, force: true });
+});
+
+test('Finding #6: prunes legacy parent _all.deb once all migrated native architectures are published', (): void => {
+  const recipe = createRecipe({
+    name: 'migrated',
+    version: '2.0.0',
+    arches: ['aarch64', 'arm'],
+  });
+
+  const partialAssets = [
+    { name: 'migrated_1.0.0_all.deb', id: 1 },
+    { name: 'migrated_2.0.0_aarch64.deb', id: 2 },
+  ];
+  expect(identifyOutdatedAssets(partialAssets, recipe, 'migrated').map((a) => a.id)).toEqual([]);
+
+  const completeAssets = [...partialAssets, { name: 'migrated_2.0.0_arm.deb', id: 3 }];
+  expect(identifyOutdatedAssets(completeAssets, recipe, 'migrated').map((a) => a.id)).toEqual([1]);
+});
+
+test('Thread #10: isPackageReleaseTag requires ownership metadata for recipe-less child-only releases', (): void => {
+  const tmpPkgDir = join(process.env.TMPDIR || tmpdir(), `prune-owner-${Date.now()}`);
+  mkdirSync(tmpPkgDir, { recursive: true });
+  try {
+    const nonPkgRelease = {
+      tag_name: 'tools',
+      body: 'Manual release notes',
+      assets: [{ name: 'tools-sdk_1_aarch64.deb' }],
+    };
+    expect(isPackageReleaseTag(nonPkgRelease, tmpPkgDir)).toBeFalse();
+
+    const ownedChildOnlyRelease = {
+      tag_name: 'tools',
+      body: JSON.stringify({ managed_by: 'repoexe', name: 'tools', owned_packages: ['tools', 'tools-sdk'] }),
+      assets: [{ name: 'tools-sdk_1_aarch64.deb' }],
+    };
+    expect(isPackageReleaseTag(ownedChildOnlyRelease, tmpPkgDir)).toBeTrue();
+  } finally {
+    rmSync(tmpPkgDir, { recursive: true, force: true });
+  }
+});
+
+test('Out-of-diff: parsePaginatedGhJsonArray flattens --slurp and concatenated JSON pages and rejects garbage', (): void => {
+  expect(parsePaginatedGhJsonArray('[{"tag_name":"a"}][{"tag_name":"b"}]')).toEqual([
+    { tag_name: 'a' },
+    { tag_name: 'b' },
+  ]);
+  expect(parsePaginatedGhJsonArray('[[{"tag_name":"a"}],[{"tag_name":"b"}]]')).toEqual([
+    { tag_name: 'a' },
+    { tag_name: 'b' },
+  ]);
+  expect(() => parsePaginatedGhJsonArray('not-json')).toThrow();
+});
+
+test('identifyOutdatedAssets retains archive versions pinned by build dependencies of other recipes (Thread #5)', (): void => {
+  const runtimeRecipe = createRecipe({
+    name: 'runtime',
+    version: '2',
+    arch: 'aarch64',
+  });
+
+  const clientRecipe = createRecipe({
+    name: 'client',
+    version: '1',
+    arch: 'aarch64',
+    build_deps: ['runtime (= 1)'],
+  });
+
+  const assets = [
+    { name: 'runtime_2_aarch64.deb', id: 1 },
+    { name: 'runtime_1_aarch64.deb', id: 2 },
+  ];
+
+  const outdated = identifyOutdatedAssets(assets, runtimeRecipe, 'runtime', {
+    client: clientRecipe,
+    runtime: runtimeRecipe,
+  });
+  const outdatedIds = outdated.map((a) => a.id);
+  expect(outdatedIds).not.toContain(2);
+});
+
+test('Thread #5: identifyOutdatedAssets does not prune a newer archive using an older recipe', (): void => {
+  // Stale checkout recipe has version 1
+  const staleRecipe = createRecipe({
+    name: 'foo',
+    version: '1',
+    arch: 'aarch64',
+    subpackages: {
+      'foo-doc': { name: 'foo-doc', parent_dep: 'none' },
+    },
+  });
+
+  // Release has both version 1 and version 2
+  const assets = [
+    { name: 'foo_1_aarch64.deb', id: 1 },
+    { name: 'foo-doc_1_aarch64.deb', id: 2 },
+    { name: 'foo-doc_2_aarch64.deb', id: 3 },
+  ];
+
+  const outdated = identifyOutdatedAssets(assets, staleRecipe, 'foo');
+  const outdatedIds = outdated.map((a) => a.id);
+  // foo-doc_2 must NOT be marked outdated by stale version 1 recipe!
+  expect(outdatedIds).not.toContain(3);
+  // foo-doc_1 is the older version, but stale recipe version 1 is not strictly newer than version 1, so it is retained
+  expect(outdatedIds).not.toContain(2);
 });

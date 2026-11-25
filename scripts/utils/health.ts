@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { parseRecipe } from '../core/parser.ts';
@@ -49,6 +49,50 @@ export function auditRepositoryHealth(packagesDir: string): HealthReport {
           }
         }
 
+        // Validate patch naming and strict 4-digit zero-padded numbering
+        const declaredPatches = Array.isArray(recipe.patches)
+          ? recipe.patches.map((p) => (p.startsWith('patches/') ? p.slice(8) : p))
+          : [];
+        const patchDir = join(pkgDir, 'patches');
+        for (const dec of declaredPatches) {
+          const patchPath = join(patchDir, dec);
+          if (!existsSync(patchPath) || !statSync(patchPath).isFile()) {
+            throw new Error(`Declared patch '${dec}' does not exist in '${patchDir}'.`);
+          }
+        }
+        const patchEntries = existsSync(patchDir) ? readdirSync(patchDir) : [];
+        if (declaredPatches.length === 0) {
+          for (const entryName of patchEntries) {
+            const entryPath = join(patchDir, entryName);
+            if (
+              (entryName.endsWith('.patch') || entryName.endsWith('.diff')) &&
+              (!existsSync(entryPath) || !statSync(entryPath).isFile())
+            ) {
+              throw new Error(`Patch entry '${entryName}' in '${patchDir}' is not a regular file.`);
+            }
+          }
+        }
+        const patchesToValidate =
+          declaredPatches.length > 0
+            ? declaredPatches
+            : patchEntries
+                .filter((name) => {
+                  const entryPath = join(patchDir, name);
+                  return (
+                    existsSync(entryPath) &&
+                    statSync(entryPath).isFile() &&
+                    (name.endsWith('.patch') || name.endsWith('.diff'))
+                  );
+                })
+                .sort();
+        for (const patch of patchesToValidate) {
+          if (!/^\d{4}-[\w.-]+\.(patch|diff)$/.test(patch)) {
+            throw new Error(
+              `Invalid patch filename '${patch}' in '${pkgName}'. Patches must follow strict 4-digit zero-padded numbering (e.g. '0001-fix.patch').`,
+            );
+          }
+        }
+
         validPackages++;
         const bs = recipe.build_system || 'custom';
         buildSystems[bs] = (buildSystems[bs] || 0) + 1;
@@ -62,7 +106,8 @@ export function auditRepositoryHealth(packagesDir: string): HealthReport {
     for (const inv of invalidPackages) {
       console.error(`❌ [Health Error] ${inv.package}: ${inv.error}`);
     }
-    throw new Error(`Repository health check failed with ${invalidPackages.length} error(s).`);
+    const details = invalidPackages.map((inv) => `[${inv.package}] ${inv.error}`).join('; ');
+    throw new Error(`Repository health check failed with ${invalidPackages.length} error(s): ${details}`);
   }
 
   return {

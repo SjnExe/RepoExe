@@ -12,6 +12,8 @@ export const DYNAMIC_TAGS_TO_NULLIFY = new Set([
   0x6ffffff0n, // DT_VERSYM
   0x6ffffffcn, // DT_VERDEF
   0x6ffffffdn, // DT_VERDEFNUM
+  0x7ffffffdn, // DT_AUXILIARY
+  0x7fffffffn, // DT_FILTER
   15n, // DT_RPATH
 ]);
 
@@ -96,6 +98,13 @@ export function stripVerneedFromElf(elfPath: string): void {
           const d_val = view.getBigInt64(entryOffset + 8, littleEndian);
           const maskedTag = d_tag & 0xffffffffn;
 
+          // Check for W^X text relocation violation (DT_TEXTREL or DF_TEXTREL in DT_FLAGS)
+          if (d_tag === 22n || maskedTag === 22n || ((d_tag === 30n || maskedTag === 30n) && (d_val & 4n) !== 0n)) {
+            throw new Error(
+              `Security Enforcement Failed: '${basename(elfPath)}' contains DT_TEXTREL (text relocations), which violates Android 10+ W^X security policy. Recompile with position-independent code (-fPIC / -fPIE).`,
+            );
+          }
+
           if (DYNAMIC_TAGS_TO_NULLIFY.has(d_tag) || DYNAMIC_TAGS_TO_NULLIFY.has(maskedTag)) {
             modified = true;
           } else {
@@ -140,6 +149,13 @@ export function stripVerneedFromElf(elfPath: string): void {
           const bigTag = BigInt(d_tag);
           const maskedTag = bigTag & 0xffffffffn;
 
+          // Check for W^X text relocation violation (DT_TEXTREL or DF_TEXTREL in DT_FLAGS)
+          if (d_tag === 22 || maskedTag === 22n || ((d_tag === 30 || maskedTag === 30n) && (d_val & 4) !== 0)) {
+            throw new Error(
+              `Security Enforcement Failed: '${basename(elfPath)}' contains DT_TEXTREL (text relocations), which violates Android 10+ W^X security policy. Recompile with position-independent code (-fPIC / -fPIE).`,
+            );
+          }
+
           if (DYNAMIC_TAGS_TO_NULLIFY.has(bigTag) || DYNAMIC_TAGS_TO_NULLIFY.has(maskedTag)) {
             modified = true;
           } else {
@@ -165,7 +181,10 @@ export function stripVerneedFromElf(elfPath: string): void {
         }
       }
     }
-  } catch {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes('Security Enforcement Failed')) {
+      throw err;
+    }
     // Ignore invalid files
   }
 }
@@ -177,17 +196,35 @@ export function sanitizeElfBinary(elfPath: string, prefix: string = PREFIX): voi
       return;
     }
 
-    // 0. STRICT BIONIC VALIDATOR
+    // 0. STRICT BIONIC & SECURITY VALIDATOR
     const res = spawnSync('readelf', ['-d', elfPath], { encoding: 'utf-8' });
+    if (res.error) {
+      throw new Error(`Failed to execute readelf on '${basename(elfPath)}': ${res.error.message}`);
+    }
+    const combinedOutput = `${res.stdout || ''}\n${res.stderr || ''}`;
+    const isNoDynamic = /there is no dynamic section/i.test(combinedOutput);
+    if (res.status !== 0 && !isNoDynamic) {
+      const errDetail = res.stderr?.trim() || `exit code ${res.status}`;
+      throw new Error(`Failed to inspect dynamic dependencies on '${basename(elfPath)}': ${errDetail}`);
+    }
     if (res.status === 0 && res.stdout) {
       for (const line of res.stdout.split('\n')) {
-        if (line.includes('(NEEDED)')) {
-          for (const glibcLib of GLIBC_LIBS) {
-            if (line.includes(`[${glibcLib}]`)) {
-              throw new Error(
-                `Strict Bionic Enforcement Failed: '${basename(elfPath)}' linked against glibc library '${glibcLib}'. Native Android builds must not use glibc.`,
-              );
+        const tagMatch = line.match(/\(\s*([A-Za-z0-9_]+)\s*\)\s*(.*)$/);
+        if (tagMatch) {
+          const tag = tagMatch[1];
+          const val = tagMatch[2];
+          if (tag === 'NEEDED') {
+            for (const glibcLib of GLIBC_LIBS) {
+              if (val.includes(`[${glibcLib}]`)) {
+                throw new Error(
+                  `Strict Bionic Enforcement Failed: '${basename(elfPath)}' linked against glibc library '${glibcLib}'. Native Android builds must not use glibc.`,
+                );
+              }
             }
+          } else if (tag === 'TEXTREL' || (tag === 'FLAGS' && /\bTEXTREL\b/.test(val))) {
+            throw new Error(
+              `Security Enforcement Failed: '${basename(elfPath)}' contains DT_TEXTREL (text relocations), which violates Android 10+ W^X security policy. Recompile with position-independent code (-fPIC / -fPIE).`,
+            );
           }
         }
       }
@@ -217,7 +254,13 @@ export function sanitizeElfBinary(elfPath: string, prefix: string = PREFIX): voi
       }
     }
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('Strict Bionic Enforcement Failed')) {
+    if (
+      err instanceof Error &&
+      (err.message.includes('Strict Bionic Enforcement Failed') ||
+        err.message.includes('Security Enforcement Failed') ||
+        err.message.includes('Failed to execute readelf') ||
+        err.message.includes('Failed to inspect dynamic dependencies'))
+    ) {
       throw err;
     }
   }

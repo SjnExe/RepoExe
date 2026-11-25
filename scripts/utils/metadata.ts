@@ -27,6 +27,7 @@ export function generatePackagesJson(
   outputFile?: string,
   artifactsDir?: string,
   releaseAssetMap?: Map<string, ReleaseAssetInfo[]>,
+  publishableLocalAssets?: Set<string>,
 ): void {
   const repoRoot = resolve('.');
   const pkgsPath = pkgDir ? resolve(pkgDir) : join(repoRoot, 'pkg');
@@ -43,6 +44,9 @@ export function generatePackagesJson(
         if (entry.isDirectory()) {
           collect(full);
         } else if (entry.isFile()) {
+          if (publishableLocalAssets && !publishableLocalAssets.has(full) && !publishableLocalAssets.has(entry.name)) {
+            continue;
+          }
           availableFiles.set(entry.name, full);
         }
       }
@@ -94,6 +98,13 @@ export function generatePackagesJson(
           const expectedFilenames = getExpectedAssetFilenames(recipe);
 
           for (const [filename, fullPath] of availableFiles.entries()) {
+            if (
+              publishableLocalAssets &&
+              !publishableLocalAssets.has(fullPath) &&
+              !publishableLocalAssets.has(filename)
+            ) {
+              continue;
+            }
             if (filename.endsWith('.deb') && expectedFilenames.has(filename) && !assetMap.has(filename)) {
               const arch = extractDebArch(filename);
               let size = 0;
@@ -111,7 +122,9 @@ export function generatePackagesJson(
             }
           }
 
-          if (assetMap.size === 0) {
+          const hasConfirmedOrLocalArchives = assetMap.size > 0;
+
+          if (assetMap.size === 0 && !publishableLocalAssets) {
             const arches = recipe.arches && recipe.arches.length > 0 ? recipe.arches : [recipe.arch || 'aarch64'];
             const verStr = formatDebianVersion(recipe);
             for (const debArch of arches) {
@@ -151,7 +164,7 @@ export function generatePackagesJson(
             breaks: recipe.breaks,
             provides: recipe.provides,
             replaces: recipe.replaces,
-            verified_built: Array.from(availableFiles.keys()).some((f) => f.includes(recipe.name)),
+            verified_built: hasConfirmedOrLocalArchives,
             assets,
             total_downloads: totalDownloads,
           });
