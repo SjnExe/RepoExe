@@ -3,7 +3,7 @@ import { defineRecipe } from '@core/types.ts';
 export default defineRecipe({
   name: 'aisleriot',
   version: '3.22.35',
-  revision: 2,
+  revision: 3,
   auto_update: true,
   update_strategy: 'git_tag',
   arch: ['aarch64', 'arm', 'x86_64', 'i686'],
