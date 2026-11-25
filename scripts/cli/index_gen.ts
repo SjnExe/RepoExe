@@ -4,12 +4,10 @@ import {
   chmodSync,
   copyFileSync,
   existsSync,
-  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
-  readlinkSync,
   realpathSync,
   renameSync,
   rmSync,
@@ -41,6 +39,7 @@ import type { PackageRecipe, SubpackageDefinition } from '../core/types.ts';
 import { formatDebianVersion, satisfiesVersionConstraint } from '../core/version.ts';
 import { DependencyGraph } from '../utils/dag.ts';
 import { generatePackagesJson, type ReleaseAssetInfo } from '../utils/metadata.ts';
+import { buildSiteFrontend } from '../utils/site_builder.ts';
 import {
   getExpectedAssetFilenames,
   identifyOutdatedAssets,
@@ -2978,57 +2977,8 @@ export async function prepareSite(
       ranEligibilityScan ? globalEligibleArtifacts : undefined,
     );
 
-    // 6. Copy Frontend Source & Keyrings (dereferencing symlinks so site artifacts tarball cleanly)
-    const siteSrcDir = join(repoRoot, 'scripts', 'site');
-    if (existsSync(siteSrcDir)) {
-      spawnSync('cp', ['-aL', `${siteSrcDir}/.`, `${sPath}/`]);
-    }
-
-    // Bundle scripts/site/app.ts using Bun into site/app.js
-    const appTs = join(siteSrcDir, 'app.ts');
-    if (existsSync(appTs)) {
-      try {
-        const buildRes = await Bun.build({
-          entrypoints: [appTs],
-          outdir: sPath,
-          target: 'browser',
-          minify: true,
-        });
-        if (!buildRes.success) {
-          console.warn('::warning:: Bun build error compiling app.ts:', buildRes.logs);
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`::warning:: Failed to bundle app.ts with Bun: ${msg}`);
-      }
-    }
-
-    // Ensure site/install is a concrete file, never a dangling symlink
-    const siteInstall = join(sPath, 'install');
-    try {
-      const lstat = lstatSync(siteInstall);
-      if (lstat.isSymbolicLink()) {
-        const linkTarget = readlinkSync(siteInstall);
-        const resolvedTarget = resolve(dirname(siteInstall), linkTarget);
-        rmSync(siteInstall, { force: true });
-        if (existsSync(resolvedTarget)) {
-          copyFileSync(resolvedTarget, siteInstall);
-        }
-      }
-    } catch {}
-
-    const repoexeInstall = join(repoRoot, 'pkg', 'repoexe', 'install');
-    if (existsSync(repoexeInstall)) {
-      rmSync(siteInstall, { force: true });
-      copyFileSync(repoexeInstall, siteInstall);
-    }
-
-    const gpgKeyPath = join(repoRoot, 'scripts', 'repoexe.gpg');
-    if (existsSync(gpgKeyPath)) {
-      copyFileSync(gpgKeyPath, join(sPath, 'repoexe.gpg'));
-    }
-
-    writeFileSync(join(sPath, '.nojekyll'), '', 'utf-8');
+    // 6. Build & Copy Frontend Source & Keyrings (excluding raw .ts files)
+    await buildSiteFrontend(repoRoot, sPath);
     console.log(`✓ Complete RepoExe site environment successfully generated at ${sPath}`);
   } finally {
     if (runRetainedDir && existsSync(runRetainedDir)) {

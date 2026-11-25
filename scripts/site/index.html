@@ -3,12 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#070a0f" />
+    <meta name="theme-color" content="#06090e" />
     <meta
       name="description"
       content="Official RepoExe APT Package Repository for Android Termux."
     />
     <title>RepoExe • Termux APT Repository</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2306090e'/%3E%3Ctext x='5' y='22' font-family='monospace' font-size='16' font-weight='700' fill='%2327c93f'%3E%3E_%3C/text%3E%3C/svg%3E"
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -87,10 +92,15 @@
                 type="text"
                 id="searchInput"
                 placeholder="Search packages, dependencies, licenses... ('/' to focus)"
+                aria-label="Search packages"
                 autocomplete="off"
                 spellcheck="false"
               />
-              <span id="pkgCount" class="pkg-count">0 packages</span>
+              <select id="sortSelect" class="sort-select" aria-label="Sort packages">
+                <option value="name">Sort: A–Z</option>
+                <option value="downloads">Sort: Downloads</option>
+              </select>
+              <span id="pkgCount" class="pkg-count" aria-live="polite">0 packages</span>
             </div>
             <div id="filterBar" class="filter-bar"></div>
           </section>
@@ -103,7 +113,7 @@
           </section>
         </div>
 
-        <div id="detailView" class="detail-window" style="display: none"></div>
+        <div id="detailView" class="detail-window" hidden></div>
       </main>
 
       <footer class="term-footer">
