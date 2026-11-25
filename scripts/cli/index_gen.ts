@@ -1263,6 +1263,8 @@ export async function prepareSite(
           const rawMatchingFiles = getExactPackageArtifacts(artPath, pkgName, subpkgNames);
           const combinedStateHashes: Record<string, string> = {};
           const combinedBuildDurations: Record<string, number> = {};
+          const combinedNeededSonames: Record<string, string[]> = {};
+          const combinedDepVersions: Record<string, Record<string, string>> = {};
           for (const { meta } of entries) {
             if (meta.state_hashes && typeof meta.state_hashes === 'object') {
               Object.assign(combinedStateHashes, meta.state_hashes);
@@ -1284,6 +1286,22 @@ export async function prepareSite(
                 combinedBuildDurations[arch] = meta.build_duration_sec;
               }
             }
+            if (meta.needed_sonames && typeof meta.needed_sonames === 'object') {
+              for (const [sArch, sList] of Object.entries(meta.needed_sonames as Record<string, unknown>)) {
+                if (Array.isArray(sList)) {
+                  combinedNeededSonames[sArch === 'all' ? 'all' : normalizeArch(sArch)] = sList.filter(
+                    (x): x is string => typeof x === 'string',
+                  );
+                }
+              }
+            }
+            if (meta.dep_versions && typeof meta.dep_versions === 'object') {
+              for (const [vArch, vMap] of Object.entries(meta.dep_versions as Record<string, unknown>)) {
+                if (vMap && typeof vMap === 'object') {
+                  combinedDepVersions[vArch === 'all' ? 'all' : normalizeArch(vArch)] = vMap as Record<string, string>;
+                }
+              }
+            }
           }
           const primaryMeta = entries[0].meta;
           if (primaryMeta.arches !== undefined && !Array.isArray(primaryMeta.arches)) {
@@ -1294,6 +1312,8 @@ export async function prepareSite(
             ...primaryMeta,
             state_hashes: Object.keys(combinedStateHashes).length > 0 ? combinedStateHashes : undefined,
             build_durations: Object.keys(combinedBuildDurations).length > 0 ? combinedBuildDurations : undefined,
+            needed_sonames: Object.keys(combinedNeededSonames).length > 0 ? combinedNeededSonames : undefined,
+            dep_versions: Object.keys(combinedDepVersions).length > 0 ? combinedDepVersions : undefined,
           };
           packageUploadGroups.push({
             pkgName,
@@ -1770,6 +1790,8 @@ export async function prepareSite(
             let isDraftRelease = false;
             const existingStateHashes: Record<string, string> = {};
             const existingBuildDurations: Record<string, number> = {};
+            const existingNeededSonames: Record<string, string[]> = {};
+            const existingDepVersions: Record<string, Record<string, string>> = {};
             if (viewRes.status === 0 && viewRes.stdout) {
               try {
                 const existingView = JSON.parse(viewRes.stdout) as {
@@ -1811,6 +1833,27 @@ export async function prepareSite(
                         )) {
                           if (typeof dVal === 'number' && Number.isFinite(dVal)) {
                             existingBuildDurations[dArch === 'all' ? 'all' : normalizeArch(dArch)] = dVal;
+                          }
+                        }
+                      }
+                      if (prevBody.needed_sonames && typeof prevBody.needed_sonames === 'object') {
+                        for (const [sArch, sList] of Object.entries(
+                          prevBody.needed_sonames as Record<string, unknown>,
+                        )) {
+                          if (Array.isArray(sList)) {
+                            existingNeededSonames[sArch === 'all' ? 'all' : normalizeArch(sArch)] = sList.filter(
+                              (x): x is string => typeof x === 'string',
+                            );
+                          }
+                        }
+                      }
+                      if (prevBody.dep_versions && typeof prevBody.dep_versions === 'object') {
+                        for (const [vArch, vMap] of Object.entries(prevBody.dep_versions as Record<string, unknown>)) {
+                          if (vMap && typeof vMap === 'object') {
+                            existingDepVersions[vArch === 'all' ? 'all' : normalizeArch(vArch)] = vMap as Record<
+                              string,
+                              string
+                            >;
                           }
                         }
                       }
@@ -1878,6 +1921,22 @@ export async function prepareSite(
                 }
               }
             }
+            if (meta.needed_sonames && typeof meta.needed_sonames === 'object') {
+              for (const [sArch, sList] of Object.entries(meta.needed_sonames as Record<string, unknown>)) {
+                const normSArch = sArch === 'all' ? 'all' : normalizeArch(sArch);
+                if (Array.isArray(sList) && confirmedArchsInGroup.has(normSArch)) {
+                  existingNeededSonames[normSArch] = sList.filter((x): x is string => typeof x === 'string');
+                }
+              }
+            }
+            if (meta.dep_versions && typeof meta.dep_versions === 'object') {
+              for (const [vArch, vMap] of Object.entries(meta.dep_versions as Record<string, unknown>)) {
+                const normVArch = vArch === 'all' ? 'all' : normalizeArch(vArch);
+                if (vMap && typeof vMap === 'object' && confirmedArchsInGroup.has(normVArch)) {
+                  existingDepVersions[normVArch] = vMap as Record<string, string>;
+                }
+              }
+            }
 
             const baseMeta = {
               ...meta,
@@ -1885,6 +1944,8 @@ export async function prepareSite(
               owned_packages: Array.from(ownedPackages).sort(),
               state_hashes: Object.keys(existingStateHashes).length > 0 ? existingStateHashes : undefined,
               build_durations: Object.keys(existingBuildDurations).length > 0 ? existingBuildDurations : undefined,
+              needed_sonames: Object.keys(existingNeededSonames).length > 0 ? existingNeededSonames : undefined,
+              dep_versions: Object.keys(existingDepVersions).length > 0 ? existingDepVersions : undefined,
             };
             const effectiveMeta =
               withheldFiles.length > 0

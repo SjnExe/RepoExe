@@ -8,6 +8,7 @@
     "lint": "oxlint --fix",
     "lint:check": "oxlint",
     "shards": "bun scripts/cli/generate_shards.ts",
+    "abi-check": "bun scripts/cli/abi_check.ts",
     "index": "bun scripts/cli/index_gen.ts",
     "prune": "bun scripts/cli/prune.ts",
     "build:site": "bun build scripts/site/app.ts --outdir site --target browser",

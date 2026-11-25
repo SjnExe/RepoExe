@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { getMajorMinor, updateRecipeContent } from '../cli/update_recipe.ts';
+import { bumpRecipeRevisionContent, getMajorMinor, updateRecipeContent } from '../cli/update_recipe.ts';
 import { compareSemver, extractSemver } from '../cli/upstream_check.ts';
 
 describe('upstream_check and update_recipe', () => {
@@ -160,5 +160,33 @@ export default defineRecipe({
   it('throws when target version cannot be found or unchanged', (): void => {
     const original = `export default defineRecipe({ name: "foo" });`;
     expect(() => updateRecipeContent(original, '1.0.0')).toThrow();
+  });
+
+  it('increments existing revision without altering version', (): void => {
+    const original = `
+export default defineRecipe({
+  name: 'aisleriot',
+  version: '3.22.35',
+  revision: 2,
+});
+`;
+    const res = bumpRecipeRevisionContent(original);
+    expect(res.oldRevision).toBe(2);
+    expect(res.newRevision).toBe(3);
+    expect(res.updated).toContain("version: '3.22.35'");
+    expect(res.updated).toContain('revision: 3,');
+  });
+
+  it('inserts revision: 1 after version when revision is omitted', (): void => {
+    const original = `
+export default defineRecipe({
+  name: 'foo',
+  version: '1.2.3',
+});
+`;
+    const res = bumpRecipeRevisionContent(original);
+    expect(res.oldRevision).toBe(0);
+    expect(res.newRevision).toBe(1);
+    expect(res.updated).toContain("version: '1.2.3',\n  revision: 1,");
   });
 });
