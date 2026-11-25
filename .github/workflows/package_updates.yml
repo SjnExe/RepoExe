@@ -28,20 +28,25 @@ jobs:
       - name: Install Dependencies
         run: bun install --frozen-lockfile --silent
 
-      - name: Run Upstream Version Check
+      - name: Run Upstream & ABI Checks
         id: check
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
           GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
           bun scripts/cli/upstream_check.ts --json > updates.json || echo "[]" > updates.json
+          bun scripts/cli/abi_check.ts --json > raw_revbumps.json || echo "[]" > raw_revbumps.json
+          jq --slurpfile updates updates.json '[.[] | select(.name as $n | ($updates[0] | map(.name) | index($n)) == null)]' raw_revbumps.json > revbumps.json
           cat updates.json
-          COUNT=$(jq 'length' updates.json)
-          if [ "$COUNT" -gt 0 ]; then
+          cat revbumps.json
+          UPDATES_COUNT=$(jq 'length' updates.json)
+          REVBUMPS_COUNT=$(jq 'length' revbumps.json)
+          if [ "$UPDATES_COUNT" -gt 0 ] || [ "$REVBUMPS_COUNT" -gt 0 ]; then
             echo "updates_found=true" >> "$GITHUB_OUTPUT"
           else
             echo "updates_found=false" >> "$GITHUB_OUTPUT"
           fi
+          echo "revbumps_count=$REVBUMPS_COUNT" >> "$GITHUB_OUTPUT"
 
       - name: Process Updates
         if: steps.check.outputs.updates_found == 'true'
@@ -126,3 +131,82 @@ jobs:
             gh pr merge "$BRANCH_NAME" --auto --squash || true
             git checkout main
           done < <(jq -c '.[] | select(.heavy == true)' updates.json)
+
+          # 3. ABI Revision Bump Lane (only triggered on confirmed SONAME breakages)
+          ABI_LIGHT_COUNT=$(jq '[.[] | select(.heavy == false)] | length' revbumps.json)
+          if [ "$ABI_LIGHT_COUNT" -gt 0 ]; then
+            ABI_BRANCH="update/abi-revbump-$(date -u +%Y%m%d-%H%M)"
+            OPEN_ABI=$(gh pr list --state open --search "in:title [auto-update] ABI revision bump" --json number --jq 'length' || echo "0")
+            if [ "$OPEN_ABI" -eq 0 ] && ! git ls-remote --exit-code --heads origin "$ABI_BRANCH" >/dev/null 2>&1; then
+              git checkout -b "$ABI_BRANCH" main
+              BUMPED_COUNT=0
+              ABI_BODY=""
+              while IFS= read -r item; do
+                PKG=$(echo "$item" | jq -r '.name')
+                OLD_REV=$(echo "$item" | jq -r '.oldRevision')
+                NEW_REV=$(echo "$item" | jq -r '.newRevision')
+                MISSING=$(echo "$item" | jq -r '.missingSonames | join(", ")')
+                DEPS=$(echo "$item" | jq -r '.changedDeps | join(", ")')
+                if ! bun scripts/cli/update_recipe.ts --revbump "$PKG"; then
+                  echo "::warning:: Skipping ABI revbump for $PKG: update_recipe.ts failed."
+                  git checkout -- "pkg/$PKG/recipe.ts" 2>/dev/null || true
+                  continue
+                fi
+                git add "pkg/$PKG/recipe.ts"
+                BUMPED_COUNT=$((BUMPED_COUNT + 1))
+                ABI_BODY="${ABI_BODY}- \`${PKG}\`: rev \`${OLD_REV}\` -> \`${NEW_REV}\` (missing: \`${MISSING}\`; deps: ${DEPS})\n"
+              done < <(jq -c '.[] | select(.heavy == false)' revbumps.json)
+
+              if [ "$BUMPED_COUNT" -gt 0 ] && ! git diff --cached --quiet; then
+                git commit -m "chore(auto-update): ABI revision bump (${BUMPED_COUNT} packages)"
+                git push -q origin "$ABI_BRANCH"
+                gh pr create \
+                  --title "chore(auto-update): [auto-update] ABI revision bump (${BUMPED_COUNT} packages)" \
+                  --body "$(printf "Automated ABI/SONAME revision bumps:\n\n%b" "$ABI_BODY")" \
+                  --base main \
+                  --head "$ABI_BRANCH" || true
+                gh pr merge "$ABI_BRANCH" --auto --squash || true
+              fi
+              git checkout main
+            else
+              echo "An open ABI revision bump PR already exists; skipping duplicate PR."
+            fi
+          fi
+
+          while IFS= read -r item; do
+            PKG=$(echo "$item" | jq -r '.name')
+            OLD_REV=$(echo "$item" | jq -r '.oldRevision')
+            NEW_REV=$(echo "$item" | jq -r '.newRevision')
+            MISSING=$(echo "$item" | jq -r '.missingSonames | join(", ")')
+            DEPS=$(echo "$item" | jq -r '.changedDeps | join(", ")')
+            BRANCH_NAME="update/abi-heavy-${PKG}-r${NEW_REV}"
+
+            if git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+              echo "Branch $BRANCH_NAME already exists, skipping."
+              continue
+            fi
+
+            git checkout -b "$BRANCH_NAME" main
+            if ! bun scripts/cli/update_recipe.ts --revbump "$PKG"; then
+              echo "::warning:: Skipping heavy ABI revbump for $PKG: update_recipe.ts failed."
+              git checkout -- "pkg/$PKG/recipe.ts" 2>/dev/null || true
+              git checkout main
+              continue
+            fi
+            git add "pkg/$PKG/recipe.ts"
+            if git diff --cached --quiet; then
+              echo "::warning:: No changes produced for heavy ABI revbump $PKG; skipping."
+              git checkout main
+              continue
+            fi
+            git commit -m "fix($PKG): [auto-update] ABI revision bump (r${NEW_REV})"
+            git push -q origin "$BRANCH_NAME"
+
+            gh pr create \
+              --title "fix($PKG): [auto-update] ABI revision bump (r${NEW_REV})" \
+              --body "Automated heavy-lane ABI/SONAME revision bump (\`rev ${OLD_REV}\` -> \`${NEW_REV}\`).\n\n- Missing SONAMEs: \`${MISSING}\`\n- Changed deps: ${DEPS}" \
+              --base main \
+              --head "$BRANCH_NAME" || true
+            gh pr merge "$BRANCH_NAME" --auto --squash || true
+            git checkout main
+          done < <(jq -c '.[] | select(.heavy == true)' revbumps.json)

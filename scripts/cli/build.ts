@@ -49,7 +49,7 @@ import {
 } from '../core/subpkg.ts';
 import type { PackageRecipe, SubpackageDefinition } from '../core/types.ts';
 import { compareDebianVersions, formatDebianVersion, satisfiesVersionConstraint } from '../core/version.ts';
-import { sanitizeStagingElfs } from '../sanitizer/elf.ts';
+import { collectExternalNeededSonames, sanitizeStagingElfs } from '../sanitizer/elf.ts';
 import { sanitizeShebangs } from '../sanitizer/shebang.ts';
 import { DependencyGraph } from '../utils/dag.ts';
 import { auditRepositoryHealth } from '../utils/health.ts';
@@ -1108,6 +1108,45 @@ export async function executePack(
     const totalBuildDurationSec = Math.max(1, Math.round(compileDurationSec + packDurationSec));
 
     const metaArch = recipe.arch ? (recipe.arch === 'all' ? 'all' : normalizeArch(recipe.arch)) : 'aarch64';
+    const neededSonames = collectExternalNeededSonames(stageDir);
+    const depVersions: Record<string, string> = {};
+    const depArch = metaArch === 'all' ? 'aarch64' : metaArch;
+    const rawDepClauses = Array.isArray(recipe.deps)
+      ? filterDepsForArch(parseDependencyList(recipe.deps), depArch)
+      : [];
+    const termuxCachePath = join(process.env.TMPDIR || tmpdir(), `termux_apt_index_v3_${depArch}.json`);
+    if (
+      rawDepClauses.length > 0 &&
+      process.env.REPOEXE_OFFLINE !== '1' &&
+      (process.env.CI === 'true' || existsSync(termuxCachePath))
+    ) {
+      try {
+        const termuxIndex = await loadTermuxIndex(depArch);
+        for (const group of rawDepClauses) {
+          for (const token of group) {
+            const depName = token.name;
+            if (!depName || depVersions[depName]) {
+              continue;
+            }
+            const entries = termuxIndex[depName];
+            if (!entries || entries.length === 0) {
+              continue;
+            }
+            let bestVer = '';
+            for (const entry of entries) {
+              const ver = entry.Version || '';
+              if (ver && (!bestVer || compareDebianVersions(ver, bestVer) > 0)) {
+                bestVer = ver;
+              }
+            }
+            if (bestVer) {
+              depVersions[depName] = bestVer;
+            }
+          }
+        }
+      } catch {}
+    }
+
     const meta = {
       name: recipe.name,
       version: recipe.version,
@@ -1116,6 +1155,8 @@ export async function executePack(
       state_hash: recipe.state_hash || '',
       build_duration_sec: totalBuildDurationSec,
       build_durations: { [metaArch]: totalBuildDurationSec },
+      ...(neededSonames.length > 0 ? { needed_sonames: { [metaArch]: neededSonames } } : {}),
+      ...(Object.keys(depVersions).length > 0 ? { dep_versions: { [metaArch]: depVersions } } : {}),
       ...(archiveDigest ? { archive_digest: archiveDigest } : {}),
     };
     const metaContent = JSON.stringify(meta, null, 2);

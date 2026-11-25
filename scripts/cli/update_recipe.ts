@@ -462,6 +462,220 @@ function findExportedRecipeRoot(content: string): number {
   return findSyntaxMatch(content, /^\{/);
 }
 
+export function bumpDirectObjectRevision(
+  str: string,
+  openBraceIdx: number,
+  targetName: string,
+): { updated: string; oldRevision: number; newRevision: number } {
+  let count = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inTemplate = false;
+  const templateBraceStack: number[] = [];
+  let inLineComment = false;
+  let inBlockComment = false;
+  let lastSignificantToken = '';
+
+  let versionLineEnd = -1;
+  let revisionStart = -1;
+  let revisionEnd = -1;
+  let oldRevision = 0;
+
+  for (let i = openBraceIdx; i < str.length; i++) {
+    const char = str[i];
+    const prev = i > 0 ? str[i - 1] : '';
+
+    if (inLineComment) {
+      if (char === '\n') {
+        inLineComment = false;
+      }
+      continue;
+    }
+    if (inBlockComment) {
+      if (char === '/' && prev === '*') {
+        inBlockComment = false;
+      }
+      continue;
+    }
+    if (inSingleQuote) {
+      if (char === "'" && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) {
+        inSingleQuote = false;
+      }
+      continue;
+    }
+    if (inDoubleQuote) {
+      if (char === '"' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) {
+        inDoubleQuote = false;
+      }
+      continue;
+    }
+    if (inTemplate) {
+      if (char === '`' && (prev !== '\\' || (i > 1 && str[i - 2] === '\\'))) {
+        inTemplate = false;
+        continue;
+      }
+      if (char === '$' && i + 1 < str.length && str[i + 1] === '{') {
+        templateBraceStack.push(0);
+        i++;
+        continue;
+      }
+      if (templateBraceStack.length > 0) {
+        if (char === '{') {
+          templateBraceStack[templateBraceStack.length - 1]++;
+        } else if (char === '}') {
+          const top = templateBraceStack[templateBraceStack.length - 1];
+          if (top === 0) {
+            templateBraceStack.pop();
+          } else {
+            templateBraceStack[templateBraceStack.length - 1]--;
+          }
+        }
+        continue;
+      }
+      continue;
+    }
+
+    if (char === '/' && i + 1 < str.length) {
+      if (str[i + 1] === '/') {
+        inLineComment = true;
+        i++;
+        continue;
+      }
+      if (str[i + 1] === '*') {
+        inBlockComment = true;
+        i++;
+        continue;
+      }
+    }
+
+    if (count === 1 && (lastSignificantToken === '{' || lastSignificantToken === ',')) {
+      if (versionLineEnd === -1) {
+        const verKeyEnd = matchPropertyKey(str, i, 'version');
+        if (verKeyEnd !== -1) {
+          const colonPos = skipWhitespaceAndComments(str, verKeyEnd);
+          if (colonPos < str.length && str[colonPos] === ':') {
+            const valPos = skipWhitespaceAndComments(str, colonPos + 1);
+            if (valPos < str.length && (str[valPos] === "'" || str[valPos] === '"')) {
+              const quote = str[valPos];
+              let endVal = valPos + 1;
+              while (endVal < str.length && str[endVal] !== quote) {
+                if (str[endVal] === '\\') {
+                  endVal++;
+                }
+                endVal++;
+              }
+              if (endVal < str.length && str[endVal] === quote) {
+                const afterVal = skipWhitespaceAndComments(str, endVal + 1);
+                versionLineEnd = str[afterVal] === ',' ? afterVal + 1 : endVal + 1;
+              }
+            }
+          }
+        }
+      }
+
+      if (revisionStart === -1) {
+        const revKeyEnd = matchPropertyKey(str, i, 'revision');
+        if (revKeyEnd !== -1) {
+          const colonPos = skipWhitespaceAndComments(str, revKeyEnd);
+          if (colonPos < str.length && str[colonPos] === ':') {
+            const valPos = skipWhitespaceAndComments(str, colonPos + 1);
+            const digitsMatch = str.slice(valPos).match(/^(\d+)/);
+            if (digitsMatch) {
+              revisionStart = valPos;
+              revisionEnd = valPos + digitsMatch[1].length;
+              oldRevision = parseInt(digitsMatch[1], 10);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (char === "'") {
+      inSingleQuote = true;
+      if (count === 1) {
+        lastSignificantToken = "'";
+      }
+      continue;
+    }
+    if (char === '"') {
+      inDoubleQuote = true;
+      if (count === 1) {
+        lastSignificantToken = '"';
+      }
+      continue;
+    }
+    if (char === '`') {
+      inTemplate = true;
+      if (count === 1) {
+        lastSignificantToken = '`';
+      }
+      continue;
+    }
+
+    if (char === '{') {
+      count++;
+      if (count === 1) {
+        lastSignificantToken = '{';
+      }
+    } else if (char === '}') {
+      count--;
+      if (count === 0) {
+        break;
+      }
+    } else if (count === 1) {
+      if (char === ',') {
+        lastSignificantToken = ',';
+      } else if (!/\s/.test(char)) {
+        lastSignificantToken = char;
+      }
+    }
+  }
+
+  if (revisionStart !== -1 && revisionEnd !== -1) {
+    const newRevision = oldRevision + 1;
+    const updated = str.slice(0, revisionStart) + String(newRevision) + str.slice(revisionEnd);
+    return { updated, oldRevision, newRevision };
+  }
+
+  if (versionLineEnd === -1) {
+    throw new Error(`Failed to bump revision for ${targetName}: neither revision nor version property found.`);
+  }
+
+  const lineStart = str.lastIndexOf('\n', versionLineEnd - 1) + 1;
+  const indentMatch = str.slice(lineStart, versionLineEnd).match(/^(\s*)/);
+  const indent = indentMatch ? indentMatch[1] : '  ';
+  const needsComma = str[versionLineEnd - 1] !== ',';
+  const insertion = `${needsComma ? ',' : ''}\n${indent}revision: 1,`;
+  const updated = str.slice(0, versionLineEnd) + insertion + str.slice(versionLineEnd);
+  return { updated, oldRevision: 0, newRevision: 1 };
+}
+
+export function bumpRecipeRevisionContent(content: string): {
+  updated: string;
+  oldRevision: number;
+  newRevision: number;
+} {
+  const recipeRootBraceIdx = findExportedRecipeRoot(content);
+  if (recipeRootBraceIdx === -1) {
+    throw new Error(`Failed to find recipe root object.`);
+  }
+  return bumpDirectObjectRevision(content, recipeRootBraceIdx, 'recipe');
+}
+
+export function bumpRecipeRevision(pkg: string): { oldRevision: number; newRevision: number } {
+  const recipePath = resolve('pkg', pkg, 'recipe.ts');
+  if (!existsSync(recipePath)) {
+    console.error(`Error: Recipe at ${recipePath} does not exist.`);
+    process.exit(1);
+  }
+  const raw = readFileSync(recipePath, 'utf-8');
+  const { updated, oldRevision, newRevision } = bumpRecipeRevisionContent(raw);
+  writeFileSync(recipePath, updated, 'utf-8');
+  console.log(`✓ Bumped ${pkg} revision: ${oldRevision} -> ${newRevision}`);
+  return { oldRevision, newRevision };
+}
+
 export function updateRecipeContent(content: string, newVersion: string): string {
   const recipeRootBraceIdx = findExportedRecipeRoot(content);
   if (recipeRootBraceIdx === -1) {
@@ -487,9 +701,12 @@ export function updateRecipe(pkg: string, newVersion: string): void {
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
-  if (args.length !== 2) {
-    console.error('Usage: bun run scripts/cli/update_recipe.ts <pkg> <new_version>');
+  if (args.length === 2 && args[0] === '--revbump') {
+    bumpRecipeRevision(args[1]);
+  } else if (args.length === 2) {
+    updateRecipe(args[0], args[1]);
+  } else {
+    console.error('Usage: bun run scripts/cli/update_recipe.ts [--revbump] <pkg> [<new_version>]');
     process.exit(1);
   }
-  updateRecipe(args[0], args[1]);
 }

@@ -284,3 +284,80 @@ export function sanitizeStagingElfs(stageDir: string, prefix: string = PREFIX): 
 
   traverse(stageDir);
 }
+
+const ANDROID_SYSTEM_SONAMES = new Set([
+  'libc.so',
+  'libm.so',
+  'libdl.so',
+  'liblog.so',
+  'libandroid.so',
+  'libz.so',
+  'libOpenSLES.so',
+  'libmediandk.so',
+  'libcamera2ndk.so',
+  'libvulkan.so',
+  'libEGL.so',
+  'libGLESv1_CM.so',
+  'libGLESv2.so',
+  'libGLESv3.so',
+  'libaaudio.so',
+  'libjnigraphics.so',
+  'libnativewindow.so',
+  'libsync.so',
+  'libstdc++.so',
+]);
+
+function isElfFile(filePath: string): boolean {
+  try {
+    const buf = readFileSync(filePath);
+    return buf.length >= 4 && buf[0] === 0x7f && buf[1] === 0x45 && buf[2] === 0x4c && buf[3] === 0x46;
+  } catch {
+    return false;
+  }
+}
+
+export function collectExternalNeededSonames(stageDir: string): string[] {
+  if (!stageDir || !existsSync(stageDir)) {
+    return [];
+  }
+
+  const providedSonames = new Set<string>();
+  const neededSonames = new Set<string>();
+
+  const traverse = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        traverse(full);
+        continue;
+      }
+      if (entry.name.includes('.so')) {
+        providedSonames.add(entry.name);
+      }
+      if (!entry.isFile() || entry.isSymbolicLink() || !isElfFile(full)) {
+        continue;
+      }
+      const res = spawnSync('readelf', ['-d', full], { encoding: 'utf-8' });
+      if (res.status !== 0 || !res.stdout) {
+        continue;
+      }
+      for (const line of res.stdout.split('\n')) {
+        const sonameMatch = line.match(/\(SONAME\)\s+Library soname:\s+\[([^\]]+)\]/);
+        if (sonameMatch?.[1]) {
+          providedSonames.add(sonameMatch[1]);
+          continue;
+        }
+        const neededMatch = line.match(/\(NEEDED\)\s+Shared library:\s+\[([^\]]+)\]/);
+        if (neededMatch?.[1]) {
+          neededSonames.add(neededMatch[1]);
+        }
+      }
+    }
+  };
+
+  traverse(stageDir);
+
+  return Array.from(neededSonames)
+    .filter((s) => !providedSonames.has(s) && !ANDROID_SYSTEM_SONAMES.has(s))
+    .sort();
+}
