@@ -239,7 +239,14 @@ export function normalizeRecipe(rawData: RecipeDefinition, pkgDir?: string): Pac
             .map((s: string) => s.trim())
             .filter(Boolean)
         : [],
-    component: String(rawData.component || 'main'),
+    component: String(rawData.component || (String(rawData.interface || '').toLowerCase() === 'gui' ? 'gui' : 'main')),
+    section: rawData.section ? String(rawData.section).trim() : undefined,
+    priority: rawData.priority ? String(rawData.priority).trim() : undefined,
+    interface:
+      rawData.interface && ['cli', 'gui', 'tui', 'both'].includes(String(rawData.interface).toLowerCase())
+        ? (String(rawData.interface).toLowerCase() as 'cli' | 'gui' | 'tui' | 'both')
+        : undefined,
+    tags: Array.isArray(rawData.tags) ? rawData.tags.map((t: unknown) => String(t).trim()).filter(Boolean) : undefined,
     build_system: String(rawData.build_system || 'custom'),
     source: rawData.source
       ? Array.isArray(rawData.source)

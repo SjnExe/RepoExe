@@ -5,9 +5,15 @@ export const REPOEXE_VERSION = '1.0.0';
 export default defineRecipe({
   name: 'repoexe',
   version: REPOEXE_VERSION,
-  revision: 1,
+  revision: 2,
   arch: 'all',
-  description: 'Central RepoExe package repository management CLI',
+  component: 'main',
+  section: 'utils',
+  priority: 'optional',
+  interface: 'cli',
+  tags: ['role::program', 'suite::repoexe'],
+  description:
+    'Central RepoExe package repository management CLI\n Manages Deb822 APT sources, GPG verification, and CLI/GUI component selection.',
   license: 'MIT',
   homepage: 'https://github.com/SjnExe/RepoExe',
   maintainer: '@SjnExe',
@@ -44,7 +50,7 @@ cat << 'EOF' > "\${DESTDIR}\${PREFIX}/etc/apt/sources.list.d/repoexe.sources"
 Types: deb
 URIs: https://sjnexe.github.io/RepoExe/apt
 Suites: stable
-Components: main
+Components: main gui
 Signed-By:
 EOF
 if [ -n "$GPG_KEY" ] && [ -f "$GPG_KEY" ]; then
