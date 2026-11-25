@@ -1,3 +1,5 @@
+import { formatDebianFilenameVersion, formatDebianVersion } from '../core/version.ts';
+
 export interface PackageAsset {
   name: string;
   arch: string;
@@ -14,6 +16,7 @@ export interface PackageItem {
   epoch?: number;
   description: string;
   arch: string;
+  arches?: string[];
   license: string;
   homepage: string;
   maintainer: string;
@@ -31,20 +34,189 @@ export interface PackageItem {
   breaks?: string[];
   provides?: string[];
   replaces?: string[];
+  verified_built?: boolean;
   assets?: PackageAsset[];
   total_downloads?: number;
 }
 
-declare global {
-  interface Window {
-    copyText: (text: string, triggerEl: HTMLElement) => Promise<void>;
-    copyPkgInstall: (pkgName: string, triggerEl: HTMLElement) => Promise<void>;
+export type SortMode = 'name' | 'downloads';
+
+const REPO_GITHUB_URL = 'https://github.com/SjnExe/RepoExe';
+const DEFAULT_INSTALL_CMD = 'curl -sL https://sjnexe.github.io/RepoExe/install | sh';
+
+let packagesData: PackageItem[] = [];
+let packageByLowerName = new Map<string, PackageItem>();
+let activeInterfaceFilter = 'all';
+let activeSectionFilter = 'all';
+let activeSortMode: SortMode = 'name';
+
+const copyResetTimers = new WeakMap<HTMLElement, number>();
+
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export function isSafeHttpUrl(url?: string): boolean {
+  if (!url) return false;
+  return /^https?:\/\/\S+$/i.test(url.trim());
+}
+
+export { formatDebianFilenameVersion, formatDebianVersion };
+
+export function formatVersionDisplay(
+  pkg: Pick<PackageItem, 'version' | 'revision' | 'epoch'>,
+): string {
+  if (!pkg.version) return '';
+  return `v${formatDebianVersion(pkg)}`;
+}
+
+export function getPackageInterface(pkg: Pick<PackageItem, 'interface' | 'component'>): string {
+  return (pkg.interface || (pkg.component === 'gui' ? 'gui' : 'cli')).toLowerCase();
+}
+
+export function buildFallbackAssetUrl(
+  pkg: Pick<PackageItem, 'name' | 'version' | 'revision' | 'epoch'>,
+  arch: string,
+): string {
+  const debVer = formatDebianFilenameVersion(pkg);
+  const encodedName = encodeURIComponent(pkg.name);
+  const filename = encodeURIComponent(`${pkg.name}_${debVer}_${arch}.deb`);
+  return `${REPO_GITHUB_URL}/releases/download/${encodedName}/${filename}`;
+}
+
+export function parsePackageHash(hash: string): string | null {
+  const trimmed = hash.trim();
+  if (!trimmed.startsWith('#/pkg/')) return null;
+  try {
+    const pkgName = decodeURIComponent(trimmed.slice(6)).trim();
+    return pkgName || null;
+  } catch {
+    return null;
   }
 }
 
-let packagesData: PackageItem[] = [];
-let activeInterfaceFilter = 'all';
-let activeSectionFilter = 'all';
+export function filterAndSortPackages(
+  items: PackageItem[],
+  options: {
+    search?: string;
+    iface?: string;
+    section?: string;
+    sort?: SortMode;
+  },
+): PackageItem[] {
+  const search = (options.search || '').trim().toLowerCase();
+  const iface = (options.iface || 'all').toLowerCase();
+  const section = (options.section || 'all').toLowerCase();
+  const sort = options.sort || 'name';
+
+  const filtered = items.filter((pkg) => {
+    const pkgIface = getPackageInterface(pkg);
+    if (iface !== 'all' && pkgIface !== iface && pkgIface !== 'both') {
+      return false;
+    }
+    if (section !== 'all' && (pkg.section || '').toLowerCase() !== section) {
+      return false;
+    }
+    if (!search) return true;
+
+    return (
+      pkg.name?.toLowerCase().includes(search) ||
+      pkg.description?.toLowerCase().includes(search) ||
+      pkg.arch?.toLowerCase().includes(search) ||
+      (Array.isArray(pkg.arches) && pkg.arches.some((a) => a.toLowerCase().includes(search))) ||
+      pkg.section?.toLowerCase().includes(search) ||
+      (Array.isArray(pkg.tags) && pkg.tags.some((t) => t.toLowerCase().includes(search))) ||
+      (Array.isArray(pkg.deps) && pkg.deps.some((d) => d.toLowerCase().includes(search))) ||
+      pkg.license?.toLowerCase().includes(search)
+    );
+  });
+
+  if (sort === 'downloads') {
+    return [...filtered].sort((a, b) => {
+      const diff = (b.total_downloads ?? 0) - (a.total_downloads ?? 0);
+      return diff !== 0 ? diff : a.name.localeCompare(b.name);
+    });
+  }
+
+  return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function formatUser(userStr: string): string {
+  if (!userStr) return '';
+  const trimmed = userStr.trim();
+  if (trimmed.startsWith('@') && trimmed.length > 1) {
+    const handle = trimmed.slice(1);
+    return `<a href="https://github.com/${encodeURIComponent(handle)}" target="_blank" rel="noopener" class="author-link">${escapeHtml(trimmed)}</a>`;
+  }
+  return escapeHtml(trimmed);
+}
+
+async function writeToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fallback for non-HTTPS or restricted WebView contexts
+    }
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const ok = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  if (!ok) {
+    throw new Error('Clipboard copy failed');
+  }
+}
+
+export async function copyText(text: string, triggerEl: HTMLElement): Promise<void> {
+  if (!triggerEl.dataset.defaultHtml) {
+    triggerEl.dataset.defaultHtml = triggerEl.innerHTML;
+  }
+  const defaultHtml = triggerEl.dataset.defaultHtml;
+
+  const existingTimer = copyResetTimers.get(triggerEl);
+  if (existingTimer !== undefined) {
+    window.clearTimeout(existingTimer);
+  }
+
+  try {
+    await writeToClipboard(text);
+    triggerEl.classList.add('copied');
+    const hasLabel = Boolean(triggerEl.querySelector('span'));
+    triggerEl.innerHTML = hasLabel
+      ? '<span aria-hidden="true">✓</span><span>Copied!</span>'
+      : '<span style="color: var(--term-green); font-size: 0.75rem; font-weight: 600;">✓</span>';
+
+    const timer = window.setTimeout(() => {
+      triggerEl.classList.remove('copied');
+      triggerEl.innerHTML = defaultHtml;
+      copyResetTimers.delete(triggerEl);
+    }, 1500);
+    copyResetTimers.set(triggerEl, timer);
+  } catch (err) {
+    triggerEl.classList.remove('copied');
+    triggerEl.innerHTML =
+      '<span style="color: var(--term-red); font-size: 0.75rem; font-weight: 600;">✗</span>';
+    const timer = window.setTimeout(() => {
+      triggerEl.innerHTML = defaultHtml;
+      copyResetTimers.delete(triggerEl);
+    }, 2500);
+    copyResetTimers.set(triggerEl, timer);
+    throw err;
+  }
+}
 
 function renderFilterBar(): void {
   const bar = document.getElementById('filterBar');
@@ -57,93 +229,41 @@ function renderFilterBar(): void {
   const ifacePills = ['all', 'cli', 'gui']
     .map((val) => {
       const label = val === 'all' ? 'All Interfaces' : val.toUpperCase();
-      const active = activeInterfaceFilter === val ? ' active' : '';
-      return `<button class="filter-pill${active}" data-filter-iface="${val}">${label}</button>`;
+      const isActive = activeInterfaceFilter === val;
+      return `<button type="button" class="filter-pill${isActive ? ' active' : ''}" data-filter-iface="${val}" aria-pressed="${isActive}">${label}</button>`;
     })
     .join('');
 
   const sectionPills = ['all', ...sections]
     .map((val) => {
       const label = val === 'all' ? 'All Sections' : escapeHtml(val);
-      const active = activeSectionFilter === val ? ' active' : '';
-      return `<button class="filter-pill${active}" data-filter-section="${escapeHtml(val)}">${label}</button>`;
+      const isActive = activeSectionFilter === val;
+      return `<button type="button" class="filter-pill${isActive ? ' active' : ''}" data-filter-section="${escapeHtml(val)}" aria-pressed="${isActive}">${label}</button>`;
     })
     .join('');
 
   bar.innerHTML = `
-    <div class="filter-group">${ifacePills}</div>
-    ${sections.length > 0 ? `<div class="filter-group">${sectionPills}</div>` : ''}
+    <div class="filter-group" role="group" aria-label="Filter by interface">${ifacePills}</div>
+    ${sections.length > 0 ? `<div class="filter-group" role="group" aria-label="Filter by section">${sectionPills}</div>` : ''}
   `;
 }
 
-// Format helper to convert GitHub usernames like @SjnExe into clickable links
-function formatUser(userStr: string): string {
-  if (!userStr) return '';
-  const trimmed = userStr.trim();
-  if (trimmed.startsWith('@')) {
-    const handle = trimmed.slice(1);
-    return `<a href="https://github.com/${encodeURIComponent(handle)}" target="_blank" rel="noopener" class="author-link">${escapeHtml(trimmed)}</a>`;
+function syncFilterBarState(): void {
+  const bar = document.getElementById('filterBar');
+  if (!bar) return;
+
+  for (const btn of bar.querySelectorAll<HTMLButtonElement>('[data-filter-iface]')) {
+    const active = btn.dataset.filterIface === activeInterfaceFilter;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
   }
-  return escapeHtml(trimmed);
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// 1-Click Copy Helper
-export async function copyText(text: string, triggerEl: HTMLElement): Promise<void> {
-  if (!triggerEl.dataset.defaultHtml) {
-    triggerEl.dataset.defaultHtml = triggerEl.innerHTML;
-  }
-  const defaultHtml = triggerEl.dataset.defaultHtml;
-
-  try {
-    await navigator.clipboard.writeText(text);
-    triggerEl.innerHTML = `<span style="color: var(--term-green); font-size: 0.75rem; font-weight: 600;">✓</span>`;
-    const copyTextEl = triggerEl.querySelector('#copyText');
-    if (copyTextEl) copyTextEl.textContent = 'Copied!';
-
-    if ((triggerEl as any)._resetTimer) clearTimeout((triggerEl as any)._resetTimer);
-    (triggerEl as any)._resetTimer = setTimeout(() => {
-      triggerEl.innerHTML = defaultHtml;
-      (triggerEl as any)._resetTimer = null;
-    }, 1500);
-  } catch (err) {
-    triggerEl.innerHTML = `<span style="color: var(--term-red); font-size: 0.75rem; font-weight: 600;">✗</span>`;
-    if ((triggerEl as any)._resetTimer) clearTimeout((triggerEl as any)._resetTimer);
-    (triggerEl as any)._resetTimer = setTimeout(() => {
-      triggerEl.innerHTML = defaultHtml;
-      (triggerEl as any)._resetTimer = null;
-    }, 2500);
-    throw err;
+  for (const btn of bar.querySelectorAll<HTMLButtonElement>('[data-filter-section]')) {
+    const active = btn.dataset.filterSection === activeSectionFilter;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
   }
 }
-window.copyText = copyText;
 
-export async function copyPkgInstall(pkgName: string, triggerEl: HTMLElement): Promise<void> {
-  const cmd = `pkg i ${pkgName}`;
-  return copyText(cmd, triggerEl);
-}
-window.copyPkgInstall = copyPkgInstall;
-
-// Quick Install Main Copy Button
-const copyBtn = document.getElementById('copyBtn');
-if (copyBtn) {
-  copyBtn.addEventListener('click', () => {
-    const cmd =
-      document.getElementById('installCmd')?.innerText ??
-      'curl -sL https://sjnexe.github.io/RepoExe/install | sh';
-    copyText(cmd, copyBtn).catch(() => {});
-  });
-}
-
-// Render Dependency Links (Internal if exists in RepoExe, External to Termux if upstream)
 function renderDependencyTag(depName: string, variant?: 'internal' | 'warning'): string {
   const clean = depName.trim();
   if (clean.includes('|')) {
@@ -161,11 +281,11 @@ function renderDependencyTag(depName: string, variant?: 'internal' | 'warning'):
     .replace(/\s*\(.*\)\s*$/, '')
     .replace(/\s*\[.*\]\s*$/, '')
     .trim();
-  const internalMatch = packagesData.find((p) => p.name === packageName);
+  const internalMatch = packageByLowerName.get(packageName.toLowerCase());
   if (internalMatch) {
-    return `<a href="#/pkg/${encodeURIComponent(packageName)}" class="dep-pill internal" title="RepoExe internal package">${escapeHtml(clean)}</a>`;
+    return `<a href="#/pkg/${encodeURIComponent(internalMatch.name)}" class="dep-pill internal" title="RepoExe internal package">${escapeHtml(clean)}</a>`;
   }
-  return `<a href="https://github.com/termux/termux-packages/tree/master/packages/${encodeURIComponent(packageName)}" target="_blank" rel="noopener" class="dep-pill external" title="Official Termux upstream package">${escapeHtml(clean)} <span class="ext-arrow">↗</span></a>`;
+  return `<a href="https://github.com/termux/termux-packages/tree/master/packages/${encodeURIComponent(packageName)}" target="_blank" rel="noopener" class="dep-pill external" title="Official Termux upstream package">${escapeHtml(clean)} <span class="ext-arrow" aria-hidden="true">↗</span></a>`;
 }
 
 function renderRelationSection(
@@ -184,54 +304,28 @@ function renderRelationSection(
   `;
 }
 
-// Render Package Catalog Grid
 function renderCatalog(): void {
   const grid = document.getElementById('packageGrid');
   const searchInput = document.getElementById('searchInput') as HTMLInputElement | null;
   const pkgCount = document.getElementById('pkgCount');
   if (!grid) return;
 
-  renderFilterBar();
-  const search = searchInput ? searchInput.value.trim().toLowerCase() : '';
-
-  const filtered = packagesData.filter((pkg) => {
-    const pkgIface = (pkg.interface || (pkg.component === 'gui' ? 'gui' : 'cli')).toLowerCase();
-    if (
-      activeInterfaceFilter !== 'all' &&
-      pkgIface !== activeInterfaceFilter &&
-      pkgIface !== 'both'
-    ) {
-      return false;
-    }
-    if (
-      activeSectionFilter !== 'all' &&
-      (pkg.section || '').toLowerCase() !== activeSectionFilter.toLowerCase()
-    ) {
-      return false;
-    }
-    if (!search) return true;
-    const nameMatch = pkg.name?.toLowerCase().includes(search);
-    const descMatch = pkg.description?.toLowerCase().includes(search);
-    const archMatch = pkg.arch?.toLowerCase().includes(search);
-    const sectionMatch = pkg.section?.toLowerCase().includes(search);
-    const tagsMatch =
-      Array.isArray(pkg.tags) && pkg.tags.some((t) => t.toLowerCase().includes(search));
-    const depsMatch =
-      Array.isArray(pkg.deps) && pkg.deps.some((d) => d.toLowerCase().includes(search));
-    const licenseMatch = pkg.license?.toLowerCase().includes(search);
-    return (
-      nameMatch || descMatch || archMatch || sectionMatch || tagsMatch || depsMatch || licenseMatch
-    );
+  const search = searchInput ? searchInput.value.trim() : '';
+  const filtered = filterAndSortPackages(packagesData, {
+    search,
+    iface: activeInterfaceFilter,
+    section: activeSectionFilter,
+    sort: activeSortMode,
   });
 
   if (pkgCount) {
-    pkgCount.innerText = `${filtered.length} package${filtered.length === 1 ? '' : 's'}`;
+    pkgCount.textContent = `${filtered.length} package${filtered.length === 1 ? '' : 's'}`;
   }
 
   if (filtered.length === 0) {
     grid.innerHTML = `
       <div class="term-loading">
-        <p>No matching packages found for '${escapeHtml(search)}'.</p>
+        <p>No matching packages found${search ? ` for '${escapeHtml(search)}'` : ''}.</p>
       </div>
     `;
     return;
@@ -239,9 +333,8 @@ function renderCatalog(): void {
 
   grid.innerHTML = filtered
     .map((pkg) => {
-      const verStr = pkg.version
-        ? `v${pkg.version}${pkg.revision && pkg.revision > 0 ? '-' + pkg.revision : ''}`
-        : '';
+      const verStr = formatVersionDisplay(pkg);
+      const pkgIface = getPackageInterface(pkg);
       const desc = pkg.description || 'RepoExe compiled Termux package';
       const downloads = pkg.total_downloads ?? 0;
       const assets = pkg.assets || [];
@@ -254,8 +347,7 @@ function renderCatalog(): void {
 
       const downloadActionUrl = hasMultiArch
         ? `#/pkg/${encodeURIComponent(pkg.name)}`
-        : firstAsset?.download_url ||
-          `https://github.com/SjnExe/RepoExe/releases/download/${pkg.name}/${pkg.name}_${pkg.version}_${defaultArch}.deb`;
+        : firstAsset?.download_url || buildFallbackAssetUrl(pkg, defaultArch);
       const downloadTitle = hasMultiArch
         ? `Select Architecture (${archList})`
         : `Download .deb (${defaultArch}${sizeStr && sizeStr !== 'Release Asset' ? ' - ' + sizeStr : ''})`;
@@ -271,7 +363,7 @@ function renderCatalog(): void {
               ${verStr ? `<span class="pkg-ver">${escapeHtml(verStr)}</span>` : ''}
             </div>
             <div class="pkg-badges">
-              <span class="pkg-badge iface-${escapeHtml((pkg.interface || (pkg.component === 'gui' ? 'gui' : 'cli')).toLowerCase())}">${escapeHtml((pkg.interface || (pkg.component === 'gui' ? 'gui' : 'cli')).toUpperCase())}</span>
+              <span class="pkg-badge iface-${escapeHtml(pkgIface)}">${escapeHtml(pkgIface.toUpperCase())}</span>
               ${pkg.section ? `<span class="pkg-badge pkg-section-badge">${escapeHtml(pkg.section)}</span>` : ''}
             </div>
             <p class="pkg-desc">${escapeHtml(desc.split('\n')[0])}</p>
@@ -280,14 +372,14 @@ function renderCatalog(): void {
           <div class="pkg-install-cmd">
             <code>pkg i ${escapeHtml(pkg.name)}</code>
             <div class="cmd-actions">
-              <button class="copy-mini" data-copy-pkg="${escapeHtml(pkg.name)}" title="Copy install command">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+              <button type="button" class="copy-mini" data-copy-pkg="${escapeHtml(pkg.name)}" title="Copy install command" aria-label="Copy install command for ${escapeHtml(pkg.name)}">
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                 </svg>
               </button>
-              <a href="${escapeHtml(downloadActionUrl)}" class="download-mini" title="${escapeHtml(downloadTitle)}" ${downloadAttrs}>
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+              <a href="${escapeHtml(downloadActionUrl)}" class="download-mini" title="${escapeHtml(downloadTitle)}" aria-label="${escapeHtml(downloadTitle)} for ${escapeHtml(pkg.name)}" ${downloadAttrs}>
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <polyline points="7 10 12 15 17 10"></polyline>
                   <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -303,7 +395,7 @@ function renderCatalog(): void {
             </div>
             <div class="pkg-meta-right">
               <span class="pkg-downloads" title="Total downloads across all architectures">
-                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <polyline points="7 10 12 15 17 10"></polyline>
                   <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -319,13 +411,12 @@ function renderCatalog(): void {
     .join('');
 }
 
-// Render Package Detail Page (SPA route #/pkg/<name>)
 function renderDetailPage(pkgName: string): void {
   const detailView = document.getElementById('detailView');
   const catalogView = document.getElementById('catalogView');
   if (!detailView || !catalogView) return;
 
-  const pkg = packagesData.find((p) => p.name.toLowerCase() === pkgName.toLowerCase());
+  const pkg = packageByLowerName.get(pkgName.toLowerCase());
 
   if (!pkg) {
     detailView.innerHTML = `
@@ -339,14 +430,13 @@ function renderDetailPage(pkgName: string): void {
         </div>
       </div>
     `;
-    catalogView.style.display = 'none';
-    detailView.style.display = 'block';
+    catalogView.hidden = true;
+    detailView.hidden = false;
     return;
   }
 
-  const verStr = pkg.version
-    ? `v${pkg.version}${pkg.revision && pkg.revision > 0 ? '-' + pkg.revision : ''}`
-    : '';
+  const verStr = formatVersionDisplay(pkg);
+  const pkgIface = getPackageInterface(pkg).toUpperCase();
   const uploadersList = Array.isArray(pkg.uploaders)
     ? pkg.uploaders
     : pkg.uploaders
@@ -356,14 +446,15 @@ function renderDetailPage(pkgName: string): void {
   const uploadersHtml =
     uploadersList.length > 0 ? uploadersList.map(formatUser).join(', ') : 'None';
 
+  const defaultArch = pkg.arch || 'aarch64';
   const assets =
     pkg.assets && pkg.assets.length > 0
       ? pkg.assets
       : [
           {
-            name: `${pkg.name}_${pkg.version}_${pkg.arch || 'aarch64'}.deb`,
-            arch: pkg.arch || 'aarch64',
-            download_url: `https://github.com/SjnExe/RepoExe/releases/download/${pkg.name}/${pkg.name}_${pkg.version}_${pkg.arch || 'aarch64'}.deb`,
+            name: `${pkg.name}_${formatDebianFilenameVersion(pkg)}_${defaultArch}.deb`,
+            arch: defaultArch,
+            download_url: buildFallbackAssetUrl(pkg, defaultArch),
             size_formatted: 'Release Asset',
           },
         ];
@@ -373,11 +464,17 @@ function renderDetailPage(pkgName: string): void {
       ? pkg.deps.map((d: string) => renderDependencyTag(d)).join('')
       : '<span class="text-muted">None</span>';
 
+  const homepageHtml = isSafeHttpUrl(pkg.homepage)
+    ? `<a href="${escapeHtml(pkg.homepage)}" target="_blank" rel="noopener" class="term-link">${escapeHtml(pkg.homepage)} ↗</a>`
+    : pkg.homepage
+      ? escapeHtml(pkg.homepage)
+      : 'Not provided';
+
   detailView.innerHTML = `
     <div class="detail-container">
       <nav class="detail-nav">
         <a href="#" class="back-link">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="19" y1="12" x2="5" y2="12"></line>
             <polyline points="12 19 5 12 12 5"></polyline>
           </svg>
@@ -393,10 +490,10 @@ function renderDetailPage(pkgName: string): void {
           <div class="detail-header-row">
             <div>
               <h1 class="detail-title">${escapeHtml(pkg.name)}</h1>
-              <span class="detail-version">${escapeHtml(verStr)}</span>
+              ${verStr ? `<span class="detail-version">${escapeHtml(verStr)}</span>` : ''}
             </div>
             <div class="detail-downloads-badge" title="Total downloads across all architectures">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
                 <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -411,8 +508,8 @@ function renderDetailPage(pkgName: string): void {
             <h3 class="section-title">Install Command</h3>
             <div class="pkg-install-cmd detail-cmd">
               <code>pkg i ${escapeHtml(pkg.name)}</code>
-              <button class="term-btn" data-copy-pkg="${escapeHtml(pkg.name)}" title="Copy install command">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+              <button type="button" class="term-btn" data-copy-pkg="${escapeHtml(pkg.name)}" title="Copy install command">
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                 </svg>
@@ -436,7 +533,7 @@ function renderDetailPage(pkgName: string): void {
                     <span class="asset-name">${escapeHtml(ast.name)}</span>
                     <div class="asset-meta-row">
                       <span class="asset-dl-count">
-                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                           <polyline points="7 10 12 15 17 10"></polyline>
                           <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -445,7 +542,7 @@ function renderDetailPage(pkgName: string): void {
                       </span>
                     </div>
                   </div>
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -484,9 +581,7 @@ function renderDetailPage(pkgName: string): void {
             <div class="info-grid">
               <div class="info-item">
                 <span class="info-label">Homepage:</span>
-                <span class="info-val">
-                  ${pkg.homepage ? `<a href="${escapeHtml(pkg.homepage)}" target="_blank" rel="noopener" class="term-link">${escapeHtml(pkg.homepage)} ↗</a>` : 'Not provided'}
-                </span>
+                <span class="info-val">${homepageHtml}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">License:</span>
@@ -506,7 +601,7 @@ function renderDetailPage(pkgName: string): void {
               </div>
               <div class="info-item">
                 <span class="info-label">Component / Interface:</span>
-                <span class="info-val">${escapeHtml(pkg.component || 'main')} / ${escapeHtml((pkg.interface || 'cli').toUpperCase())}</span>
+                <span class="info-val">${escapeHtml(pkg.component || 'main')} / ${escapeHtml(pkgIface)}</span>
               </div>
               ${
                 pkg.section
@@ -531,30 +626,26 @@ function renderDetailPage(pkgName: string): void {
     </div>
   `;
 
-  catalogView.style.display = 'none';
-  detailView.style.display = 'block';
+  catalogView.hidden = true;
+  detailView.hidden = false;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Router State Dispatcher
 function handleRoute(): void {
-  const hash = window.location.hash.trim();
   const catalogView = document.getElementById('catalogView');
   const detailView = document.getElementById('detailView');
-
   if (!catalogView || !detailView) return;
 
-  if (hash.startsWith('#/pkg/')) {
-    const pkgName = decodeURIComponent(hash.slice(6)).trim();
+  const pkgName = parsePackageHash(window.location.hash);
+  if (pkgName) {
     renderDetailPage(pkgName);
   } else {
-    detailView.style.display = 'none';
-    catalogView.style.display = 'block';
+    detailView.hidden = true;
+    catalogView.hidden = false;
     renderCatalog();
   }
 }
 
-// Load Packages Manifest
 async function loadPackages(): Promise<void> {
   const grid = document.getElementById('packageGrid');
   try {
@@ -562,6 +653,8 @@ async function loadPackages(): Promise<void> {
     if (!response.ok) throw new Error('Repository metadata missing');
     const rawData = await response.json();
     packagesData = Array.isArray(rawData) ? rawData : [];
+    packageByLowerName = new Map(packagesData.map((p) => [p.name.toLowerCase(), p]));
+    renderFilterBar();
     handleRoute();
   } catch {
     if (grid) {
@@ -575,58 +668,78 @@ async function loadPackages(): Promise<void> {
   }
 }
 
-// Listeners
-window.addEventListener('hashchange', handleRoute);
+function initApp(): void {
+  const copyBtn = document.getElementById('copyBtn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const cmd = document.getElementById('installCmd')?.innerText ?? DEFAULT_INSTALL_CMD;
+      copyText(cmd, copyBtn).catch(() => {});
+    });
+  }
 
-const searchEl = document.getElementById('searchInput');
-if (searchEl) {
-  searchEl.addEventListener('input', () => {
-    // If user searches while on a detail page, navigate to catalog
-    if (window.location.hash.startsWith('#/pkg/')) {
-      window.location.hash = '';
+  const searchEl = document.getElementById('searchInput');
+  if (searchEl) {
+    searchEl.addEventListener('input', () => {
+      if (window.location.hash.startsWith('#/pkg/')) {
+        window.location.hash = '';
+      }
+      renderCatalog();
+    });
+  }
+
+  const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement | null;
+  if (sortSelect) {
+    sortSelect.addEventListener('change', () => {
+      activeSortMode = sortSelect.value === 'downloads' ? 'downloads' : 'name';
+      renderCatalog();
+    });
+  }
+
+  window.addEventListener('hashchange', handleRoute);
+
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement | null;
+    const ifaceBtn = target?.closest<HTMLElement>('[data-filter-iface]');
+    if (ifaceBtn) {
+      activeInterfaceFilter = ifaceBtn.getAttribute('data-filter-iface') || 'all';
+      syncFilterBarState();
+      renderCatalog();
+      return;
     }
-    renderCatalog();
+    const sectionBtn = target?.closest<HTMLElement>('[data-filter-section]');
+    if (sectionBtn) {
+      activeSectionFilter = sectionBtn.getAttribute('data-filter-section') || 'all';
+      syncFilterBarState();
+      renderCatalog();
+      return;
+    }
+    const pkgCopyBtn = target?.closest<HTMLElement>('[data-copy-pkg]');
+    if (pkgCopyBtn) {
+      const pkg = pkgCopyBtn.getAttribute('data-copy-pkg');
+      if (pkg) {
+        copyText(`pkg i ${pkg}`, pkgCopyBtn).catch(() => {});
+      }
+    }
   });
+
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
+    const isSearchShortcut =
+      (e.key === '/' && document.activeElement !== searchEl) ||
+      ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k');
+
+    if (isSearchShortcut) {
+      e.preventDefault();
+      if (window.location.hash.startsWith('#/pkg/')) {
+        window.location.hash = '';
+        handleRoute();
+      }
+      searchEl?.focus();
+    }
+  });
+
+  loadPackages();
 }
 
-// Delegated Copy & Filter Listeners
-document.addEventListener('click', (e) => {
-  const target = e.target as HTMLElement | null;
-  const ifaceBtn = target?.closest<HTMLElement>('[data-filter-iface]');
-  if (ifaceBtn) {
-    activeInterfaceFilter = ifaceBtn.getAttribute('data-filter-iface') || 'all';
-    renderCatalog();
-    return;
-  }
-  const sectionBtn = target?.closest<HTMLElement>('[data-filter-section]');
-  if (sectionBtn) {
-    activeSectionFilter = sectionBtn.getAttribute('data-filter-section') || 'all';
-    renderCatalog();
-    return;
-  }
-  const copyBtn = target?.closest<HTMLElement>('[data-copy-pkg]');
-  if (copyBtn) {
-    const pkg = copyBtn.getAttribute('data-copy-pkg');
-    if (pkg) {
-      copyPkgInstall(pkg, copyBtn).catch(() => {});
-    }
-  }
-});
-
-// Keyboard shortcut '/' or 'Ctrl+K' to focus search
-window.addEventListener('keydown', (e: KeyboardEvent) => {
-  const isSearchShortcut =
-    (e.key === '/' && document.activeElement !== searchEl) ||
-    ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k');
-
-  if (isSearchShortcut) {
-    e.preventDefault();
-    if (window.location.hash.startsWith('#/pkg/')) {
-      window.location.hash = '';
-      handleRoute(); // Synchronously show catalogView before focusing
-    }
-    searchEl?.focus();
-  }
-});
-
-loadPackages();
+if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+  initApp();
+}

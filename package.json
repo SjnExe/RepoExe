@@ -11,7 +11,8 @@
     "abi-check": "bun scripts/cli/abi_check.ts",
     "index": "bun scripts/cli/index_gen.ts",
     "prune": "bun scripts/cli/prune.ts",
-    "build:site": "bun build scripts/site/app.ts --outdir site --target browser",
+    "build:site": "bun scripts/utils/site_builder.ts",
+    "serve:site": "bun scripts/cli/serve_site.ts",
     "test:watch": "bun test --parallel --watch",
     "pre-commit": "bun scripts/hooks/pre-commit.ts",
     "postinstall": "bun scripts/hooks/postinstall.ts"

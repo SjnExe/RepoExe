@@ -10,8 +10,6 @@
   --term-green-dim: rgba(39, 201, 63, 0.15);
   --term-cyan: #00e5ff;
   --term-cyan-dim: rgba(0, 229, 255, 0.12);
-  --term-blue: #58a6ff;
-  --term-yellow: #ffbd2e;
   --term-red: #ff5f56;
   --text-main: #e6edf3;
   --text-dim: #8b949e;
@@ -275,6 +273,44 @@ code {
   padding: 0.15rem 0.55rem;
   border-radius: 4px;
   white-space: nowrap;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.term-btn:focus-visible,
+.filter-pill:focus-visible,
+.sort-select:focus-visible,
+.copy-mini:focus-visible,
+.download-mini:focus-visible,
+.back-link:focus-visible,
+.dep-pill:focus-visible,
+.pkg-name-link:focus-visible,
+.pkg-details-link:focus-visible,
+.asset-download-btn:focus-visible {
+  outline: 2px solid var(--term-cyan);
+  outline-offset: 2px;
+}
+
+.sort-select {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  background: #0b111b;
+  border: 1px solid #1c2738;
+  border-radius: 4px;
+  padding: 0.2rem 0.45rem;
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.sort-select:hover {
+  border-color: var(--term-cyan);
+  color: var(--text-main);
 }
 
 .filter-bar {
