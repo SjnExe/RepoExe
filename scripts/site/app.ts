@@ -18,6 +18,11 @@ export interface PackageItem {
   homepage: string;
   maintainer: string;
   uploaders?: string[] | string;
+  component?: string;
+  section?: string;
+  priority?: string;
+  interface?: string;
+  tags?: string[];
   formats?: string[];
   deps?: string[];
   recommends?: string[];
@@ -38,6 +43,38 @@ declare global {
 }
 
 let packagesData: PackageItem[] = [];
+let activeInterfaceFilter = 'all';
+let activeSectionFilter = 'all';
+
+function renderFilterBar(): void {
+  const bar = document.getElementById('filterBar');
+  if (!bar) return;
+
+  const sections = Array.from(
+    new Set(packagesData.map((p) => p.section?.trim()).filter((s): s is string => Boolean(s))),
+  ).sort();
+
+  const ifacePills = ['all', 'cli', 'gui']
+    .map((val) => {
+      const label = val === 'all' ? 'All Interfaces' : val.toUpperCase();
+      const active = activeInterfaceFilter === val ? ' active' : '';
+      return `<button class="filter-pill${active}" data-filter-iface="${val}">${label}</button>`;
+    })
+    .join('');
+
+  const sectionPills = ['all', ...sections]
+    .map((val) => {
+      const label = val === 'all' ? 'All Sections' : escapeHtml(val);
+      const active = activeSectionFilter === val ? ' active' : '';
+      return `<button class="filter-pill${active}" data-filter-section="${escapeHtml(val)}">${label}</button>`;
+    })
+    .join('');
+
+  bar.innerHTML = `
+    <div class="filter-group">${ifacePills}</div>
+    ${sections.length > 0 ? `<div class="filter-group">${sectionPills}</div>` : ''}
+  `;
+}
 
 // Format helper to convert GitHub usernames like @SjnExe into clickable links
 function formatUser(userStr: string): string {
@@ -149,16 +186,26 @@ function renderCatalog(): void {
   const pkgCount = document.getElementById('pkgCount');
   if (!grid) return;
 
+  renderFilterBar();
   const search = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
   const filtered = packagesData.filter((pkg) => {
+    const pkgIface = (pkg.interface || (pkg.component === 'gui' ? 'gui' : 'cli')).toLowerCase();
+    if (activeInterfaceFilter !== 'all' && pkgIface !== activeInterfaceFilter && pkgIface !== 'both') {
+      return false;
+    }
+    if (activeSectionFilter !== 'all' && (pkg.section || '').toLowerCase() !== activeSectionFilter.toLowerCase()) {
+      return false;
+    }
     if (!search) return true;
     const nameMatch = pkg.name?.toLowerCase().includes(search);
     const descMatch = pkg.description?.toLowerCase().includes(search);
     const archMatch = pkg.arch?.toLowerCase().includes(search);
+    const sectionMatch = pkg.section?.toLowerCase().includes(search);
+    const tagsMatch = Array.isArray(pkg.tags) && pkg.tags.some((t) => t.toLowerCase().includes(search));
     const depsMatch = Array.isArray(pkg.deps) && pkg.deps.some((d) => d.toLowerCase().includes(search));
     const licenseMatch = pkg.license?.toLowerCase().includes(search);
-    return nameMatch || descMatch || archMatch || depsMatch || licenseMatch;
+    return nameMatch || descMatch || archMatch || sectionMatch || tagsMatch || depsMatch || licenseMatch;
   });
 
   if (pkgCount) {
@@ -204,7 +251,11 @@ function renderCatalog(): void {
               </a>
               ${verStr ? `<span class="pkg-ver">${escapeHtml(verStr)}</span>` : ''}
             </div>
-            <p class="pkg-desc">${escapeHtml(desc)}</p>
+            <div class="pkg-badges">
+              <span class="pkg-badge iface-${escapeHtml((pkg.interface || (pkg.component === 'gui' ? 'gui' : 'cli')).toLowerCase())}">${escapeHtml((pkg.interface || (pkg.component === 'gui' ? 'gui' : 'cli')).toUpperCase())}</span>
+              ${pkg.section ? `<span class="pkg-badge pkg-section-badge">${escapeHtml(pkg.section)}</span>` : ''}
+            </div>
+            <p class="pkg-desc">${escapeHtml(desc.split('\n')[0])}</p>
           </div>
 
           <div class="pkg-install-cmd">
@@ -427,6 +478,26 @@ function renderDetailPage(pkgName: string): void {
                 <span class="info-label">Target Architecture:</span>
                 <span class="info-val">${escapeHtml(pkg.arch || 'aarch64')}</span>
               </div>
+              <div class="info-item">
+                <span class="info-label">Component / Interface:</span>
+                <span class="info-val">${escapeHtml(pkg.component || 'main')} / ${escapeHtml((pkg.interface || 'cli').toUpperCase())}</span>
+              </div>
+              ${
+                pkg.section
+                  ? `<div class="info-item">
+                <span class="info-label">Section:</span>
+                <span class="info-val">${escapeHtml(pkg.section)}</span>
+              </div>`
+                  : ''
+              }
+              ${
+                Array.isArray(pkg.tags) && pkg.tags.length > 0
+                  ? `<div class="info-item">
+                <span class="info-label">Tags:</span>
+                <span class="info-val">${pkg.tags.map((t) => escapeHtml(t)).join(', ')}</span>
+              </div>`
+                  : ''
+              }
             </div>
           </div>
         </div>
@@ -492,9 +563,21 @@ if (searchEl) {
   });
 }
 
-// Delegated Copy Listener for Package Buttons
+// Delegated Copy & Filter Listeners
 document.addEventListener('click', (e) => {
   const target = e.target as HTMLElement | null;
+  const ifaceBtn = target?.closest<HTMLElement>('[data-filter-iface]');
+  if (ifaceBtn) {
+    activeInterfaceFilter = ifaceBtn.getAttribute('data-filter-iface') || 'all';
+    renderCatalog();
+    return;
+  }
+  const sectionBtn = target?.closest<HTMLElement>('[data-filter-section]');
+  if (sectionBtn) {
+    activeSectionFilter = sectionBtn.getAttribute('data-filter-section') || 'all';
+    renderCatalog();
+    return;
+  }
   const copyBtn = target?.closest<HTMLElement>('[data-copy-pkg]');
   if (copyBtn) {
     const pkg = copyBtn.getAttribute('data-copy-pkg');

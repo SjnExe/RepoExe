@@ -25,11 +25,12 @@ else
 fi
 
 write_sources_file() {
-  cat << 'EOF' > "$SOURCES_FILE"
+  local comps="${1:-${REPOEXE_COMPONENTS:-main gui}}"
+  cat << EOF > "$SOURCES_FILE"
 Types: deb
 URIs: https://sjnexe.github.io/RepoExe/apt
 Suites: stable
-Components: main
+Components: $comps
 Signed-By:
  -----BEGIN PGP PUBLIC KEY BLOCK-----
  .
@@ -100,19 +101,47 @@ show_help() {
   printf "  ${CYAN}status, -s, --status${RESET}     Check RepoExe APT repository integration status\n"
   printf "  ${CYAN}enable, -e, --enable${RESET}     Enable RepoExe APT repository source\n"
   printf "  ${CYAN}disable, -d, --disable${RESET}   Disable RepoExe APT repository source\n"
+  printf "  ${CYAN}gui <enable|disable>${RESET}     Toggle GUI package component (CLI-only when disabled)\n"
+  printf "  ${CYAN}components [set ...]${RESET}     Show or set enabled APT components (e.g. main gui)\n"
   printf "  ${CYAN}remove, -r, --remove${RESET}     Remove RepoExe repository configuration\n"
   printf "  ${CYAN}version, -v, --version${RESET}   Print CLI version\n"
   printf "  ${CYAN}help, -h, --help${RESET}         Show this help menu\n"
 }
 
+get_components() {
+  if [ -f "$SOURCES_FILE" ]; then
+    grep "^Components:" "$SOURCES_FILE" 2>/dev/null | head -n 1 | sed 's/^Components:[[:space:]]*//' || echo "main"
+  else
+    echo ""
+  fi
+}
+
+set_components() {
+  local new_comps="$*"
+  if [ -z "$new_comps" ]; then
+    new_comps="main"
+  fi
+  if [ ! -f "$SOURCES_FILE" ]; then
+    mkdir -p "$SOURCES_DIR"
+    write_sources_file "$new_comps"
+  elif grep -q "^Components:" "$SOURCES_FILE"; then
+    sed -i "s/^Components:.*/Components: $new_comps/" "$SOURCES_FILE"
+  else
+    sed -i "s/^Suites:.*/&\nComponents: $new_comps/" "$SOURCES_FILE"
+  fi
+}
+
 check_status() {
   printf "${BOLD}=== RepoExe Status ===${RESET}\n"
   if [ -f "$SOURCES_FILE" ]; then
+    local active_comps
+    active_comps="$(get_components)"
     if grep -q "^Enabled:[[:space:]]*no" "$SOURCES_FILE" 2>/dev/null; then
       printf "  APT Source:   [${YELLOW}DISABLED${RESET}] (Enabled: no in %s)\n" "$SOURCES_FILE"
     else
       printf "  APT Source:   [${GREEN}ENABLED${RESET}]  (Deb822: %s)\n" "$SOURCES_FILE"
     fi
+    printf "  Components:   ${CYAN}%s${RESET}\n" "${active_comps:-main}"
   elif [ -f "$SOURCES_DIR/repoexe.list" ]; then
     printf "  APT Source:   [${YELLOW}LEGACY${RESET}]    (%s)\n" "$SOURCES_DIR/repoexe.list"
   else
@@ -170,6 +199,61 @@ case "$1" in
     ;;
   remove|-r|--remove)
     remove_repo
+    ;;
+  gui)
+    case "${2:-status}" in
+      enable|on)
+        cur="$(get_components)"
+        case " $cur " in
+          *" gui "*) ;;
+          *) cur="${cur:+$cur }gui" ;;
+        esac
+        set_components "$cur"
+        printf "${GREEN}✓ GUI component enabled (%s). Run 'pkg update' to sync.${RESET}\n" "$(get_components)"
+        ;;
+      disable|off)
+        cur="$(get_components)"
+        new_comps=""
+        for c in $cur; do
+          [ "$c" = "gui" ] && continue
+          new_comps="${new_comps:+$new_comps }$c"
+        done
+        set_components "${new_comps:-main}"
+        printf "${YELLOW}✓ GUI component disabled (%s). Run 'pkg update' to sync.${RESET}\n" "$(get_components)"
+        ;;
+      status|"")
+        cur="$(get_components)"
+        case " $cur " in
+          *" gui "*) printf "GUI component: ${GREEN}ENABLED${RESET} (%s)\n" "$cur" ;;
+          *) printf "GUI component: ${YELLOW}DISABLED${RESET} (%s)\n" "${cur:-main}" ;;
+        esac
+        ;;
+      *)
+        printf "${RED}Error: Usage 'repoexe gui <enable|disable|status>'${RESET}\n" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  components)
+    if [ "$2" = "set" ] && [ -n "$3" ]; then
+      shift 2
+      set_components "$*"
+      printf "${GREEN}✓ Components updated to: %s${RESET}\n" "$(get_components)"
+    else
+      printf "Active components: %s\n" "$(get_components)"
+    fi
+    ;;
+  --cli-only)
+    REPOEXE_COMPONENTS="main"
+    enable_repo
+    if command -v apt-get >/dev/null 2>&1; then
+      apt-get update -o Acquire::Retries=3 -qq || apt-get update || true
+      apt-get install -y -o Acquire::Retries=3 repoexe
+    elif command -v pkg >/dev/null 2>&1; then
+      pkg update -y || true
+      pkg install -y repoexe
+    fi
+    printf "${GREEN}✓ RepoExe configured in CLI-only mode (Components: main).${RESET}\n"
     ;;
   version|-v|--version)
     printf "repoexe v%s\n" "$REPOEXE_VERSION"

@@ -5,6 +5,8 @@ export interface ResourceConfig {
   tmpfs?: number;
 }
 
+export type PackageInterface = 'cli' | 'gui' | 'tui' | 'both';
+
 export interface SubpackageDefinition {
   name?: string;
   description?: string;
@@ -22,6 +24,11 @@ export interface SubpackageDefinition {
   replaces?: string[];
   producer_arch?: string;
   multiarch?: string;
+  section?: string;
+  priority?: string;
+  interface?: PackageInterface;
+  tags?: string[];
+  component?: string;
 }
 
 export interface NamedSubpackageDefinition extends SubpackageDefinition {
@@ -41,6 +48,10 @@ export interface RecipeDefinition {
   maintainer?: string;
   uploaders?: string[] | string;
   component?: string;
+  section?: string;
+  priority?: string;
+  interface?: PackageInterface;
+  tags?: string[];
   build_system?: string;
   source?: string | string[] | null;
   sources?: string[] | null;
@@ -95,6 +106,10 @@ export interface PackageRecipe {
   maintainer: string;
   uploaders?: string[];
   component: string;
+  section?: string;
+  priority?: string;
+  interface?: PackageInterface;
+  tags?: string[];
   build_system: string;
   source: string | null;
   sources?: string[];

@@ -2652,8 +2652,11 @@ export async function prepareSite(
     }
 
     const aptContext = buildAptMetadataContext(aptStaging, join(process.cwd(), 'pkg'));
-    for (const arch of arches) {
-      generateAptMetadata(aptStaging, 'main', arch, join(process.cwd(), 'pkg'), aptContext);
+    const components = Array.from(aptContext.components).sort();
+    for (const comp of components) {
+      for (const arch of arches) {
+        generateAptMetadata(aptStaging, comp, arch, join(process.cwd(), 'pkg'), aptContext);
+      }
     }
     const aptSiteDir = join(sPath, 'apt');
     const isExistingSigned =
@@ -2661,7 +2664,7 @@ export async function prepareSite(
       existsSync(join(aptSiteDir, 'dists', 'stable', 'Release.gpg'));
     const requireSigned =
       Boolean(process.env.GPG_PRIVATE_KEY) || isExistingSigned || process.env.REQUIRE_APT_SIGNING === 'true';
-    generateReleaseFile(aptStaging, 'stable', 'main', requireSigned);
+    generateReleaseFile(aptStaging, 'stable', components, requireSigned);
 
     // Atomic promotion: build replacement pool in a unique scratch directory on the site filesystem
     let aptNextDir: string | null = null;

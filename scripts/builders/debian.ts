@@ -74,6 +74,41 @@ export function getDebMultiArch(debPath: string): string | null {
   return null;
 }
 
+export function formatDebianDescription(description?: string): string {
+  const raw = (description || 'RepoExe package').replace(/\r\n/g, '\n').trimEnd();
+  const lines = raw.split('\n');
+  const first = lines[0]?.trim() || 'RepoExe package';
+  if (lines.length === 1) {
+    return first;
+  }
+  const rest = lines.slice(1).map((line) => (line.trim() === '' ? ' .' : ` ${line}`));
+  return [first, ...rest].join('\n');
+}
+
+export function buildDebianTags(recipe: Pick<PackageRecipe, 'interface' | 'tags'>): string[] {
+  const tagSet = new Set<string>();
+  const iface = recipe.interface;
+  if (iface === 'cli') {
+    tagSet.add('interface::commandline');
+  } else if (iface === 'tui') {
+    tagSet.add('interface::text-mode');
+  } else if (iface === 'gui') {
+    tagSet.add('interface::graphical');
+  } else if (iface === 'both') {
+    tagSet.add('interface::commandline');
+    tagSet.add('interface::graphical');
+  }
+  if (Array.isArray(recipe.tags)) {
+    for (const t of recipe.tags) {
+      const trimmed = t.trim();
+      if (trimmed) {
+        tagSet.add(trimmed);
+      }
+    }
+  }
+  return Array.from(tagSet);
+}
+
 export function generateControlFile(recipe: PackageRecipe, installedSizeKib?: number): string {
   const versionStr = formatDebianVersion(recipe);
   const debArch = ARCH_MAP[recipe.arch] || recipe.arch;
@@ -83,8 +118,19 @@ export function generateControlFile(recipe: PackageRecipe, installedSizeKib?: nu
     `Version: ${versionStr}`,
     `Architecture: ${debArch}`,
     `Maintainer: ${recipe.maintainer || 'SjnExe'}`,
-    `Description: ${recipe.description || 'RepoExe package'}`,
   ];
+
+  if (recipe.section) {
+    lines.push(`Section: ${recipe.section}`);
+  }
+  lines.push(`Priority: ${recipe.priority || 'optional'}`);
+
+  const tags = buildDebianTags(recipe);
+  if (tags.length > 0) {
+    lines.push(`Tag: ${tags.join(', ')}`);
+  }
+
+  lines.push(`Description: ${formatDebianDescription(recipe.description)}`);
 
   if (installedSizeKib !== undefined) {
     lines.push(`Installed-Size: ${installedSizeKib}`);
@@ -854,6 +900,7 @@ interface CandidateDeb {
   debPath: string;
   pkgName: string;
   pkgVersion: string;
+  component: string;
   provides: ParsedProvideEntry[];
   /** Value of the Multi-Arch control field, e.g. "allowed", "foreign", "same". */
   multiArch?: string;
@@ -863,6 +910,7 @@ export interface AptMetadataContext {
   allCandidates: CandidateDeb[];
   activePools: Map<string, CandidateDeb[]>;
   emittedNames: Set<string>;
+  components: Set<string>;
 }
 
 export function buildAptMetadataContext(
@@ -876,13 +924,18 @@ export function buildAptMetadataContext(
     : [];
 
   const emittedNames = new Set<string>();
+  const pkgComponentMap = new Map<string, string>();
   if (existsSync(packagesDir)) {
     const graph = new DependencyGraph(packagesDir);
-    for (const name of Object.keys(graph.recipes)) {
+    for (const [name, rec] of Object.entries(graph.recipes)) {
       emittedNames.add(name);
+      pkgComponentMap.set(name, rec.component || 'main');
     }
-    for (const name of Object.keys(graph.subpackageMap)) {
+    for (const [name, parentName] of Object.entries(graph.subpackageMap)) {
       emittedNames.add(name);
+      const parentRec = graph.recipes[parentName];
+      const subDef = parentRec?.subpackages?.[name];
+      pkgComponentMap.set(name, subDef?.component || parentRec?.component || 'main');
     }
     for (const name of Object.keys(graph.providersMap)) {
       emittedNames.add(name);
@@ -924,6 +977,7 @@ export function buildAptMetadataContext(
         }
       }
       const multiArch = extractDebianField(controlInfo, 'Multi-Arch') || undefined;
+      const component = pkgComponentMap.get(pkgName) || 'main';
       const cand: CandidateDeb = {
         debName,
         debArch: effectiveArch,
@@ -931,6 +985,7 @@ export function buildAptMetadataContext(
         debPath,
         pkgName,
         pkgVersion,
+        component,
         provides,
         multiArch,
       };
@@ -1139,7 +1194,21 @@ export function buildAptMetadataContext(
     }
   }
 
-  return { allCandidates, activePools, emittedNames };
+  const components = new Set<string>(['main']);
+  for (const cand of allCandidates) {
+    components.add(cand.component || 'main');
+  }
+
+  return { allCandidates, activePools, emittedNames, components };
+}
+
+function writeIndexWithByHash(baseDir: string, filename: string, data: Buffer): void {
+  const filePath = join(baseDir, filename);
+  writeFileSync(filePath, data);
+  const sha256 = new Bun.CryptoHasher('sha256').update(data).digest('hex');
+  const byHashDir = join(baseDir, 'by-hash', 'SHA256');
+  mkdirSync(byHashDir, { recursive: true });
+  writeFileSync(join(byHashDir, sha256), data);
 }
 
 export function generateAptMetadata(
@@ -1152,13 +1221,15 @@ export function generateAptMetadata(
   const binaryDir = join(outputDir, 'dists', 'stable', component, `binary-${arch}`);
   mkdirSync(binaryDir, { recursive: true });
 
-  const packagesPath = join(binaryDir, 'Packages');
   const entries: string[] = [];
 
   const ctx = context || buildAptMetadataContext(outputDir, packagesDir);
   const targetNormArch = normalizeArch(arch);
   const finalTargetPool = ctx.activePools.get(targetNormArch) || [];
   const activeCandidates = finalTargetPool.filter((cand) => {
+    if ((cand.component || 'main') !== component) {
+      return false;
+    }
     const matchesArch =
       cand.debArch === 'all' ||
       normalizeArch(cand.debArch) === 'all' ||
@@ -1178,42 +1249,54 @@ export function generateAptMetadata(
   }
 
   const packagesContent = entries.join('');
-  writeFileSync(packagesPath, packagesContent, 'utf-8');
-  writeFileSync(`${packagesPath}.gz`, Bun.gzipSync(Buffer.from(packagesContent, 'utf-8')));
+  const pkgsBuffer = Buffer.from(packagesContent, 'utf-8');
+  writeIndexWithByHash(binaryDir, 'Packages', pkgsBuffer);
+
+  const gzBuffer = Buffer.from(Bun.gzipSync(pkgsBuffer));
+  writeIndexWithByHash(binaryDir, 'Packages.gz', gzBuffer);
+
+  const xzRes = spawnSync('xz', ['-c'], { input: pkgsBuffer });
+  if (xzRes.status === 0 && xzRes.stdout) {
+    writeIndexWithByHash(binaryDir, 'Packages.xz', Buffer.from(xzRes.stdout));
+  }
 
   // Differential repository index generation (pdiff format)
   const diffDir = join(binaryDir, 'Packages.diff');
   mkdirSync(diffDir, { recursive: true });
-  const pkgsBuffer = Buffer.from(packagesContent, 'utf-8');
   const pkgsSha256 = new Bun.CryptoHasher('sha256').update(pkgsBuffer).digest('hex');
   const pkgsSize = pkgsBuffer.length;
   const diffIndexContent = [`SHA256-Current: ${pkgsSha256} ${pkgsSize}`, `SHA256-History:`, `SHA256-Patches:`, ''].join(
     '\n',
   );
-  writeFileSync(join(diffDir, 'Index'), diffIndexContent, 'utf-8');
+  writeIndexWithByHash(diffDir, 'Index', Buffer.from(diffIndexContent, 'utf-8'));
 }
 
 export function generateReleaseFile(
   outputDir: string,
   suite: string = 'stable',
-  component: string = 'main',
+  component: string | string[] = 'main',
   requireSigned = false,
 ): void {
   const distsDir = join(outputDir, 'dists', suite);
   mkdirSync(distsDir, { recursive: true });
   const releasePath = join(distsDir, 'Release');
+  const componentList = Array.isArray(component) ? Array.from(new Set(component)).sort() : [component || 'main'];
 
   const arches = new Set<string>();
   const fileEntries: string[] = [];
 
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'by-hash') {
+        continue;
+      }
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         walk(full);
       } else if (
         entry.name === 'Packages' ||
         entry.name === 'Packages.gz' ||
+        entry.name === 'Packages.xz' ||
         (entry.name === 'Index' && full.includes('Packages.diff'))
       ) {
         const relPath = relative(distsDir, full).replace(/\\/g, '/');
@@ -1240,7 +1323,8 @@ export function generateReleaseFile(
     `Suite: ${suite}`,
     `Codename: ${suite}`,
     `Architectures: ${archStr}`,
-    `Components: ${component}`,
+    `Components: ${componentList.join(' ')}`,
+    `Acquire-By-Hash: yes`,
     `Description: RepoExe Package Repository`,
     `SHA256:`,
     ...fileEntries.sort(),

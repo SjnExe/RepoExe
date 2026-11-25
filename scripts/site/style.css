@@ -277,6 +277,70 @@ code {
   white-space: nowrap;
 }
 
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.filter-pill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: #0b111b;
+  border: 1px solid #1c2738;
+  border-radius: 4px;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-pill:hover {
+  border-color: var(--term-cyan);
+  color: var(--text-main);
+}
+
+.filter-pill.active {
+  color: var(--term-cyan);
+  background: rgba(0, 229, 255, 0.1);
+  border-color: var(--term-cyan);
+}
+
+.pkg-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.pkg-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  border: 1px solid #263349;
+  background: #0d1522;
+  color: var(--text-muted);
+}
+
+.pkg-badge.iface-gui {
+  color: #c084fc;
+  border-color: rgba(192, 132, 252, 0.35);
+  background: rgba(192, 132, 252, 0.08);
+}
+
+.pkg-badge.iface-cli {
+  color: var(--term-green);
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.08);
+}
+
 /* Package Grid */
 .package-grid {
   display: grid;
