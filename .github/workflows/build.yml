@@ -586,7 +586,7 @@ jobs:
   deploy-pages:
     name: Deploy
     needs: [publish-site]
-    if: ${{ needs.publish-site.result == 'success' }}
+    if: ${{ !cancelled() && needs.publish-site.result == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
