@@ -13,7 +13,10 @@ export function formatDebianVersion(
   return epoch > 0 ? `${epoch}:${verBody}` : verBody;
 }
 
-/** Formats Debian filename version string (replaces ':' with '_' in filename to avoid filesystem issues) */
+/**
+ * Formats Debian filename version string (replaces ':' with '_' in filename to avoid filesystem
+ * issues)
+ */
 export function formatDebianFilenameVersion(
   recipe: Pick<PackageRecipe, 'version'> & Partial<Pick<PackageRecipe, 'epoch' | 'revision'>>,
 ): string {
@@ -43,7 +46,10 @@ function cmpDebianPart(a: string, b: string): number {
   let i = 0;
   let j = 0;
   while (i < a.length || j < b.length) {
-    while ((i < a.length && !(a[i] >= '0' && a[i] <= '9')) || (j < b.length && !(b[j] >= '0' && b[j] <= '9'))) {
+    while (
+      (i < a.length && !(a[i] >= '0' && a[i] <= '9')) ||
+      (j < b.length && !(b[j] >= '0' && b[j] <= '9'))
+    ) {
       const ac = i < a.length ? a[i] : '';
       const bc = j < b.length ? b[j] : '';
       const ao = order(ac);
@@ -167,7 +173,12 @@ export function satisfiesVersionConstraint(
 
   let result: boolean;
   try {
-    const res = spawnSync('dpkg', ['--compare-versions', ver, constraint.operator, constraint.version]);
+    const res = spawnSync('dpkg', [
+      '--compare-versions',
+      ver,
+      constraint.operator,
+      constraint.version,
+    ]);
     if (res.status !== null && !res.error) {
       result = res.status === 0;
     } else {

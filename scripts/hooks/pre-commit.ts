@@ -88,7 +88,9 @@ export async function runPreCommitHook(options?: PreCommitOptions): Promise<bool
       }
       const lintRes = await $`bunx oxlint`.nothrow().quiet();
       if (lintRes.exitCode !== 0) {
-        console.error(`=== Oxlint Check Failed (Exit: ${lintRes.exitCode}) ===\n${lintRes.stdout}${lintRes.stderr}`);
+        console.error(
+          `=== Oxlint Check Failed (Exit: ${lintRes.exitCode}) ===\n${lintRes.stdout}${lintRes.stderr}`,
+        );
         console.error('\n❌ Pre-commit lint checks failed.');
         return false;
       }
@@ -111,7 +113,8 @@ export async function runPreCommitHook(options?: PreCommitOptions): Promise<bool
 
     // 5. GitHub Actions workflow validation via actionlint
     if (!options?.skipActionlint) {
-      const isTermux = Boolean(process.env.TERMUX_VERSION) || (process.env.PREFIX || '').includes('com.termux');
+      const isTermux =
+        Boolean(process.env.TERMUX_VERSION) || (process.env.PREFIX || '').includes('com.termux');
       const actionlintBin = resolveActionlintBinary();
 
       const hasShellcheck = Bun.which('shellcheck') !== null;
@@ -139,7 +142,9 @@ export async function runPreCommitHook(options?: PreCommitOptions): Promise<bool
               const res = await $`${actionlintBin} ${args}`.cwd(tmpRoot).nothrow().quiet();
 
               if (res.exitCode !== 0) {
-                console.error(`=== Actionlint Check Failed (Exit: ${res.exitCode}) ===\n${res.stdout}${res.stderr}`);
+                console.error(
+                  `=== Actionlint Check Failed (Exit: ${res.exitCode}) ===\n${res.stdout}${res.stderr}`,
+                );
                 console.error('\n❌ Workflow checks failed.');
                 return false;
               }

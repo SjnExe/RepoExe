@@ -428,7 +428,9 @@ export function updateDirectObjectProperties(
   }
 
   if (!versionEdit) {
-    throw new Error(`Failed to update version to ${newVersion} for ${targetName}: version property not found.`);
+    throw new Error(
+      `Failed to update version to ${newVersion} for ${targetName}: version property not found.`,
+    );
   }
 
   const edits: EditRange[] = [versionEdit];
@@ -639,7 +641,9 @@ export function bumpDirectObjectRevision(
   }
 
   if (versionLineEnd === -1) {
-    throw new Error(`Failed to bump revision for ${targetName}: neither revision nor version property found.`);
+    throw new Error(
+      `Failed to bump revision for ${targetName}: neither revision nor version property found.`,
+    );
   }
 
   const lineStart = str.lastIndexOf('\n', versionLineEnd - 1) + 1;

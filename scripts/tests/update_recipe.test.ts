@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 
-import { bumpRecipeRevisionContent, getMajorMinor, updateRecipeContent } from '../cli/update_recipe.ts';
+import {
+  bumpRecipeRevisionContent,
+  getMajorMinor,
+  updateRecipeContent,
+} from '../cli/update_recipe.ts';
 import { compareSemver, extractSemver } from '../cli/upstream_check.ts';
 
 describe('upstream_check and update_recipe', () => {

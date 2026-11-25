@@ -122,7 +122,11 @@ function parseProviderEntry(raw: string): Array<{
   return results;
 }
 
-function matchesProviderArch(targetArch: string, architectures?: string[], negatedArch?: boolean): boolean {
+function matchesProviderArch(
+  targetArch: string,
+  architectures?: string[],
+  negatedArch?: boolean,
+): boolean {
   if (!architectures || architectures.length === 0) {
     return true;
   }
@@ -234,14 +238,20 @@ export class DependencyGraph {
     if (Array.isArray(r.provides)) {
       for (const prov of r.provides) {
         if (typeof prov !== 'string') {
-          throw new Error(`Invalid provides entry in '${r.name}': must be a string, got ${typeof prov}`);
+          throw new Error(
+            `Invalid provides entry in '${r.name}': must be a string, got ${typeof prov}`,
+          );
         }
         const entries = parseProviderEntry(prov);
         if (entries.length === 0) {
           throw new Error(`Invalid provides entry '${prov}' in '${r.name}'`);
         }
         const emittedArches =
-          r.arch === 'all' ? ['all'] : r.arches && r.arches.length > 0 ? r.arches : [r.arch || 'aarch64'];
+          r.arch === 'all'
+            ? ['all']
+            : r.arches && r.arches.length > 0
+              ? r.arches
+              : [r.arch || 'aarch64'];
         for (const { provName, provVer, architectures, negatedArch } of entries) {
           for (const eArch of emittedArches) {
             if (normalizeArch(eArch) === 'all' && architectures && architectures.length > 0) {
@@ -285,7 +295,11 @@ export class DependencyGraph {
             const sName = typeof subDef === 'object' && subDef?.name ? subDef.name : subKey;
             for (const { provName, provVer, architectures, negatedArch } of entries) {
               if (typeof subDef === 'object' && subDef?.arch) {
-                if (normalizeArch(subDef.arch) === 'all' && architectures && architectures.length > 0) {
+                if (
+                  normalizeArch(subDef.arch) === 'all' &&
+                  architectures &&
+                  architectures.length > 0
+                ) {
                   throw new Error(
                     `Package '${sName}' has architecture 'all' but declares architecture-restricted Provides '${provName} [${architectures.join(' ')}]'.`,
                   );
@@ -303,7 +317,11 @@ export class DependencyGraph {
                 }
               } else {
                 const parentTargets =
-                  r.arch === 'all' ? ['all'] : r.arches && r.arches.length > 0 ? r.arches : [r.arch || 'aarch64'];
+                  r.arch === 'all'
+                    ? ['all']
+                    : r.arches && r.arches.length > 0
+                      ? r.arches
+                      : [r.arch || 'aarch64'];
                 for (const pArch of parentTargets) {
                   if (normalizeArch(pArch) === 'all' && architectures && architectures.length > 0) {
                     throw new Error(
@@ -376,7 +394,15 @@ export class DependencyGraph {
       }
     }
 
-    for (const { provName, provVer, pkgName, arch, multiArch, architectures, negatedArch } of validatedProviders) {
+    for (const {
+      provName,
+      provVer,
+      pkgName,
+      arch,
+      multiArch,
+      architectures,
+      negatedArch,
+    } of validatedProviders) {
       this.providesMap[provName] = r.name;
       if (!this.providersMap[provName]) {
         this.providersMap[provName] = [];
@@ -412,18 +438,24 @@ export class DependencyGraph {
         if (owner === depName) {
           const rArch = recipe.arch ? normalizeArch(recipe.arch) : 'aarch64';
           const rArches = recipe.arches?.map(normalizeArch);
-          archMatches = rArch === 'all' || rArch === normTarget || Boolean(rArches && rArches.includes(normTarget));
+          archMatches =
+            rArch === 'all' ||
+            rArch === normTarget ||
+            Boolean(rArches && rArches.includes(normTarget));
         } else {
           const subDef: SubpackageDefinition | undefined =
             recipe.subpackages &&
-            Object.entries(recipe.subpackages).find(([key, s]) => s && (s.name || key) === depName)?.[1];
+            Object.entries(recipe.subpackages).find(
+              ([key, s]) => s && (s.name || key) === depName,
+            )?.[1];
           if (subDef?.arch) {
             const sArch = normalizeArch(subDef.arch);
             archMatches = sArch === 'all' || sArch === normTarget;
           } else {
             const rArch = recipe.arch ? normalizeArch(recipe.arch) : 'aarch64';
             const rArches = recipe.arches?.map(normalizeArch);
-            archMatches = rArch === 'all' || rArch === normTarget || Boolean(rArches?.includes(normTarget));
+            archMatches =
+              rArch === 'all' || rArch === normTarget || Boolean(rArches?.includes(normTarget));
           }
         }
       }
@@ -454,7 +486,12 @@ export class DependencyGraph {
     return false;
   }
 
-  ownerProducesDep(owner: string, depName: string, arch?: string, versionConstraint?: VersionConstraint): boolean {
+  ownerProducesDep(
+    owner: string,
+    depName: string,
+    arch?: string,
+    versionConstraint?: VersionConstraint,
+  ): boolean {
     if (!arch) {
       return true;
     }
@@ -494,7 +531,8 @@ export class DependencyGraph {
         }
         const sName = (subDef as SubpackageDefinition).name || subKey;
         if (sName === depName) {
-          const sArch = (subDef as SubpackageDefinition).arch || (recipe.arch === 'all' ? 'all' : undefined);
+          const sArch =
+            (subDef as SubpackageDefinition).arch || (recipe.arch === 'all' ? 'all' : undefined);
           if (sArch === 'all') {
             if (recipe.arch === 'all') {
               return true;
@@ -503,7 +541,9 @@ export class DependencyGraph {
               recipe.arches && recipe.arches.length > 0
                 ? recipe.arches.map(normalizeArch)
                 : [normalizeArch(recipe.arch || 'aarch64')];
-            const designatedProducer = parentArches.includes('aarch64') ? 'aarch64' : parentArches[0];
+            const designatedProducer = parentArches.includes('aarch64')
+              ? 'aarch64'
+              : parentArches[0];
             const childProducer = (subDef as SubpackageDefinition).producer_arch
               ? normalizeArch((subDef as SubpackageDefinition).producer_arch!)
               : designatedProducer;
@@ -533,7 +573,10 @@ export class DependencyGraph {
         if (provArch && provArch !== 'all' && provArch !== reqArch) {
           continue;
         }
-        if (versionConstraint && (!prov.version || !satisfiesVersionConstraint(prov.version, versionConstraint))) {
+        if (
+          versionConstraint &&
+          (!prov.version || !satisfiesVersionConstraint(prov.version, versionConstraint))
+        ) {
           continue;
         }
         if (this.ownerProducesDep(owner, prov.pkgName, arch)) {
@@ -559,7 +602,10 @@ export class DependencyGraph {
       }
     }
     if (versionConstraint) {
-      if (p.version === undefined || !satisfiesVersionConstraint(p.version, versionConstraint, cache)) {
+      if (
+        p.version === undefined ||
+        !satisfiesVersionConstraint(p.version, versionConstraint, cache)
+      ) {
         return false;
       }
     }
@@ -617,7 +663,14 @@ export class DependencyGraph {
                 (p) =>
                   p.owner !== owner &&
                   (!candidatePackages || candidatePackages.has(p.owner)) &&
-                  this.isProviderEligibleForToken(p, multiArchQualifier, normReq, normPlan, versionConstraint, cache),
+                  this.isProviderEligibleForToken(
+                    p,
+                    multiArchQualifier,
+                    normReq,
+                    normPlan,
+                    versionConstraint,
+                    cache,
+                  ),
               );
             const archMatches =
               !normReq ||
@@ -648,13 +701,17 @@ export class DependencyGraph {
           }
           const ver = formatDebianVersion(recipe);
           if (!versionConstraint || satisfiesVersionConstraint(ver, versionConstraint, cache)) {
-            const rawSubArch = (subDef as SubpackageDefinition).arch || (recipe.arch === 'all' ? 'all' : undefined);
+            const rawSubArch =
+              (subDef as SubpackageDefinition).arch || (recipe.arch === 'all' ? 'all' : undefined);
             const isChildArchAll = rawSubArch === 'all';
             if (isChildArchAll) {
               if (recipe.arch === 'all') {
                 return true;
               }
-              const designatedProducer = resolveChildProducerArch(recipe, subDef as SubpackageDefinition);
+              const designatedProducer = resolveChildProducerArch(
+                recipe,
+                subDef as SubpackageDefinition,
+              );
               if (normPlan === designatedProducer) {
                 return true;
               }
@@ -671,7 +728,14 @@ export class DependencyGraph {
                   (p) =>
                     p.owner !== owner &&
                     (!candidatePackages || candidatePackages.has(p.owner)) &&
-                    this.isProviderEligibleForToken(p, multiArchQualifier, normReq, normPlan, versionConstraint, cache),
+                    this.isProviderEligibleForToken(
+                      p,
+                      multiArchQualifier,
+                      normReq,
+                      normPlan,
+                      versionConstraint,
+                      cache,
+                    ),
                 );
               const archMatches =
                 !normReq ||
@@ -694,7 +758,10 @@ export class DependencyGraph {
       if (multiArchQualifier === 'any' && prov.multiArch !== 'allowed') {
         continue;
       }
-      if (versionConstraint && (!prov.version || !satisfiesVersionConstraint(prov.version, versionConstraint, cache))) {
+      if (
+        versionConstraint &&
+        (!prov.version || !satisfiesVersionConstraint(prov.version, versionConstraint, cache))
+      ) {
         continue;
       }
       let effProvArch = recipe.arch === 'all' || prov.arch === 'all' ? 'all' : normPlan;
@@ -723,7 +790,10 @@ export class DependencyGraph {
             if (recipe.arch === 'all') {
               return true;
             }
-            const designatedProducer = resolveChildProducerArch(recipe, sDef as SubpackageDefinition);
+            const designatedProducer = resolveChildProducerArch(
+              recipe,
+              sDef as SubpackageDefinition,
+            );
             if (normPlan === designatedProducer) {
               return true;
             }
@@ -736,7 +806,14 @@ export class DependencyGraph {
             (p) =>
               p.owner !== owner &&
               (!candidatePackages || candidatePackages.has(p.owner)) &&
-              this.isProviderEligibleForToken(p, multiArchQualifier, normReq, normPlan, versionConstraint, cache),
+              this.isProviderEligibleForToken(
+                p,
+                multiArchQualifier,
+                normReq,
+                normPlan,
+                versionConstraint,
+                cache,
+              ),
           );
         const archMatches =
           !normReq ||
@@ -825,7 +902,8 @@ export class DependencyGraph {
         }
         const sName = (subDef as SubpackageDefinition).name || subKey;
         if (sName === depName) {
-          const sArch = (subDef as SubpackageDefinition).arch || (recipe.arch === 'all' ? 'all' : undefined);
+          const sArch =
+            (subDef as SubpackageDefinition).arch || (recipe.arch === 'all' ? 'all' : undefined);
           return sArch === 'all';
         }
       }
@@ -958,7 +1036,10 @@ export class DependencyGraph {
               undefined,
               t.multiArch,
             );
-            if (supplyCheck && this.ownerProducesDep(recipe.name, t.name, reqArchForTarget, t.versionConstraint)) {
+            if (
+              supplyCheck &&
+              this.ownerProducesDep(recipe.name, t.name, reqArchForTarget, t.versionConstraint)
+            ) {
               selfSatisfied = true;
               selfProduced = true;
             }
@@ -986,7 +1067,10 @@ export class DependencyGraph {
               undefined,
               t.multiArch,
             );
-            if (supplyCheck && this.ownerProducesDep(recipe.name, t.name, reqArchForTarget, t.versionConstraint)) {
+            if (
+              supplyCheck &&
+              this.ownerProducesDep(recipe.name, t.name, reqArchForTarget, t.versionConstraint)
+            ) {
               selfSatisfied = true;
               selfProduced = true;
             }
@@ -1035,7 +1119,11 @@ export class DependencyGraph {
       const seenRuntimeKeys = new Set<string>();
 
       const nativeTargets = ['aarch64', 'arm', 'x86_64', 'i686'];
-      const topRuntimeArches = arch ? targetArches : recipe.arch === 'all' ? nativeTargets : targetArches;
+      const topRuntimeArches = arch
+        ? targetArches
+        : recipe.arch === 'all'
+          ? nativeTargets
+          : targetArches;
 
       for (const tArch of topRuntimeArches) {
         const filteredRuntime = filterDepsForArch(runtimeClauses, tArch);
@@ -1056,8 +1144,12 @@ export class DependencyGraph {
                 recipe.arches && recipe.arches.length > 0
                   ? recipe.arches.map(normalizeArch)
                   : [normalizeArch(recipe.arch || 'aarch64')];
-              const designatedProducer = parentArches.includes('aarch64') ? 'aarch64' : parentArches[0];
-              const childProducer = subDef.producer_arch ? normalizeArch(subDef.producer_arch) : designatedProducer;
+              const designatedProducer = parentArches.includes('aarch64')
+                ? 'aarch64'
+                : parentArches[0];
+              const childProducer = subDef.producer_arch
+                ? normalizeArch(subDef.producer_arch)
+                : designatedProducer;
               if (recipe.arch !== 'all' && normalizeArch(arch) !== childProducer) {
                 continue;
               }
@@ -1117,7 +1209,13 @@ export class DependencyGraph {
     keepSelfSatisfiedAlternatives = false,
   ): string[][] {
     const versionCache = new Map<string, boolean>();
-    const targets = this.getRecipeDepTargets(recipe, arch, includeSubpkgs, versionCache, keepSelfSatisfiedAlternatives);
+    const targets = this.getRecipeDepTargets(
+      recipe,
+      arch,
+      includeSubpkgs,
+      versionCache,
+      keepSelfSatisfiedAlternatives,
+    );
     return targets.map((clause) => {
       const hasSatisfiedConcrete = clause.some(
         (t) =>
@@ -1127,7 +1225,9 @@ export class DependencyGraph {
             : false),
       );
       const effective =
-        hasSatisfiedConcrete && !keepSelfSatisfiedAlternatives ? clause.filter((t) => !t.isProvider) : clause;
+        hasSatisfiedConcrete && !keepSelfSatisfiedAlternatives
+          ? clause.filter((t) => !t.isProvider)
+          : clause;
       return Array.from(new Set(effective.map((t) => t.owner)));
     });
   }
@@ -1138,7 +1238,12 @@ export class DependencyGraph {
     includeSubpkgs = false,
     keepSelfSatisfiedAlternatives = false,
   ): Set<string> {
-    const clauses = this.getRecipeDepClauses(recipe, arch, includeSubpkgs, keepSelfSatisfiedAlternatives);
+    const clauses = this.getRecipeDepClauses(
+      recipe,
+      arch,
+      includeSubpkgs,
+      keepSelfSatisfiedAlternatives,
+    );
     const canonical = new Set<string>();
     for (const clause of clauses) {
       for (const dep of clause) {
@@ -1152,10 +1257,14 @@ export class DependencyGraph {
     if (targetPackages && targetPackages.length > 0) {
       for (const p of targetPackages) {
         if (this.rejectedRecipes[p]) {
-          throw new Error(`Cannot resolve build order: recipe for '${p}' is invalid: ${this.rejectedRecipes[p]}`);
+          throw new Error(
+            `Cannot resolve build order: recipe for '${p}' is invalid: ${this.rejectedRecipes[p]}`,
+          );
         }
         if (!this.recipes[p]) {
-          throw new Error(`Cannot resolve build order: target package '${p}' does not exist in recipe graph.`);
+          throw new Error(
+            `Cannot resolve build order: target package '${p}' does not exist in recipe graph.`,
+          );
         }
       }
     }
@@ -1178,11 +1287,29 @@ export class DependencyGraph {
             : this.recipes[p].arch || 'aarch64');
       pkgTargets.set(
         p,
-        this.getRecipeDepTargets(this.recipes[p], effArch, includeSubpkgs, versionCache, false, true, true, true),
+        this.getRecipeDepTargets(
+          this.recipes[p],
+          effArch,
+          includeSubpkgs,
+          versionCache,
+          false,
+          true,
+          true,
+          true,
+        ),
       );
       pkgBuildTargets.set(
         p,
-        this.getRecipeDepTargets(this.recipes[p], effArch, includeSubpkgs, versionCache, false, false, true, true),
+        this.getRecipeDepTargets(
+          this.recipes[p],
+          effArch,
+          includeSubpkgs,
+          versionCache,
+          false,
+          false,
+          true,
+          true,
+        ),
       );
     }
 
@@ -1206,7 +1333,10 @@ export class DependencyGraph {
       remainingConsumerCount.set(p, consumersOfOwner.get(p)!.size);
     }
 
-    const isReadyForTargets = (p: string, targetsMap: Map<string, DependencyTarget[][]>): boolean => {
+    const isReadyForTargets = (
+      p: string,
+      targetsMap: Map<string, DependencyTarget[][]>,
+    ): boolean => {
       const clauses = targetsMap.get(p) || [];
       return clauses.every((clause) => {
         const canSupply = (owner: string, t: DependencyTarget): boolean => {
@@ -1218,7 +1348,8 @@ export class DependencyGraph {
               : arch || t.arch;
           const ownerRecipe = this.recipes[owner];
           const plannedOwnerArch =
-            arch || (ownerRecipe ? ownerRecipe.arches?.[0] || ownerRecipe.arch || 'aarch64' : 'aarch64');
+            arch ||
+            (ownerRecipe ? ownerRecipe.arches?.[0] || ownerRecipe.arch || 'aarch64' : 'aarch64');
           return this.canOwnerSupplyDepUnified(
             owner,
             t.name,
@@ -1231,9 +1362,13 @@ export class DependencyGraph {
             t.multiArch,
           );
         };
-        const hasLocalSchedulable = clause.some((t) => candidateSet.has(t.owner) && canSupply(t.owner, t));
+        const hasLocalSchedulable = clause.some(
+          (t) => candidateSet.has(t.owner) && canSupply(t.owner, t),
+        );
         return clause.some((t) =>
-          candidateSet.has(t.owner) ? completed.has(t.owner) && canSupply(t.owner, t) : !hasLocalSchedulable,
+          candidateSet.has(t.owner)
+            ? completed.has(t.owner) && canSupply(t.owner, t)
+            : !hasLocalSchedulable,
         );
       });
     };
@@ -1255,7 +1390,9 @@ export class DependencyGraph {
       }
 
       ready.sort(
-        (a, b) => (remainingConsumerCount.get(b) || 0) - (remainingConsumerCount.get(a) || 0) || a.localeCompare(b),
+        (a, b) =>
+          (remainingConsumerCount.get(b) || 0) - (remainingConsumerCount.get(a) || 0) ||
+          a.localeCompare(b),
       );
 
       const nextNode = ready[0];
@@ -1268,7 +1405,11 @@ export class DependencyGraph {
       const updatedOwners = new Set<string>();
       for (const clause of nextNodeClauses) {
         for (const t of clause) {
-          if (t.owner !== nextNode && consumersOfOwner.has(t.owner) && !updatedOwners.has(t.owner)) {
+          if (
+            t.owner !== nextNode &&
+            consumersOfOwner.has(t.owner) &&
+            !updatedOwners.has(t.owner)
+          ) {
             updatedOwners.add(t.owner);
             const cur = remainingConsumerCount.get(t.owner) || 0;
             if (cur > 0) {
@@ -1323,11 +1464,15 @@ export class DependencyGraph {
     if (targetPackages && targetPackages.length > 0) {
       for (const p of targetPackages) {
         if (this.rejectedRecipes[p]) {
-          throw new Error(`Cannot compute layers: recipe for '${p}' is invalid: ${this.rejectedRecipes[p]}`);
+          throw new Error(
+            `Cannot compute layers: recipe for '${p}' is invalid: ${this.rejectedRecipes[p]}`,
+          );
         }
       }
     }
-    const pkgs = new Set(targetPackages ? targetPackages.filter((p) => this.recipes[p]) : Object.keys(this.recipes));
+    const pkgs = new Set(
+      targetPackages ? targetPackages.filter((p) => this.recipes[p]) : Object.keys(this.recipes),
+    );
     const completed = new Set<string>();
     const remaining = new Set(pkgs);
     const versionCache = new Map<string, boolean>();
@@ -1335,10 +1480,21 @@ export class DependencyGraph {
     const pkgTargets = new Map<string, DependencyTarget[][]>();
     for (const p of pkgs) {
       const recipe = this.recipes[p];
-      const effArch = arch || (recipe.arch === 'all' ? undefined : recipe.arches?.[0] || recipe.arch || 'aarch64');
+      const effArch =
+        arch ||
+        (recipe.arch === 'all' ? undefined : recipe.arches?.[0] || recipe.arch || 'aarch64');
       pkgTargets.set(
         p,
-        this.getRecipeDepTargets(recipe, effArch, includeSubpkgs, versionCache, false, true, true, true),
+        this.getRecipeDepTargets(
+          recipe,
+          effArch,
+          includeSubpkgs,
+          versionCache,
+          false,
+          true,
+          true,
+          true,
+        ),
       );
     }
 
@@ -1351,7 +1507,8 @@ export class DependencyGraph {
           : arch || t.arch;
       const ownerRecipe = this.recipes[owner];
       const plannedOwnerArch =
-        arch || (ownerRecipe ? ownerRecipe.arches?.[0] || ownerRecipe.arch || 'aarch64' : 'aarch64');
+        arch ||
+        (ownerRecipe ? ownerRecipe.arches?.[0] || ownerRecipe.arch || 'aarch64' : 'aarch64');
       return this.canOwnerSupplyDepUnified(
         owner,
         t.name,

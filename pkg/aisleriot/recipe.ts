@@ -20,7 +20,15 @@ export default defineRecipe({
   build_system: 'custom',
   source: 'https://gitlab.gnome.org/GNOME/aisleriot.git#{version}',
   formats: ['apt'],
-  build_deps: ['gtk3', 'guile', 'librsvg', 'libcanberra', 'libxml2', 'desktop-file-utils', 'shared-mime-info'],
+  build_deps: [
+    'gtk3',
+    'guile',
+    'librsvg',
+    'libcanberra',
+    'libxml2',
+    'desktop-file-utils',
+    'shared-mime-info',
+  ],
   deps: ['gtk3', 'guile', 'librsvg', 'libcanberra', 'libxml2'],
   resources: {
     zram: 0,

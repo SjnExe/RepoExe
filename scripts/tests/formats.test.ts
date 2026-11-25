@@ -19,7 +19,9 @@ test('generateControlFile formats valid Debian control file', () => {
   expect(control).toContain('Maintainer: @SjnExe');
   expect(control).toContain('Section: games');
   expect(control).toContain('Priority: optional');
-  expect(control).toContain('Tag: interface::graphical, game::card, uitoolkit::gtk, interface::x11, role::program');
+  expect(control).toContain(
+    'Tag: interface::graphical, game::card, uitoolkit::gtk, interface::x11, role::program',
+  );
   expect(control).toContain('Installed-Size: 1024');
   expect(control).toContain('Depends: gtk3, guile, librsvg, libcanberra, libxml2');
 });
@@ -78,10 +80,9 @@ test('formatDebianDescription formats multi-line Debian Policy descriptions', ()
 });
 
 test('buildDebianTags merges interface traits with explicit tags', () => {
-  expect(buildDebianTags({ interface: 'cli', tags: ['role::program', 'interface::commandline'] })).toEqual([
-    'interface::commandline',
-    'role::program',
-  ]);
+  expect(
+    buildDebianTags({ interface: 'cli', tags: ['role::program', 'interface::commandline'] }),
+  ).toEqual(['interface::commandline', 'role::program']);
   expect(buildDebianTags({ interface: 'both', tags: ['game::puzzle'] })).toEqual([
     'interface::commandline',
     'interface::graphical',

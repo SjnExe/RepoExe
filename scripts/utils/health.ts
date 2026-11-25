@@ -107,7 +107,9 @@ export function auditRepositoryHealth(packagesDir: string): HealthReport {
       console.error(`❌ [Health Error] ${inv.package}: ${inv.error}`);
     }
     const details = invalidPackages.map((inv) => `[${inv.package}] ${inv.error}`).join('; ');
-    throw new Error(`Repository health check failed with ${invalidPackages.length} error(s): ${details}`);
+    throw new Error(
+      `Repository health check failed with ${invalidPackages.length} error(s): ${details}`,
+    );
   }
 
   return {

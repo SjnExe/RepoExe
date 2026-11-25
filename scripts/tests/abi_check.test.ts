@@ -10,10 +10,27 @@ import {
 describe('ABI revbump checker', (): void => {
   it('detects only dependencies whose Termux version changed', (): void => {
     const termuxIndex = {
-      gtk3: [{ Package: 'gtk3', Version: '3.24.43', Filename: 'pool/gtk3.deb', BaseUrl: 'https://example.org' }],
+      gtk3: [
+        {
+          Package: 'gtk3',
+          Version: '3.24.43',
+          Filename: 'pool/gtk3.deb',
+          BaseUrl: 'https://example.org',
+        },
+      ],
       libxml2: [
-        { Package: 'libxml2', Version: '2.13.4', Filename: 'pool/libxml2_old.deb', BaseUrl: 'https://example.org' },
-        { Package: 'libxml2', Version: '2.14.0', Filename: 'pool/libxml2_new.deb', BaseUrl: 'https://example.org' },
+        {
+          Package: 'libxml2',
+          Version: '2.13.4',
+          Filename: 'pool/libxml2_old.deb',
+          BaseUrl: 'https://example.org',
+        },
+        {
+          Package: 'libxml2',
+          Version: '2.14.0',
+          Filename: 'pool/libxml2_new.deb',
+          BaseUrl: 'https://example.org',
+        },
       ],
     };
 
@@ -32,11 +49,29 @@ describe('ABI revbump checker', (): void => {
           Depends: 'libgc (>= 8.2.0), libgmp',
         },
       ],
-      libgc: [{ Package: 'libgc', Version: '8.2.8', Filename: 'pool/libgc.deb', BaseUrl: 'https://example.org' }],
-      libgmp: [{ Package: 'libgmp', Version: '6.3.0', Filename: 'pool/libgmp.deb', BaseUrl: 'https://example.org' }],
+      libgc: [
+        {
+          Package: 'libgc',
+          Version: '8.2.8',
+          Filename: 'pool/libgc.deb',
+          BaseUrl: 'https://example.org',
+        },
+      ],
+      libgmp: [
+        {
+          Package: 'libgmp',
+          Version: '6.3.0',
+          Filename: 'pool/libgmp.deb',
+          BaseUrl: 'https://example.org',
+        },
+      ],
     };
 
-    const closure = collectTermuxClosure(['guile', 'my-internal-pkg'], termuxIndex, new Set(['my-internal-pkg']));
+    const closure = collectTermuxClosure(
+      ['guile', 'my-internal-pkg'],
+      termuxIndex,
+      new Set(['my-internal-pkg']),
+    );
     expect(closure.map((c) => c.name)).toEqual(['guile', 'libgc', 'libgmp']);
   });
 

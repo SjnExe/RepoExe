@@ -498,7 +498,11 @@ test('Thread #10: isPackageReleaseTag requires ownership metadata for recipe-les
 
     const ownedChildOnlyRelease = {
       tag_name: 'tools',
-      body: JSON.stringify({ managed_by: 'repoexe', name: 'tools', owned_packages: ['tools', 'tools-sdk'] }),
+      body: JSON.stringify({
+        managed_by: 'repoexe',
+        name: 'tools',
+        owned_packages: ['tools', 'tools-sdk'],
+      }),
       assets: [{ name: 'tools-sdk_1_aarch64.deb' }],
     };
     expect(isPackageReleaseTag(ownedChildOnlyRelease, tmpPkgDir)).toBeTrue();

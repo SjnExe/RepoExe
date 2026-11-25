@@ -26,6 +26,6 @@
 
 ## 🚀 Workflows & Runners
 
-- All orchestration, compilation, and audit jobs (`generate-matrix`, `lint-audit`, `test-suite`, `build`, `publish-site`, `build-status`) execute strictly on standard x86_64 runners via `ubuntu-latest`.
+- All orchestration, compilation, and audit jobs (`generate-matrix`, `lint-audit`, `test-suite`, `build`, `publish-site`) execute strictly on standard x86_64 runners via `ubuntu-latest`.
 - Builder and tester containers are compiled for `linux/amd64` using the official Google Android NDK cross-toolchain.
 - Cross-architecture verification and smoke tests utilize QEMU user emulation (`docker/setup-qemu-action@v3`) seamlessly on the x86_64 host.

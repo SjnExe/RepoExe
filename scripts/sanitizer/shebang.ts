@@ -18,13 +18,17 @@ export function rewriteShebangLine(firstLine: string, prefix: string = PREFIX): 
   }
 
   // 1. Option-bearing env forms (e.g. #!/usr/bin/env -S python3 -u or #!/bin/env -...)
-  const envOptMatch = trimmed.match(/^#!\s*(?:\/(?:usr(?:\/local)?)?\/bin\/env|\/bin\/env)\s+(-.+)$/);
+  const envOptMatch = trimmed.match(
+    /^#!\s*(?:\/(?:usr(?:\/local)?)?\/bin\/env|\/bin\/env)\s+(-.+)$/,
+  );
   if (envOptMatch) {
     return `#!${prefix}/bin/env ${envOptMatch[1]}`;
   }
 
   // 2. Simple env without options: #!/usr/bin/env <cmd> ...
-  const envMatch = trimmed.match(/^#!\s*(?:\/(?:usr(?:\/local)?)?\/bin\/env|\/bin\/env)\s+([a-zA-Z0-9._-]+)(\s.*)?$/);
+  const envMatch = trimmed.match(
+    /^#!\s*(?:\/(?:usr(?:\/local)?)?\/bin\/env|\/bin\/env)\s+([a-zA-Z0-9._-]+)(\s.*)?$/,
+  );
   if (envMatch) {
     let cmd = envMatch[1];
     const rest = envMatch[2] || '';
@@ -35,7 +39,9 @@ export function rewriteShebangLine(firstLine: string, prefix: string = PREFIX): 
   }
 
   // 3. Direct binary paths: #!/bin/<cmd>, #!/usr/bin/<cmd>, #!/usr/local/bin/<cmd>
-  const directMatch = trimmed.match(/^#!\s*(?:\/(?:usr(?:\/local)?)?\/bin\/|\/bin\/)([a-zA-Z0-9._-]+)(\s.*)?$/);
+  const directMatch = trimmed.match(
+    /^#!\s*(?:\/(?:usr(?:\/local)?)?\/bin\/|\/bin\/)([a-zA-Z0-9._-]+)(\s.*)?$/,
+  );
   if (directMatch) {
     let cmd = directMatch[1];
     const rest = directMatch[2] || '';
@@ -91,7 +97,9 @@ export function sanitizeShebangs(stageDir: string, prefix: string = PREFIX): voi
           }
 
           const firstLineEnd = buf.indexOf(0x0a);
-          const firstLineRaw = (firstLineEnd !== -1 ? buf.subarray(0, firstLineEnd) : buf).toString('utf-8');
+          const firstLineRaw = (firstLineEnd !== -1 ? buf.subarray(0, firstLineEnd) : buf).toString(
+            'utf-8',
+          );
           const firstLine = firstLineRaw.trim();
           const rewritten = rewriteShebangLine(firstLine, prefix);
           if (rewritten && rewritten !== firstLine) {

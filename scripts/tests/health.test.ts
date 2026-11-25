@@ -54,7 +54,9 @@ describe('health and cleanup helpers', (): void => {
 `,
       );
 
-      expect(() => auditRepositoryHealth(testDir)).toThrow(/Patch entry '0001-fix\.diff'.*is not a regular file/);
+      expect(() => auditRepositoryHealth(testDir)).toThrow(
+        /Patch entry '0001-fix\.diff'.*is not a regular file/,
+      );
     } finally {
       rmSync(testDir, { recursive: true, force: true });
     }

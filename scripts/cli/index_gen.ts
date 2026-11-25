@@ -56,7 +56,9 @@ export function getRetainedReleaseAssetFilenames(
   releaseBody?: string,
 ): Set<string> {
   const expectedFiles = getExpectedAssetFilenames(recipe);
-  const outdatedNames = new Set(identifyOutdatedAssets(assets, recipe, recipe.name, allRecipes).map((a) => a.name));
+  const outdatedNames = new Set(
+    identifyOutdatedAssets(assets, recipe, recipe.name, allRecipes).map((a) => a.name),
+  );
   const validNames = new Set([recipe.name, ...getSubpackageNames(recipe)]);
   const ownership = parseReleaseOwnershipMetadata(releaseBody);
   const publishedOwnedNames =
@@ -137,7 +139,9 @@ export function getRetainedReleaseAssetFilenames(
             }
             if (
               typeof (sDef as SubpackageDefinition).parent_dep === 'string' &&
-              !['exact', 'same-version', 'none'].includes((sDef as SubpackageDefinition).parent_dep!)
+              !['exact', 'same-version', 'none'].includes(
+                (sDef as SubpackageDefinition).parent_dep!,
+              )
             ) {
               rawSubDeps.push((sDef as SubpackageDefinition).parent_dep!);
             }
@@ -160,7 +164,10 @@ export function getRetainedReleaseAssetFilenames(
     }
     for (const clause of activeRequiredDeps) {
       for (const tok of clause) {
-        if (tok.name.split(':')[0].trim() === pkgName && satisfiesVersionConstraint(assetVer, tok.versionConstraint)) {
+        if (
+          tok.name.split(':')[0].trim() === pkgName &&
+          satisfiesVersionConstraint(assetVer, tok.versionConstraint)
+        ) {
           return true;
         }
       }
@@ -196,7 +203,11 @@ export function getRetainedReleaseAssetFilenames(
   return expectedFiles;
 }
 
-export function getExactPackageArtifacts(artPath: string, pkgName: string, subpkgNames: string[] = []): string[] {
+export function getExactPackageArtifacts(
+  artPath: string,
+  pkgName: string,
+  subpkgNames: string[] = [],
+): string[] {
   const matching: string[] = [];
   if (!existsSync(artPath)) {
     return matching;
@@ -332,7 +343,10 @@ export function isRemoteAssetSatisfied(
           if (!versionConstraint) {
             return true;
           }
-          if (t.versionConstraint && satisfiesVersionConstraint(t.versionConstraint.version, versionConstraint)) {
+          if (
+            t.versionConstraint &&
+            satisfiesVersionConstraint(t.versionConstraint.version, versionConstraint)
+          ) {
             return true;
           }
         }
@@ -374,7 +388,13 @@ export function isRemoteAssetSatisfied(
       if (
         'arch' in prov &&
         prov.arch &&
-        !isCandidateMultiArchEligible(prov.arch, provMultiArch, isAnyQualifier, effectiveReqArch, explicitArch)
+        !isCandidateMultiArchEligible(
+          prov.arch,
+          provMultiArch,
+          isAnyQualifier,
+          effectiveReqArch,
+          explicitArch,
+        )
       ) {
         continue;
       }
@@ -386,7 +406,9 @@ export function isRemoteAssetSatisfied(
         }
       }
       const assets = getReleaseAssets(provOwner);
-      const remoteProvCands = assets.filter((a) => a.name.endsWith('.deb') && a.name.startsWith(`${provPkg}_`));
+      const remoteProvCands = assets.filter(
+        (a) => a.name.endsWith('.deb') && a.name.startsWith(`${provPkg}_`),
+      );
       const getRemoteAssetProvides = (assetName: string): string[] | string | undefined => {
         const aVer = parseFilenameDebVersion(assetName);
         const ownerRecipe = dag.recipes[provOwner];
@@ -467,7 +489,11 @@ export function isRemoteAssetSatisfied(
   const assets = getReleaseAssets(releaseTag);
   const remoteCands = assets
     .filter((a) => a.name.endsWith('.deb') && a.name.startsWith(`${depPkg}_`))
-    .map((a) => ({ name: a.name, arch: extractDebArch(a.name), ver: parseFilenameDebVersion(a.name) }));
+    .map((a) => ({
+      name: a.name,
+      arch: extractDebArch(a.name),
+      ver: parseFilenameDebVersion(a.name),
+    }));
 
   return remoteCands.some((cand) => {
     const localCandPath = join(artPath, cand.name);
@@ -507,7 +533,9 @@ export function filterPublishableArtifacts(
       });
       if (ghRes.status === 0 && ghRes.stdout) {
         const data = JSON.parse(ghRes.stdout);
-        assets = data.isDraft ? [] : (data.assets || []).filter((a: { state?: string }) => a.state === 'uploaded');
+        assets = data.isDraft
+          ? []
+          : (data.assets || []).filter((a: { state?: string }) => a.state === 'uploaded');
       }
     } catch {}
     releaseAssetCache.set(releaseTag, assets);
@@ -550,7 +578,9 @@ export function filterPublishableArtifacts(
     }
     const depStr = getDebDepends(file);
     if (depStr === null) {
-      console.warn(`::warning:: Unreadable control data in archive '${basename(file)}'; withholding from publication.`);
+      console.warn(
+        `::warning:: Unreadable control data in archive '${basename(file)}'; withholding from publication.`,
+      );
       unreadableFiles.add(file);
       continue;
     }
@@ -579,7 +609,9 @@ export function filterPublishableArtifacts(
 
     // Filter availableDebs to only those currently eligible or retained
     availableDebs = availableDebs.filter(
-      (d) => !unreadableFiles.has(d.path) && (!initialFilesSet.has(d.path) || currentEligibleSet.has(d.path)),
+      (d) =>
+        !unreadableFiles.has(d.path) &&
+        (!initialFilesSet.has(d.path) || currentEligibleSet.has(d.path)),
     );
 
     for (const file of currentEligibleSet) {
@@ -626,7 +658,8 @@ export function filterPublishableArtifacts(
           clause.some((tok) => {
             const depPkg = tok.name.split(':')[0].trim();
             const isAnyQualifier = tok.multiArch === 'any' || tok.name.endsWith(':any');
-            const explicitArch = tok.multiArch && !isAnyQualifier ? normalizeArch(tok.multiArch) : undefined;
+            const explicitArch =
+              tok.multiArch && !isAnyQualifier ? normalizeArch(tok.multiArch) : undefined;
             const effectiveReqArch = explicitArch || reqArch;
 
             // Resolve subpackage to canonical parent owner or virtual package providers before checking external
@@ -721,7 +754,9 @@ export function filterPublishableArtifacts(
                   if (!providesStrOrList) {
                     return false;
                   }
-                  const rawList = Array.isArray(providesStrOrList) ? providesStrOrList : [providesStrOrList];
+                  const rawList = Array.isArray(providesStrOrList)
+                    ? providesStrOrList
+                    : [providesStrOrList];
                   for (const provClause of parseDependencyList(rawList)) {
                     for (const t of provClause) {
                       if (t.name.split(':')[0].trim() === requiredPkg) {
@@ -729,7 +764,12 @@ export function filterPublishableArtifacts(
                           return true;
                         }
                         if (t.versionConstraint) {
-                          if (satisfiesVersionConstraint(t.versionConstraint.version, versionConstraint)) {
+                          if (
+                            satisfiesVersionConstraint(
+                              t.versionConstraint.version,
+                              versionConstraint,
+                            )
+                          ) {
                             return true;
                           }
                         }
@@ -754,7 +794,10 @@ export function filterPublishableArtifacts(
                 }
 
                 if (tok.versionConstraint) {
-                  if (!prov.version || !satisfiesVersionConstraint(prov.version, tok.versionConstraint)) {
+                  if (
+                    !prov.version ||
+                    !satisfiesVersionConstraint(prov.version, tok.versionConstraint)
+                  ) {
                     continue;
                   }
                 }
@@ -764,7 +807,9 @@ export function filterPublishableArtifacts(
                   (a) => a.name.endsWith('.deb') && a.name.startsWith(`${provPkg}_`),
                 );
 
-                const getRemoteAssetProvides = (assetName: string): string[] | string | undefined => {
+                const getRemoteAssetProvides = (
+                  assetName: string,
+                ): string[] | string | undefined => {
                   const aVer = parseFilenameDebVersion(assetName);
                   const ownerRecipe = dag.recipes[provOwner];
                   if (ownerRecipe && aVer === formatDebianVersion(ownerRecipe)) {
@@ -865,7 +910,11 @@ export function filterPublishableArtifacts(
             const assets = getReleaseAssets(releaseTag);
             const remoteCands = assets
               .filter((a) => a.name.endsWith('.deb') && a.name.startsWith(`${depPkg}_`))
-              .map((a) => ({ name: a.name, arch: extractDebArch(a.name), ver: parseFilenameDebVersion(a.name) }));
+              .map((a) => ({
+                name: a.name,
+                arch: extractDebArch(a.name),
+                ver: parseFilenameDebVersion(a.name),
+              }));
 
             const satisfiesRemote = remoteCands.some((cand) => {
               const localCandPath = join(artPath, cand.name);
@@ -920,7 +969,9 @@ export async function fetchExistingReleaseAssetsToArtifacts(
   }
   const ghCheck = spawnSync('which', ['gh']);
   if (ghCheck.status !== 0) {
-    console.warn('Warning: GitHub CLI (gh) is not installed or not available in PATH; skipping remote asset fetch.');
+    console.warn(
+      'Warning: GitHub CLI (gh) is not installed or not available in PATH; skipping remote asset fetch.',
+    );
     return assetMap;
   }
 
@@ -950,12 +1001,18 @@ export async function fetchExistingReleaseAssetsToArtifacts(
     );
   }
 
-  const releasesRes = spawnSync('gh', ['api', '--paginate', '--slurp', `repos/${owner}/${repoName}/releases`], {
-    encoding: 'utf-8',
-    maxBuffer: 20 * 1024 * 1024,
-  });
+  const releasesRes = spawnSync(
+    'gh',
+    ['api', '--paginate', '--slurp', `repos/${owner}/${repoName}/releases`],
+    {
+      encoding: 'utf-8',
+      maxBuffer: 20 * 1024 * 1024,
+    },
+  );
   if (releasesRes.status !== 0) {
-    throw new Error(`GitHub release discovery failed: ${releasesRes.stderr || 'exit code ' + releasesRes.status}`);
+    throw new Error(
+      `GitHub release discovery failed: ${releasesRes.stderr || 'exit code ' + releasesRes.status}`,
+    );
   }
 
   let releases: Array<Record<string, any>> = [];
@@ -1055,7 +1112,9 @@ export async function fetchExistingReleaseAssetsToArtifacts(
       });
 
       const targetFile = join(artPath, name);
-      const isRejectedStagedFile = Boolean(allStagedDebs?.includes(targetFile) && !eligibleStagedDebs?.has(targetFile));
+      const isRejectedStagedFile = Boolean(
+        allStagedDebs?.includes(targetFile) && !eligibleStagedDebs?.has(targetFile),
+      );
       if (!existsSync(targetFile) || isRejectedStagedFile) {
         console.log(`⚡ Downloading existing published asset for index accumulation: ${name}...`);
         let downloadOk = false;
@@ -1090,7 +1149,9 @@ export async function fetchExistingReleaseAssetsToArtifacts(
           }
         } catch {}
         if (!downloadOk) {
-          throw new Error(`Failed to download required release asset '${name}' for package '${pkg}'.`);
+          throw new Error(
+            `Failed to download required release asset '${name}' for package '${pkg}'.`,
+          );
         }
       }
     }
@@ -1114,7 +1175,9 @@ export async function prepareSite(
   let autoStagingDir: string | null = null;
   try {
     runRetainedDir = mkdtempSync(join(process.env.TMPDIR || tmpdir(), '.retained_remote_run-'));
-    autoStagingDir = !stagingDir ? mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'apt_staging-')) : null;
+    autoStagingDir = !stagingDir
+      ? mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'apt_staging-'))
+      : null;
     const sPath = resolve(siteDir);
     const repoRoot = resolve('.');
     const artPath = resolve(artifactsDir);
@@ -1152,11 +1215,15 @@ export async function prepareSite(
       const rel = relative(physBase, physTarget);
       return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..' && !isAbsolute(rel));
     };
-    const isRepoRootOrAncestor = aptStaging === resolvedRepoRoot || isSameOrSub(resolvedRepoRoot, aptStaging);
+    const isRepoRootOrAncestor =
+      aptStaging === resolvedRepoRoot || isSameOrSub(resolvedRepoRoot, aptStaging);
     const resolvedPkgDir = resolve(join(resolvedRepoRoot, 'pkg'));
-    const overlapsArtifacts = isSameOrSub(aptStaging, resolvedArtPath) || isSameOrSub(resolvedArtPath, aptStaging);
-    const overlapsSite = isSameOrSub(aptStaging, resolvedSiteDir) || isSameOrSub(resolvedSiteDir, aptStaging);
-    const overlapsRetainedDir = isSameOrSub(aptStaging, runRetainedDir) || isSameOrSub(runRetainedDir, aptStaging);
+    const overlapsArtifacts =
+      isSameOrSub(aptStaging, resolvedArtPath) || isSameOrSub(resolvedArtPath, aptStaging);
+    const overlapsSite =
+      isSameOrSub(aptStaging, resolvedSiteDir) || isSameOrSub(resolvedSiteDir, aptStaging);
+    const overlapsRetainedDir =
+      isSameOrSub(aptStaging, runRetainedDir) || isSameOrSub(runRetainedDir, aptStaging);
     const overlapsSources =
       isSameOrSub(aptStaging, resolvedPkgDir) ||
       isSameOrSub(resolvedPkgDir, aptStaging) ||
@@ -1167,7 +1234,13 @@ export async function prepareSite(
     const liveAptPool = join(resolvedSiteDir, 'apt');
     const artifactsOverlapsLivePool =
       isSameOrSub(resolvedArtPath, liveAptPool) || isSameOrSub(liveAptPool, resolvedArtPath);
-    if (isRepoRootOrAncestor || overlapsArtifacts || overlapsSite || overlapsSources || overlapsRetainedDir) {
+    if (
+      isRepoRootOrAncestor ||
+      overlapsArtifacts ||
+      overlapsSite ||
+      overlapsSources ||
+      overlapsRetainedDir
+    ) {
       throw new Error(
         `Invalid aptStaging directory '${aptStaging}': must not equal or contain workspace root, site output, build inputs, or retained scratch.`,
       );
@@ -1215,9 +1288,13 @@ export async function prepareSite(
       const dag = new DependencyGraph(join(repoRoot, 'pkg'));
       const rejectedRecipes = Object.keys(dag.rejectedRecipes);
       if (rejectedRecipes.length > 0) {
-        throw new Error(`Cannot publish artifacts: invalid recipe(s) detected in graph: ${rejectedRecipes.join(', ')}`);
+        throw new Error(
+          `Cannot publish artifacts: invalid recipe(s) detected in graph: ${rejectedRecipes.join(', ')}`,
+        );
       }
-      const buildOrder = new Map(dag.resolveBuildOrder(undefined, undefined, true).map((name, idx) => [name, idx]));
+      const buildOrder = new Map(
+        dag.resolveBuildOrder(undefined, undefined, true).map((name, idx) => [name, idx]),
+      );
       metaFiles.sort();
 
       interface PackageUploadGroup {
@@ -1231,7 +1308,10 @@ export async function prepareSite(
       const packageUploadGroups: PackageUploadGroup[] = [];
       const uploadCandidateFiles = new Set<string>();
 
-      const metasByPkg = new Map<string, Array<{ metaFile: string; meta: Record<string, unknown> }>>();
+      const metasByPkg = new Map<
+        string,
+        Array<{ metaFile: string; meta: Record<string, unknown> }>
+      >();
       for (const pkgMetaFile of metaFiles) {
         try {
           const meta = JSON.parse(readFileSync(pkgMetaFile, 'utf-8'));
@@ -1270,35 +1350,52 @@ export async function prepareSite(
               Object.assign(combinedStateHashes, meta.state_hashes);
             }
             if (typeof meta.state_hash === 'string' && meta.state_hash) {
-              const arch = meta.arch ? (meta.arch === 'all' ? 'all' : normalizeArch(meta.arch as string)) : 'aarch64';
+              const arch = meta.arch
+                ? meta.arch === 'all'
+                  ? 'all'
+                  : normalizeArch(meta.arch as string)
+                : 'aarch64';
               combinedStateHashes[arch] = meta.state_hash;
             }
             if (meta.build_durations && typeof meta.build_durations === 'object') {
-              for (const [dArch, dVal] of Object.entries(meta.build_durations as Record<string, unknown>)) {
+              for (const [dArch, dVal] of Object.entries(
+                meta.build_durations as Record<string, unknown>,
+              )) {
                 if (typeof dVal === 'number' && Number.isFinite(dVal)) {
                   combinedBuildDurations[dArch === 'all' ? 'all' : normalizeArch(dArch)] = dVal;
                 }
               }
             }
-            if (typeof meta.build_duration_sec === 'number' && Number.isFinite(meta.build_duration_sec)) {
-              const arch = meta.arch ? (meta.arch === 'all' ? 'all' : normalizeArch(meta.arch as string)) : 'aarch64';
+            if (
+              typeof meta.build_duration_sec === 'number' &&
+              Number.isFinite(meta.build_duration_sec)
+            ) {
+              const arch = meta.arch
+                ? meta.arch === 'all'
+                  ? 'all'
+                  : normalizeArch(meta.arch as string)
+                : 'aarch64';
               if (combinedBuildDurations[arch] === undefined) {
                 combinedBuildDurations[arch] = meta.build_duration_sec;
               }
             }
             if (meta.needed_sonames && typeof meta.needed_sonames === 'object') {
-              for (const [sArch, sList] of Object.entries(meta.needed_sonames as Record<string, unknown>)) {
+              for (const [sArch, sList] of Object.entries(
+                meta.needed_sonames as Record<string, unknown>,
+              )) {
                 if (Array.isArray(sList)) {
-                  combinedNeededSonames[sArch === 'all' ? 'all' : normalizeArch(sArch)] = sList.filter(
-                    (x): x is string => typeof x === 'string',
-                  );
+                  combinedNeededSonames[sArch === 'all' ? 'all' : normalizeArch(sArch)] =
+                    sList.filter((x): x is string => typeof x === 'string');
                 }
               }
             }
             if (meta.dep_versions && typeof meta.dep_versions === 'object') {
-              for (const [vArch, vMap] of Object.entries(meta.dep_versions as Record<string, unknown>)) {
+              for (const [vArch, vMap] of Object.entries(
+                meta.dep_versions as Record<string, unknown>,
+              )) {
                 if (vMap && typeof vMap === 'object') {
-                  combinedDepVersions[vArch === 'all' ? 'all' : normalizeArch(vArch)] = vMap as Record<string, string>;
+                  combinedDepVersions[vArch === 'all' ? 'all' : normalizeArch(vArch)] =
+                    vMap as Record<string, string>;
                 }
               }
             }
@@ -1310,10 +1407,14 @@ export async function prepareSite(
           }
           const mergedMeta: Record<string, unknown> = {
             ...primaryMeta,
-            state_hashes: Object.keys(combinedStateHashes).length > 0 ? combinedStateHashes : undefined,
-            build_durations: Object.keys(combinedBuildDurations).length > 0 ? combinedBuildDurations : undefined,
-            needed_sonames: Object.keys(combinedNeededSonames).length > 0 ? combinedNeededSonames : undefined,
-            dep_versions: Object.keys(combinedDepVersions).length > 0 ? combinedDepVersions : undefined,
+            state_hashes:
+              Object.keys(combinedStateHashes).length > 0 ? combinedStateHashes : undefined,
+            build_durations:
+              Object.keys(combinedBuildDurations).length > 0 ? combinedBuildDurations : undefined,
+            needed_sonames:
+              Object.keys(combinedNeededSonames).length > 0 ? combinedNeededSonames : undefined,
+            dep_versions:
+              Object.keys(combinedDepVersions).length > 0 ? combinedDepVersions : undefined,
           };
           packageUploadGroups.push({
             pkgName,
@@ -1329,7 +1430,9 @@ export async function prepareSite(
         } catch {}
       }
 
-      packageUploadGroups.sort((a, b) => (buildOrder.get(a.pkgName) ?? 9999) - (buildOrder.get(b.pkgName) ?? 9999));
+      packageUploadGroups.sort(
+        (a, b) => (buildOrder.get(a.pkgName) ?? 9999) - (buildOrder.get(b.pkgName) ?? 9999),
+      );
 
       const filesToFilter = allStagedDebs.filter((f) => uploadCandidateFiles.has(f));
       for (const eligible of filterPublishableArtifacts(filesToFilter, artPath, repoRoot)) {
@@ -1348,7 +1451,12 @@ export async function prepareSite(
       }
 
       const confirmedPublishedDebs = new Map<string, ConfirmedDebInfo[]>();
-      const addConfirmedDeb = (debName: string, filePath?: string, size?: number, digest?: string): void => {
+      const addConfirmedDeb = (
+        debName: string,
+        filePath?: string,
+        size?: number,
+        digest?: string,
+      ): void => {
         if (!debName.endsWith('.deb')) {
           return;
         }
@@ -1381,9 +1489,13 @@ export async function prepareSite(
 
         if (existingRecord) {
           const sizeMatches =
-            existingRecord.size !== undefined && curSize !== undefined && existingRecord.size === curSize;
+            existingRecord.size !== undefined &&
+            curSize !== undefined &&
+            existingRecord.size === curSize;
           const digestMatches =
-            existingRecord.digest && curDigest ? existingRecord.digest.toLowerCase() === curDigest.toLowerCase() : true;
+            existingRecord.digest && curDigest
+              ? existingRecord.digest.toLowerCase() === curDigest.toLowerCase()
+              : true;
           if (sizeMatches && digestMatches) {
             // Bytes match registered asset; preserve existing record and aliases
             return;
@@ -1441,8 +1553,9 @@ export async function prepareSite(
             const ownerRecipe = owner ? dag.recipes[owner] : undefined;
             if (ownerRecipe && version === formatDebianVersion(ownerRecipe)) {
               const subDef = ownerRecipe.subpackages
-                ? (Object.values(ownerRecipe.subpackages).find((s) => s && (s as SubpackageDefinition).name === pkg) as
-                    SubpackageDefinition | undefined)
+                ? (Object.values(ownerRecipe.subpackages).find(
+                    (s) => s && (s as SubpackageDefinition).name === pkg,
+                  ) as SubpackageDefinition | undefined)
                 : undefined;
               if (subDef) {
                 ma =
@@ -1450,7 +1563,9 @@ export async function prepareSite(
                   ((subDef as unknown as Record<string, unknown>).multi_arch as string) ||
                   null;
                 if (subDef.provides) {
-                  const provList = Array.isArray(subDef.provides) ? subDef.provides : [subDef.provides];
+                  const provList = Array.isArray(subDef.provides)
+                    ? subDef.provides
+                    : [subDef.provides];
                   for (const clause of parseDependencyList(provList)) {
                     for (const tok of clause) {
                       const pName = tok.name.split(':')[0].trim();
@@ -1512,7 +1627,15 @@ export async function prepareSite(
         const effectiveReqArch = explicitArch || reqArch;
         const cands = confirmedPublishedDebs.get(reqPkg) || [];
         return cands.some((cand) => {
-          if (!isArchAndMultiArchSatisfied(cand.arch, cand.multiArch, isAny, explicitArch, effectiveReqArch)) {
+          if (
+            !isArchAndMultiArchSatisfied(
+              cand.arch,
+              cand.multiArch,
+              isAny,
+              explicitArch,
+              effectiveReqArch,
+            )
+          ) {
             return false;
           }
           if (cand.pkg === reqPkg) {
@@ -1552,7 +1675,15 @@ export async function prepareSite(
           const candPkg = candName.split('_')[0];
           const candArch = extractDebArch(candName);
           const candMultiArch = getDebMultiArch(candFile) || undefined;
-          if (!isArchAndMultiArchSatisfied(candArch, candMultiArch, isAny, explicitArch, effectiveReqArch)) {
+          if (
+            !isArchAndMultiArchSatisfied(
+              candArch,
+              candMultiArch,
+              isAny,
+              explicitArch,
+              effectiveReqArch,
+            )
+          ) {
             return false;
           }
 
@@ -1576,7 +1707,10 @@ export async function prepareSite(
                   if (!provTok.versionConstraint?.version) {
                     return false;
                   }
-                  return satisfiesVersionConstraint(provTok.versionConstraint.version, tok.versionConstraint);
+                  return satisfiesVersionConstraint(
+                    provTok.versionConstraint.version,
+                    tok.versionConstraint,
+                  );
                 }
               }
             }
@@ -1597,12 +1731,18 @@ export async function prepareSite(
         }
         let assets: LiveAssetInfo[] = [];
         try {
-          const ghRes = spawnSync('gh', ['release', 'view', releaseTag, '--json', 'assets,isDraft'], {
-            encoding: 'utf-8',
-          });
+          const ghRes = spawnSync(
+            'gh',
+            ['release', 'view', releaseTag, '--json', 'assets,isDraft'],
+            {
+              encoding: 'utf-8',
+            },
+          );
           if (ghRes.status === 0 && ghRes.stdout) {
             const data = JSON.parse(ghRes.stdout);
-            assets = data.isDraft ? [] : (data.assets || []).filter((a: { state?: string }) => a.state === 'uploaded');
+            assets = data.isDraft
+              ? []
+              : (data.assets || []).filter((a: { state?: string }) => a.state === 'uploaded');
           }
         } catch {}
         releaseAssetCache.set(releaseTag, assets);
@@ -1663,7 +1803,10 @@ export async function prepareSite(
                       ? [meta.arch]
                       : ['aarch64'];
                   const recipeConcreteArches = rawMetaArches
-                    .filter((a): a is string => typeof a === 'string' && a.trim().length > 0 && a !== 'all')
+                    .filter(
+                      (a): a is string =>
+                        typeof a === 'string' && a.trim().length > 0 && a !== 'all',
+                    )
                     .map((a) => {
                       try {
                         return normalizeArch(a);
@@ -1673,7 +1816,11 @@ export async function prepareSite(
                     })
                     .filter(Boolean);
                   const targetArches: string[] =
-                    cArch === 'all' ? (recipeConcreteArches.length > 0 ? recipeConcreteArches : ['aarch64']) : [cArch];
+                    cArch === 'all'
+                      ? recipeConcreteArches.length > 0
+                        ? recipeConcreteArches
+                        : ['aarch64']
+                      : [cArch];
 
                   let allDepsConfirmed = true;
                   let unconfirmedHasPendingProvider = false;
@@ -1778,9 +1925,13 @@ export async function prepareSite(
               continue;
             }
 
-            const viewRes = spawnSync('gh', ['release', 'view', tag, '--json', 'body,assets,isDraft'], {
-              encoding: 'utf-8',
-            });
+            const viewRes = spawnSync(
+              'gh',
+              ['release', 'view', tag, '--json', 'body,assets,isDraft'],
+              {
+                encoding: 'utf-8',
+              },
+            );
             const ownedPackages = new Set<string>([pkgName, ...subpkgNames]);
             const existingAssets: Array<{ name: string; size: number; digest?: string }> = [];
             let shouldUpdateNotes = true;
@@ -1813,7 +1964,12 @@ export async function prepareSite(
                         size: a.size,
                         digest: typeof a.digest === 'string' ? a.digest : undefined,
                       });
-                      addConfirmedDeb(a.name, undefined, a.size, typeof a.digest === 'string' ? a.digest : undefined);
+                      addConfirmedDeb(
+                        a.name,
+                        undefined,
+                        a.size,
+                        typeof a.digest === 'string' ? a.digest : undefined,
+                      );
                     }
                   }
                 }
@@ -1824,15 +1980,23 @@ export async function prepareSite(
                       if (prevBody.state_hashes && typeof prevBody.state_hashes === 'object') {
                         Object.assign(existingStateHashes, prevBody.state_hashes);
                       }
-                      if (typeof prevBody.state_hash === 'string' && prevBody.state_hash && prevBody.arch) {
+                      if (
+                        typeof prevBody.state_hash === 'string' &&
+                        prevBody.state_hash &&
+                        prevBody.arch
+                      ) {
                         existingStateHashes[normalizeArch(prevBody.arch)] = prevBody.state_hash;
                       }
-                      if (prevBody.build_durations && typeof prevBody.build_durations === 'object') {
+                      if (
+                        prevBody.build_durations &&
+                        typeof prevBody.build_durations === 'object'
+                      ) {
                         for (const [dArch, dVal] of Object.entries(
                           prevBody.build_durations as Record<string, unknown>,
                         )) {
                           if (typeof dVal === 'number' && Number.isFinite(dVal)) {
-                            existingBuildDurations[dArch === 'all' ? 'all' : normalizeArch(dArch)] = dVal;
+                            existingBuildDurations[dArch === 'all' ? 'all' : normalizeArch(dArch)] =
+                              dVal;
                           }
                         }
                       }
@@ -1841,19 +2005,18 @@ export async function prepareSite(
                           prevBody.needed_sonames as Record<string, unknown>,
                         )) {
                           if (Array.isArray(sList)) {
-                            existingNeededSonames[sArch === 'all' ? 'all' : normalizeArch(sArch)] = sList.filter(
-                              (x): x is string => typeof x === 'string',
-                            );
+                            existingNeededSonames[sArch === 'all' ? 'all' : normalizeArch(sArch)] =
+                              sList.filter((x): x is string => typeof x === 'string');
                           }
                         }
                       }
                       if (prevBody.dep_versions && typeof prevBody.dep_versions === 'object') {
-                        for (const [vArch, vMap] of Object.entries(prevBody.dep_versions as Record<string, unknown>)) {
+                        for (const [vArch, vMap] of Object.entries(
+                          prevBody.dep_versions as Record<string, unknown>,
+                        )) {
                           if (vMap && typeof vMap === 'object') {
-                            existingDepVersions[vArch === 'all' ? 'all' : normalizeArch(vArch)] = vMap as Record<
-                              string,
-                              string
-                            >;
+                            existingDepVersions[vArch === 'all' ? 'all' : normalizeArch(vArch)] =
+                              vMap as Record<string, string>;
                           }
                         }
                       }
@@ -1874,7 +2037,11 @@ export async function prepareSite(
               }
             } else {
               const err = (viewRes.stderr || '').toLowerCase();
-              if (err.includes('not found') || err.includes('could not find') || err.includes('404')) {
+              if (
+                err.includes('not found') ||
+                err.includes('could not find') ||
+                err.includes('404')
+              ) {
                 releaseConfirmedMissing = true;
               } else {
                 shouldUpdateNotes = false;
@@ -1907,30 +2074,46 @@ export async function prepareSite(
                 }
               }
             } else if (typeof meta.state_hash === 'string' && meta.state_hash) {
-              const arch = meta.arch ? (meta.arch === 'all' ? 'all' : normalizeArch(meta.arch as string)) : 'aarch64';
+              const arch = meta.arch
+                ? meta.arch === 'all'
+                  ? 'all'
+                  : normalizeArch(meta.arch as string)
+                : 'aarch64';
               if (confirmedArchsInGroup.has(arch)) {
                 existingStateHashes[arch] = meta.state_hash;
               }
             }
 
             if (meta.build_durations && typeof meta.build_durations === 'object') {
-              for (const [dArch, dVal] of Object.entries(meta.build_durations as Record<string, unknown>)) {
+              for (const [dArch, dVal] of Object.entries(
+                meta.build_durations as Record<string, unknown>,
+              )) {
                 const normDArch = dArch === 'all' ? 'all' : normalizeArch(dArch);
-                if (typeof dVal === 'number' && Number.isFinite(dVal) && confirmedArchsInGroup.has(normDArch)) {
+                if (
+                  typeof dVal === 'number' &&
+                  Number.isFinite(dVal) &&
+                  confirmedArchsInGroup.has(normDArch)
+                ) {
                   existingBuildDurations[normDArch] = dVal;
                 }
               }
             }
             if (meta.needed_sonames && typeof meta.needed_sonames === 'object') {
-              for (const [sArch, sList] of Object.entries(meta.needed_sonames as Record<string, unknown>)) {
+              for (const [sArch, sList] of Object.entries(
+                meta.needed_sonames as Record<string, unknown>,
+              )) {
                 const normSArch = sArch === 'all' ? 'all' : normalizeArch(sArch);
                 if (Array.isArray(sList) && confirmedArchsInGroup.has(normSArch)) {
-                  existingNeededSonames[normSArch] = sList.filter((x): x is string => typeof x === 'string');
+                  existingNeededSonames[normSArch] = sList.filter(
+                    (x): x is string => typeof x === 'string',
+                  );
                 }
               }
             }
             if (meta.dep_versions && typeof meta.dep_versions === 'object') {
-              for (const [vArch, vMap] of Object.entries(meta.dep_versions as Record<string, unknown>)) {
+              for (const [vArch, vMap] of Object.entries(
+                meta.dep_versions as Record<string, unknown>,
+              )) {
                 const normVArch = vArch === 'all' ? 'all' : normalizeArch(vArch);
                 if (vMap && typeof vMap === 'object' && confirmedArchsInGroup.has(normVArch)) {
                   existingDepVersions[normVArch] = vMap as Record<string, string>;
@@ -1942,10 +2125,14 @@ export async function prepareSite(
               ...meta,
               managed_by: 'repoexe',
               owned_packages: Array.from(ownedPackages).sort(),
-              state_hashes: Object.keys(existingStateHashes).length > 0 ? existingStateHashes : undefined,
-              build_durations: Object.keys(existingBuildDurations).length > 0 ? existingBuildDurations : undefined,
-              needed_sonames: Object.keys(existingNeededSonames).length > 0 ? existingNeededSonames : undefined,
-              dep_versions: Object.keys(existingDepVersions).length > 0 ? existingDepVersions : undefined,
+              state_hashes:
+                Object.keys(existingStateHashes).length > 0 ? existingStateHashes : undefined,
+              build_durations:
+                Object.keys(existingBuildDurations).length > 0 ? existingBuildDurations : undefined,
+              needed_sonames:
+                Object.keys(existingNeededSonames).length > 0 ? existingNeededSonames : undefined,
+              dep_versions:
+                Object.keys(existingDepVersions).length > 0 ? existingDepVersions : undefined,
             };
             const effectiveMeta =
               withheldFiles.length > 0
@@ -1966,7 +2153,8 @@ export async function prepareSite(
                 } catch {}
                 let digestMatches = false;
                 if (published.digest) {
-                  digestMatches = published.digest.toLowerCase() === `sha256:${localSha}`.toLowerCase();
+                  digestMatches =
+                    published.digest.toLowerCase() === `sha256:${localSha}`.toLowerCase();
                 } else if (localSize !== undefined && published.size === localSize && localSha) {
                   // When remote digest is missing, fetch the existing asset and compare its SHA-256 before skipping
                   const tmpDown = join(
@@ -1974,12 +2162,18 @@ export async function prepareSite(
                     `.sha_check_${Date.now()}_${Math.random().toString(36).slice(2)}.deb`,
                   );
                   try {
-                    const dlRes = spawnSync('gh', ['release', 'download', tag, '-p', fName, '-O', tmpDown], {
-                      encoding: 'utf-8',
-                      timeout: 30_000,
-                    });
+                    const dlRes = spawnSync(
+                      'gh',
+                      ['release', 'download', tag, '-p', fName, '-O', tmpDown],
+                      {
+                        encoding: 'utf-8',
+                        timeout: 30_000,
+                      },
+                    );
                     if (dlRes.status === 0 && existsSync(tmpDown)) {
-                      const remoteSha = createHash('sha256').update(readFileSync(tmpDown)).digest('hex');
+                      const remoteSha = createHash('sha256')
+                        .update(readFileSync(tmpDown))
+                        .digest('hex');
                       digestMatches = remoteSha.toLowerCase() === localSha.toLowerCase();
                     }
                   } finally {
@@ -2008,7 +2202,9 @@ export async function prepareSite(
               normArch: string;
               multiArch: string | null;
               provides: Array<{ name: string; version?: string }>;
-              depClauses: Array<Array<{ name: string; multiArch?: string; versionConstraint?: VersionConstraint }>>;
+              depClauses: Array<
+                Array<{ name: string; multiArch?: string; versionConstraint?: VersionConstraint }>
+              >;
             }
 
             const debInfoCache = new Map<string, UploadDebInfo>();
@@ -2023,7 +2219,9 @@ export async function prepareSite(
               const arch = extractDebArch(debPath);
               const normArch = arch === 'all' ? 'all' : normalizeArch(arch);
               const multiArch = getDebMultiArch(debPath);
-              const provides: Array<{ name: string; version?: string }> = [{ name: pName, version: ver }];
+              const provides: Array<{ name: string; version?: string }> = [
+                { name: pName, version: ver },
+              ];
               const provStr = getDebProvides(debPath);
               if (provStr) {
                 for (const clause of parseDependencyList([provStr])) {
@@ -2042,7 +2240,9 @@ export async function prepareSite(
                 depClauses.push(...(validatedDepClausesByFile.get(debPath) || []));
               } else {
                 try {
-                  const res = spawnSync('dpkg-deb', ['-f', debPath, 'Depends', 'Pre-Depends'], { encoding: 'utf-8' });
+                  const res = spawnSync('dpkg-deb', ['-f', debPath, 'Depends', 'Pre-Depends'], {
+                    encoding: 'utf-8',
+                  });
                   if (res.status === 0 && res.stdout) {
                     const values = res.stdout
                       .split(/\r?\n/)
@@ -2078,7 +2278,10 @@ export async function prepareSite(
                 return false;
               }
               if (tok.versionConstraint) {
-                if (!matchingProv.version || !satisfiesVersionConstraint(matchingProv.version, tok.versionConstraint)) {
+                if (
+                  !matchingProv.version ||
+                  !satisfiesVersionConstraint(matchingProv.version, tok.versionConstraint)
+                ) {
                   return false;
                 }
               }
@@ -2092,8 +2295,10 @@ export async function prepareSite(
                   return false;
                 }
               } else {
-                const concreteArches = consumer.normArch === 'all' ? consumerArches : [consumer.normArch];
-                const isNative = provider.normArch === 'all' || concreteArches.includes(provider.normArch);
+                const concreteArches =
+                  consumer.normArch === 'all' ? consumerArches : [consumer.normArch];
+                const isNative =
+                  provider.normArch === 'all' || concreteArches.includes(provider.normArch);
                 const isForeign = provider.multiArch === 'foreign';
                 if (!isNative && !isForeign) {
                   return false;
@@ -2108,7 +2313,9 @@ export async function prepareSite(
                 ? [meta.arch]
                 : ['aarch64'];
             const recipeConcreteArches = rawMetaArches
-              .filter((a): a is string => typeof a === 'string' && a.trim().length > 0 && a !== 'all')
+              .filter(
+                (a): a is string => typeof a === 'string' && a.trim().length > 0 && a !== 'all',
+              )
               .map((a) => {
                 try {
                   return normalizeArch(a);
@@ -2117,14 +2324,16 @@ export async function prepareSite(
                 }
               })
               .filter(Boolean);
-            const consumerArches = recipeConcreteArches.length > 0 ? recipeConcreteArches : ['aarch64'];
+            const consumerArches =
+              recipeConcreteArches.length > 0 ? recipeConcreteArches : ['aarch64'];
 
             const isItemDepsSatisfied = (item: string): boolean => {
               if (!item.endsWith('.deb')) {
                 return true;
               }
               const itemInfo = getUploadDebInfo(item);
-              const targetArches = itemInfo.normArch === 'all' ? consumerArches : [itemInfo.normArch];
+              const targetArches =
+                itemInfo.normArch === 'all' ? consumerArches : [itemInfo.normArch];
               for (const tArch of targetArches) {
                 const filteredClauses = filterDepsForArch(itemInfo.depClauses, tArch);
                 for (const clause of filteredClauses) {
@@ -2164,7 +2373,8 @@ export async function prepareSite(
                   const itemInfo = getUploadDebInfo(item);
                   let dependsOnRemaining = false;
 
-                  const targetArches = itemInfo.normArch === 'all' ? consumerArches : [itemInfo.normArch];
+                  const targetArches =
+                    itemInfo.normArch === 'all' ? consumerArches : [itemInfo.normArch];
 
                   for (const tArch of targetArches) {
                     const filteredClauses = filterDepsForArch(itemInfo.depClauses, tArch);
@@ -2248,7 +2458,16 @@ export async function prepareSite(
               const laterRounds = rounds.slice(1);
               const needsPartialNotes = laterRounds.length > 0 || withheldFiles.length > 0;
               const createNotes = needsPartialNotes ? partialNotesBody : notesBody;
-              const createArgs = ['release', 'create', tag, ...round1, '--title', tag, '--notes', createNotes];
+              const createArgs = [
+                'release',
+                'create',
+                tag,
+                ...round1,
+                '--title',
+                tag,
+                '--notes',
+                createNotes,
+              ];
               const res = spawnSync('gh', createArgs, {
                 encoding: 'utf-8',
               });
@@ -2278,9 +2497,13 @@ export async function prepareSite(
                   if (round.length === 0) {
                     continue;
                   }
-                  const roundRes = spawnSync('gh', ['release', 'upload', tag, ...round, '--clobber'], {
-                    encoding: 'utf-8',
-                  });
+                  const roundRes = spawnSync(
+                    'gh',
+                    ['release', 'upload', tag, ...round, '--clobber'],
+                    {
+                      encoding: 'utf-8',
+                    },
+                  );
                   if (roundRes.status === 0) {
                     releaseAssetCache.delete(tag);
                     for (const f of round) {
@@ -2321,7 +2544,9 @@ export async function prepareSite(
                   }
                 }
               } else {
-                console.log(`::warning:: Failed to create release tag ${tag}: ${res.stderr?.trim()}`);
+                console.log(
+                  `::warning:: Failed to create release tag ${tag}: ${res.stderr?.trim()}`,
+                );
                 for (const f of eligibleForUpload) {
                   globalEligibleArtifacts.delete(f);
                 }
@@ -2351,7 +2576,9 @@ export async function prepareSite(
               }
               if (editOk) {
                 anyPublishedInPass = true;
-                console.log(`✓ All release assets for ${tag} are already published and up to date.`);
+                console.log(
+                  `✓ All release assets for ${tag} are already published and up to date.`,
+                );
                 if (!isDraftRelease) {
                   for (const f of eligibleForUpload) {
                     addConfirmedDeb(basename(f), f);
@@ -2386,7 +2613,9 @@ export async function prepareSite(
                   }
                 }
                 // Retain a backup copy of any existing assets before upload in case replacement fails
-                const backupUploadDir = mkdtempSync(join(process.env.TMPDIR || tmpdir(), '.asset_backup_'));
+                const backupUploadDir = mkdtempSync(
+                  join(process.env.TMPDIR || tmpdir(), '.asset_backup_'),
+                );
                 const backedUpAssets = new Map<string, string>(); // fName -> backupFilePath
                 let retainBackupDir = false;
                 try {
@@ -2395,19 +2624,27 @@ export async function prepareSite(
                     const isExisting = existingAssets.some((a) => a.name === fName);
                     if (isExisting) {
                       const backupFile = join(backupUploadDir, fName);
-                      const dlRes = spawnSync('gh', ['release', 'download', tag, '-p', fName, '-O', backupFile], {
-                        encoding: 'utf-8',
-                        timeout: 30_000,
-                      });
+                      const dlRes = spawnSync(
+                        'gh',
+                        ['release', 'download', tag, '-p', fName, '-O', backupFile],
+                        {
+                          encoding: 'utf-8',
+                          timeout: 30_000,
+                        },
+                      );
                       if (dlRes.status === 0 && existsSync(backupFile)) {
                         backedUpAssets.set(fName, backupFile);
                       }
                     }
                   }
 
-                  const resRound = spawnSync('gh', ['release', 'upload', tag, ...round, '--clobber'], {
-                    encoding: 'utf-8',
-                  });
+                  const resRound = spawnSync(
+                    'gh',
+                    ['release', 'upload', tag, ...round, '--clobber'],
+                    {
+                      encoding: 'utf-8',
+                    },
+                  );
                   if (resRound.status === 0) {
                     releaseAssetCache.delete(tag);
                     if (!isDraftRelease) {
@@ -2430,10 +2667,16 @@ export async function prepareSite(
                       const currentLive = getReleaseAssets(tag);
                       for (const [debName, bFile] of backedUpAssets.entries()) {
                         if (!currentLive.some((a) => a.name === debName)) {
-                          console.log(`::warning:: Restoring deleted asset ${debName} on ${tag} from backup...`);
-                          const restoreRes = spawnSync('gh', ['release', 'upload', tag, bFile, '--clobber'], {
-                            encoding: 'utf-8',
-                          });
+                          console.log(
+                            `::warning:: Restoring deleted asset ${debName} on ${tag} from backup...`,
+                          );
+                          const restoreRes = spawnSync(
+                            'gh',
+                            ['release', 'upload', tag, bFile, '--clobber'],
+                            {
+                              encoding: 'utf-8',
+                            },
+                          );
                           let restored = false;
                           if (restoreRes.status === 0) {
                             releaseAssetCache.delete(tag);
@@ -2515,7 +2758,12 @@ export async function prepareSite(
                     withheldFiles.length === 0
                       ? notesBody
                       : JSON.stringify(
-                          { ...baseMeta, state_hash: undefined, state_hashes: undefined, partial: true },
+                          {
+                            ...baseMeta,
+                            state_hash: undefined,
+                            state_hashes: undefined,
+                            partial: true,
+                          },
                           null,
                           2,
                         );
@@ -2540,7 +2788,9 @@ export async function prepareSite(
             }
           } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e);
-            console.log(`::warning:: Failed publishing release tag for ${basename(pkgMetaFile)}: ${msg}`);
+            console.log(
+              `::warning:: Failed publishing release tag for ${basename(pkgMetaFile)}: ${msg}`,
+            );
             for (const f of rawMatchingFiles) {
               const fName = basename(f);
               const confirmed = Array.from(confirmedPublishedDebs.values()).some((list) =>
@@ -2557,7 +2807,9 @@ export async function prepareSite(
           if (nextRemainingGroups.length > 0) {
             const withheldTags: string[] = [];
             for (const grp of nextRemainingGroups) {
-              const grpMeta = JSON.parse(readFileSync(grp.pkgMetaFile, 'utf-8')) as { name?: string };
+              const grpMeta = JSON.parse(readFileSync(grp.pkgMetaFile, 'utf-8')) as {
+                name?: string;
+              };
               const grpTag = grpMeta.name || basename(grp.pkgMetaFile);
               withheldTags.push(grpTag);
               for (const f of grp.rawMatchingFiles) {
@@ -2636,7 +2888,9 @@ export async function prepareSite(
     }
 
     // 4. Generate APT Metadata and Release File
-    const debFiles = existsSync(aptStaging) ? readdirSync(aptStaging).filter((f) => f.endsWith('.deb')) : [];
+    const debFiles = existsSync(aptStaging)
+      ? readdirSync(aptStaging).filter((f) => f.endsWith('.deb'))
+      : [];
 
     const arches = new Set<string>(['aarch64', 'arm64', 'arm', 'x86_64', 'i686']);
     for (const f of debFiles) {
@@ -2663,7 +2917,9 @@ export async function prepareSite(
       existsSync(join(aptSiteDir, 'dists', 'stable', 'InRelease')) ||
       existsSync(join(aptSiteDir, 'dists', 'stable', 'Release.gpg'));
     const requireSigned =
-      Boolean(process.env.GPG_PRIVATE_KEY) || isExistingSigned || process.env.REQUIRE_APT_SIGNING === 'true';
+      Boolean(process.env.GPG_PRIVATE_KEY) ||
+      isExistingSigned ||
+      process.env.REQUIRE_APT_SIGNING === 'true';
     generateReleaseFile(aptStaging, 'stable', components, requireSigned);
 
     // Atomic promotion: build replacement pool in a unique scratch directory on the site filesystem

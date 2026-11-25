@@ -28,7 +28,9 @@ export interface SplitResult {
   stageDir: string;
 }
 
-export function getSubpackageNames(recipe: Pick<Partial<PackageRecipe>, 'subpackages'> & { name?: string }): string[] {
+export function getSubpackageNames(
+  recipe: Pick<Partial<PackageRecipe>, 'subpackages'> & { name?: string },
+): string[] {
   return Object.entries(recipe.subpackages ?? {}).map(([key, def]) => {
     if (typeof def === 'object' && def?.name) {
       return def.name;
@@ -229,7 +231,8 @@ export function splitSubpackages(
     for (const [subKey, subDef] of Object.entries(parentRecipe.subpackages)) {
       if (typeof subDef === 'object' && subDef) {
         const subName = subDef.name || subKey;
-        const rawSubArch = subDef.arch || (parentRecipe.arch === 'all' ? 'all' : effectiveTargetArch);
+        const rawSubArch =
+          subDef.arch || (parentRecipe.arch === 'all' ? 'all' : effectiveTargetArch);
         const subArch = rawSubArch === 'all' ? 'all' : normalizeArch(rawSubArch);
         if (!CANONICAL_ARCHES.has(subArch)) {
           throw new Error(`Unsupported architecture '${rawSubArch}' for subpackage '${subName}'`);
@@ -343,7 +346,9 @@ export function splitSubpackages(
   // Scan searchRoot once and assign each file to the first matching subpackage (first-wins)
   if (existsSync(searchRoot)) {
     const glob = new Bun.Glob('**/*');
-    const stagedRelPaths = Array.from(glob.scanSync({ cwd: searchRoot, dot: true, onlyFiles: false })).sort();
+    const stagedRelPaths = Array.from(
+      glob.scanSync({ cwd: searchRoot, dot: true, onlyFiles: false }),
+    ).sort();
     for (const rel of stagedRelPaths) {
       const fullPath = join(searchRoot, rel);
       try {
@@ -377,7 +382,8 @@ export function splitSubpackages(
         mkdirSync(dDir, { recursive: true });
         try {
           const originalMode = originalSrcDirModes.get(sDir);
-          const sStatMode = originalMode !== undefined ? originalMode : statSync(sDir).mode & 0o7777;
+          const sStatMode =
+            originalMode !== undefined ? originalMode : statSync(sDir).mode & 0o7777;
           createdDirModes.set(dDir, sStatMode);
         } catch {}
       }
@@ -416,7 +422,9 @@ export function splitSubpackages(
       }
     } finally {
       // Restore surviving modes deepest-first
-      for (const [dir, mode] of Array.from(originalSrcDirModes.entries()).sort(([a], [b]) => b.length - a.length)) {
+      for (const [dir, mode] of Array.from(originalSrcDirModes.entries()).sort(
+        ([a], [b]) => b.length - a.length,
+      )) {
         try {
           if (existsSync(dir)) {
             chmodSync(dir, mode);
@@ -424,7 +432,9 @@ export function splitSubpackages(
         } catch {}
       }
     }
-    const createdDirsSorted = Array.from(createdDirModes.keys()).sort((a, b) => b.length - a.length);
+    const createdDirsSorted = Array.from(createdDirModes.keys()).sort(
+      (a, b) => b.length - a.length,
+    );
     for (const d of createdDirsSorted) {
       try {
         chmodSync(d, createdDirModes.get(d)!);
@@ -471,7 +481,13 @@ export function splitSubpackages(
               try {
                 const buf = Buffer.alloc(8);
                 const bytesRead = readSync(fd, buf, 0, 8, 0);
-                if (bytesRead >= 4 && buf[0] === 0x7f && buf[1] === 0x45 && buf[2] === 0x4c && buf[3] === 0x46) {
+                if (
+                  bytesRead >= 4 &&
+                  buf[0] === 0x7f &&
+                  buf[1] === 0x45 &&
+                  buf[2] === 0x4c &&
+                  buf[3] === 0x46
+                ) {
                   throw new Error(
                     `Architecture-independent (all) subpackage '${subName}' contains native ELF binary '${rel}'.`,
                   );
@@ -497,7 +513,10 @@ export function splitSubpackages(
                     const dataOffset = currentOffset + 60;
                     // Skip symbol index table ("/") and long-name table ("//"), BSD symbols ("__.SYMDEF")
                     const isSpecialTable =
-                      name === '/' || name === '//' || name.startsWith('__.SYMDEF') || name.startsWith('#1/');
+                      name === '/' ||
+                      name === '//' ||
+                      name.startsWith('__.SYMDEF') ||
+                      name.startsWith('#1/');
                     if (!isSpecialTable && memberSize >= 4) {
                       const mRead = readSync(fd, magicBuf, 0, 4, dataOffset);
                       if (
@@ -524,7 +543,8 @@ export function splitSubpackages(
         } catch (e: unknown) {
           if (
             e instanceof Error &&
-            (e.message.includes('contains native ELF binary') || e.message.includes('contains native static library'))
+            (e.message.includes('contains native ELF binary') ||
+              e.message.includes('contains native static library'))
           ) {
             throw e;
           }
@@ -536,7 +556,8 @@ export function splitSubpackages(
       }
     }
 
-    const designatedProducer = subArch === 'all' ? resolveChildProducerArch(parentRecipe, subDef) : undefined;
+    const designatedProducer =
+      subArch === 'all' ? resolveChildProducerArch(parentRecipe, subDef) : undefined;
 
     const subRecipe: PackageRecipe = {
       name: subName,

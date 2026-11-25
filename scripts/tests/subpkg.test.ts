@@ -25,22 +25,48 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
   let stageDir: string;
 
   beforeEach((): void => {
-    testDir = join(process.env.TMPDIR || tmpdir(), `subpkg-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    testDir = join(
+      process.env.TMPDIR || tmpdir(),
+      `subpkg-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    );
     stageDir = join(testDir, 'stage');
     mkdirSync(join(stageDir, 'data/data/com.termux/files/usr/include'), { recursive: true });
     mkdirSync(join(stageDir, 'data/data/com.termux/files/usr/lib/pkgconfig'), { recursive: true });
     mkdirSync(join(stageDir, 'data/data/com.termux/files/usr/share/man/man1'), { recursive: true });
-    mkdirSync(join(stageDir, 'data/data/com.termux/files/usr/share/doc/sample'), { recursive: true });
+    mkdirSync(join(stageDir, 'data/data/com.termux/files/usr/share/doc/sample'), {
+      recursive: true,
+    });
     mkdirSync(join(stageDir, 'data/data/com.termux/files/usr/bin/nested'), { recursive: true });
 
-    writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/include/sample.h'), '#define SAMPLE 1\n');
-    writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/lib/pkgconfig/sample.pc'), 'Name: sample\n');
-    writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.a'), 'dummy archive');
-    writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.so'), 'dummy shared obj');
-    writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/share/man/man1/sample.1'), '.TH SAMPLE 1\n');
-    writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/share/doc/sample/README.md'), '# Sample\n');
+    writeFileSync(
+      join(stageDir, 'data/data/com.termux/files/usr/include/sample.h'),
+      '#define SAMPLE 1\n',
+    );
+    writeFileSync(
+      join(stageDir, 'data/data/com.termux/files/usr/lib/pkgconfig/sample.pc'),
+      'Name: sample\n',
+    );
+    writeFileSync(
+      join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.a'),
+      'dummy archive',
+    );
+    writeFileSync(
+      join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.so'),
+      'dummy shared obj',
+    );
+    writeFileSync(
+      join(stageDir, 'data/data/com.termux/files/usr/share/man/man1/sample.1'),
+      '.TH SAMPLE 1\n',
+    );
+    writeFileSync(
+      join(stageDir, 'data/data/com.termux/files/usr/share/doc/sample/README.md'),
+      '# Sample\n',
+    );
     writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/bin/sample-cli'), '#!/bin/sh\n');
-    writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/bin/nested/sub-tool'), '#!/bin/sh\n');
+    writeFileSync(
+      join(stageDir, 'data/data/com.termux/files/usr/bin/nested/sub-tool'),
+      '#!/bin/sh\n',
+    );
   });
 
   afterEach((): void => {
@@ -67,17 +93,29 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
     expect(devSub?.recipe.deps).toContain('sample (= 2.4.0-2)');
 
     const devStage = join(testDir, 'stage_sample-dev');
-    expect(existsSync(join(devStage, 'data/data/com.termux/files/usr/include/sample.h'))).toBeTrue();
-    expect(existsSync(join(devStage, 'data/data/com.termux/files/usr/lib/pkgconfig/sample.pc'))).toBeTrue();
+    expect(
+      existsSync(join(devStage, 'data/data/com.termux/files/usr/include/sample.h')),
+    ).toBeTrue();
+    expect(
+      existsSync(join(devStage, 'data/data/com.termux/files/usr/lib/pkgconfig/sample.pc')),
+    ).toBeTrue();
     expect(existsSync(join(devStage, 'data/data/com.termux/files/usr/lib/libsample.a'))).toBeTrue();
 
     // Verify moved files no longer exist in parent stage
-    expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/include/sample.h'))).toBeFalse();
-    expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/lib/pkgconfig/sample.pc'))).toBeFalse();
-    expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.a'))).toBeFalse();
+    expect(
+      existsSync(join(stageDir, 'data/data/com.termux/files/usr/include/sample.h')),
+    ).toBeFalse();
+    expect(
+      existsSync(join(stageDir, 'data/data/com.termux/files/usr/lib/pkgconfig/sample.pc')),
+    ).toBeFalse();
+    expect(
+      existsSync(join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.a')),
+    ).toBeFalse();
 
     // Shared library must remain in parent stage
-    expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.so'))).toBeTrue();
+    expect(
+      existsSync(join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.so')),
+    ).toBeTrue();
 
     const docSub = childResults.find((c) => c.recipe.name === 'sample-doc');
     expect(docSub).toBeDefined();
@@ -85,8 +123,12 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
     expect(docSub?.recipe.deps).toContain('sample (= 2.4.0-2)');
 
     const docStage = join(testDir, 'stage_sample-doc');
-    expect(existsSync(join(docStage, 'data/data/com.termux/files/usr/share/man/man1/sample.1'))).toBeTrue();
-    expect(existsSync(join(docStage, 'data/data/com.termux/files/usr/share/doc/sample/README.md'))).toBeTrue();
+    expect(
+      existsSync(join(docStage, 'data/data/com.termux/files/usr/share/man/man1/sample.1')),
+    ).toBeTrue();
+    expect(
+      existsSync(join(docStage, 'data/data/com.termux/files/usr/share/doc/sample/README.md')),
+    ).toBeTrue();
   });
 
   test('splits auto:static subpackages correctly', (): void => {
@@ -106,10 +148,16 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
     expect(staticSub?.recipe.arch).toBe('aarch64');
 
     const staticStage = join(testDir, 'stage_sample-static');
-    expect(existsSync(join(staticStage, 'data/data/com.termux/files/usr/lib/libsample.a'))).toBeTrue();
-    expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.a'))).toBeFalse();
+    expect(
+      existsSync(join(staticStage, 'data/data/com.termux/files/usr/lib/libsample.a')),
+    ).toBeTrue();
+    expect(
+      existsSync(join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.a')),
+    ).toBeFalse();
     // Shared library must remain in parent stage
-    expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.so'))).toBeTrue();
+    expect(
+      existsSync(join(stageDir, 'data/data/com.termux/files/usr/lib/libsample.so')),
+    ).toBeTrue();
   });
 
   test('splits custom subpackages with parent_dep pinned', (): void => {
@@ -143,12 +191,18 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
     expect(toolsSub.recipe.deps).toContain('sample (>= 1:1.0.0)');
 
     const toolsStage = join(testDir, 'stage_sample-tools');
-    expect(existsSync(join(toolsStage, 'data/data/com.termux/files/usr/bin/sample-cli'))).toBeTrue();
+    expect(
+      existsSync(join(toolsStage, 'data/data/com.termux/files/usr/bin/sample-cli')),
+    ).toBeTrue();
     expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/bin/sample-cli'))).toBeFalse();
 
     // Verify non-recursive bin/* did NOT match nested file bin/nested/sub-tool
-    expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/bin/nested/sub-tool'))).toBeTrue();
-    expect(existsSync(join(toolsStage, 'data/data/com.termux/files/usr/bin/nested/sub-tool'))).toBeFalse();
+    expect(
+      existsSync(join(stageDir, 'data/data/com.termux/files/usr/bin/nested/sub-tool')),
+    ).toBeTrue();
+    expect(
+      existsSync(join(toolsStage, 'data/data/com.termux/files/usr/bin/nested/sub-tool')),
+    ).toBeFalse();
   });
 
   test('splits subpackages preserving valid and dangling symlinks', (): void => {
@@ -207,8 +261,12 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
     });
 
     splitSubpackages(firstRecipe, stageDir, testDir);
-    expect(existsSync(join(testDir, 'stage_sample-dev/data/data/com.termux/files/usr/include/sample.h'))).toBeTrue();
-    expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/include/sample.h'))).toBeFalse();
+    expect(
+      existsSync(join(testDir, 'stage_sample-dev/data/data/com.termux/files/usr/include/sample.h')),
+    ).toBeTrue();
+    expect(
+      existsSync(join(stageDir, 'data/data/com.termux/files/usr/include/sample.h')),
+    ).toBeFalse();
 
     // Now re-split with sample-sdk instead of sample-dev
     const secondRecipe: PackageRecipe = createRecipe({
@@ -231,7 +289,9 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
     });
 
     splitSubpackages(secondRecipe, stageDir, testDir);
-    expect(existsSync(join(testDir, 'stage_sample-sdk/data/data/com.termux/files/usr/include/sample.h'))).toBeTrue();
+    expect(
+      existsSync(join(testDir, 'stage_sample-sdk/data/data/com.termux/files/usr/include/sample.h')),
+    ).toBeTrue();
     expect(existsSync(join(testDir, 'stage_sample-dev'))).toBeFalse();
 
     // Now call with empty subpackages: should restore stage from stage_compiled and remove stage_sample-sdk
@@ -251,7 +311,9 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
 
     const thirdResults = splitSubpackages(thirdRecipe, stageDir, testDir);
     expect(thirdResults).toHaveLength(0);
-    expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/include/sample.h'))).toBeTrue();
+    expect(
+      existsSync(join(stageDir, 'data/data/com.termux/files/usr/include/sample.h')),
+    ).toBeTrue();
     expect(existsSync(join(testDir, 'stage_sample-sdk'))).toBeFalse();
   });
 
@@ -282,7 +344,9 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
     const entriesAfterFail = existsSync(testDir) ? readdirSync(testDir) : [];
     const tmpDirsAfterFail = entriesAfterFail.filter((e) => e.startsWith('.stage_compiled.tmp-'));
     expect(tmpDirsAfterFail.length).toBe(0);
-    expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/include/sample.h'))).toBeTrue();
+    expect(
+      existsSync(join(stageDir, 'data/data/com.termux/files/usr/include/sample.h')),
+    ).toBeTrue();
 
     // 2. Assert that subsequent attempt succeeds
     const results = splitSubpackages(parentRecipe, stageDir, testDir);
@@ -290,7 +354,9 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
     expect(results[0].recipe.name).toBe('sample-dev');
     expect(existsSync(join(testDir, '.stage_compiled'))).toBeTrue();
     const entriesAfterSuccess = existsSync(testDir) ? readdirSync(testDir) : [];
-    const tmpDirsAfterSuccess = entriesAfterSuccess.filter((e) => e.startsWith('.stage_compiled.tmp-'));
+    const tmpDirsAfterSuccess = entriesAfterSuccess.filter((e) =>
+      e.startsWith('.stage_compiled.tmp-'),
+    );
     expect(tmpDirsAfterSuccess.length).toBe(0);
   });
 
@@ -440,7 +506,10 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
       const first = splitSubpackages(parentRecipe, stageDir, testDir, 'aarch64');
       expect(first).toHaveLength(1);
 
-      const childLocked = join(first[0].stageDir, 'data/data/com.termux/files/usr/share/doc/locked');
+      const childLocked = join(
+        first[0].stageDir,
+        'data/data/com.termux/files/usr/share/doc/locked',
+      );
       expect(existsSync(join(childLocked, 'manual.txt'))).toBeTrue();
       expect(statSync(childLocked).mode & 0o777).toBe(0o555);
 
@@ -452,7 +521,9 @@ describe('Subpackage Engine (scripts/core/subpkg.ts)', () => {
       const second = splitSubpackages(parentRecipe, stageDir, testDir, 'aarch64');
       expect(second).toHaveLength(1);
       expect(
-        existsSync(join(second[0].stageDir, 'data/data/com.termux/files/usr/share/doc/locked/manual.txt')),
+        existsSync(
+          join(second[0].stageDir, 'data/data/com.termux/files/usr/share/doc/locked/manual.txt'),
+        ),
       ).toBeTrue();
     } finally {
       // Ensure afterEach rmSync can clean up read-only snapshot dirs

@@ -2,7 +2,8 @@ import { chmodSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 /**
- * Resolves the target git metadata directory, supporting normal repositories, worktrees, and submodules.
+ * Resolves the target git metadata directory, supporting normal repositories, worktrees, and
+ * submodules.
  *
  * @param baseGitDir - Initial git directory or reference file path. Defaults to `.git`.
  * @returns Path to the resolved git directory containing repository metadata and hooks.

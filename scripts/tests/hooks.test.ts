@@ -1,5 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { existsSync, lstatSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -85,7 +93,9 @@ describe('pre-commit and postinstall hooks', () => {
     expect(maskGitHubExpressions('exit \\\n ${{ inputs.code }}')).toBe('exit \\\n 0');
     expect(maskGitHubExpressions('return \\\r\n ${{ inputs.code }}')).toBe('return \\\r\n 0');
     expect(maskGitHubExpressions('code=${{ 42 }}')).toBe('code=42');
-    expect(maskGitHubExpressions("cat <<${{ 'END:DATA' }}\nhello\nEND:DATA")).toBe('cat <<END:DATA\nhello\nEND:DATA');
+    expect(maskGitHubExpressions("cat <<${{ 'END:DATA' }}\nhello\nEND:DATA")).toBe(
+      'cat <<END:DATA\nhello\nEND:DATA',
+    );
   });
 
   it('correctly detects runner default shell from matrix combinations', (): void => {
@@ -111,9 +121,15 @@ describe('pre-commit and postinstall hooks', () => {
       ),
     ).toBe('pwsh');
     expect(
-      getRunnerDefaultShell('${{ matrix.os }}', { matrix: { os: ['ubuntu-latest', 'windows-latest'] } }, undefined),
+      getRunnerDefaultShell(
+        '${{ matrix.os }}',
+        { matrix: { os: ['ubuntu-latest', 'windows-latest'] } },
+        undefined,
+      ),
     ).toBe('bash');
-    expect(getRunnerDefaultShell('${{ matrix.os }}', { matrix: { os: ['windows-latest'] } }, undefined)).toBe('pwsh');
+    expect(
+      getRunnerDefaultShell('${{ matrix.os }}', { matrix: { os: ['windows-latest'] } }, undefined),
+    ).toBe('pwsh');
     expect(
       getRunnerDefaultShell(
         '${{ matrix.runner }}',
@@ -178,7 +194,10 @@ jobs:
 `,
     );
     const recorded: Array<{ script: string; dialect: string }> = [];
-    const recordingChecker = async (script: string, dialect: 'sh' | 'bash'): Promise<{ ok: boolean }> => {
+    const recordingChecker = async (
+      script: string,
+      dialect: 'sh' | 'bash',
+    ): Promise<{ ok: boolean }> => {
       recorded.push({ script, dialect });
       return { ok: true };
     };
@@ -230,7 +249,9 @@ jobs:
     const invalidResult = await validateWorkflowScripts(invalidDir);
     expect(invalidResult.ok).toBe(false);
     expect(
-      invalidResult.errors.some((err: string): boolean => err.includes('SC3010') || err.includes('POSIX sh')),
+      invalidResult.errors.some(
+        (err: string): boolean => err.includes('SC3010') || err.includes('POSIX sh'),
+      ),
     ).toBe(true);
   });
 
@@ -486,7 +507,9 @@ jobs:
           zarm: 4G
 `,
       );
-      expect(Bun.spawnSync(['git', 'add', '-f', '-A'], { cwd: tmpRoot, env: cleanGitEnv }).exitCode).toBe(0);
+      expect(
+        Bun.spawnSync(['git', 'add', '-f', '-A'], { cwd: tmpRoot, env: cleanGitEnv }).exitCode,
+      ).toBe(0);
 
       process.chdir(tmpRoot);
       for (const key of gitEnvKeys) {
@@ -517,7 +540,10 @@ jobs:
 `,
       );
       expect(
-        Bun.spawnSync(['git', 'add', '-f', '.github/workflows/test.yml'], { cwd: tmpRoot, env: cleanGitEnv }).exitCode,
+        Bun.spawnSync(['git', 'add', '-f', '.github/workflows/test.yml'], {
+          cwd: tmpRoot,
+          env: cleanGitEnv,
+        }).exitCode,
       ).toBe(0);
 
       const validRes = await runPreCommitHook({
@@ -554,7 +580,11 @@ jobs:
 
     // Object-form runs-on.labels expression resolving exclusively to Windows
     expect(
-      getRunnerDefaultShell({ labels: '${{ matrix.os }}' }, { matrix: { os: ['windows-latest'] } }, undefined),
+      getRunnerDefaultShell(
+        { labels: '${{ matrix.os }}' },
+        { matrix: { os: ['windows-latest'] } },
+        undefined,
+      ),
     ).toBe('pwsh');
   });
 
@@ -580,20 +610,27 @@ jobs:
     );
 
     const seen: string[] = [];
-    const result = await validateWorkflowScripts(wfDir, async (script): Promise<{ ok: boolean }> => {
-      seen.push(script);
-      return { ok: true };
-    });
+    const result = await validateWorkflowScripts(
+      wfDir,
+      async (script): Promise<{ ok: boolean }> => {
+        seen.push(script);
+        return { ok: true };
+      },
+    );
 
     expect(result.ok).toBe(false);
-    expect(result.errors.some((e) => e.includes('Unterminated GitHub Actions expression'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('Unterminated GitHub Actions expression'))).toBe(
+      true,
+    );
     expect(seen.some((s) => s.includes('echo ok'))).toBe(true);
   });
 
   it('masks expression arguments to return numerically while keeping literal invalid returns flagged', (): void => {
     expect(maskGitHubExpressions("return ${{ '0' }}")).toBe('return 0');
     expect(maskGitHubExpressions('return "${{ inputs.code }}"')).toBe('return "0"');
-    expect(maskGitHubExpressions("if true; then return '${{ inputs.code }}'; fi")).toBe("if true; then return '0'; fi");
+    expect(maskGitHubExpressions("if true; then return '${{ inputs.code }}'; fi")).toBe(
+      "if true; then return '0'; fi",
+    );
     expect(maskGitHubExpressions('return invalid')).toBe('return invalid');
   });
 
@@ -666,9 +703,9 @@ jobs:
       hugeMatrix[`axis_${i}`] = ['a', 'b'];
     }
     const diagnostics: string[] = [];
-    expect(getRunnerDefaultShell('${{ matrix.axis_0 }}', { matrix: hugeMatrix }, undefined, diagnostics)).toBe(
-      'unknown',
-    );
+    expect(
+      getRunnerDefaultShell('${{ matrix.axis_0 }}', { matrix: hugeMatrix }, undefined, diagnostics),
+    ).toBe('unknown');
     expect(diagnostics.some((d) => d.includes('exceeds budget'))).toBe(true);
 
     // Matrix whose raw axis product exceeds 4096 but post-exclude count is within budget (Thread #7)
@@ -687,9 +724,14 @@ jobs:
       { bin_5: '1' },
     ];
     const postExcludeDiags: string[] = [];
-    expect(getRunnerDefaultShell('${{ matrix.os }}', { matrix: largeExcludeMatrix }, undefined, postExcludeDiags)).toBe(
-      'bash',
-    );
+    expect(
+      getRunnerDefaultShell(
+        '${{ matrix.os }}',
+        { matrix: largeExcludeMatrix },
+        undefined,
+        postExcludeDiags,
+      ),
+    ).toBe('bash');
     expect(postExcludeDiags).toHaveLength(0);
   });
 
@@ -717,7 +759,11 @@ jobs:
       return { ok: true };
     });
     expect(res.ok).toBe(true);
-    expect(seen).toEqual(['set -e\necho implicit', 'set -eo pipefail\necho explicit-bash', 'set -e\necho explicit-sh']);
+    expect(seen).toEqual([
+      'set -e\necho implicit',
+      'set -eo pipefail\necho explicit-bash',
+      'set -e\necho explicit-sh',
+    ]);
   });
 
   it('shellHasErrexit detects errexit in composite bash flags like -ce', (): void => {
@@ -864,7 +910,10 @@ jobs:
 
       Bun.spawnSync(['git', 'init'], { cwd: gitDir, env: cleanGitEnv });
       Bun.spawnSync(['git', 'config', 'user.name', 'Test'], { cwd: gitDir, env: cleanGitEnv });
-      Bun.spawnSync(['git', 'config', 'user.email', 'test@example.com'], { cwd: gitDir, env: cleanGitEnv });
+      Bun.spawnSync(['git', 'config', 'user.email', 'test@example.com'], {
+        cwd: gitDir,
+        env: cleanGitEnv,
+      });
 
       writeFileSync(join(gitDir, 'shared', 'target.txt'), 'hello from shared\n');
       writeFileSync(
@@ -875,9 +924,15 @@ jobs:
         join(gitDir, '.github', 'actions', 'my-action', 'action.yml'),
         'name: my-action\ndescription: test\nruns:\n  using: node24\n  main: index.js\n',
       );
-      writeFileSync(join(gitDir, '.github', 'actions', 'my-action', 'index.js'), 'console.log("staged");\n');
+      writeFileSync(
+        join(gitDir, '.github', 'actions', 'my-action', 'index.js'),
+        'console.log("staged");\n',
+      );
 
-      symlinkSync('../actions/my-action/action.yml', join(gitDir, '.github', 'workflows', 'safe-link.txt'));
+      symlinkSync(
+        '../actions/my-action/action.yml',
+        join(gitDir, '.github', 'workflows', 'safe-link.txt'),
+      );
       const externalTarget = join(gitDir, 'outside-mirror.txt');
       writeFileSync(externalTarget, 'outside the mirror\n');
       symlinkSync(externalTarget, join(gitDir, '.github', 'workflows', 'unsafe-escape.txt'));
@@ -885,7 +940,10 @@ jobs:
 
       const addRes = Bun.spawnSync(['git', 'add', '-f', '-A'], { cwd: gitDir, env: cleanGitEnv });
       expect(addRes.exitCode).toBe(0);
-      writeFileSync(join(gitDir, '.github', 'actions', 'my-action', 'index.js'), 'console.log("worktree");\n');
+      writeFileSync(
+        join(gitDir, '.github', 'actions', 'my-action', 'index.js'),
+        'console.log("worktree");\n',
+      );
 
       for (const key of gitEnvKeys) {
         delete process.env[key];
@@ -895,10 +953,12 @@ jobs:
       const snapRoot = dirname(dirname(snapDir));
 
       expect(existsSync(join(snapDir, 'ci.yml'))).toBe(true);
-      expect(existsSync(join(snapRoot, '.github', 'actions', 'my-action', 'action.yml'))).toBe(true);
-      expect(await Bun.file(join(snapRoot, '.github', 'actions', 'my-action', 'index.js')).text()).toBe(
-        'console.log("staged");\n',
+      expect(existsSync(join(snapRoot, '.github', 'actions', 'my-action', 'action.yml'))).toBe(
+        true,
       );
+      expect(
+        await Bun.file(join(snapRoot, '.github', 'actions', 'my-action', 'index.js')).text(),
+      ).toBe('console.log("staged");\n');
       expect(existsSync(join(snapDir, 'safe-link.txt'))).toBe(true);
       expect(lstatSync(join(snapDir, 'safe-link.txt')).isSymbolicLink()).toBe(true);
       const snapEntries = readdirSync(snapDir);
@@ -1011,7 +1071,9 @@ jobs:
   });
 
   it('correctly evaluates isStepWindowsOnlyCondition without being fooled by quoted strings (Thread #9)', (): void => {
-    expect(isStepWindowsOnlyCondition("contains('runner.os == \"Windows\"', 'runner.os')")).toBeFalse();
+    expect(
+      isStepWindowsOnlyCondition("contains('runner.os == \"Windows\"', 'runner.os')"),
+    ).toBeFalse();
     expect(isStepWindowsOnlyCondition("runner.os == 'Windows'")).toBeTrue();
     expect(isStepWindowsOnlyCondition("(runner.os) == 'Windows'")).toBeTrue();
     expect(isStepWindowsOnlyCondition("((runner.os)) == ('Windows')")).toBeTrue();
@@ -1026,15 +1088,25 @@ jobs:
         "(runner.os == 'Windows' && matrix.mode == 'debug') || (runner.os == 'Windows' && matrix.mode == 'release')",
       ),
     ).toBeTrue();
-    expect(isStepWindowsOnlyCondition("runner.os == 'Windows' || runner.os == 'Linux'")).toBeFalse();
-    expect(isStepWindowsOnlyCondition("(runner.os == 'Windows' || matrix.mode == 'release') && success()")).toBeFalse();
+    expect(
+      isStepWindowsOnlyCondition("runner.os == 'Windows' || runner.os == 'Linux'"),
+    ).toBeFalse();
+    expect(
+      isStepWindowsOnlyCondition(
+        "(runner.os == 'Windows' || matrix.mode == 'release') && success()",
+      ),
+    ).toBeFalse();
     expect(isStepWindowsOnlyCondition("!(runner.os != 'Windows')")).toBeTrue();
     expect(isStepWindowsOnlyCondition("!(runner.os != 'Windows' || matrix.debug)")).toBeTrue();
     expect(isStepWindowsOnlyCondition("!(matrix.debug || runner.os != 'Windows')")).toBeTrue();
     expect(isStepWindowsOnlyCondition("runner['os'] == 'Windows'")).toBeTrue();
     expect(isStepWindowsOnlyCondition("!(runner['os'] != 'Windows')")).toBeTrue();
     expect(isStepWindowsOnlyCondition("!runner.os != 'Windows'")).toBeFalse();
-    expect(isStepWindowsOnlyCondition("fromJSON('[true,false]')[true && runner.os == 'Windows' && true]")).toBeFalse();
+    expect(
+      isStepWindowsOnlyCondition(
+        "fromJSON('[true,false]')[true && runner.os == 'Windows' && true]",
+      ),
+    ).toBeFalse();
   });
 
   it('does not infer OS from strings inside expressions in getRunnerDefaultShell', (): void => {
@@ -1043,7 +1115,8 @@ jobs:
     const shell = getRunnerDefaultShell(runsOnExpr, undefined, undefined);
     expect(shell).toBe('unknown');
 
-    const quotedBracesExpr = "runs-on: ${{ contains('}} windows ', github.ref) && 'ubuntu-latest' || 'ubuntu-22.04' }}";
+    const quotedBracesExpr =
+      "runs-on: ${{ contains('}} windows ', github.ref) && 'ubuntu-latest' || 'ubuntu-22.04' }}";
     const shellQuoted = getRunnerDefaultShell(quotedBracesExpr, undefined, undefined);
     expect(shellQuoted).toBe('unknown');
   });
@@ -1056,7 +1129,11 @@ jobs:
         target: [{ 'image.tag': 'latest' }],
       },
     };
-    const shell = getRunnerDefaultShell("ubuntu-${{ matrix.target['image.tag'] }}", strategy, undefined);
+    const shell = getRunnerDefaultShell(
+      "ubuntu-${{ matrix.target['image.tag'] }}",
+      strategy,
+      undefined,
+    );
     expect(shell).toBe('bash');
   });
 });

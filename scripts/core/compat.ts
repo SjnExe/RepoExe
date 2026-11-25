@@ -185,7 +185,9 @@ export function setupBionicCompat(targetArch: string = 'aarch64'): void {
   const cachedLib = join(cacheDir, `libcompat_${normArch}_${srcHash}_rcsD_relsrc.a`);
 
   if (!existsSync(cachedObj) || !existsSync(cachedLib)) {
-    console.log(`⚡ Compiling universal Bionic compat library for ${normArch} (Hash: ${srcHash})...`);
+    console.log(
+      `⚡ Compiling universal Bionic compat library for ${normArch} (Hash: ${srcHash})...`,
+    );
     const resCc = spawnSync(
       ndkClang,
       [
@@ -204,7 +206,9 @@ export function setupBionicCompat(targetArch: string = 'aarch64'): void {
       { encoding: 'utf-8' },
     );
     if (resCc.status !== 0 || resCc.error) {
-      const errDetail = resCc.error ? resCc.error.message : resCc.stderr || `exit code ${resCc.status}`;
+      const errDetail = resCc.error
+        ? resCc.error.message
+        : resCc.stderr || `exit code ${resCc.status}`;
       throw new Error(`Failed to compile bionic_compat.c for ${normArch}:\n${errDetail}`);
     }
 
@@ -213,7 +217,9 @@ export function setupBionicCompat(targetArch: string = 'aarch64'): void {
       env: { ...process.env, ZERO_AR_DATE: '1' },
     });
     if (resAr.status !== 0 || resAr.error) {
-      const errDetail = resAr.error ? resAr.error.message : resAr.stderr || `exit code ${resAr.status}`;
+      const errDetail = resAr.error
+        ? resAr.error.message
+        : resAr.stderr || `exit code ${resAr.status}`;
       throw new Error(`Failed to create libcompat.a for ${normArch}:\n${errDetail}`);
     }
     console.log(`✓ Bionic compat library built and cached for ${normArch}.`);
@@ -225,11 +231,19 @@ export function setupBionicCompat(targetArch: string = 'aarch64'): void {
   copyFileSync(cachedLib, join(tempDir, 'libcompat.a'));
   copyFileSync(cachedLib, join(tempDir, 'libbionic_compat.a'));
   copyFileSync(stubSrc, join(tempDir, 'bionic_stub.h'));
-  writeFileSync(join(tempDir, 'spawn.h'), `#pragma once\n#include "${join(tempDir, 'bionic_stub.h')}"\n`, 'utf-8');
+  writeFileSync(
+    join(tempDir, 'spawn.h'),
+    `#pragma once\n#include "${join(tempDir, 'bionic_stub.h')}"\n`,
+    'utf-8',
+  );
   writeFileSync(join(tempDir, 'android_lf.h'), '#pragma once\n#include <sys/types.h>\n', 'utf-8');
 
   mkdirSync(join(tempDir, 'icu-include'), { recursive: true });
-  writeFileSync(join(tempDir, 'icu-include', 'android_lf.h'), '#pragma once\n#include <sys/types.h>\n', 'utf-8');
+  writeFileSync(
+    join(tempDir, 'icu-include', 'android_lf.h'),
+    '#pragma once\n#include <sys/types.h>\n',
+    'utf-8',
+  );
 
   let ndkClangxx = resolveNdkTool(archConfig.clangxx);
   if (!ndkClangxx || !existsSync(ndkClangxx)) {

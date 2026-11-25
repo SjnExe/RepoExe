@@ -4,7 +4,13 @@ import { basename, join } from 'node:path';
 
 import { PREFIX } from '../utils/properties.ts';
 
-export const GLIBC_LIBS = new Set(['libc.so.6', 'libpthread.so.0', 'librt.so.1', 'libdl.so.2', 'libm.so.6']);
+export const GLIBC_LIBS = new Set([
+  'libc.so.6',
+  'libpthread.so.0',
+  'librt.so.1',
+  'libdl.so.2',
+  'libm.so.6',
+]);
 
 export const DYNAMIC_TAGS_TO_NULLIFY = new Set([
   0x6ffffffen, // DT_VERNEED
@@ -99,7 +105,11 @@ export function stripVerneedFromElf(elfPath: string): void {
           const maskedTag = d_tag & 0xffffffffn;
 
           // Check for W^X text relocation violation (DT_TEXTREL or DF_TEXTREL in DT_FLAGS)
-          if (d_tag === 22n || maskedTag === 22n || ((d_tag === 30n || maskedTag === 30n) && (d_val & 4n) !== 0n)) {
+          if (
+            d_tag === 22n ||
+            maskedTag === 22n ||
+            ((d_tag === 30n || maskedTag === 30n) && (d_val & 4n) !== 0n)
+          ) {
             throw new Error(
               `Security Enforcement Failed: '${basename(elfPath)}' contains DT_TEXTREL (text relocations), which violates Android 10+ W^X security policy. Recompile with position-independent code (-fPIC / -fPIE).`,
             );
@@ -150,7 +160,11 @@ export function stripVerneedFromElf(elfPath: string): void {
           const maskedTag = bigTag & 0xffffffffn;
 
           // Check for W^X text relocation violation (DT_TEXTREL or DF_TEXTREL in DT_FLAGS)
-          if (d_tag === 22 || maskedTag === 22n || ((d_tag === 30 || maskedTag === 30n) && (d_val & 4) !== 0)) {
+          if (
+            d_tag === 22 ||
+            maskedTag === 22n ||
+            ((d_tag === 30 || maskedTag === 30n) && (d_val & 4) !== 0)
+          ) {
             throw new Error(
               `Security Enforcement Failed: '${basename(elfPath)}' contains DT_TEXTREL (text relocations), which violates Android 10+ W^X security policy. Recompile with position-independent code (-fPIC / -fPIE).`,
             );
@@ -192,7 +206,13 @@ export function stripVerneedFromElf(elfPath: string): void {
 export function sanitizeElfBinary(elfPath: string, prefix: string = PREFIX): void {
   try {
     const buf = readFileSync(elfPath);
-    if (buf.length < 4 || buf[0] !== 0x7f || buf[1] !== 0x45 || buf[2] !== 0x4c || buf[3] !== 0x46) {
+    if (
+      buf.length < 4 ||
+      buf[0] !== 0x7f ||
+      buf[1] !== 0x45 ||
+      buf[2] !== 0x4c ||
+      buf[3] !== 0x46
+    ) {
       return;
     }
 
@@ -205,7 +225,9 @@ export function sanitizeElfBinary(elfPath: string, prefix: string = PREFIX): voi
     const isNoDynamic = /there is no dynamic section/i.test(combinedOutput);
     if (res.status !== 0 && !isNoDynamic) {
       const errDetail = res.stderr?.trim() || `exit code ${res.status}`;
-      throw new Error(`Failed to inspect dynamic dependencies on '${basename(elfPath)}': ${errDetail}`);
+      throw new Error(
+        `Failed to inspect dynamic dependencies on '${basename(elfPath)}': ${errDetail}`,
+      );
     }
     if (res.status === 0 && res.stdout) {
       for (const line of res.stdout.split('\n')) {
@@ -310,7 +332,9 @@ const ANDROID_SYSTEM_SONAMES = new Set([
 function isElfFile(filePath: string): boolean {
   try {
     const buf = readFileSync(filePath);
-    return buf.length >= 4 && buf[0] === 0x7f && buf[1] === 0x45 && buf[2] === 0x4c && buf[3] === 0x46;
+    return (
+      buf.length >= 4 && buf[0] === 0x7f && buf[1] === 0x45 && buf[2] === 0x4c && buf[3] === 0x46
+    );
   } catch {
     return false;
   }

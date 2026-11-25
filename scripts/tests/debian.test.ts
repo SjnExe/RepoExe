@@ -66,20 +66,41 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       testRepo = join(process.env.TMPDIR || tmpdir(), `git-epoch-${Date.now()}`);
       mkdirSync(join(testRepo, 'pkg', 'aisleriot'), { recursive: true });
       spawnSync('git', ['init', testRepo], { stdio: 'ignore', env: gitEnv });
-      spawnSync('git', ['-C', testRepo, 'config', 'user.email', 'test@example.com'], { stdio: 'ignore', env: gitEnv });
-      spawnSync('git', ['-C', testRepo, 'config', 'user.name', 'Test User'], { stdio: 'ignore', env: gitEnv });
+      spawnSync('git', ['-C', testRepo, 'config', 'user.email', 'test@example.com'], {
+        stdio: 'ignore',
+        env: gitEnv,
+      });
+      spawnSync('git', ['-C', testRepo, 'config', 'user.name', 'Test User'], {
+        stdio: 'ignore',
+        env: gitEnv,
+      });
       const emptyHooks = join(testRepo, '.empty_hooks');
       mkdirSync(emptyHooks, { recursive: true });
-      spawnSync('git', ['-C', testRepo, 'config', 'core.hooksPath', emptyHooks], { stdio: 'ignore', env: gitEnv });
+      spawnSync('git', ['-C', testRepo, 'config', 'core.hooksPath', emptyHooks], {
+        stdio: 'ignore',
+        env: gitEnv,
+      });
 
       // Commit 1: touches pkg/aisleriot (distinct from fallback 1704067200: 1706745600)
       const rFile = join('pkg', 'aisleriot', 'recipe.ts');
       writeFileSync(join(testRepo, rFile), 'export default {};');
-      const add1 = spawnSync('git', ['-C', testRepo, 'add', '-f', rFile], { stdio: 'ignore', env: gitEnv });
+      const add1 = spawnSync('git', ['-C', testRepo, 'add', '-f', rFile], {
+        stdio: 'ignore',
+        env: gitEnv,
+      });
       expect(add1.status).toBe(0);
       const c1 = spawnSync(
         'git',
-        ['-C', testRepo, '-c', `core.hooksPath=${emptyHooks}`, 'commit', '--no-gpg-sign', '-m', 'pkg commit'],
+        [
+          '-C',
+          testRepo,
+          '-c',
+          `core.hooksPath=${emptyHooks}`,
+          'commit',
+          '--no-gpg-sign',
+          '-m',
+          'pkg commit',
+        ],
         {
           stdio: 'ignore',
           env: {
@@ -93,11 +114,23 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
 
       // Commit 2: touches outside pkg/aisleriot (newer timestamp: 1717200000)
       writeFileSync(join(testRepo, 'README.md'), '# Repo');
-      const add2 = spawnSync('git', ['-C', testRepo, 'add', '-f', 'README.md'], { stdio: 'ignore', env: gitEnv });
+      const add2 = spawnSync('git', ['-C', testRepo, 'add', '-f', 'README.md'], {
+        stdio: 'ignore',
+        env: gitEnv,
+      });
       expect(add2.status).toBe(0);
       const c2 = spawnSync(
         'git',
-        ['-C', testRepo, '-c', `core.hooksPath=${emptyHooks}`, 'commit', '--no-gpg-sign', '-m', 'root commit'],
+        [
+          '-C',
+          testRepo,
+          '-c',
+          `core.hooksPath=${emptyHooks}`,
+          'commit',
+          '--no-gpg-sign',
+          '-m',
+          'root commit',
+        ],
         {
           stdio: 'ignore',
           env: {
@@ -173,7 +206,9 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
         `empty-repo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       );
       mkdirSync(emptyDir, { recursive: true });
-      spawnSync('git', ['init', '-q', emptyDir], { env: { ...process.env, PATH: process.env.PATH } });
+      spawnSync('git', ['init', '-q', emptyDir], {
+        env: { ...process.env, PATH: process.env.PATH },
+      });
       expect(getPackageSourceDateEpoch(undefined, emptyDir)).toBe(1704067200);
     } finally {
       if (emptyDir && existsSync(emptyDir)) {
@@ -362,7 +397,12 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
         version: '1.0.0',
         arches: ['arm', 'aarch64'],
         subpackages: {
-          doc: { name: 'my-pkg-doc', arch: 'all', producer_arch: 'aarch64', include: ['share/doc/**'] },
+          doc: {
+            name: 'my-pkg-doc',
+            arch: 'all',
+            producer_arch: 'aarch64',
+            include: ['share/doc/**'],
+          },
         },
       });
 
@@ -377,7 +417,10 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
   });
 
   test('cleanupPackageOutputs resolves same default producer arch when arches order is arm, aarch64', (): void => {
-    const testOut = join(process.env.TMPDIR || tmpdir(), `debian-cleanup-sub-default-${Date.now()}`);
+    const testOut = join(
+      process.env.TMPDIR || tmpdir(),
+      `debian-cleanup-sub-default-${Date.now()}`,
+    );
     mkdirSync(testOut, { recursive: true });
 
     try {
@@ -410,7 +453,9 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       arch: 'all',
       deps: ['sdk-api [arm]'],
     });
-    expect(() => generateControlFile(allParent)).toThrow(/architecture 'all'.*architecture-restricted/);
+    expect(() => generateControlFile(allParent)).toThrow(
+      /architecture 'all'.*architecture-restricted/,
+    );
 
     const badProvidesParent = createRecipe({
       name: 'bad-prov',
@@ -430,7 +475,12 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       version: '1.0.0',
       arches: ['aarch64', 'arm'],
       subpackages: {
-        doc: { name: 'multi-doc', arch: 'all', include: ['share/doc/**'], deps: ['arm-only [arm]'] },
+        doc: {
+          name: 'multi-doc',
+          arch: 'all',
+          include: ['share/doc/**'],
+          deps: ['arm-only [arm]'],
+        },
       },
     });
 
@@ -457,7 +507,10 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
     const stageDir = join(tmp, 'stage');
     mkdirSync(join(stageDir, 'data/data/com.termux/files/usr/bin'), { recursive: true });
     mkdirSync(join(stageDir, 'data/data/com.termux/files/usr/share/doc'), { recursive: true });
-    writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/bin/multi'), '#!/bin/sh\necho ok\n');
+    writeFileSync(
+      join(stageDir, 'data/data/com.termux/files/usr/bin/multi'),
+      '#!/bin/sh\necho ok\n',
+    );
     writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/share/doc/README'), 'doc\n');
 
     const recipe = createRecipe({
@@ -479,7 +532,9 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       expect(existsSync(join(outDir, 'multi-doc_1.0.0_all.deb'))).toBeFalse();
       expect(existsSync(join(tmp, 'stage_multi-doc'))).toBeFalse();
       // Doc payload was still stripped from parent stage so arm deb does not bundle it
-      expect(existsSync(join(stageDir, 'data/data/com.termux/files/usr/share/doc/README'))).toBeFalse();
+      expect(
+        existsSync(join(stageDir, 'data/data/com.termux/files/usr/share/doc/README')),
+      ).toBeFalse();
     } finally {
       if (oldEpoch !== undefined) {
         process.env.SOURCE_DATE_EPOCH = oldEpoch;
@@ -499,8 +554,14 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
     mkdirSync(join(stageDir, 'data/data/com.termux/files/usr/etc/native'), { recursive: true });
     mkdirSync(join(stageDir, 'data/data/com.termux/files/usr/bin'), { recursive: true });
     mkdirSync(pkgDir, { recursive: true });
-    writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/etc/common/shared.conf'), 'shared=1\n');
-    writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/etc/native/app.conf'), 'native=1\n');
+    writeFileSync(
+      join(stageDir, 'data/data/com.termux/files/usr/etc/common/shared.conf'),
+      'shared=1\n',
+    );
+    writeFileSync(
+      join(stageDir, 'data/data/com.termux/files/usr/etc/native/app.conf'),
+      'native=1\n',
+    );
     writeFileSync(join(stageDir, 'data/data/com.termux/files/usr/bin/app'), '#!/bin/sh\necho ok\n');
     writeFileSync(
       join(pkgDir, 'conffiles'),
@@ -570,7 +631,10 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       const mkDeb = (r: PackageRecipe): void => {
         const d = join(tmp, `b_${r.name}_${r.version}`);
         mkdirSync(join(d, 'stage/data/data/com.termux/files/usr/bin'), { recursive: true });
-        writeFileSync(join(d, 'stage/data/data/com.termux/files/usr/bin', r.name), '#!/bin/sh\necho ok\n');
+        writeFileSync(
+          join(d, 'stage/data/data/com.termux/files/usr/bin', r.name),
+          '#!/bin/sh\necho ok\n',
+        );
         buildAllDebs(r, d, outDir, 'aarch64');
       };
 
@@ -579,7 +643,12 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       mkDeb(createRecipe({ name: 'libbar', version: '1', arch: 'aarch64' }));
       // Impossible for one installed libfoo version to satisfy both >= 2 and << 3 when only 1 and 3 exist
       mkDeb(
-        createRecipe({ name: 'broken-app', version: '1', arch: 'aarch64', deps: ['libfoo (>= 2)', 'libfoo (<< 3)'] }),
+        createRecipe({
+          name: 'broken-app',
+          version: '1',
+          arch: 'aarch64',
+          deps: ['libfoo (>= 2)', 'libfoo (<< 3)'],
+        }),
       );
       // Satisfiable via alternative libbar for clause 1 and libfoo=3 for clause 2
       mkDeb(
@@ -618,27 +687,61 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       const mkDeb = (r: PackageRecipe, debArch: string): void => {
         const d = join(tmp, `b_${r.name}_${r.version}_${debArch}`);
         mkdirSync(join(d, 'stage/data/data/com.termux/files/usr/bin'), { recursive: true });
-        writeFileSync(join(d, 'stage/data/data/com.termux/files/usr/bin', r.name), '#!/bin/sh\necho ok\n');
+        writeFileSync(
+          join(d, 'stage/data/data/com.termux/files/usr/bin', r.name),
+          '#!/bin/sh\necho ok\n',
+        );
         buildAllDebs(r, d, outDir, debArch);
       };
 
       mkDeb(createRecipe({ name: 'helper', version: '1.0', arch: 'arm' }), 'arm');
-      mkDeb(createRecipe({ name: 'ma-helper', version: '1.0', arch: 'arm', multiarch: 'allowed' }), 'arm');
       mkDeb(
-        createRecipe({ name: 'consumer', version: '1.0', arch: 'aarch64', deps: ['helper:arm (>= 1.0)'] }),
+        createRecipe({ name: 'ma-helper', version: '1.0', arch: 'arm', multiarch: 'allowed' }),
+        'arm',
+      );
+      mkDeb(
+        createRecipe({
+          name: 'consumer',
+          version: '1.0',
+          arch: 'aarch64',
+          deps: ['helper:arm (>= 1.0)'],
+        }),
         'aarch64',
       );
       mkDeb(
-        createRecipe({ name: 'any-consumer', version: '1.0', arch: 'aarch64', deps: ['ma-helper:any (>= 1.0)'] }),
+        createRecipe({
+          name: 'any-consumer',
+          version: '1.0',
+          arch: 'aarch64',
+          deps: ['ma-helper:any (>= 1.0)'],
+        }),
         'aarch64',
       );
       mkDeb(
-        createRecipe({ name: 'same-arch-consumer', version: '1.0', arch: 'aarch64', deps: ['consumer:aarch64'] }),
+        createRecipe({
+          name: 'same-arch-consumer',
+          version: '1.0',
+          arch: 'aarch64',
+          deps: ['consumer:aarch64'],
+        }),
         'aarch64',
       );
-      mkDeb(createRecipe({ name: 'unfulfilled', version: '1.0', arch: 'aarch64', deps: ['helper:i686'] }), 'aarch64');
       mkDeb(
-        createRecipe({ name: 'unfulfilled-x86', version: '1.0', arch: 'aarch64', deps: ['helper:x86_64'] }),
+        createRecipe({
+          name: 'unfulfilled',
+          version: '1.0',
+          arch: 'aarch64',
+          deps: ['helper:i686'],
+        }),
+        'aarch64',
+      );
+      mkDeb(
+        createRecipe({
+          name: 'unfulfilled-x86',
+          version: '1.0',
+          arch: 'aarch64',
+          deps: ['helper:x86_64'],
+        }),
         'aarch64',
       );
 
@@ -673,14 +776,26 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       const mkDeb = (r: PackageRecipe, debArch: string): void => {
         const d = join(tmp, `b_${r.name}_${r.version}_${debArch}`);
         mkdirSync(join(d, 'stage/data/data/com.termux/files/usr/bin'), { recursive: true });
-        writeFileSync(join(d, 'stage/data/data/com.termux/files/usr/bin', r.name), '#!/bin/sh\necho ok\n');
+        writeFileSync(
+          join(d, 'stage/data/data/com.termux/files/usr/bin', r.name),
+          '#!/bin/sh\necho ok\n',
+        );
         buildAllDebs(r, d, outDir, debArch);
       };
 
       mkDeb(createRecipe({ name: 'sdk', version: '1.0', arch: 'arm', multiarch: 'same' }), 'arm');
-      mkDeb(createRecipe({ name: 'sdk', version: '2.0', arch: 'x86_64', multiarch: 'same' }), 'x86_64');
-      mkDeb(createRecipe({ name: 'libsync', version: '1.0', arch: 'arm', multiarch: 'same' }), 'arm');
-      mkDeb(createRecipe({ name: 'libsync', version: '1.0', arch: 'x86_64', multiarch: 'same' }), 'x86_64');
+      mkDeb(
+        createRecipe({ name: 'sdk', version: '2.0', arch: 'x86_64', multiarch: 'same' }),
+        'x86_64',
+      );
+      mkDeb(
+        createRecipe({ name: 'libsync', version: '1.0', arch: 'arm', multiarch: 'same' }),
+        'arm',
+      );
+      mkDeb(
+        createRecipe({ name: 'libsync', version: '1.0', arch: 'x86_64', multiarch: 'same' }),
+        'x86_64',
+      );
       mkDeb(
         createRecipe({
           name: 'conflicting-app',
@@ -746,7 +861,10 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       const mkDeb = (recipe: PackageRecipe, arch: string): void => {
         const d = join(tmp!, `b_${recipe.name}_${recipe.version}_${arch}`);
         mkdirSync(join(d, 'stage/data/data/com.termux/files/usr/bin'), { recursive: true });
-        writeFileSync(join(d, 'stage/data/data/com.termux/files/usr/bin', recipe.name), '#!/bin/sh\necho ok\n');
+        writeFileSync(
+          join(d, 'stage/data/data/com.termux/files/usr/bin', recipe.name),
+          '#!/bin/sh\necho ok\n',
+        );
         buildAllDebs(recipe, d, outDir, arch);
       };
 
@@ -824,8 +942,14 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       generateAptMetadata(outDir, 'main', 'aarch64', pkgDir, ctx);
       generateAptMetadata(outDir, 'main', 'arm64', pkgDir, ctx);
 
-      const pkgsAarch64 = readFileSync(join(outDir, 'dists/stable/main/binary-aarch64/Packages'), 'utf-8');
-      const pkgsArm64 = readFileSync(join(outDir, 'dists/stable/main/binary-arm64/Packages'), 'utf-8');
+      const pkgsAarch64 = readFileSync(
+        join(outDir, 'dists/stable/main/binary-aarch64/Packages'),
+        'utf-8',
+      );
+      const pkgsArm64 = readFileSync(
+        join(outDir, 'dists/stable/main/binary-arm64/Packages'),
+        'utf-8',
+      );
 
       expect(pkgsAarch64).toContain('Package: pkg-common');
       expect(pkgsAarch64).not.toContain('Package: pkg-added-after-ctx');
@@ -835,7 +959,10 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       // Fresh context rescans and includes the new archive
       const freshCtx = buildAptMetadataContext(outDir, pkgDir);
       generateAptMetadata(outDir, 'main', 'aarch64', pkgDir, freshCtx);
-      const pkgsAarch64Fresh = readFileSync(join(outDir, 'dists/stable/main/binary-aarch64/Packages'), 'utf-8');
+      const pkgsAarch64Fresh = readFileSync(
+        join(outDir, 'dists/stable/main/binary-aarch64/Packages'),
+        'utf-8',
+      );
       expect(pkgsAarch64Fresh).toContain('Package: pkg-common');
       expect(pkgsAarch64Fresh).toContain('Package: pkg-added-after-ctx');
 
@@ -847,7 +974,9 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       const origReqSigning = process.env.REQUIRE_APT_SIGNING;
       const origGpgHome = process.env.GNUPGHOME;
       const origGpgPrivKey = process.env.GPG_PRIVATE_KEY;
-      const isolatedGpgHome = mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'gpg-test-release-'));
+      const isolatedGpgHome = mkdtempSync(
+        join(process.env.TMPDIR || tmpdir(), 'gpg-test-release-'),
+      );
       process.env.GNUPGHOME = isolatedGpgHome;
       delete process.env.REQUIRE_APT_SIGNING;
       delete process.env.GPG_PRIVATE_KEY;
@@ -900,28 +1029,38 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
     );
 
     // Missing shebang rejected
-    expect(() => validateMaintainerScript('postinst', 'exit 0\n', 'app')).toThrow(/missing a shebang line/);
+    expect(() => validateMaintainerScript('postinst', 'exit 0\n', 'app')).toThrow(
+      /missing a shebang line/,
+    );
     expect(() => validateMaintainerScript('postinst', '\n#!/bin/sh\nexit 0\n', 'app')).toThrow(
       /missing a shebang line/,
     );
 
     // Syntax error rejected
-    expect(() => validateMaintainerScript('postinst', '#!/bin/sh\nif [[\n', 'app')).toThrow(/Syntax validation failed/);
+    expect(() => validateMaintainerScript('postinst', '#!/bin/sh\nif [[\n', 'app')).toThrow(
+      /Syntax validation failed/,
+    );
   });
 
   const hasPython = spawnSync('python3', ['--version']).status === 0;
   (hasPython ? test : test.skip)('validateMaintainerScript Python syntax validation', (): void => {
     expect(() =>
-      validateMaintainerScript('postinst', '#!/usr/bin/env python3\nimport sys\nsys.exit(0)\n', 'app'),
+      validateMaintainerScript(
+        'postinst',
+        '#!/usr/bin/env python3\nimport sys\nsys.exit(0)\n',
+        'app',
+      ),
     ).not.toThrow();
-    expect(() => validateMaintainerScript('postinst', '#!/usr/bin/env python3\nreturn 0\n', 'app')).toThrow(
-      /Syntax validation failed/,
-    );
+    expect(() =>
+      validateMaintainerScript('postinst', '#!/usr/bin/env python3\nreturn 0\n', 'app'),
+    ).toThrow(/Syntax validation failed/);
   });
 
   const hasPerl = spawnSync('perl', ['-v']).status === 0;
   (hasPerl ? test : test.skip)('validateMaintainerScript Perl syntax validation', (): void => {
-    expect(() => validateMaintainerScript('postinst', '#!/usr/bin/perl\nexit(0);\n', 'app')).not.toThrow();
+    expect(() =>
+      validateMaintainerScript('postinst', '#!/usr/bin/perl\nexit(0);\n', 'app'),
+    ).not.toThrow();
     expect(() =>
       validateMaintainerScript(
         'postinst',
@@ -955,10 +1094,18 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       /Syntax validation failed/,
     );
     expect(() =>
-      validateMaintainerScript('postinst', '#!/usr/bin/perl\nuse strict;\n$undeclared_var = 1;\n', 'app'),
+      validateMaintainerScript(
+        'postinst',
+        '#!/usr/bin/perl\nuse strict;\n$undeclared_var = 1;\n',
+        'app',
+      ),
     ).toThrow(/Syntax validation failed/);
     expect(() =>
-      validateMaintainerScript('postinst', '#!/usr/bin/perl\nuse strict;\ncapb "backup";\nexit(0);\n', 'app'),
+      validateMaintainerScript(
+        'postinst',
+        '#!/usr/bin/perl\nuse strict;\ncapb "backup";\nexit(0);\n',
+        'app',
+      ),
     ).toThrow(/Syntax validation failed/);
     expect(() =>
       validateMaintainerScript(
@@ -968,7 +1115,11 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       ),
     ).toThrow(/Syntax validation failed/);
     expect(() =>
-      validateMaintainerScript('postinst', '#!/usr/bin/perl\nuse Debconf::Client::ConfModule;\nsub {\n', 'app'),
+      validateMaintainerScript(
+        'postinst',
+        '#!/usr/bin/perl\nuse Debconf::Client::ConfModule;\nsub {\n',
+        'app',
+      ),
     ).toThrow(/Syntax validation failed/);
   });
 
@@ -992,7 +1143,9 @@ describe('Debian Packaging & Reproducibility Helpers (scripts/builders/debian.ts
       const extractDir = join(tmp, 'extracted');
       spawnSync('dpkg-deb', ['-e', deb, extractDir]);
       expect(existsSync(join(extractDir, 'triggers'))).toBeTrue();
-      expect(readFileSync(join(extractDir, 'triggers'), 'utf-8')).toBe('interest-noawait sample-cache\n');
+      expect(readFileSync(join(extractDir, 'triggers'), 'utf-8')).toBe(
+        'interest-noawait sample-cache\n',
+      );
     } finally {
       if (origEpoch !== undefined) {
         process.env.SOURCE_DATE_EPOCH = origEpoch;

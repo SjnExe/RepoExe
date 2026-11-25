@@ -96,7 +96,10 @@ export function compareSemver(a: string, b: string): number {
 export async function fetchGithubRelease(owner: string, repo: string): Promise<string | null> {
   const url = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
   try {
-    const resp = await fetch(url, { headers: getGitHubHeaders(), signal: AbortSignal.timeout(10_000) });
+    const resp = await fetch(url, {
+      headers: getGitHubHeaders(),
+      signal: AbortSignal.timeout(10_000),
+    });
     if (resp.ok) {
       const data = (await resp.json()) as { tag_name?: string };
       const tag = data.tag_name || '';
@@ -109,7 +112,10 @@ export async function fetchGithubRelease(owner: string, repo: string): Promise<s
 export async function fetchGithubTag(owner: string, repo: string): Promise<string | null> {
   const url = `https://api.github.com/repos/${owner}/${repo}/tags?per_page=100`;
   try {
-    const resp = await fetch(url, { headers: getGitHubHeaders(), signal: AbortSignal.timeout(10_000) });
+    const resp = await fetch(url, {
+      headers: getGitHubHeaders(),
+      signal: AbortSignal.timeout(10_000),
+    });
     if (resp.ok) {
       const data = (await resp.json()) as Array<{ name?: string }>;
       const versions: string[] = [];
@@ -139,7 +145,10 @@ export async function fetchGithubTag(owner: string, repo: string): Promise<strin
 
 export function fetchGitTag(gitUrl: string): string | null {
   const cleanUrl = gitUrl.split('#')[0];
-  const res = Bun.spawnSync(['git', 'ls-remote', '--tags', '--refs', cleanUrl], { stdout: 'pipe', stderr: 'pipe' });
+  const res = Bun.spawnSync(['git', 'ls-remote', '--tags', '--refs', cleanUrl], {
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
   const stdout = res.stdout ? new TextDecoder().decode(res.stdout) : '';
   if (res.exitCode === 0 && stdout) {
     const lines = stdout.trim().split('\n');
@@ -191,7 +200,10 @@ export async function checkPackageUpstream(recipe: PackageRecipe): Promise<strin
   } else if (strategy === 'git_tag') {
     return fetchGitTag(srcUrl);
   } else if (strategy === 'custom' && recipe.custom_update_cmd) {
-    const res = Bun.spawnSync(['sh', '-c', recipe.custom_update_cmd], { stdout: 'pipe', stderr: 'pipe' });
+    const res = Bun.spawnSync(['sh', '-c', recipe.custom_update_cmd], {
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
     const stdout = res.stdout ? new TextDecoder().decode(res.stdout) : '';
     if (res.exitCode === 0 && stdout) {
       return extractSemver(stdout.trim());
@@ -243,7 +255,9 @@ async function main(): Promise<void> {
               oldVersion: recipe.version,
               newVersion: latest,
               heavy: Boolean(
-                recipe.heavy_build || (recipe.resources?.swap ?? 0) > 0 || (recipe.resources?.zram ?? 0) > 0,
+                recipe.heavy_build ||
+                (recipe.resources?.swap ?? 0) > 0 ||
+                (recipe.resources?.zram ?? 0) > 0,
               ),
               maintainer: recipe.maintainer,
               uploaders: recipe.uploaders,

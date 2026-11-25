@@ -5,13 +5,18 @@ export const REPOEXE_VERSION = '1.0.0';
 export default defineRecipe({
   name: 'repoexe',
   version: REPOEXE_VERSION,
-  revision: 2,
+  revision: 3,
   arch: 'all',
   component: 'main',
   section: 'utils',
   priority: 'optional',
   interface: 'cli',
-  tags: ['role::program', 'suite::repoexe'],
+  tags: [
+    'role::program',
+    'admin::package-management',
+    'works-with::software:package',
+    'implemented-in::sh',
+  ],
   description:
     'Central RepoExe package repository management CLI\n Manages Deb822 APT sources, GPG verification, and CLI/GUI component selection.',
   license: 'MIT',

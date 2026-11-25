@@ -195,7 +195,9 @@ test('parseRecipe throws when subpackage name collides with parent or another su
         },
       };`,
     );
-    expect(() => parseRecipe(join(tmp, 'dup-child.ts'))).toThrow(/collides with the parent or another subpackage/);
+    expect(() => parseRecipe(join(tmp, 'dup-child.ts'))).toThrow(
+      /collides with the parent or another subpackage/,
+    );
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -343,7 +345,10 @@ test('normalizeRecipe supports array source, sources, and fallback mirrors', ():
     mirrors: ['https://backup.example.com/src.tar.gz'],
   });
   expect(r1.source).toBe('https://mirror1.example.com/src.tar.gz');
-  expect(r1.sources).toEqual(['https://mirror1.example.com/src.tar.gz', 'https://mirror2.example.com/src.tar.gz']);
+  expect(r1.sources).toEqual([
+    'https://mirror1.example.com/src.tar.gz',
+    'https://mirror2.example.com/src.tar.gz',
+  ]);
   expect(r1.mirrors).toEqual(['https://backup.example.com/src.tar.gz']);
 
   const r2 = normalizeRecipe({
